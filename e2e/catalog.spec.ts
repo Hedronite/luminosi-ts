@@ -84,12 +84,23 @@ test("the look switcher swaps the token preset and keeps contrast", async ({ pag
   expect(results.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => v.id)).toEqual([]);
 });
 
+test("a paired look follows the viewer's scheme", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Look").selectOption("catppuccin");
+  const surface = (): Promise<string> => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--lts-surface").trim());
+  await page.emulateMedia({ colorScheme: "light" });
+  await expect.poll(surface).toBe("#eff1f5");
+  await page.emulateMedia({ colorScheme: "dark" });
+  await expect.poll(surface).toBe("#1e1e2e");
+});
+
 test("looks are grouped by category, and a one-scheme look keeps its scheme", async ({ page }) => {
   await page.goto("/");
   const look = page.getByLabel("Look");
   const groups = await look.locator("optgroup").evaluateAll((nodes) => nodes.map((node) => node.getAttribute("label")));
   expect(groups).toEqual(["Core", "VirtualMachinist", "Omarchy"]);
-  await expect(look.locator('optgroup[label="Omarchy"] option')).toHaveCount(24);
+  // 24 themes, with Catppuccin and Catppuccin Latte paired into one look.
+  await expect(look.locator('optgroup[label="Omarchy"] option')).toHaveCount(23);
   // A light-scheme viewer picking a dark Omarchy theme still gets it dark.
   await page.emulateMedia({ colorScheme: "light" });
   await look.selectOption("tokyo-night");

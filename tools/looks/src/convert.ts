@@ -184,3 +184,24 @@ export function convertOmarchy(input: unknown, meta: LookMeta): Conversion {
   };
   return { preset, adjustments };
 }
+
+/**
+ * One look from a dark theme and a light theme of the same family (Catppuccin and Catppuccin Latte):
+ * it follows the viewer's scheme instead of keeping one. Interface colors come from each member's own
+ * scheme; scene colors, which both schemes share, come from the dark member.
+ */
+export function pairLooks(dark: Conversion, light: Conversion, meta: LookMeta): Conversion {
+  if (dark.preset.scheme !== "dark") throw new RangeError(`${meta.id}: "${dark.preset.id}" is not a dark theme`);
+  if (light.preset.scheme !== "light") throw new RangeError(`${meta.id}: "${light.preset.id}" is not a light theme`);
+  const preset: Preset = {
+    id: meta.id,
+    name: meta.name,
+    category: meta.category,
+    ...(meta.credit === undefined ? {} : { credit: meta.credit }),
+    light: light.preset.light,
+    dark: dark.preset.dark,
+    scene: dark.preset.scene,
+  };
+  const adjustments = [...dark.adjustments.map((note) => `dark (${dark.preset.id}): ${note}`), ...light.adjustments.map((note) => `light (${light.preset.id}): ${note}`)];
+  return { preset, adjustments };
+}
