@@ -9,8 +9,9 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 export default defineConfig(
-  // tools/img-to-object/upstream is vendored Apache-2.0 code with its own tests (bun run forge:test).
-  globalIgnores(["**/dist/", "**/.turbo/", "**/.astro/", "**/coverage/", "playwright-report/", "test-results/", "**/*.cjs", "apps/site/astro.config.mjs", "tools/img-to-object/upstream/"]),
+  // tools/img-to-object/upstream is vendored Apache-2.0 code with its own tests (bun run forge:test);
+  // assets/vendor holds other people's open-source assets as published (see its README).
+  globalIgnores(["**/dist/", "**/.turbo/", "**/.astro/", "**/coverage/", "playwright-report/", "test-results/", "**/*.cjs", "apps/site/astro.config.mjs", "tools/img-to-object/upstream/", "assets/vendor/"]),
   js.configs.recommended,
   tseslint.configs.strictTypeChecked,
   {

@@ -1,6 +1,6 @@
 # Credits
 
-LuminosiTS is MIT OR Apache-2.0. It also carries open-source work by others, each under its own license. This file says what, from where, and under which terms. When you add third-party material, add it here, keep its license beside it, and credit its authors.
+LuminosiTS is MIT OR Apache-2.0. It also carries open-source work by others, each under its own license. This file says what, from where, and under which terms. When you add third-party material, add it here, keep its license beside it, and credit its authors. Open-source assets are welcome as long as they're credited (Evan, 2026-11-15); `assets/vendor/` holds the larger sets.
 
 | What | Where in this repo | Source | License | Credit |
 |---|---|---|---|---|
@@ -8,5 +8,14 @@ LuminosiTS is MIT OR Apache-2.0. It also carries open-source work by others, eac
 | Omarchy theme palettes (`colors.toml`, 24 themes) | `assets/src/looks/omarchy/` | [basecamp/omarchy](https://github.com/basecamp/omarchy) `d76f364b` (Osaka Jade recovered from its history) | MIT (`assets/src/looks/omarchy/LICENSE`) | Copyright David Heinemeier Hansson |
 | Ported color schemes inside those themes | `assets/src/looks/omarchy/looks.json` (`credit`) | Catppuccin, Everforest, Flexoki, Gruvbox, Kanagawa, Nord, Rosé Pine, Tokyo Night | MIT, each upstream | Catppuccin; sainnhe; Steph Ango; Pavel Pertsev (morhetz); rebelot; Arctic Ice Studio and Sven Greb; Rosé Pine; enkia |
 | Hedron and Hedron Light palettes | `assets/src/looks/virtualmachinist/` | [VirtualMachinist/Omahedron](https://github.com/VirtualMachinist/Omahedron) `20c5dc40` | First-party | VirtualMachinist |
+| Isometric Icons: isometric SVG icons, six edge variants each, with `catalog.json` | `assets/vendor/isocons/` | https://www.isocons.app/ (v2.1) | CC BY 4.0 (`LICENSE`) | Isometric Icons by isocons.app (leyeConnect and meandchimso) |
+| Lucide icons (1,808 SVGs) | `assets/vendor/lucide/` | https://github.com/lucide-icons/lucide | ISC (`LICENSE`) | Lucide Icons and contributors |
+| CoreUI Icons Free (562 SVGs) | `assets/vendor/coreui-icons/` | https://github.com/coreui/coreui-icons | Icons CC BY 4.0; fonts SIL OFL 1.1; code MIT (`LICENSE`) | CoreUI (coreui.io) |
+| Famicons (1,342 SVGs) | `assets/vendor/famicons/` | https://github.com/familyjs/famicons | MIT (`LICENSE`) | Family |
+| Stash icons (five styles, as TSX with inline SVG) | `assets/vendor/stash-icons/` | https://github.com/stash-ui/icons | MIT (`LICENSE`) | Pingback LLC |
+| ThreeUI Community: the open-source edition of the ThreeUI component catalog (app, components, shaders, scene assets) | `assets/vendor/threeui/` | https://github.com/MengTo/threeui | MIT (`LICENSE`); fonts SIL OFL 1.1 (`FONT-LICENSES.md`); see `ASSET-LICENSES.md` and `THIRD_PARTY_NOTICES.md` | Meng To / ThreeUI |
+| Three Three.js demos: geometry-in-flux, bioluminescence, threejs-3d-webpage | `assets/vendor/techartist/` | https://iamtechartist.github.io/ | MIT (a `LICENSE` beside each demo) | Techartist |
+| The landing-page-design agent skill | `assets/vendor/ai-design-skills/` | https://github.com/elayadesign/ai-design-skills (`456d9e0d`) | MIT (`LICENSE`) | Elaya |
+| Interface agent skills (better-ui, better-typography, better-colors, interface-review and more) | `assets/vendor/jakubkrehel-skills/` | https://github.com/jakubkrehel/skills | MIT (`LICENSE`) | Jakub Krehel (jakub.kr, interfaces.dev) |
 
 The looks converted from these palettes (`packages/tokens/src/generated/looks.ts`) carry each scheme's credit in their `credit` field.

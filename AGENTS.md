@@ -55,6 +55,10 @@ Use `nu .agents/skills/lumin/lumin.nu show <id>` before grepping packages. Witho
 
 `tools/img-to-object` turns a reference image into an `object` asset. `upstream/` is a vendored Apache-2.0 forge, pinned in `SOURCE.md`; edit it only when needed, and mark each edit as `SOURCE.md` says. Its output is an `ObjectSpec` (`@hedronite/lts-objects`: `parseObjectSpec`, `createObjectFromSpec`), pure data with colors from the token palette. The forge produces one through `tools/img-to-object/plugin`, the `lts-object-spec` emission target (`--target lts-object-spec`); `bun run forge:test` covers the forge and the emitter. `lumin new-object` brackets the forge (a workspace for a photo, then emit, review and add to `assets/src/objects`); `lumin review-object` renders a spec framed like the photo on the catalog's `embed.html` and scores it with the forge's Divine Eye. Read the side-by-side sheet before accepting a reconstruction. Reference images are our own or CC0; reconstructions carry no brand names, logos or text. Read `tools/img-to-object/README.md` before using it.
 
+## Third-party material
+
+Open-source assets by others are welcome, as long as they're credited (Evan, 2026-11-15). `assets/vendor/` holds the larger sets as published (isocons, Lucide, CoreUI, Famicons and Stash icons, ThreeUI Community, Techartist demos, two agent-skill sets), each with its upstream license and a `CREDIT.md`. `CREDITS.md` lists everything third-party in the repo. When you add something: keep its license beside it, add a row to `CREDITS.md`, and keep its name and branding its own. Still not allowed: material without an open license (paid kits, client work, brand systems taken from other sites, product photos). The tooling ignores `assets/vendor/`; bring an asset into a package through that package's sources, with its credit.
+
 ## Package boundaries
 
 From the manifesto, enforced by `.dependency-cruiser.cjs`:

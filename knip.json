@@ -37,5 +37,8 @@
   },
   "ignoreBinaries": [
     "nu"
+  ],
+  "ignore": [
+    "assets/vendor/**"
   ]
 }
