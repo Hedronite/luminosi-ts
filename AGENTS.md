@@ -32,15 +32,17 @@ TypeScript is pinned to 6.0.x: `typescript-eslint` and `@astrojs/check` do not a
 From the manifesto, enforced by `.dependency-cruiser.cjs`:
 
 - No circular dependencies.
-- `core` is the only shared foundation.
+- `core` (and `tokens`, the design tokens) are the only shared foundation.
 - Adapters are optional; raw packages work without them.
-- Pure TypeScript in `core`, `primitives`, `objects`, `scenes`, `materials` and `shaders`: no React, no JSX.
+- Pure TypeScript in `core`, `tokens`, `primitives`, `objects`, `scenes`, `materials` and `shaders`: no React, no JSX.
 - React and React Three Fiber only in `icons/react`, `adapters` and the apps, as optional peers.
 - Import other packages through their published `exports`, never their `src/` or `dist/`.
 
 ## Generality
 
 Assets are style-agnostic building blocks. A specific look belongs in a preset or pack, never in a primitive. Keep names, comments and examples neutral, so no aesthetic is assumed.
+
+Colors come from `@hedronite/lts-tokens`. A preset (`neutral` is the default; `hedronite` is an optional pack) supplies interface colors for light and dark schemes and the scene colors materials use. Use the semantic Tailwind utilities (`bg-surface`, `text-fg`, `text-fg-muted`, `border-line`, `bg-accent`, `text-on-accent`), never raw colors. Every text pair in every preset is tested for WCAG contrast.
 
 ## TypeScript
 

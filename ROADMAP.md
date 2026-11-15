@@ -46,13 +46,13 @@ Companion to the LuminosiTS manifesto. This document tracks progressive stages f
 
 **Goal:** High-quality geometric primitives and material presets usable in Three.js.
 
-- [ ] Primitives package: platonic solids and useful geometric forms
+- [x] Primitives package: platonic solids and useful geometric forms
   - Properly scaled, centered, typed
   - Low-to-medium poly with clear budgets
-- [ ] Materials package: first set of PBR presets (neutral, metallic, glass, matte, etc.)
-- [ ] Basic lights and environment helpers
-- [ ] Catalog 3D preview viewport (R3F) for primitives and materials
-- [ ] Code snippets in detail view
+- [x] Materials package: first set of PBR presets (neutral, metallic, glass, matte, etc.)
+- [x] Basic lights and environment helpers
+- [x] Catalog 3D preview viewport (R3F) for primitives and materials
+- [x] Code snippets in detail view
 
 **Exit criteria:** Drop a primitive + material into a vanilla Three.js or R3F scene with one import.
 

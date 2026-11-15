@@ -1,2 +1,2 @@
-// Stage 0: the package boundary exists. Its content lands in Stage 2 (see ROADMAP.md).
-export {};
+export { isMaterialId, materialIds, materialPreset, materialPresets, type MaterialId, type MaterialPreset } from "./presets.js";
+export { createMaterial } from "./three.js";
