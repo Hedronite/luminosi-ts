@@ -6,6 +6,9 @@ const external = process.env["E2E_CATALOG_URL"] !== undefined && process.env["E2
 
 export default defineConfig({
   testDir: "e2e",
+  // Against a deployed container only the served pages are under test; the image-to-object review
+  // runs local tooling on the local build, so it stays with the normal run.
+  testIgnore: external ? ["**/review.spec.ts"] : [],
   forbidOnly: process.env["CI"] !== undefined,
   reporter: process.env["CI"] === undefined ? "list" : [["list"], ["html", { open: "never" }]],
   use: { baseURL: process.env["E2E_CATALOG_URL"] ?? "http://localhost:4173" },
