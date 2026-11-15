@@ -1,5 +1,6 @@
 import type { AssetMeta } from "@hedronite/lts-core";
 import { iconToSvg, type IconData } from "@hedronite/lts-icons";
+import { objectSpecById } from "@hedronite/lts-objects";
 
 export interface Snippet {
   readonly label: string;
@@ -49,6 +50,14 @@ export function snippetsFor(meta: AssetMeta, icon: IconData | undefined): readon
       {
         label: "TypeScript",
         code: `import { loadGltf } from "@hedronite/lts-objects";\n\n// Built by tools/assets: one draw call, meshopt-compressed, decoded by three's bundled decoder.\nconst scene = await loadGltf("/models/crystal-cluster-glb.glb");`,
+      },
+    ];
+  }
+  if (meta.kind === "object" && objectSpecById(meta.id) !== undefined) {
+    return [
+      {
+        label: "TypeScript",
+        code: `import { createObjectFromSpec, objectSpecById } from "@hedronite/lts-objects";\nimport { disposeObject } from "@hedronite/lts-primitives";\n\n// Stored as data in assets/src/objects; the palette picks the colors.\nconst spec = objectSpecById("${meta.id}");\nif (spec !== undefined) {\n  const object = createObjectFromSpec(spec);\n  // Later: disposeObject(object);\n}`,
       },
     ];
   }

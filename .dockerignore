@@ -10,3 +10,4 @@ test-results
 .cursor
 .grok
 tools/img-to-object/upstream
+.img-to-object

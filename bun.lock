@@ -8,7 +8,7 @@
         "@axe-core/playwright": "4.14.0",
         "@eslint-community/eslint-plugin-eslint-comments": "4.8.1",
         "@eslint/js": "9.39.5",
-        "@playwright/test": "1.65.1",
+        "@playwright/test": "catalog:",
         "@types/node": "24.19.2",
         "@vitest/eslint-plugin": "1.6.28",
         "dependency-cruiser": "18.7.2",
@@ -16,6 +16,7 @@
         "eslint-plugin-jsx-a11y": "6.10.2",
         "eslint-plugin-react-hooks": "7.1.1",
         "globals": "17.14.0",
+        "img-to-object": "workspace:*",
         "knip": "6.45.1",
         "turbo": "2.11.11",
         "typescript": "6.0.3",
@@ -47,6 +48,7 @@
         "@types/react-dom": "catalog:",
         "@types/three": "catalog:",
         "@vitejs/plugin-react": "catalog:",
+        "fast-check": "catalog:",
         "tailwindcss": "catalog:",
         "tool-assets": "workspace:*",
         "vite": "catalog:",
@@ -256,14 +258,17 @@
     "tools/img-to-object": {
       "name": "img-to-object",
       "version": "0.0.0",
-      "devDependencies": {
+      "dependencies": {
         "@hedronite/lts-objects": "workspace:*",
+        "@playwright/test": "catalog:",
+        "zod": "catalog:",
+      },
+      "devDependencies": {
         "@hedronite/lts-primitives": "workspace:*",
         "@hedronite/lts-tokens": "workspace:*",
         "@types/three": "catalog:",
         "three": "catalog:",
         "vitest": "catalog:",
-        "zod": "catalog:",
       },
     },
     "tools/lumin": {
@@ -277,9 +282,18 @@
         "@hedronite/lts-primitives": "workspace:*",
         "@hedronite/lts-scenes": "workspace:*",
         "@hedronite/lts-shaders": "workspace:*",
+        "img-to-object": "workspace:*",
       },
       "devDependencies": {
         "vitest": "catalog:",
+      },
+    },
+    "tools/objects": {
+      "name": "tool-objects",
+      "version": "0.0.0",
+      "dependencies": {
+        "@hedronite/lts-objects": "workspace:*",
+        "zod": "catalog:",
       },
     },
   },
@@ -289,6 +303,7 @@
     "@gltf-transform/core": "4.5.1",
     "@gltf-transform/extensions": "4.5.1",
     "@gltf-transform/functions": "4.5.1",
+    "@playwright/test": "1.65.1",
     "@react-three/fiber": "9.8.2",
     "@react-three/test-renderer": "9.1.1",
     "@tailwindcss/vite": "4.3.5",
@@ -1592,6 +1607,8 @@
     "tool-assets": ["tool-assets@workspace:tools/assets"],
 
     "tool-icons": ["tool-icons@workspace:tools/icons"],
+
+    "tool-objects": ["tool-objects@workspace:tools/objects"],
 
     "trim-lines": ["trim-lines@3.0.1", "", {}, "sha512-kRj8B+YHZCc9kQYdWfJB2/oUl9rA99qbowYYBtr4ui4mZyAQ2JpvVBd/6U2YloATfqBhBTSMhTpgBHtU0Mf3Rg=="],
 

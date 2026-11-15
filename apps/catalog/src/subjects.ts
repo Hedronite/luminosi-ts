@@ -1,6 +1,6 @@
 import type { AssetMeta } from "@hedronite/lts-core";
 import { createMaterial, isMaterialId } from "@hedronite/lts-materials";
-import { createCrystalCluster, createLattice, createObjectFromSpec, crystalCluster, dressWatchSpec, latticePoints, loadGltf } from "@hedronite/lts-objects";
+import { createCrystalCluster, createLattice, createObjectFromSpec, crystalCluster, dressWatchSpec, latticePoints, loadGltf, objectSpecById } from "@hedronite/lts-objects";
 import { createPolyhedronGeometry, geodesicSphere, isPrimitiveId, primitive } from "@hedronite/lts-primitives";
 import { createSceneKit, isSceneKitId } from "@hedronite/lts-scenes";
 import type { ScenePalette } from "@hedronite/lts-tokens";
@@ -29,6 +29,10 @@ export async function buildSubject(meta: AssetMeta, palette: ScenePalette, signa
   if (meta.id === "instanced-lattice") {
     const { size, spacing, scale } = objectSettings.lattice;
     return createLattice(latticePoints({ size, spacing }), createMaterial("metal", palette), { scale });
+  }
+  const stored = meta.kind === "object" ? objectSpecById(meta.id) : undefined;
+  if (stored !== undefined) {
+    return createObjectFromSpec(stored, { palette });
   }
   if (meta.id === "dress-watch") {
     return createObjectFromSpec(dressWatchSpec(objectSettings.watch), { palette });

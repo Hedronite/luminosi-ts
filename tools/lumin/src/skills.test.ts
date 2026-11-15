@@ -72,6 +72,18 @@ describe.runIf(hasNu)("skills through Nushell", () => {
     expect(JSON.stringify(envelope.data)).toContain('"dryRun":true');
   });
 
+  it("lumin-new object plans a forge workspace on a dry run, and refuses a missing source", () => {
+    const dir = mkdtempSync(join(tmpdir(), "lumin-"));
+    const image = join(dir, "lamp.png");
+    writeFileSync(image, "not really a png");
+    const planned = runSkill("lumin-new", ["object", "lumin-test-lamp", "--from-image", image, "--dry-run"]);
+    expect(planned.code).toBe(0);
+    expect(JSON.stringify(planned.envelope.data)).toContain('"dryRun":true');
+    const refused = runSkill("lumin-new", ["object", "lumin-test-lamp"]);
+    expect(refused.code).toBe(2);
+    expect(refused.envelope.kind).toBe("usage");
+  });
+
   it("lumin-check runs one step and reports it", () => {
     const { code, envelope } = runSkill("lumin-check", ["--only", "icons:check"]);
     expect(code).toBe(0);

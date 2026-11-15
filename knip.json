@@ -37,8 +37,5 @@
   },
   "ignoreBinaries": [
     "nu"
-  ],
-  "ignore": [
-    "tools/img-to-object/upstream/**"
   ]
 }
