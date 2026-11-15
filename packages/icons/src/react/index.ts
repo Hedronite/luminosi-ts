@@ -1,2 +1,3 @@
 // React components for the icon set. React is an optional peer; this entry is the only place it is imported.
-export {};
+export * from "./generated.js";
+export { Icon, type IconProps } from "./Icon.js";

@@ -29,14 +29,14 @@ Companion to the LuminosiTS manifesto. This document tracks progressive stages f
 
 **Goal:** Usable icon system and a living visual index.
 
-- [ ] Core: asset registry, progressive loader interface, manifest schema, disposal helpers
-- [ ] Icons package: first flexible set of SVGs (UI, geometric, common symbols)
+- [x] Core: asset registry, progressive loader interface, manifest schema, disposal helpers
+- [x] Icons package: first flexible set of SVGs (UI, geometric, common symbols)
   - Pure TS data export
   - Optional React components (`./react`)
   - Categories and tags
-- [ ] Catalog gallery + detail view for icons
+- [x] Catalog gallery + detail view for icons
   - Search, filters, copy-as-component / copy-as-SVG
-- [ ] First 20–40 icons covering common needs
+- [x] First 20–40 icons covering common needs
 
 **Exit criteria:** Can import and use icons in a real project. Catalog is the primary way to browse them.
 

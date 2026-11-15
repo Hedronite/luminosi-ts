@@ -8,7 +8,8 @@
     },
     "packages/*": {
       "entry": [
-        "src/react/index.ts"
+        "src/react/index.ts",
+        "src/manifest.ts"
       ],
       "project": [
         "src/**/*.{ts,tsx}"
@@ -17,6 +18,11 @@
     "apps/catalog": {
       "project": [
         "src/**/*.{ts,tsx}"
+      ]
+    },
+    "tools/*": {
+      "project": [
+        "src/**/*.ts"
       ]
     }
   }
