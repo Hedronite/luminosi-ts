@@ -1,0 +1,22 @@
+{
+  "name": "tool-looks",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT OR Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "generate": "bun src/looks.ts generate",
+    "check": "bun src/looks.ts check",
+    "convert": "bun src/looks.ts convert",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@hedronite/lts-tokens": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "fast-check": "catalog:",
+    "vitest": "catalog:"
+  }
+}

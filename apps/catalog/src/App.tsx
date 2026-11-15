@@ -1,6 +1,6 @@
 import { assetKinds, type AssetMeta } from "@hedronite/lts-core";
 import { Search } from "@hedronite/lts-icons/react";
-import { presets } from "@hedronite/lts-tokens";
+import { presets, presetsByCategory } from "@hedronite/lts-tokens";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { AssetPreview } from "./AssetPreview";
 import { DetailDialog } from "./DetailDialog";
@@ -89,22 +89,28 @@ export function App() {
               <h1 className="text-2xl font-semibold">LuminosiTS catalog</h1>
               <p className="mt-1 text-fg-muted">{plural(allAssets.length, "asset")}, typed and importable.</p>
             </div>
-            <div role="group" aria-label="Look" className="flex items-center gap-1">
-              <span className="mr-1 text-sm text-fg-muted">Look</span>
-              {presets.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  aria-pressed={preset.id === option.id}
-                  onClick={() => {
-                    setPreset(option);
-                  }}
-                  className={toggle}
-                >
-                  {option.name}
-                </button>
-              ))}
-            </div>
+            <label className="flex items-center gap-2 text-sm text-fg-muted">
+              Look
+              <select
+                value={preset.id}
+                onChange={(event) => {
+                  const next = presets.find((option) => option.id === event.target.value);
+                  if (next !== undefined) setPreset(next);
+                }}
+                className="rounded-md border border-line bg-surface-raised px-2 py-1 text-fg focus-visible:outline-2 focus-visible:outline-accent"
+              >
+                {presetsByCategory().map(({ category, presets: group }) => (
+                  <optgroup key={category.id} label={category.name}>
+                    {group.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.name}
+                        {option.scheme === undefined ? "" : option.scheme === "dark" ? " (dark)" : " (light)"}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </label>
           </header>
 
           <nav aria-label="Views" className="mt-6 flex gap-1">

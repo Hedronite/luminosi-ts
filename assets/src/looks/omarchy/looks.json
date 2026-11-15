@@ -1,0 +1,31 @@
+{
+  "category": "omarchy",
+  "source": "https://github.com/basecamp/omarchy/tree/d76f364b41ccf01909b1d84ffcc6bd4fbb8cd91d/themes",
+  "license": "MIT, Copyright (c) David Heinemeier Hansson (LICENSE beside this file)",
+  "looks": {
+    "catppuccin": { "name": "Catppuccin", "credit": "Catppuccin (catppuccin.com), MIT" },
+    "catppuccin-latte": { "name": "Catppuccin Latte", "credit": "Catppuccin (catppuccin.com), MIT" },
+    "ethereal": { "name": "Ethereal" },
+    "everforest": { "name": "Everforest", "credit": "Everforest by sainnhe, MIT" },
+    "flexoki-light": { "name": "Flexoki Light", "credit": "Flexoki by Steph Ango, MIT" },
+    "gruvbox": { "name": "Gruvbox", "credit": "Gruvbox by Pavel Pertsev (morhetz), MIT" },
+    "hackerman": { "name": "Hackerman" },
+    "jade-horse": { "name": "Jade Horse" },
+    "kanagawa": { "name": "Kanagawa", "credit": "Kanagawa by rebelot, MIT" },
+    "last-horizon": { "name": "Last Horizon" },
+    "lumon": { "name": "Lumon" },
+    "lupine": { "name": "Lupine" },
+    "matte-black": { "name": "Matte Black" },
+    "miasma": { "name": "Miasma" },
+    "nord": { "name": "Nord", "credit": "Nord by Arctic Ice Studio and Sven Greb, MIT" },
+    "osaka-jade": { "name": "Osaka Jade", "note": "Retired upstream (replaced by Jade Horse); recovered from Omarchy's history" },
+    "retro-82": { "name": "Retro 82" },
+    "ristretto": { "name": "Ristretto" },
+    "rose-pine": { "name": "Rosé Pine", "credit": "Rosé Pine (rosepinetheme.com), MIT" },
+    "solitude": { "name": "Solitude" },
+    "starship": { "name": "Starship" },
+    "tokyo-night": { "name": "Tokyo Night", "credit": "Tokyo Night by enkia, MIT" },
+    "vantablack": { "name": "Vantablack" },
+    "white": { "name": "White" }
+  }
+}
