@@ -1,0 +1,18 @@
+# Local and tailnet hosting while LuminosiTS finds its public home.
+#   docker compose up -d --build     catalog on :4180, site on :4181
+services:
+  web:
+    build: .
+    image: luminosi-ts-web:local
+    ports:
+      - "4180:8080"
+      - "4181:8081"
+    restart: unless-stopped
+    user: "65534:65534"
+    read_only: true
+    tmpfs:
+      - /config:mode=1777
+      - /data:mode=1777
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true

@@ -50,7 +50,8 @@
     "icons:check": "bun run --filter tool-icons check",
     "validate": "bun run --filter tool-assets validate",
     "skills:sync": "bash scripts/sync-skills",
-    "lumin": "bun tools/lumin/src/cli.ts"
+    "lumin": "bun tools/lumin/src/cli.ts",
+    "e2e:container": "E2E_CATALOG_URL=http://localhost:4180 E2E_SITE_URL=http://localhost:4181 playwright test"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",
