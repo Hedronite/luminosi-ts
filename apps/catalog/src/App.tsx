@@ -8,7 +8,7 @@ import { Growth } from "./Growth";
 import { byNewest } from "./growthDays";
 import { PresetContext, usePresetState } from "./look";
 import { registry } from "./registry";
-import { filterAssets, kindCounts, type KindFilter } from "./search";
+import { filterAssets, kindCounts, type KindFilter } from "lumin/search";
 
 // The playground loads three.js and React Three Fiber only when opened.
 const Playground = lazy(() => import("./Playground").then((module) => ({ default: module.Playground })));

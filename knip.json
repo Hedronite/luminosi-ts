@@ -25,6 +25,17 @@
       "project": [
         "src/**/*.ts"
       ]
+    },
+    "tools/lumin": {
+      "entry": [
+        "src/cli.ts"
+      ],
+      "project": [
+        "src/**/*.ts"
+      ]
     }
-  }
+  },
+  "ignoreBinaries": [
+    "nu"
+  ]
 }

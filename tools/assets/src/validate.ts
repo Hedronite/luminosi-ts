@@ -6,25 +6,12 @@
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { createRegistry, registerManifest, type AssetKind } from "@hedronite/lts-core";
-import { manifest as icons } from "@hedronite/lts-icons/manifest";
-import { manifest as materials } from "@hedronite/lts-materials/manifest";
-import { manifest as objects } from "@hedronite/lts-objects/manifest";
-import { manifest as primitives } from "@hedronite/lts-primitives/manifest";
-import { manifest as scenes } from "@hedronite/lts-scenes/manifest";
-import { manifest as shaders } from "@hedronite/lts-shaders/manifest";
+import type { AssetKind } from "@hedronite/lts-core";
+import { buildRegistry } from "lumin/registry";
 
 const root = resolve(import.meta.dirname, "../../..");
-const problems: string[] = [];
-const registry = createRegistry();
-
-for (const manifest of [icons, primitives, materials, objects, shaders, scenes]) {
-  try {
-    registerManifest(registry, manifest);
-  } catch (error: unknown) {
-    problems.push(`${manifest.package}: ${error instanceof Error ? error.message : String(error)}`);
-  }
-}
+const { registry, problems: registration } = buildRegistry();
+const problems: string[] = [...registration];
 
 const budgets: unknown = JSON.parse(await readFile(join(root, "assets/budgets.json"), "utf8"));
 const hasBudget = (id: string): boolean => typeof budgets === "object" && budgets !== null && Object.hasOwn(budgets, id);

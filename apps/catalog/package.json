@@ -22,6 +22,7 @@
     "@hedronite/lts-shaders": "workspace:*",
     "@hedronite/lts-tokens": "workspace:*",
     "@react-three/fiber": "catalog:",
+    "lumin": "workspace:*",
     "react": "catalog:",
     "react-dom": "catalog:",
     "three": "catalog:"

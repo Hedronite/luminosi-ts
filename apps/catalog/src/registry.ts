@@ -1,21 +1,10 @@
-import { createRegistry, registerManifest } from "@hedronite/lts-core";
 import type { IconData } from "@hedronite/lts-icons";
-import { allIcons, manifest as iconsManifest } from "@hedronite/lts-icons/manifest";
-import { manifest as materialsManifest } from "@hedronite/lts-materials/manifest";
-import { manifest as objectsManifest } from "@hedronite/lts-objects/manifest";
+import { allIcons } from "@hedronite/lts-icons/manifest";
 import { bipyramid, isPrimitiveId, platonic, primitive, type Polyhedron } from "@hedronite/lts-primitives";
-import { manifest as primitivesManifest } from "@hedronite/lts-primitives/manifest";
-import { manifest as scenesManifest } from "@hedronite/lts-scenes/manifest";
-import { manifest as shadersManifest } from "@hedronite/lts-shaders/manifest";
+import { loadRegistry } from "lumin/registry";
 
-/** Every asset the catalog shows. New packages register their manifests here. */
-export const registry = createRegistry();
-registerManifest(registry, iconsManifest);
-registerManifest(registry, primitivesManifest);
-registerManifest(registry, materialsManifest);
-registerManifest(registry, objectsManifest);
-registerManifest(registry, shadersManifest);
-registerManifest(registry, scenesManifest);
+/** Every asset the catalog shows: the same registry the lumin CLI and validate use. */
+export const registry = loadRegistry();
 
 const icons = new Map<string, IconData>(allIcons.map((icon) => [icon.id, icon]));
 

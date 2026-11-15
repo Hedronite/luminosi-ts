@@ -33,6 +33,16 @@ The asset pipeline (`tools/assets`) runs as part of `bun run build`: it turns `a
 
 TypeScript is pinned to 6.0.x: `typescript-eslint` and `@astrojs/check` do not accept 7 yet. Shared versions live in the `workspaces.catalog` block of the root `package.json`; packages refer to them as `catalog:`.
 
+## Skills: lumin
+
+Three agent skills in `.agents/skills` (copied to `.claude`, `.cursor` and `.grok` by `bun run skills:sync`; a test fails if the copies drift). Each is a short `SKILL.md` and a Nushell wrapper over `tools/lumin`, which prints one JSON envelope, `{ ok, command, data }` or `{ ok: false, error, kind, exit }`.
+
+- `lumin`: find and read. Search, show (with snippets), list, kinds, packages, budgets, boundaries. Read-only.
+- `lumin-check`: the gate, one summary per step.
+- `lumin-new`: add a source icon. Writes files; only when a human asked; dry-run first.
+
+Use `nu .agents/skills/lumin/lumin.nu show <id>` before grepping packages. Without Nushell, `bun run lumin <command>` prints the same envelope.
+
 ## Package boundaries
 
 From the manifesto, enforced by `.dependency-cruiser.cjs`:
