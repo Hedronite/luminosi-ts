@@ -1,0 +1,24 @@
+{
+  "name": "tool-assets",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT OR Apache-2.0",
+  "type": "module",
+  "exports": {
+    "./models/*": "./dist/models/*",
+    "./report.json": "./dist/report.json"
+  },
+  "scripts": {
+    "build": "bun src/build.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@gltf-transform/core": "catalog:",
+    "@gltf-transform/extensions": "catalog:",
+    "@gltf-transform/functions": "catalog:",
+    "@hedronite/lts-objects": "workspace:*",
+    "@hedronite/lts-primitives": "workspace:*",
+    "meshoptimizer": "catalog:",
+    "zod": "catalog:"
+  }
+}

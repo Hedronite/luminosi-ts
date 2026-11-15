@@ -26,8 +26,15 @@ module.exports = {
       name: "only-core-is-shared",
       comment: "Libraries import core and tokens, not each other.",
       severity: "error",
-      from: { path: "^packages/(icons|primitives|objects|materials|shaders)/" },
+      from: { path: "^packages/(icons|primitives|materials|shaders)/" },
       to: { path: anyPackage, pathNot: [pkg("core|tokens"), "^(packages/$1/|@hedronite/lts-$1$)"] },
+    },
+    {
+      name: "objects-compose-only",
+      comment: "objects may build on primitives and materials, nothing else.",
+      severity: "error",
+      from: { path: "^packages/objects/" },
+      to: { path: anyPackage, pathNot: pkg("core|tokens|primitives|materials|objects") },
     },
     {
       name: "scenes-compose-only",

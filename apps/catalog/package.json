@@ -15,6 +15,7 @@
     "@hedronite/lts-core": "workspace:*",
     "@hedronite/lts-icons": "workspace:*",
     "@hedronite/lts-materials": "workspace:*",
+    "@hedronite/lts-objects": "workspace:*",
     "@hedronite/lts-primitives": "workspace:*",
     "@hedronite/lts-tokens": "workspace:*",
     "@react-three/fiber": "catalog:",
@@ -29,6 +30,7 @@
     "@types/three": "catalog:",
     "@vitejs/plugin-react": "catalog:",
     "tailwindcss": "catalog:",
+    "tool-assets": "workspace:*",
     "vite": "catalog:",
     "vitest": "catalog:"
   }

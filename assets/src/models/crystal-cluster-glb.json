@@ -1,0 +1,5 @@
+{
+  "generator": "crystal-cluster",
+  "options": { "count": 14, "spread": 0.7, "seed": 11 },
+  "material": { "name": "crystal", "color": "#9cabb8", "roughness": 0.25, "metalness": 0 }
+}

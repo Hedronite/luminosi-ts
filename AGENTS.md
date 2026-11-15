@@ -25,6 +25,8 @@ bun run dev            # the catalog at http://localhost:5173
 
 `bun run check` is the definition of done until Web-TOPS can gate this repo.
 
+The asset pipeline (`tools/assets`) runs as part of `bun run build`: it turns `assets/src/models/*.json` into meshopt-compressed `.glb` files and fails the build when an asset exceeds `assets/budgets.json`. Source art is data; the repo holds no binary models.
+
 TypeScript is pinned to 6.0.x: `typescript-eslint` and `@astrojs/check` do not accept 7 yet. Shared versions live in the `workspaces.catalog` block of the root `package.json`; packages refer to them as `catalog:`.
 
 ## Package boundaries
@@ -33,6 +35,7 @@ From the manifesto, enforced by `.dependency-cruiser.cjs`:
 
 - No circular dependencies.
 - `core` (and `tokens`, the design tokens) are the only shared foundation.
+- `objects` may build on `primitives` and `materials`; `scenes` may compose `primitives`, `materials` and `shaders`. Other libraries import only `core` and `tokens`.
 - Adapters are optional; raw packages work without them.
 - Pure TypeScript in `core`, `tokens`, `primitives`, `objects`, `scenes`, `materials` and `shaders`: no React, no JSX.
 - React and React Three Fiber only in `icons/react`, `adapters` and the apps, as optional peers.

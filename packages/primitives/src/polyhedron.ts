@@ -78,9 +78,9 @@ export function edges(polyhedron: Polyhedron): readonly (readonly [number, numbe
 
 export interface TriangleData {
   /** x, y, z for every triangle corner. */
-  readonly positions: Float32Array;
+  readonly positions: Float32Array<ArrayBuffer>;
   /** The face normal at every corner: flat shading, for crisp facets. */
-  readonly normals: Float32Array;
+  readonly normals: Float32Array<ArrayBuffer>;
 }
 
 /** Fan-triangulates every face, with one normal per face. */

@@ -62,12 +62,12 @@ Companion to the LuminosiTS manifesto. This document tracks progressive stages f
 
 **Goal:** Composable objects, custom shaders, and first-class R3F support.
 
-- [ ] Objects package: typed GLTF/GLB wrappers, first procedural generators
+- [x] Objects package: typed GLTF/GLB wrappers, first procedural generators
 - [ ] Shaders package: reusable effects (refraction, glow, outline, etc.)
 - [ ] Adapters package: R3F components for primitives, objects, materials
   - React as optional peer
 - [ ] Catalog: scene playground (compose multiple items, lighting controls)
-- [ ] Optimization pipeline notes (Draco/Meshopt, texture formats) — tooling can start in `tools/`
+- [x] Optimization pipeline notes (Draco/Meshopt, texture formats) — tooling can start in `tools/`
 
 **Exit criteria:** Full path from import to interactive scene works in both vanilla and R3F. Catalog playground is usable.
 

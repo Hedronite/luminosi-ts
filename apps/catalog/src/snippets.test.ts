@@ -28,3 +28,11 @@ describe("snippetsFor", () => {
     expect(snippetsFor({ ...meta, kind: "scene" }, undefined)).toEqual([]);
   });
 });
+
+describe("object snippets", () => {
+  it.each(["crystal-cluster", "instanced-lattice", "crystal-cluster-glb"])("gives a TypeScript snippet for %s", (id) => {
+    const [snippet] = snippetsFor({ ...meta, id, kind: "object" }, undefined);
+    expect(snippet?.label).toBe("TypeScript");
+    expect(snippet?.code).toContain("@hedronite/lts-objects");
+  });
+});

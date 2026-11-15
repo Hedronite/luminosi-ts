@@ -117,3 +117,21 @@ test("stepping through 3D assets frees each geometry it replaces", async ({ page
   await expect(page.getByRole("dialog")).toContainText("1 / 9");
   await expect.poll(() => viewport.getAttribute("data-gpu-geometries"), { timeout: 5000 }).toBe(baseline);
 });
+
+for (const [id, name] of [
+  ["crystal-cluster", "Crystal cluster"],
+  ["instanced-lattice", "Instanced lattice"],
+  ["crystal-cluster-glb", "Crystal cluster (glTF)"],
+] as const) {
+  test(`the ${id} object renders in the viewport`, async ({ page }) => {
+    const errors: string[] = [];
+    page.on("console", (message) => {
+      if (message.type() === "error") errors.push(message.text());
+    });
+    await page.goto(`/?asset=${id}`);
+    const viewport = page.getByRole("dialog", { name }).getByTestId("viewport");
+    await expect(viewport).toHaveAttribute("data-gpu-geometries", /^[1-9]\d*$/);
+    await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/);
+    expect(errors).toEqual([]);
+  });
+}

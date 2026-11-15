@@ -28,6 +28,30 @@ export function snippetsFor(meta: AssetMeta, icon: IconData | undefined): readon
       },
     ];
   }
+  if (meta.id === "crystal-cluster") {
+    return [
+      {
+        label: "TypeScript",
+        code: `import { createMaterial } from "@hedronite/lts-materials";\nimport { createCrystalCluster, crystalCluster } from "@hedronite/lts-objects";\nimport { disposeObject } from "@hedronite/lts-primitives";\n\n// Same seed, same cluster.\nconst cluster = createCrystalCluster(crystalCluster({ count: 14, spread: 0.7, seed: 11 }), createMaterial("satin"));\n// Later: disposeObject(cluster);`,
+      },
+    ];
+  }
+  if (meta.id === "instanced-lattice") {
+    return [
+      {
+        label: "TypeScript",
+        code: `import { createMaterial } from "@hedronite/lts-materials";\nimport { createLattice, latticePoints } from "@hedronite/lts-objects";\n\n// 216 octahedra, one draw call.\nconst lattice = createLattice(latticePoints({ size: 6, spacing: 0.28 }), createMaterial("metal"), { scale: 0.06 });`,
+      },
+    ];
+  }
+  if (meta.id === "crystal-cluster-glb") {
+    return [
+      {
+        label: "TypeScript",
+        code: `import { loadGltf } from "@hedronite/lts-objects";\n\n// Built by tools/assets: one draw call, meshopt-compressed, decoded by three's bundled decoder.\nconst scene = await loadGltf("/models/crystal-cluster-glb.glb");`,
+      },
+    ];
+  }
   if (meta.kind === "material") {
     return [
       {
