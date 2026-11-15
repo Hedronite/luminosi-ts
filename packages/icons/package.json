@@ -13,6 +13,10 @@
     "./react": {
       "types": "./dist/react/index.d.ts",
       "import": "./dist/react/index.js"
+    },
+    "./manifest": {
+      "types": "./dist/manifest.d.ts",
+      "import": "./dist/manifest.js"
     }
   },
   "files": [
@@ -20,7 +24,8 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
   },
   "peerDependencies": {
     "react": "^19.0.0"
@@ -29,5 +34,13 @@
     "react": {
       "optional": true
     }
+  },
+  "devDependencies": {
+    "@hedronite/lts-core": "workspace:*",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "vitest": "catalog:"
   }
 }

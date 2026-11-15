@@ -4,7 +4,17 @@
     "allowJs": true,
     "checkJs": true,
     "noEmit": true,
-    "types": ["node"]
+    "types": [
+      "node"
+    ],
+    "lib": [
+      "ES2023",
+      "DOM"
+    ]
   },
-  "include": ["eslint.config.js", "playwright.config.ts", "e2e"]
+  "include": [
+    "eslint.config.js",
+    "playwright.config.ts",
+    "e2e"
+  ]
 }

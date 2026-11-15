@@ -1,0 +1,248 @@
+{
+  "alert": {
+    "name": "Alert",
+    "tags": [
+      "status"
+    ],
+    "added": "2026-11-15"
+  },
+  "arrow-down": {
+    "name": "Arrow down",
+    "tags": [
+      "navigation"
+    ],
+    "added": "2026-11-15"
+  },
+  "arrow-left": {
+    "name": "Arrow left",
+    "tags": [
+      "navigation"
+    ],
+    "added": "2026-11-15"
+  },
+  "arrow-right": {
+    "name": "Arrow right",
+    "tags": [
+      "navigation"
+    ],
+    "added": "2026-11-15"
+  },
+  "arrow-up": {
+    "name": "Arrow up",
+    "tags": [
+      "navigation"
+    ],
+    "added": "2026-11-15"
+  },
+  "check": {
+    "name": "Check",
+    "tags": [
+      "action",
+      "status"
+    ],
+    "added": "2026-11-15"
+  },
+  "chevron-down": {
+    "name": "Chevron down",
+    "tags": [
+      "navigation"
+    ],
+    "added": "2026-11-15"
+  },
+  "chevron-left": {
+    "name": "Chevron left",
+    "tags": [
+      "navigation"
+    ],
+    "added": "2026-11-15"
+  },
+  "chevron-right": {
+    "name": "Chevron right",
+    "tags": [
+      "navigation"
+    ],
+    "added": "2026-11-15"
+  },
+  "chevron-up": {
+    "name": "Chevron up",
+    "tags": [
+      "navigation"
+    ],
+    "added": "2026-11-15"
+  },
+  "close": {
+    "name": "Close",
+    "tags": [
+      "action"
+    ],
+    "added": "2026-11-15"
+  },
+  "copy": {
+    "name": "Copy",
+    "tags": [
+      "action"
+    ],
+    "added": "2026-11-15"
+  },
+  "cube": {
+    "name": "Cube",
+    "tags": [
+      "geometry"
+    ],
+    "added": "2026-11-15"
+  },
+  "download": {
+    "name": "Download",
+    "tags": [
+      "action"
+    ],
+    "added": "2026-11-15"
+  },
+  "external-link": {
+    "name": "External link",
+    "tags": [
+      "navigation"
+    ],
+    "added": "2026-11-15"
+  },
+  "eye": {
+    "name": "Eye",
+    "tags": [
+      "status"
+    ],
+    "added": "2026-11-15"
+  },
+  "filter": {
+    "name": "Filter",
+    "tags": [
+      "action"
+    ],
+    "added": "2026-11-15"
+  },
+  "grid": {
+    "name": "Grid",
+    "tags": [
+      "layout"
+    ],
+    "added": "2026-11-15"
+  },
+  "home": {
+    "name": "Home",
+    "tags": [
+      "navigation"
+    ],
+    "added": "2026-11-15"
+  },
+  "info": {
+    "name": "Info",
+    "tags": [
+      "status"
+    ],
+    "added": "2026-11-15"
+  },
+  "layers": {
+    "name": "Layers",
+    "tags": [
+      "layout"
+    ],
+    "added": "2026-11-15"
+  },
+  "list": {
+    "name": "List",
+    "tags": [
+      "layout"
+    ],
+    "added": "2026-11-15"
+  },
+  "menu": {
+    "name": "Menu",
+    "tags": [
+      "navigation"
+    ],
+    "added": "2026-11-15"
+  },
+  "minus": {
+    "name": "Minus",
+    "tags": [
+      "action"
+    ],
+    "added": "2026-11-15"
+  },
+  "moon": {
+    "name": "Moon",
+    "tags": [
+      "theme"
+    ],
+    "added": "2026-11-15"
+  },
+  "octahedron": {
+    "name": "Octahedron",
+    "tags": [
+      "geometry"
+    ],
+    "added": "2026-11-15"
+  },
+  "pause": {
+    "name": "Pause",
+    "tags": [
+      "media"
+    ],
+    "added": "2026-11-15"
+  },
+  "play": {
+    "name": "Play",
+    "tags": [
+      "media"
+    ],
+    "added": "2026-11-15"
+  },
+  "plus": {
+    "name": "Plus",
+    "tags": [
+      "action"
+    ],
+    "added": "2026-11-15"
+  },
+  "refresh": {
+    "name": "Refresh",
+    "tags": [
+      "action"
+    ],
+    "added": "2026-11-15"
+  },
+  "search": {
+    "name": "Search",
+    "tags": [
+      "action"
+    ],
+    "added": "2026-11-15"
+  },
+  "sparkle": {
+    "name": "Sparkle",
+    "tags": [
+      "status"
+    ],
+    "added": "2026-11-15"
+  },
+  "star": {
+    "name": "Star",
+    "tags": [
+      "status"
+    ],
+    "added": "2026-11-15"
+  },
+  "sun": {
+    "name": "Sun",
+    "tags": [
+      "theme"
+    ],
+    "added": "2026-11-15"
+  },
+  "tetrahedron": {
+    "name": "Tetrahedron",
+    "tags": [
+      "geometry"
+    ],
+    "added": "2026-11-15"
+  }
+}

@@ -1,2 +1,3 @@
-// Stage 0: the package boundary exists. Its content lands in Stage 1 (see ROADMAP.md).
-export {};
+export * from "./generated/icons.js";
+export { ICON_VIEW_BOX, type IconData } from "./icon.js";
+export { iconToSvg, type IconSvgOptions } from "./svg.js";

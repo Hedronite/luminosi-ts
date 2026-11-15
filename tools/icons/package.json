@@ -1,0 +1,16 @@
+{
+  "name": "tool-icons",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT OR Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "generate": "bun src/generate.ts",
+    "check": "bun src/generate.ts --check",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "svgo": "catalog:",
+    "zod": "catalog:"
+  }
+}
