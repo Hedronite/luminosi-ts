@@ -1,0 +1,20 @@
+# Dependencies and build output
+node_modules/
+dist/
+.turbo/
+*.tsbuildinfo
+coverage/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Nix and direnv
+result
+result-*
+.direnv/
+
+# Editors and OS
+.DS_Store
+*.swp
