@@ -60,8 +60,10 @@ function buildMaterial(spec: ObjectMaterial, palette: ScenePalette): Material {
 }
 
 /**
- * Builds a spec into three.js objects: a group named after the spec, one mesh per part (named by
- * part id, nested under its parent) and an empty `socket:<id>` object per socket.
+ * Builds a spec into three.js objects: a group named after the spec; per part, a pivot group named
+ * by part id (nested under its parent's pivot, carrying `position` and `rotation`) holding one mesh
+ * of the same name (carrying the shape's offset, rotation and scale); and an empty `socket:<id>`
+ * object per socket.
  *
  * Identical shapes share one geometry, and each spec material is one three.js material. The caller
  * owns everything: free it with `disposeObject` from `@hedronite/lts-primitives`.
@@ -97,13 +99,18 @@ export function createObjectFromSpec(spec: ObjectSpec, { palette = neutral.scene
       geometry = createGeometry(part.shape);
       geometries.set(key, geometry);
     }
+    const pivot = new Group();
+    pivot.name = part.id;
+    pivot.position.set(...part.position);
+    pivot.rotation.set(...part.rotation);
     const mesh = new Mesh(geometry, material);
     mesh.name = part.id;
-    mesh.position.set(...part.position);
-    mesh.rotation.set(...part.rotation);
+    mesh.position.set(...part.shapePosition);
+    mesh.rotation.set(...part.shapeRotation);
     mesh.scale.set(...part.scale);
-    parentOf(part.id, part.parent).add(mesh);
-    nodes.set(part.id, mesh);
+    pivot.add(mesh);
+    parentOf(part.id, part.parent).add(pivot);
+    nodes.set(part.id, pivot);
   }
 
   for (const socket of spec.sockets) {

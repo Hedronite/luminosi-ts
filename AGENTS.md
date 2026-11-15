@@ -50,7 +50,7 @@ Use `nu .agents/skills/lumin/lumin.nu show <id>` before grepping packages. Witho
 
 ## img-to-object
 
-`tools/img-to-object` turns a reference image into an `object` asset. `upstream/` is a vendored Apache-2.0 forge, pinned in `SOURCE.md`; edit it only when needed, and mark each edit as `SOURCE.md` says. Its output is an `ObjectSpec` (`@hedronite/lts-objects`: `parseObjectSpec`, `createObjectFromSpec`), pure data with colors from the token palette. Reference images are our own or CC0; reconstructions carry no brand names, logos or text. Read `tools/img-to-object/README.md` before using it.
+`tools/img-to-object` turns a reference image into an `object` asset. `upstream/` is a vendored Apache-2.0 forge, pinned in `SOURCE.md`; edit it only when needed, and mark each edit as `SOURCE.md` says. Its output is an `ObjectSpec` (`@hedronite/lts-objects`: `parseObjectSpec`, `createObjectFromSpec`), pure data with colors from the token palette. The forge produces one through `tools/img-to-object/plugin`, the `lts-object-spec` emission target (`--target lts-object-spec`); `bun run forge:test` covers the forge and the emitter. Reference images are our own or CC0; reconstructions carry no brand names, logos or text. Read `tools/img-to-object/README.md` before using it.
 
 ## Package boundaries
 

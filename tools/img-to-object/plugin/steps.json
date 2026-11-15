@@ -1,0 +1,15 @@
+[
+  {
+    "id": "emit-object-spec",
+    "after": [],
+    "command": "python3 -I {plugin_dir}/emit_object_spec.py --spec {spec} --out {workspace}/.img2/artifacts/lts-object-spec/object-spec.json",
+    "provides": {
+      "version": 1,
+      "from": "sculpt-spec",
+      "to": "lts-object-spec",
+      "artifact": { "kind": "lts-object-spec", "path": ".img2/artifacts/lts-object-spec/object-spec.json" }
+    },
+    "deterministic": true,
+    "timeoutSeconds": 60
+  }
+]

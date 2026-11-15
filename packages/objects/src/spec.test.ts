@@ -53,6 +53,8 @@ describe("parseObjectSpec", () => {
     expect(part?.position).toEqual([0, 0, 0]);
     expect(part?.rotation).toEqual([0, 0, 0]);
     expect(part?.scale).toEqual([1, 1, 1]);
+    expect(part?.shapePosition).toEqual([0, 0, 0]);
+    expect(part?.shapeRotation).toEqual([0, 0, 0]);
   });
 
   it("round-trips through JSON unchanged", () => {
@@ -229,6 +231,29 @@ describe("createObjectFromSpec", () => {
     disposeObject(root);
   });
 
+  it("keeps a part's shape offset, rotation and scale off its children", () => {
+    const spec = parseObjectSpec(
+      withFields({
+        parts: [
+          { id: "body", shape: { type: "box", size: [1, 1, 1] }, material: "body", position: [0, 1, 0], shapePosition: [0, 0.5, 0], shapeRotation: [0, 0, Math.PI / 2], scale: [4, 1, 1] },
+          { id: "lid", parent: "body", shape: { type: "box", size: [1, 1, 1] }, material: "body", position: [0, 1, 0] },
+        ],
+      }),
+    );
+    const root = createObjectFromSpec(spec);
+    root.updateMatrixWorld(true);
+    const body = new Box3().setFromObject(meshes(root)[0] ?? root);
+    // Scaled to 4 × 1 × 1, turned a quarter about z (1 wide, 4 tall), then lifted 0.5 inside a pivot at y 1.
+    expect(body.max.x - body.min.x).toBeCloseTo(1, 6);
+    expect(body.max.y - body.min.y).toBeCloseTo(4, 6);
+    expect((body.max.y + body.min.y) / 2).toBeCloseTo(1.5, 6);
+    // The child follows only the pivot: unit-sized, at y 2.
+    const lid = new Box3().setFromObject(meshes(root)[1] ?? root);
+    expect(lid.max.x - lid.min.x).toBeCloseTo(1, 6);
+    expect((lid.max.y + lid.min.y) / 2).toBeCloseTo(2, 6);
+    disposeObject(root);
+  });
+
   it("takes colors from the palette, with the slot, shade and finish the spec asks for", () => {
     const spec = parseObjectSpec(
       withFields({
@@ -305,7 +330,19 @@ describe("createObjectFromSpec", () => {
   it("refuses a hand-built spec whose parent is missing", () => {
     const spec: ObjectSpec = {
       ...parseObjectSpec(minimal()),
-      parts: [{ id: "lid", parent: "body", shape: { type: "box", size: [1, 1, 1] }, material: "body", position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] }],
+      parts: [
+        {
+          id: "lid",
+          parent: "body",
+          shape: { type: "box", size: [1, 1, 1] },
+          material: "body",
+          position: [0, 0, 0],
+          rotation: [0, 0, 0],
+          shapePosition: [0, 0, 0],
+          shapeRotation: [0, 0, 0],
+          scale: [1, 1, 1],
+        },
+      ],
     };
     expect(() => createObjectFromSpec(spec)).toThrow(/lid/);
   });
