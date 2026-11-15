@@ -25,6 +25,8 @@
     "lumin": "workspace:*",
     "react": "catalog:",
     "react-dom": "catalog:",
+    "react-markdown": "catalog:",
+    "remark-gfm": "catalog:",
     "three": "catalog:"
   },
   "devDependencies": {

@@ -17,6 +17,9 @@ export function usePresetState(): readonly [Preset, (preset: Preset) => void] {
   const [preset, setPreset] = useState<Preset>(storedPreset);
   useEffect(() => {
     document.documentElement.dataset["preset"] = preset.id;
+    // A phone's browser bar takes the look's surface, for whichever scheme is in effect.
+    const surface = getComputedStyle(document.documentElement).getPropertyValue("--lts-surface").trim();
+    if (surface !== "") document.querySelector('meta[name="theme-color"]')?.setAttribute("content", surface);
     try {
       window.localStorage.setItem(STORAGE_KEY, preset.id);
     } catch {

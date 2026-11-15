@@ -10,17 +10,23 @@ import { PresetContext, usePresetState } from "./look";
 import { registry } from "./registry";
 import { filterAssets, kindCounts, type KindFilter } from "lumin/search";
 
-// The playground loads three.js and React Three Fiber only when opened.
+// The playground loads three.js and React Three Fiber only when opened; the other views load on demand too.
 const Playground = lazy(() => import("./Playground").then((module) => ({ default: module.Playground })));
 const IconPacks = lazy(() => import("./IconPacks").then((module) => ({ default: module.IconPacks })));
+const OpenSource = lazy(() => import("./OpenSource").then((module) => ({ default: module.OpenSource })));
+const Looks = lazy(() => import("./Looks").then((module) => ({ default: module.Looks })));
 
-type View = "assets" | "playground" | "growth" | "icon-packs";
-const views: readonly (readonly [View, string])[] = [
-  ["assets", "Assets"],
-  ["icon-packs", "Icon packs"],
-  ["playground", "Playground"],
-  ["growth", "Growth"],
+type View = "assets" | "icons" | "looks" | "open-source" | "playground" | "growth";
+/** The views, in nav order, with the URL parameters each one owns (cleared when another view opens). */
+const views: readonly { readonly id: View; readonly label: string; readonly params: readonly string[] }[] = [
+  { id: "assets", label: "Assets", params: [] },
+  { id: "icons", label: "Icons", params: ["pack"] },
+  { id: "looks", label: "Looks", params: [] },
+  { id: "open-source", label: "Open source", params: ["set", "item", "page"] },
+  { id: "playground", label: "Playground", params: [] },
+  { id: "growth", label: "Growth", params: [] },
 ];
+const viewParams = views.flatMap((option) => option.params);
 
 const allAssets = registry.list();
 const kinds = kindCounts(allAssets, assetKinds);
@@ -33,7 +39,9 @@ const toggle =
 
 function initialView(): View {
   const view = new URLSearchParams(window.location.search).get("view");
-  return view === "playground" || view === "growth" || view === "icon-packs" ? view : "assets";
+  // "icon-packs" was the Icons view's name before the core set joined it; old links still work.
+  if (view === "icon-packs") return "icons";
+  return views.find((option) => option.id === view)?.id ?? "assets";
 }
 
 function initialSelection(): AssetMeta | undefined {
@@ -48,6 +56,7 @@ export function App() {
   const [preset, setPreset] = usePresetState();
   const [view, setView] = useState<View>(initialView);
   const [newest, setNewest] = useState(false);
+  const [startPack, setStartPack] = useState<string | undefined>(undefined);
   const opener = useRef<HTMLElement | null>(null);
 
   const results = useMemo(() => {
@@ -64,8 +73,15 @@ export function App() {
     else url.searchParams.set("asset", selected.id);
     if (view === "assets") url.searchParams.delete("view");
     else url.searchParams.set("view", view);
+    const own = views.find((option) => option.id === view)?.params ?? [];
+    for (const param of viewParams) if (!own.includes(param)) url.searchParams.delete(param);
     window.history.replaceState(null, "", url);
   }, [selected, view]);
+
+  const show = (next: View): void => {
+    setView(next);
+    window.scrollTo({ top: 0 });
+  };
 
   const open = (meta: AssetMeta, trigger: HTMLElement): void => {
     opener.current = trigger;
@@ -85,21 +101,22 @@ export function App() {
   return (
     <PresetContext value={preset}>
       <div className="min-h-screen bg-surface text-fg">
-        <main className="mx-auto max-w-6xl px-4 py-8 sm:px-8">
-          <header className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-semibold">LuminosiTS catalog</h1>
-              <p className="mt-1 text-fg-muted">{plural(allAssets.length, "asset")}, typed and importable.</p>
+        <header>
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 pt-3 sm:px-8">
+            <div className="min-w-0">
+              <h1 className="text-lg font-semibold sm:text-xl">LuminosiTS catalog</h1>
+              <p className="hidden text-sm text-fg-muted sm:block">{plural(allAssets.length, "asset")}, typed and importable.</p>
             </div>
-            <label className="flex items-center gap-2 text-sm text-fg-muted">
-              Look
+            <div className="flex min-w-0 items-center gap-2 text-sm text-fg-muted">
+              <label htmlFor="look-select">Look</label>
               <select
+                id="look-select"
                 value={preset.id}
                 onChange={(event) => {
                   const next = presets.find((option) => option.id === event.target.value);
                   if (next !== undefined) setPreset(next);
                 }}
-                className="rounded-md border border-line bg-surface-raised px-2 py-1 text-fg focus-visible:outline-2 focus-visible:outline-accent"
+                className="min-w-0 max-w-48 rounded-md border border-line bg-surface-raised px-2 py-1 text-fg focus-visible:outline-2 focus-visible:outline-accent"
               >
                 {presetsByCategory().map(({ category, presets: group }) => (
                   <optgroup key={category.id} label={category.name}>
@@ -112,39 +129,58 @@ export function App() {
                   </optgroup>
                 ))}
               </select>
-            </label>
-          </header>
-
-          <nav aria-label="Views" className="mt-6 flex gap-1">
-            {views.map(([option, label]) => (
-              <button
-                key={option}
-                type="button"
-                aria-pressed={view === option}
-                onClick={() => {
-                  setView(option);
-                }}
-                className={toggle}
-              >
-                {label}
-              </button>
-            ))}
-          </nav>
-
+            </div>
+          </div>
+        </header>
+        {/* Only the views stay pinned, so a phone keeps most of its screen. They scroll sideways in one row rather than wrapping. */}
+        <nav aria-label="Views" className="sticky top-0 z-10 mt-2 border-b border-line bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
+          <div className="mx-auto max-w-6xl overflow-x-auto px-4 sm:px-8 [scrollbar-width:none]">
+            <ul className="flex gap-1 py-2">
+              {views.map((option) => (
+                <li key={option.id} className="shrink-0">
+                  <button
+                    type="button"
+                    aria-pressed={view === option.id}
+                    onClick={() => {
+                      show(option.id);
+                    }}
+                    className={`${toggle} whitespace-nowrap`}
+                  >
+                    {option.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </nav>
+        <main className="mx-auto max-w-6xl px-4 pb-12 pt-2 sm:px-8">
           {view === "playground" ? (
             <Suspense fallback={<p className="mt-6 text-fg-muted">Loading the playground…</p>}>
               <Playground />
             </Suspense>
           ) : view === "growth" ? (
             <Growth assets={allAssets} onOpen={open} />
-          ) : view === "icon-packs" ? (
-            <Suspense fallback={<p className="mt-6 text-fg-muted">Loading the icon packs…</p>}>
-              <IconPacks />
+          ) : view === "icons" ? (
+            <Suspense fallback={<p className="mt-6 text-fg-muted">Loading the icons…</p>}>
+              <IconPacks startPack={startPack} />
+            </Suspense>
+          ) : view === "looks" ? (
+            <Suspense fallback={<p className="mt-6 text-fg-muted">Loading the looks…</p>}>
+              <Looks current={preset} onPick={setPreset} />
+            </Suspense>
+          ) : view === "open-source" ? (
+            <Suspense fallback={<p className="mt-6 text-fg-muted">Loading the open-source material…</p>}>
+              <OpenSource
+                onBrowsePack={(packId) => {
+                  setStartPack(packId);
+                  show("icons");
+                }}
+              />
             </Suspense>
           ) : (
           <>
           <div className="mt-6 flex flex-wrap items-center gap-3">
-            <search className="relative min-w-60 flex-1">
+            <search className="relative min-w-0 basis-60 flex-1">
               <label htmlFor="asset-search" className="sr-only">
                 Search assets
               </label>
