@@ -55,7 +55,7 @@ export const neutral: Preset = {
   scene: { base: "#d4d4d8", accent: "#3b82f6", metal: "#c0c4cc", glass: "#8fb4e3", emissive: "#93c5fd" },
 };
 
-/** An optional pack: copper and lapis on deep slate, after hedronite.com. */
+/** An optional pack, canonical: copper and lapis on deep slate, from the hedronite.com tokens. */
 export const hedronite: Preset = {
   id: "hedronite",
   name: "Hedronite",
@@ -80,4 +80,33 @@ export const hedronite: Preset = {
   scene: { base: "#9cabb8", accent: "#c07b42", metal: "#dda77d", glass: "#7fa3dc", emissive: "#3b5bd9" },
 };
 
-export const presets: readonly Preset[] = [neutral, hedronite];
+/**
+ * An optional pack: the Hedron Omarchy theme (VirtualMachinist/Omahedron, themes/hedron and
+ * themes/hedron-light), bronze on lapis indigo. Dark is Hedron, light is Hedron Light. Muted text and
+ * the dark accent use the palettes' lighter tiers so every pair passes WCAG AA.
+ */
+export const hedron: Preset = {
+  id: "hedron",
+  name: "Hedron",
+  light: {
+    surface: "#eef3f8",
+    surfaceRaised: "#e2ebf3",
+    fg: "#14265e",
+    fgMuted: "#3a4a78",
+    line: "#c9d8e6",
+    accent: "#7a4a32",
+    onAccent: "#ffffff",
+  },
+  dark: {
+    surface: "#0a0e1e",
+    surfaceRaised: "#141a38",
+    fg: "#eef1ff",
+    fgMuted: "#8b93b8",
+    line: "#1c2450",
+    accent: "#dda77d",
+    onAccent: "#0a0e1e",
+  },
+  scene: { base: "#b7bfe8", accent: "#a96a38", metal: "#dda77d", glass: "#9dc3d4", emissive: "#2e5ab8" },
+};
+
+export const presets: readonly Preset[] = [neutral, hedronite, hedron];
