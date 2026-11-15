@@ -1,5 +1,6 @@
 export { crystalCluster, latticePoints, type ClusterOptions, type CrystalSpec, type LatticeOptions } from "./cluster.js";
 export { createObjectFromSpec, type ObjectFromSpecOptions } from "./fromSpec.js";
+export { dressWatchSpec, type WatchTime } from "./specs/dressWatch.js";
 export {
   objectSpecSchema,
   parseObjectSpec,

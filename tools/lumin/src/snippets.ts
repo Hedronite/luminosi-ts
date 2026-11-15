@@ -52,6 +52,14 @@ export function snippetsFor(meta: AssetMeta, icon: IconData | undefined): readon
       },
     ];
   }
+  if (meta.id === "dress-watch") {
+    return [
+      {
+        label: "TypeScript",
+        code: `import { createObjectFromSpec, dressWatchSpec } from "@hedronite/lts-objects";\nimport { hedronite } from "@hedronite/lts-tokens";\n\n// The spec is plain JSON: store it, diff it, review it. The palette picks the metal and strap.\nconst spec = dressWatchSpec({ hours: 10, minutes: 9, seconds: 36 });\nconst watch = createObjectFromSpec(spec, { palette: hedronite.scene });\n// Later: disposeObject(watch) from @hedronite/lts-primitives.`,
+      },
+    ];
+  }
   if (meta.kind === "scene") {
     const kit = meta.id.replace(/^scene-/, "");
     return [
