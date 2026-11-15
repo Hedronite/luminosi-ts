@@ -13,6 +13,17 @@ describe("snippetsFor", () => {
     expect(snippets[2]?.code).toMatch(/^<svg /);
   });
 
+  it("builds a primitive's geometry by id", () => {
+    const [snippet] = snippetsFor({ ...meta, id: "platonic-cube", kind: "primitive" }, undefined);
+    expect(snippet?.code).toContain('primitive("platonic-cube")');
+  });
+
+  it("creates a material by id, with and without a token preset", () => {
+    const [snippet] = snippetsFor({ ...meta, id: "glass", kind: "material" }, undefined);
+    expect(snippet?.code).toContain('createMaterial("glass")');
+    expect(snippet?.code).toContain("hedronite.scene");
+  });
+
   it("gives nothing for a kind without a package yet", () => {
     expect(snippetsFor({ ...meta, kind: "scene" }, undefined)).toEqual([]);
   });

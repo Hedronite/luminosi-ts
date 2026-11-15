@@ -35,7 +35,7 @@ export function CopyButton({ text, what }: { readonly text: string; readonly wha
       type="button"
       onClick={copy}
       aria-label={`${labels[status]}: ${what}`}
-      className="inline-flex items-center gap-1.5 rounded-md border border-neutral-300 px-2.5 py-1 text-sm hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-2 dark:border-neutral-700 dark:hover:bg-neutral-800"
+      className="inline-flex items-center gap-1.5 rounded-md border border-line px-2.5 py-1 text-sm hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
     >
       {status === "copied" ? <Check size={16} /> : <Copy size={16} />}
       <span aria-live="polite">{labels[status]}</span>

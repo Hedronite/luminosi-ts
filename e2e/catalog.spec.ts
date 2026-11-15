@@ -73,3 +73,47 @@ for (const [name, path] of [["gallery", "/"], ["detail dialog", "/?asset=cube"]]
     expect(blocking.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`)).toEqual([]);
   });
 }
+
+test("the look switcher swaps the token preset and keeps contrast", async ({ page }) => {
+  await page.goto("/");
+  const look = page.getByRole("group", { name: "Look" });
+  await look.getByRole("button", { name: "Hedronite" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-preset", "hedronite");
+  await expect(look.getByRole("button", { name: "Hedronite" })).toHaveAttribute("aria-pressed", "true");
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => v.id)).toEqual([]);
+});
+
+test("a primitive opens in an interactive 3D viewport", async ({ page }) => {
+  await page.goto("/?asset=platonic-icosahedron");
+  const viewport = page.getByRole("dialog", { name: "Icosahedron" }).getByTestId("viewport");
+  await expect(viewport.locator("canvas")).toBeVisible();
+  await expect(viewport).toHaveAttribute("data-gpu-geometries", /^[1-9]\d*$/);
+  // A frame was drawn without any interaction: on-demand rendering must not wait for input.
+  await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/);
+});
+
+test("a material renders with its environment", async ({ page }) => {
+  await page.goto("/?asset=glass");
+  const viewport = page.getByRole("dialog", { name: "Glass" }).getByTestId("viewport");
+  await expect(viewport.locator("canvas")).toBeVisible();
+  await expect(viewport).toHaveAttribute("data-gpu-textures", /^[1-9]\d*$/);
+});
+
+test("stepping through 3D assets frees each geometry it replaces", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("group", { name: "Filter by kind" }).getByRole("button", { name: /^Primitives/ }).click();
+  await gallery(page).first().click();
+  const viewport = page.getByTestId("viewport");
+  await expect(viewport).toHaveAttribute("data-gpu-geometries", /^[1-9]\d*$/);
+  await expect.poll(() => viewport.getAttribute("data-gpu-geometries"), { intervals: [300] }).toBe(await viewport.getAttribute("data-gpu-geometries"));
+  const baseline = await viewport.getAttribute("data-gpu-geometries");
+
+  const next = page.getByRole("button", { name: "Next asset" });
+  for (let i = 0; i < 9; i++) {
+    // eslint-disable-next-line no-await-in-loop -- each step must render before the next, to load and free one geometry at a time
+    await next.click();
+  }
+  await expect(page.getByRole("dialog")).toContainText("1 / 9");
+  await expect.poll(() => viewport.getAttribute("data-gpu-geometries"), { timeout: 5000 }).toBe(baseline);
+});

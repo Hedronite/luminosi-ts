@@ -9,7 +9,8 @@
     "packages/*": {
       "entry": [
         "src/react/index.ts",
-        "src/manifest.ts"
+        "src/manifest.ts",
+        "scripts/*.ts"
       ],
       "project": [
         "src/**/*.{ts,tsx}"

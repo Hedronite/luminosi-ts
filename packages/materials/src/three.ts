@@ -1,0 +1,27 @@
+import { neutral, type ScenePalette } from "@hedronite/lts-tokens";
+import { Color, MeshPhysicalMaterial } from "three";
+import { materialPreset, type MaterialId } from "./presets.js";
+
+/**
+ * A three.js material for a preset, colored from `palette` (default: the neutral token preset).
+ * The caller owns it and must dispose it.
+ */
+export function createMaterial(id: MaterialId, palette: ScenePalette = neutral.scene): MeshPhysicalMaterial {
+  const preset = materialPreset(id);
+  const color = new Color(palette[preset.color]);
+  const material = new MeshPhysicalMaterial({
+    name: id,
+    color,
+    roughness: preset.roughness,
+    metalness: preset.metalness,
+    clearcoat: preset.clearcoat ?? 0,
+    transmission: preset.transmission ?? 0,
+    ior: preset.ior ?? 1.5,
+    thickness: preset.thickness ?? 0,
+  });
+  if (preset.emissiveIntensity !== undefined) {
+    material.emissive = color.clone();
+    material.emissiveIntensity = preset.emissiveIntensity;
+  }
+  return material;
+}
