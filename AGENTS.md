@@ -14,14 +14,21 @@ bun install            # CI uses --frozen-lockfile
 bun run typecheck      # tsc --noEmit in every package, through Turborepo
 bun run build          # tsc for packages, vite build for the catalog
 bun run test           # Vitest
+bun run lint           # ESLint, type-aware, with the rules below
+bun run boundaries     # dependency-cruiser: the package boundaries below
+bun run knip           # unused files, exports and dependencies
+bun run e2e            # Playwright smoke + axe on the built catalog (after build)
+bun run check          # all of the above, in CI order
 bun run dev            # the catalog at http://localhost:5173
 ```
+
+`bun run check` is the definition of done until Web-TOPS can gate this repo.
 
 TypeScript is pinned to 6.0.x: `typescript-eslint` and `@astrojs/check` do not accept 7 yet. Shared versions live in the `workspaces.catalog` block of the root `package.json`; packages refer to them as `catalog:`.
 
 ## Package boundaries
 
-From the manifesto:
+From the manifesto, enforced by `.dependency-cruiser.cjs`:
 
 - No circular dependencies.
 - `core` is the only shared foundation.
