@@ -24,7 +24,15 @@ jobs:
       - run: bun run typecheck
       - run: bun run build
       - run: bun run validate
+      - name: Install Nushell 0.108.0 (pinned, checksum-verified) for the skill tests
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/nu.tar.gz" https://github.com/nushell/nushell/releases/download/0.108.0/nu-0.108.0-x86_64-unknown-linux-gnu.tar.gz
+          echo "f0daaa0256b0f7dd5f4d9925b4d5522d8de5e947ed9ad64a43526e5cffeb05df  $RUNNER_TEMP/nu.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/nu.tar.gz" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/nu-0.108.0-x86_64-unknown-linux-gnu" >> "$GITHUB_PATH"
       - run: bun run test
+        env:
+          LUMIN_REQUIRE_NU: "1"
       - run: bun run lint
       - run: bun run boundaries
       - run: bun run knip

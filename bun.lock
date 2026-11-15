@@ -36,6 +36,7 @@
         "@hedronite/lts-shaders": "workspace:*",
         "@hedronite/lts-tokens": "workspace:*",
         "@react-three/fiber": "catalog:",
+        "lumin": "workspace:*",
         "react": "catalog:",
         "react-dom": "catalog:",
         "three": "catalog:",
@@ -234,12 +235,9 @@
         "@gltf-transform/extensions": "catalog:",
         "@gltf-transform/functions": "catalog:",
         "@hedronite/lts-core": "workspace:*",
-        "@hedronite/lts-icons": "workspace:*",
-        "@hedronite/lts-materials": "workspace:*",
         "@hedronite/lts-objects": "workspace:*",
         "@hedronite/lts-primitives": "workspace:*",
-        "@hedronite/lts-scenes": "workspace:*",
-        "@hedronite/lts-shaders": "workspace:*",
+        "lumin": "workspace:*",
         "meshoptimizer": "catalog:",
         "zod": "catalog:",
       },
@@ -250,6 +248,22 @@
       "devDependencies": {
         "svgo": "catalog:",
         "zod": "catalog:",
+      },
+    },
+    "tools/lumin": {
+      "name": "lumin",
+      "version": "0.0.0",
+      "dependencies": {
+        "@hedronite/lts-core": "workspace:*",
+        "@hedronite/lts-icons": "workspace:*",
+        "@hedronite/lts-materials": "workspace:*",
+        "@hedronite/lts-objects": "workspace:*",
+        "@hedronite/lts-primitives": "workspace:*",
+        "@hedronite/lts-scenes": "workspace:*",
+        "@hedronite/lts-shaders": "workspace:*",
+      },
+      "devDependencies": {
+        "vitest": "catalog:",
       },
     },
   },
@@ -1284,6 +1298,8 @@
     "lodash.merge": ["lodash.merge@4.6.2", "", {}, "sha512-0KpjqXRVvrYyCsX1swR/XTK0va6VQkQM6MNo7PqW77ByjAhoARA8EfrP1N4+KlKj8YS0ZUCtRT/YUuhyYDujIQ=="],
 
     "lru-cache": ["lru-cache@11.5.3", "", {}, "sha512-U4N8FgzmWxc8k1VH8Kr6lQg18U7Fjvby6wXHVRX/ZZ7IwWbRMgrRbP0Wrb5q5NVinryp4SQampHKdvtecItxUg=="],
+
+    "lumin": ["lumin@workspace:tools/lumin"],
 
     "magic-string": ["magic-string@1.4.5", "", { "dependencies": { "@jridgewell/sourcemap-codec": "^1.6.0" } }, "sha512-oLLC2+YvQUfAa+vxoufE/yc1icb87M9iXIRqAoR/2EhE/8cb3SF/+Gi0c2By1B+5Vz2e2vQtUvHiu1+63Znh+w=="],
 

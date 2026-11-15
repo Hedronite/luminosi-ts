@@ -5,7 +5,7 @@ import { AssetPreview } from "./AssetPreview";
 import { CopyButton } from "./CopyButton";
 import { usePreset } from "./look";
 import { iconFor } from "./registry";
-import { snippetsFor } from "./snippets";
+import { snippetsFor } from "lumin/snippets";
 
 // three.js and React Three Fiber load only when a 3D asset is opened.
 const Viewport = lazy(() => import("./Viewport").then((module) => ({ default: module.Viewport })));

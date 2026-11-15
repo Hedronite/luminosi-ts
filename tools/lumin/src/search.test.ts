@@ -1,6 +1,6 @@
 import { assetKinds, type AssetMeta } from "@hedronite/lts-core";
 import { describe, expect, it } from "vitest";
-import { filterAssets, kindCounts } from "./search.js";
+import { filterAssets, kindCounts, rankAssets } from "./search.js";
 
 const asset = (id: string, kind: AssetMeta["kind"], tags: string[] = []): AssetMeta => ({
   id,
@@ -37,5 +37,21 @@ describe("kindCounts", () => {
       ["icon", 2],
       ["primitive", 1],
     ]);
+  });
+});
+
+describe("rankAssets", () => {
+  it("ranks an exact id first, then names, prefixes, words and tags", () => {
+    const pool = [asset("cube-outline", "icon", ["geometry"]), asset("cube", "primitive", ["platonic"]), asset("ice-cube-tray", "object", ["kitchen"])];
+    expect(rankAssets(pool, "cube").map((r) => [r.asset.id, r.score])).toEqual([
+      ["cube", 100],
+      ["cube-outline", 60],
+      ["ice-cube-tray", 40],
+    ]);
+  });
+
+  it("filters by kind and matches nothing for empty text", () => {
+    expect(rankAssets(assets, "arrow", "primitive")).toEqual([]);
+    expect(rankAssets(assets, "  ")).toEqual([]);
   });
 });
