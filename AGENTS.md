@@ -20,6 +20,7 @@ bun run lint           # ESLint, type-aware, with the rules below
 bun run boundaries     # dependency-cruiser: the package boundaries below
 bun run knip           # unused files, exports and dependencies
 bun run e2e            # Playwright smoke + axe on the built catalog (after build)
+bun run forge:test     # the vendored img-to-object forge's own tests (Python 3.10+, standard library only)
 bun run check          # all of the above, in CI order
 bun run dev            # the catalog at http://localhost:5173
 bun run --filter site dev   # the Astro page
@@ -46,6 +47,10 @@ Three agent skills in `.agents/skills` (copied to `.claude`, `.cursor` and `.gro
 - `lumin-new`: add a source icon. Writes files; only when a human asked; dry-run first.
 
 Use `nu .agents/skills/lumin/lumin.nu show <id>` before grepping packages. Without Nushell, `bun run lumin <command>` prints the same envelope.
+
+## img-to-object
+
+`tools/img-to-object` turns a reference image into an `object` asset. `upstream/` is a vendored Apache-2.0 forge, pinned in `SOURCE.md`; edit it only when needed, and mark each edit as `SOURCE.md` says. Its output is an `ObjectSpec` (`@hedronite/lts-objects`: `parseObjectSpec`, `createObjectFromSpec`), pure data with colors from the token palette. Reference images are our own or CC0; reconstructions carry no brand names, logos or text. Read `tools/img-to-object/README.md` before using it.
 
 ## Package boundaries
 
