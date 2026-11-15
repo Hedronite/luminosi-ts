@@ -28,7 +28,10 @@
   },
   "dependencies": {
     "@hedronite/lts-core": "workspace:*",
-    "@hedronite/lts-primitives": "workspace:*"
+    "@hedronite/lts-materials": "workspace:*",
+    "@hedronite/lts-primitives": "workspace:*",
+    "@hedronite/lts-tokens": "workspace:*",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@gltf-transform/core": "catalog:",

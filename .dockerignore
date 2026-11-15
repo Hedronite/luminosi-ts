@@ -9,3 +9,4 @@ test-results
 .claude
 .cursor
 .grok
+tools/img-to-object
