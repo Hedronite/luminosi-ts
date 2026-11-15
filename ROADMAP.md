@@ -12,14 +12,14 @@ Companion to the LuminosiTS manifesto. This document tracks progressive stages f
 
 **Goal:** Runnable monorepo with empty but correctly bounded packages, minimal catalog shell, and agent guidance.
 
-- [ ] Initialize Bun workspace + Turborepo + root `tsconfig.base.json`
-- [ ] Create Nix flake (Bun, Node, TypeScript; optional Rust/Go)
-- [ ] Scaffold all packages with correct `package.json` exports, peer deps, and pure-TS vs TSX boundaries
-- [ ] Add root `AGENTS.md`
-- [ ] Minimal `core` registry + Zod metadata types
-- [ ] Bare Vite + React catalog app that imports the core package
-- [ ] Basic CI (typecheck + build via Turbo)
-- [ ] README + manifesto linked
+- [x] Initialize Bun workspace + Turborepo + root `tsconfig.base.json`
+- [x] Create Nix flake (Bun, Node, TypeScript; optional Rust/Go)
+- [x] Scaffold all packages with correct `package.json` exports, peer deps, and pure-TS vs TSX boundaries
+- [x] Add root `AGENTS.md`
+- [x] Minimal `core` registry + Zod metadata types
+- [x] Bare Vite + React catalog app that imports the core package
+- [x] Basic CI (typecheck + build via Turbo)
+- [x] README + manifesto linked
 
 **Exit criteria:** `bun install && bun run build` succeeds. Catalog boots and shows an empty gallery. `AGENTS.md` is present and accurate.
 

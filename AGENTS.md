@@ -4,7 +4,20 @@ LuminosiTS is a progressive, modular TypeScript visual library: icons, Three.js 
 
 ## State
 
-Stage 0 (scaffold) has not landed. There is no code, no `package.json`, and no commands yet. Do not document, run or claim a command that does not exist.
+Stage 0 (scaffold). Every package boundary exists. Only `core` has code: the asset registry with Zod metadata. The catalog shows an empty gallery. Do not document, run or claim a command that is not listed below.
+
+## Commands
+
+```bash
+nix develop            # or direnv: Bun and Node from the flake
+bun install            # CI uses --frozen-lockfile
+bun run typecheck      # tsc --noEmit in every package, through Turborepo
+bun run build          # tsc for packages, vite build for the catalog
+bun run test           # Vitest
+bun run dev            # the catalog at http://localhost:5173
+```
+
+TypeScript is pinned to 6.0.x: `typescript-eslint` and `@astrojs/check` do not accept 7 yet. Shared versions live in the `workspaces.catalog` block of the root `package.json`; packages refer to them as `catalog:`.
 
 ## Package boundaries
 
