@@ -9,7 +9,9 @@ import { z } from "zod";
  * plain JSON, so a spec can be generated, diffed, reviewed and stored as source.
  *
  * Units are scene units (about one unit across for a hand-held object). Rotations are XYZ Euler
- * angles in radians. A part's transform is relative to its parent, so its origin is its pivot.
+ * angles in radians. A part's `position` and `rotation` place its pivot relative to its parent, and
+ * its children follow them. `shapePosition`, `shapeRotation` and `scale` place the part's own shape
+ * inside that pivot and never reach its children, so a squashed part can't skew what hangs from it.
  */
 
 /** Coordinates and sizes stay within this, so a bad spec can't produce a scene a kilometre wide. */
@@ -96,6 +98,11 @@ const partSchema = z.object({
   /** A key of `materials`. */
   material: slug,
   ...transform,
+  /** The shape's offset inside the pivot. */
+  shapePosition: vec3.default([0, 0, 0]),
+  /** The shape's rotation inside the pivot, applied before `scale`. */
+  shapeRotation: vec3.default([0, 0, 0]),
+  /** The shape's size factors. */
   scale: z.tuple([length, length, length]).default([1, 1, 1]),
 });
 

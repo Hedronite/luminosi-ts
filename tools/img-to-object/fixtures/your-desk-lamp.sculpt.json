@@ -1,0 +1,43 @@
+{
+  "targetId": "your-desk-lamp",
+  "targetName": "Your desk lamp",
+  "schemaVersion": "2.1",
+  "materials": [
+    { "id": "baseMetal", "baseColor": "#c9a46b", "metalness": { "base": 0.9 }, "roughness": { "base": 0.32 } },
+    { "id": "shadeFabric", "baseColor": "#2f6f5e", "roughness": { "base": 0.85 } },
+    { "id": "bulbGlow", "baseColor": "#fff3c4", "emissiveIntensity": 1.5 }
+  ],
+  "componentTree": [
+    {
+      "id": "base", "primitive": "cylinder", "material": "baseMetal", "parent": null,
+      "dimensions": { "radius": 0.3, "height": 0.06 },
+      "transform": { "position": [0, 0.03, 0], "rotation": [0, 0, 0] },
+      "actionProfile": { "sockets": [{ "id": "cableExit", "localPosition": [-0.28, 0, 0] }] }
+    },
+    {
+      "id": "stem", "primitive": "cylinder", "material": "baseMetal", "parent": "base",
+      "attachment": { "parentId": "base", "localStart": [0, 0.03, 0], "localEnd": [0, 0.57, 0], "baseRadius": 0.025, "endRadius": 0.02 }
+    },
+    {
+      "id": "arm", "primitive": "cylinder", "material": "baseMetal", "parent": "stem",
+      "attachment": { "parentId": "stem", "localStart": [0, 0.54, 0], "localEnd": [0.3, 0.74, 0], "baseRadius": 0.02, "endRadius": 0.016 }
+    },
+    {
+      "id": "shade", "primitive": "cone", "material": "shadeFabric", "parent": "arm",
+      "dimensions": { "radius": 0.16, "height": 0.18 },
+      "transform": { "position": [0.3, 0.12, 0], "rotation": [0, 0, 0] }
+    },
+    {
+      "id": "bulb", "primitive": "sphere", "material": "bulbGlow", "parent": "shade",
+      "dimensions": { "radius": 0.05, "height": 0.1 },
+      "transform": { "position": [0, -0.08, 0] }
+    }
+  ],
+  "repetitionSystems": [
+    {
+      "id": "footRing", "count": 3, "primitive": "sphere", "parent": "base", "material": "baseMetal",
+      "instanceScale": [0.04, 0.02, 0.04],
+      "placement": { "mode": "radial", "axis": [0, 1, 0], "radius": 0.5 }
+    }
+  ]
+}
