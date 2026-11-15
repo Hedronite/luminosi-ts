@@ -9,7 +9,7 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 export default defineConfig(
-  globalIgnores(["**/dist/", "**/.turbo/", "**/coverage/", "playwright-report/", "test-results/", "**/*.cjs"]),
+  globalIgnores(["**/dist/", "**/.turbo/", "**/.astro/", "**/coverage/", "playwright-report/", "test-results/", "**/*.cjs", "apps/site/astro.config.mjs"]),
   js.configs.recommended,
   tseslint.configs.strictTypeChecked,
   {

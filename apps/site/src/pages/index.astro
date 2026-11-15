@@ -1,0 +1,60 @@
+---
+import { arrowRight, copy, cube, dodecahedron, grid, icosahedron, layers, octahedron, search, sparkle, star, tetrahedron } from "@hedronite/lts-icons";
+import { platonic, platonicSolids } from "@hedronite/lts-primitives";
+import Icon from "../components/Icon.astro";
+import Showcase from "../components/Showcase";
+import Wireframe from "../components/Wireframe.astro";
+import Layout from "../layouts/Layout.astro";
+
+const icons = [arrowRight, search, copy, grid, layers, sparkle, star, tetrahedron, cube, octahedron, icosahedron, dodecahedron];
+const solids = platonicSolids.map((solid) => ({ solid, shape: platonic(solid) }));
+---
+
+<Layout title="LuminosiTS" description="A progressive, modular TypeScript visual library: icons, Three.js primitives, objects, scenes, materials and shaders.">
+  <main class="mx-auto max-w-4xl px-4 py-16 sm:px-8">
+    <h1 class="text-4xl font-semibold tracking-tight">LuminosiTS</h1>
+    <p class="mt-4 max-w-2xl text-lg text-fg-muted">
+      A typed visual arsenal for any client and any aesthetic. This page is built with Astro from the library itself, and ships JavaScript only for the 3D view.
+    </p>
+
+    <section aria-labelledby="icons-title" class="mt-14">
+      <h2 id="icons-title" class="text-xl font-semibold">Icons</h2>
+      <ul class="mt-4 grid grid-cols-4 gap-3 sm:grid-cols-6" data-testid="icons">
+        {
+          icons.map((icon) => (
+            <li class="flex flex-col items-center gap-2 rounded-lg border border-line p-3 text-xs text-fg-muted">
+              <Icon icon={icon} size={28} />
+              {icon.name}
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section aria-labelledby="solids-title" class="mt-14">
+      <h2 id="solids-title" class="text-xl font-semibold">The Platonic solids</h2>
+      <p class="mt-2 text-fg-muted">Drawn as static SVG at build time from <code>@hedronite/lts-primitives</code>.</p>
+      <ul class="mt-4 grid grid-cols-5 gap-3" data-testid="solids">
+        {
+          solids.map(({ solid, shape }) => (
+            <li class="flex flex-col items-center gap-2 rounded-lg border border-line p-3 text-xs capitalize text-fg-muted">
+              <Wireframe shape={shape} size={56} />
+              {solid}
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section aria-labelledby="three-title" class="mt-14">
+      <h2 id="three-title" class="text-xl font-semibold">In 3D</h2>
+      <div class="mt-4 overflow-hidden rounded-xl border border-line bg-surface-raised" data-testid="island">
+        <Showcase client:only="react">
+          <div slot="fallback" class="grid h-72 place-items-center text-fg-muted">
+            <Wireframe shape={platonic("icosahedron")} size={120} />
+          </div>
+        </Showcase>
+      </div>
+    </section>
+  </main>
+</Layout>

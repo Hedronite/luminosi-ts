@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// Smoke tests run against the built catalog (bun run build first).
+// Browser tests run against the built catalog and site (bun run build first).
 export default defineConfig({
   testDir: "e2e",
   forbidOnly: process.env["CI"] !== undefined,
@@ -13,10 +13,18 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"], launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] } },
     },
   ],
-  webServer: {
-    command: "bunx vite preview --port 4173 --strictPort",
-    cwd: "apps/catalog",
-    url: "http://localhost:4173",
-    reuseExistingServer: process.env["CI"] === undefined,
-  },
+  webServer: [
+    {
+      command: "bunx vite preview --port 4173 --strictPort",
+      cwd: "apps/catalog",
+      url: "http://localhost:4173",
+      reuseExistingServer: process.env["CI"] === undefined,
+    },
+    {
+      command: "bunx astro preview --port 4174",
+      cwd: "apps/site",
+      url: "http://localhost:4174",
+      reuseExistingServer: process.env["CI"] === undefined,
+    },
+  ],
 });
