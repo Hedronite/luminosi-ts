@@ -27,5 +27,8 @@
     "tokyo-night": { "name": "Tokyo Night", "credit": "Tokyo Night by enkia, MIT" },
     "vantablack": { "name": "Vantablack" },
     "white": { "name": "White" }
+  },
+  "pairs": {
+    "catppuccin": { "name": "Catppuccin", "dark": "catppuccin", "light": "catppuccin-latte", "credit": "Catppuccin (catppuccin.com), MIT; dark is Mocha, light is Latte" }
   }
 }

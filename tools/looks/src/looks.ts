@@ -9,7 +9,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { hedron, hedronite, lookCategories, neutral, type LookCategoryId } from "@hedronite/lts-tokens";
 import { z } from "zod";
-import { convertOmarchy, type Conversion } from "./convert.js";
+import { convertOmarchy, pairLooks, type Conversion } from "./convert.js";
 import { parseFlatToml } from "./toml.js";
 
 const root = resolve(import.meta.dirname, "../../..");
@@ -25,6 +25,8 @@ const indexSchema = z
     source: z.string().min(1),
     license: z.string().min(1),
     looks: z.record(slug, z.object({ name: z.string().min(1).max(40), credit: z.string().min(1).optional(), note: z.string().min(1).optional() }).strict()),
+    /** Two one-scheme themes of one family that become one look following the viewer's scheme. */
+    pairs: z.record(slug, z.object({ name: z.string().min(1).max(40), dark: slug, light: slug, credit: z.string().min(1).optional() }).strict()).optional(),
   })
   .strict();
 
@@ -41,7 +43,7 @@ async function convertAll(): Promise<readonly Conversion[]> {
       if (unlisted.length > 0 || missing.length > 0) {
         throw new Error(`assets/src/looks/${folder}: folders without a looks.json entry: [${unlisted.join(", ")}]; entries without a folder: [${missing.join(", ")}]`);
       }
-      return Promise.all(
+      const singles = await Promise.all(
         Object.entries(index.looks).map(async ([id, meta]) => {
           const toml = await readFile(join(sourceDir, folder, id, "colors.toml"), "utf8");
           try {
@@ -51,6 +53,20 @@ async function convertAll(): Promise<readonly Conversion[]> {
           }
         }),
       );
+      // A paired theme appears only inside its pair.
+      const byId = new Map(singles.map((conversion) => [conversion.preset.id, conversion]));
+      const paired = new Set<string>();
+      const pairs = Object.entries(index.pairs ?? {}).map(([id, pair]) => {
+        const dark = byId.get(pair.dark);
+        const light = byId.get(pair.light);
+        if (dark === undefined || light === undefined) throw new Error(`assets/src/looks/${folder}/looks.json: pair "${id}" names a look that isn't listed`);
+        for (const member of [pair.dark, pair.light]) {
+          if (paired.has(member)) throw new Error(`assets/src/looks/${folder}/looks.json: "${member}" is in two pairs`);
+          paired.add(member);
+        }
+        return pairLooks(dark, light, { id, name: pair.name, category: index.category, ...(pair.credit === undefined ? {} : { credit: pair.credit }) });
+      });
+      return [...singles.filter((conversion) => !paired.has(conversion.preset.id)), ...pairs];
     }),
   );
   const order = (id: LookCategoryId): number => lookCategories.findIndex((c) => c.id === id);

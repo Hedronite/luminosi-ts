@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { contrastRatio, hedron, type Hex } from "@hedronite/lts-tokens";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { convertOmarchy, mix } from "./convert.js";
+import { convertOmarchy, mix, pairLooks } from "./convert.js";
 import { parseFlatToml } from "./toml.js";
 
 const meta = { id: "your-look", name: "Your look", category: "omarchy" } as const;
@@ -134,5 +134,29 @@ blue = "#22418c"
   it("refuses a theme missing a role it reads", () => {
     expect(() => convertOmarchy(parseFlatToml('mode = "dark"\naccent = "#ffffff"'), meta)).toThrow();
     expect(() => convertOmarchy({ ...parseFlatToml(hedronToml), accent: "blue" }, meta)).toThrow();
+  });
+});
+
+describe("pairLooks", () => {
+  const omarchy = (id: string) =>
+    convertOmarchy(parseFlatToml(readFileSync(join(import.meta.dirname, `../../../assets/src/looks/omarchy/${id}/colors.toml`), "utf8")), { ...meta, id });
+
+  it("makes one look that follows the viewer: light from the light theme, dark from the dark one", () => {
+    const dark = omarchy("catppuccin");
+    const light = omarchy("catppuccin-latte");
+    const { preset, adjustments } = pairLooks(dark, light, { ...meta, id: "catppuccin", name: "Catppuccin" });
+    expect(preset.scheme).toBeUndefined();
+    expect(preset.dark).toEqual(dark.preset.dark);
+    expect(preset.light).toEqual(light.preset.light);
+    expect(preset.scene).toEqual(dark.preset.scene);
+    expect(adjustments).toHaveLength(dark.adjustments.length + light.adjustments.length);
+    expect(adjustments.every((note) => note.startsWith("dark (catppuccin)") || note.startsWith("light (catppuccin-latte)"))).toBe(true);
+  });
+
+  it("refuses members in the wrong scheme", () => {
+    const dark = omarchy("catppuccin");
+    const light = omarchy("catppuccin-latte");
+    expect(() => pairLooks(light, dark, meta)).toThrow(RangeError);
+    expect(() => pairLooks(dark, dark, meta)).toThrow(RangeError);
   });
 });
