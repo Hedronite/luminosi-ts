@@ -16,6 +16,8 @@ bun run build          # tsc for packages, vite build for the catalog
 bun run test           # Vitest
 bun run icons          # regenerate packages/icons from assets/src/icons (icons:check verifies)
 bun run objects        # regenerate packages/objects from assets/src/objects, after build (objects:check verifies)
+bun run looks          # regenerate the converted looks from assets/src/looks, after build (looks:check verifies)
+bun run looks:convert FILE   # print the look an Omarchy colors.toml makes, and what had to move
 bun run validate       # every package manifest loaded together: unique ids, dates, glTF sources and budgets
 bun run lint           # ESLint, type-aware, with the rules below
 bun run boundaries     # dependency-cruiser: the package boundaries below
@@ -69,7 +71,7 @@ From the manifesto, enforced by `.dependency-cruiser.cjs`:
 
 Assets are style-agnostic building blocks. A specific look belongs in a preset or pack, never in a primitive. Keep names, comments and examples neutral, so no aesthetic is assumed.
 
-Colors come from `@hedronite/lts-tokens`. A preset (`neutral` is the default; `hedronite` is an optional pack) supplies interface colors for light and dark schemes and the scene colors materials use. Use the semantic Tailwind utilities (`bg-surface`, `text-fg`, `text-fg-muted`, `border-line`, `bg-accent`, `text-on-accent`), never raw colors. Every text pair in every preset is tested for WCAG contrast.
+Colors come from `@hedronite/lts-tokens`. A preset, or look (`neutral` is the default), supplies interface colors for light and dark schemes and the scene colors materials use. Looks are grouped by category (`lookCategories`, `presetsByCategory`): Core (`neutral`), VirtualMachinist (`hedronite`, `hedron`, hand-made) and Omarchy (24 themes converted from their `colors.toml` in `assets/src/looks/omarchy` by `tools/looks`). A converted Omarchy look keeps its theme's one scheme (`scheme: "dark"` or `"light"`). The converter moves a color only to pass contrast and writes every move as a comment in the generated file; credit for ported schemes stays in `looks.json`. Add a look by adding its `colors.toml` and a `looks.json` entry, then `bun run looks`. Use the semantic Tailwind utilities (`bg-surface`, `text-fg`, `text-fg-muted`, `border-line`, `bg-accent`, `text-on-accent`), never raw colors. Every text pair in every preset is tested for WCAG contrast.
 
 ## TypeScript
 

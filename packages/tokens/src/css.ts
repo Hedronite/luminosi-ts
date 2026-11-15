@@ -10,7 +10,8 @@ const vars = (palette: Palette): string => keys.map((key) => `  --lts-${kebab(ke
  * The CSS for a set of presets: a Tailwind 4 `@theme inline` block mapping utilities
  * (`bg-surface`, `text-fg`, `border-line`, `bg-accent`, …) to variables, then the variables
  * per preset and color scheme. The first preset is the default; others apply under
- * `[data-preset="id"]` on the root element.
+ * `[data-preset="id"]` on the root element. A preset with a fixed `scheme` sets that one scheme and
+ * ignores the viewer's preference.
  */
 export function themeCss(all: readonly Preset[]): string {
   const theme = [
@@ -21,6 +22,9 @@ export function themeCss(all: readonly Preset[]): string {
   ].join("\n");
   const blocks = all.map((preset, index) => {
     const selector = index === 0 ? `:root, :root[data-preset="${preset.id}"]` : `:root[data-preset="${preset.id}"]`;
+    if (preset.scheme !== undefined) {
+      return `${selector} {\n  color-scheme: ${preset.scheme};\n${vars(preset[preset.scheme])}\n}`;
+    }
     return [
       `${selector} {\n  color-scheme: light dark;\n${vars(preset.light)}\n}`,
       `@media (prefers-color-scheme: dark) {\n  ${selector} {\n${vars(preset.dark).replace(/^/gm, "  ")}\n  }\n}`,

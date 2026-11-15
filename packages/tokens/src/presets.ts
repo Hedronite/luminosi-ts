@@ -1,39 +1,20 @@
-import type { Hex } from "./color.js";
+import { generatedLooks } from "./generated/looks.js";
+import type { LookCategory, Preset } from "./types.js";
 
-/** Semantic interface colors for one color scheme. */
-export interface Palette {
-  readonly surface: Hex;
-  readonly surfaceRaised: Hex;
-  readonly fg: Hex;
-  readonly fgMuted: Hex;
-  readonly line: Hex;
-  readonly accent: Hex;
-  /** Text and icons drawn on the accent color. */
-  readonly onAccent: Hex;
-}
+export type { LookCategory, LookCategoryId, Palette, Preset, ScenePalette } from "./types.js";
 
-/** Colors for 3D materials, shared by every scheme. */
-export interface ScenePalette {
-  readonly base: Hex;
-  readonly accent: Hex;
-  readonly metal: Hex;
-  readonly glass: Hex;
-  readonly emissive: Hex;
-}
-
-/** A complete look: interface colors for light and dark, and scene colors. Swap the preset to swap the look. */
-export interface Preset {
-  readonly id: string;
-  readonly name: string;
-  readonly light: Palette;
-  readonly dark: Palette;
-  readonly scene: ScenePalette;
-}
+/** Every category, in display order. */
+export const lookCategories: readonly LookCategory[] = [
+  { id: "core", name: "Core", description: "The LuminosiTS default." },
+  { id: "virtualmachinist", name: "VirtualMachinist", description: "First-party looks: the hedronite.com tokens and the Hedron theme." },
+  { id: "omarchy", name: "Omarchy", description: "Omarchy's themes, converted from their colors.toml (MIT; ported schemes credit their authors)." },
+];
 
 /** The default: neutral grays with a quiet blue accent. */
 export const neutral: Preset = {
   id: "neutral",
   name: "Neutral",
+  category: "core",
   light: {
     surface: "#ffffff",
     surfaceRaised: "#f5f5f5",
@@ -59,6 +40,7 @@ export const neutral: Preset = {
 export const hedronite: Preset = {
   id: "hedronite",
   name: "Hedronite",
+  category: "virtualmachinist",
   light: {
     surface: "#f6f5f3",
     surfaceRaised: "#ebe9e5",
@@ -88,6 +70,7 @@ export const hedronite: Preset = {
 export const hedron: Preset = {
   id: "hedron",
   name: "Hedron",
+  category: "virtualmachinist",
   light: {
     surface: "#eef3f8",
     surfaceRaised: "#e2ebf3",
@@ -109,4 +92,10 @@ export const hedron: Preset = {
   scene: { base: "#b7bfe8", accent: "#a96a38", metal: "#dda77d", glass: "#9dc3d4", emissive: "#2e5ab8" },
 };
 
-export const presets: readonly Preset[] = [neutral, hedronite, hedron];
+/** Every look: the hand-made ones, then the converted ones (`bun run looks`, from assets/src/looks). */
+export const presets: readonly Preset[] = [neutral, hedronite, hedron, ...generatedLooks];
+
+/** The looks in each category, in display order; empty categories are left out. */
+export function presetsByCategory(all: readonly Preset[] = presets): readonly { readonly category: LookCategory; readonly presets: readonly Preset[] }[] {
+  return lookCategories.map((category) => ({ category, presets: all.filter((preset) => preset.category === category.id) })).filter((group) => group.presets.length > 0);
+}

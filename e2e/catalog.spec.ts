@@ -76,10 +76,26 @@ for (const [name, path] of [["gallery", "/"], ["detail dialog", "/?asset=cube"]]
 
 test("the look switcher swaps the token preset and keeps contrast", async ({ page }) => {
   await page.goto("/");
-  const look = page.getByRole("group", { name: "Look" });
-  await look.getByRole("button", { name: "Hedronite" }).click();
+  const look = page.getByLabel("Look");
+  await look.selectOption("hedronite");
   await expect(page.locator("html")).toHaveAttribute("data-preset", "hedronite");
-  await expect(look.getByRole("button", { name: "Hedronite" })).toHaveAttribute("aria-pressed", "true");
+  await expect(look).toHaveValue("hedronite");
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => v.id)).toEqual([]);
+});
+
+test("looks are grouped by category, and a one-scheme look keeps its scheme", async ({ page }) => {
+  await page.goto("/");
+  const look = page.getByLabel("Look");
+  const groups = await look.locator("optgroup").evaluateAll((nodes) => nodes.map((node) => node.getAttribute("label")));
+  expect(groups).toEqual(["Core", "VirtualMachinist", "Omarchy"]);
+  await expect(look.locator('optgroup[label="Omarchy"] option')).toHaveCount(24);
+  // A light-scheme viewer picking a dark Omarchy theme still gets it dark.
+  await page.emulateMedia({ colorScheme: "light" });
+  await look.selectOption("tokyo-night");
+  await expect(page.locator("html")).toHaveAttribute("data-preset", "tokyo-night");
+  await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).colorScheme)).toBe("dark");
+  await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--lts-surface").trim())).toBe("#1a1b26");
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => v.id)).toEqual([]);
 });

@@ -47,7 +47,7 @@
     "knip": "knip",
     "e2e": "playwright test",
     "forge:test": "cd tools/img-to-object/upstream && python3 -m unittest discover -s forge/tests -p 'test_*.py' && cd .. && python3 -m unittest discover -s tests",
-    "check": "bun run icons:check && bun run typecheck && bun run build && bun run objects:check && bun run validate && bun run test && bun run lint && bun run boundaries && bun run knip && bun run forge:test && bun run e2e",
+    "check": "bun run icons:check && bun run typecheck && bun run build && bun run objects:check && bun run looks:check && bun run validate && bun run test && bun run lint && bun run boundaries && bun run knip && bun run forge:test && bun run e2e",
     "icons": "bun run --filter tool-icons generate",
     "icons:check": "bun run --filter tool-icons check",
     "validate": "bun run --filter tool-assets validate",
@@ -55,7 +55,10 @@
     "lumin": "bun tools/lumin/src/cli.ts",
     "e2e:container": "E2E_CATALOG_URL=http://localhost:4180 E2E_SITE_URL=http://localhost:4181 playwright test",
     "objects": "bun run --filter tool-objects generate",
-    "objects:check": "bun run --filter tool-objects check"
+    "objects:check": "bun run --filter tool-objects check",
+    "looks": "bun run --filter tool-looks generate",
+    "looks:check": "bun run --filter tool-looks check",
+    "looks:convert": "bun tools/looks/src/looks.ts convert"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",

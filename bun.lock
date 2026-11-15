@@ -271,6 +271,18 @@
         "vitest": "catalog:",
       },
     },
+    "tools/looks": {
+      "name": "tool-looks",
+      "version": "0.0.0",
+      "dependencies": {
+        "@hedronite/lts-tokens": "workspace:*",
+        "zod": "catalog:",
+      },
+      "devDependencies": {
+        "fast-check": "catalog:",
+        "vitest": "catalog:",
+      },
+    },
     "tools/lumin": {
       "name": "lumin",
       "version": "0.0.0",
@@ -1607,6 +1619,8 @@
     "tool-assets": ["tool-assets@workspace:tools/assets"],
 
     "tool-icons": ["tool-icons@workspace:tools/icons"],
+
+    "tool-looks": ["tool-looks@workspace:tools/looks"],
 
     "tool-objects": ["tool-objects@workspace:tools/objects"],
 
