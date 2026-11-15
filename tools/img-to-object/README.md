@@ -7,7 +7,18 @@ Turns a reference image of an object into a LuminosiTS `object` asset. It's buil
 - **Vendored and tested:** the upstream skill and forge live in [`upstream/`](upstream/), pinned to 2.0.1. `bun run forge:test` runs the forge's own test suite in CI.
 - **First reconstruction:** `dress-watch` (`dressWatchSpec` in `@hedronite/lts-objects`), a generic dress watch read off a reference photo and written as an `ObjectSpec` generator. The forge didn't drive it yet; it was reviewed by rendering it beside the reference (front and three-quarter views, both looks) until the shapes matched.
 - **The forge emits ObjectSpec:** [`plugin/`](plugin/) is the `lts-object-spec` emission target, a forge plugin selected with `--target`. No upstream file changes; the forge's socket runs it once a workspace is action-ready, checks the artifact and runs it twice to prove it deterministic.
-- **Next:** the review loop on the catalog's Playwright setup, and `lumin-new object --from-image`, which drives the forge with a dry run first.
+- **The review loop:** `lumin review-object --spec FILE --reference IMG` measures the photo with the forge's foreground mask, renders the spec on the catalog's `embed.html` (same size and background, the object fitted into the photo's subject box at one scale) and scores it with the forge's Divine Eye and comparison sheet. A spec reviewed against its own render scores silhouette IoU 0.98 (an e2e test).
+- **From photo to library:** `lumin new-object ID --from-image IMG` starts a forge workspace (`.img-to-object/ID`, gitignored); once the forge reports action-ready, `--from-workspace` emits through the `lts-object-spec` target, reviews against the workspace's reference and adds `assets/src/objects/ID.json`. `bun run objects` turns those into library assets (`objectSpecById`, the manifest, the catalog). `your-desk-lamp` is the first, from the sample sculpt spec.
+- **Next:** more shapes in the emitter (extrusions, sweeps, tubes), a forge run on a real photo end to end, and the review's lighting matched to studio product photos.
+
+## Reviewing a reconstruction
+
+```bash
+bun run build                                         # the embed page lives in the catalog build
+bun run lumin review-object --spec assets/src/objects/your-desk-lamp.json --reference ./lamp.png --out ./review
+```
+
+`./review` gets `render.png` (framed like the photo), `three-quarter.png`, `sheet.png` (the forge's side-by-side), `scores.json` (the Divine Eye: verdict, fidelity, silhouette IoU and scale as hard gates, then structure, edges, tone and objectness) and `review.json`. `--look` picks the token preset; `--yaw` and `--pitch` match the photo's camera. The envelope carries the verdict; the sheet is what accepts or rejects. Hue comes from the look, so color signals compare lightness and structure more than hue.
 
 ## The `lts-object-spec` target
 

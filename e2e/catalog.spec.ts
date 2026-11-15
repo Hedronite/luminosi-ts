@@ -191,3 +191,58 @@ test("the growth view groups assets by the day they were added", async ({ page }
   await page.getByRole("button", { name: "Dusk" }).click();
   await expect(page.getByRole("dialog", { name: "Dusk" })).toBeVisible();
 });
+
+test("the embed page draws a spec framed into the box it is given", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(String(error)));
+  const spec = {
+    format: "lts-object-spec",
+    version: 1,
+    id: "your-block",
+    name: "Your block",
+    materials: { body: { preset: "matte" } },
+    parts: [{ id: "body", shape: { type: "box", size: [1, 1, 1] }, material: "body" }],
+  };
+  await page.route("**/review-spec.json", (route) => route.fulfill({ json: spec }));
+  await page.goto("/embed.html?spec=/review-spec.json&width=320&height=240&bg=%23000000&fit=0.25,0.25,0.75,0.75");
+  const status = async (): Promise<string> =>
+    page.evaluate(() => {
+      const state: unknown = Reflect.get(window, "__ltsEmbed");
+      return typeof state === "object" && state !== null && "status" in state ? String(state.status) : "missing";
+    });
+  await expect.poll(status, { timeout: 15_000 }).not.toBe("loading");
+  expect(await status()).toBe("drawn");
+  // The lit box against black: its pixels must span the box it was given, height to height.
+  const extent = await page.evaluate(async () => {
+    const canvas = document.querySelector("canvas");
+    if (canvas === null) return null;
+    const image = new Image();
+    image.src = canvas.toDataURL();
+    await image.decode();
+    const context = new OffscreenCanvas(canvas.width, canvas.height).getContext("2d");
+    if (context === null) return null;
+    context.drawImage(image, 0, 0);
+    const { data, width, height } = context.getImageData(0, 0, canvas.width, canvas.height);
+    let top = height;
+    let bottom = -1;
+    let left = width;
+    let right = -1;
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const i = (y * width + x) * 4;
+        if ((data[i] ?? 0) + (data[i + 1] ?? 0) + (data[i + 2] ?? 0) > 60) {
+          top = Math.min(top, y);
+          bottom = Math.max(bottom, y);
+          left = Math.min(left, x);
+          right = Math.max(right, x);
+        }
+      }
+    }
+    return { y0: top / height, y1: (bottom + 1) / height, cx: (left + right + 1) / 2 / width };
+  });
+  expect(extent).not.toBeNull();
+  expect(extent?.y0).toBeCloseTo(0.25, 1);
+  expect(extent?.y1).toBeCloseTo(0.75, 1);
+  expect(extent?.cx).toBeCloseTo(0.5, 1);
+  expect(errors).toEqual([]);
+});

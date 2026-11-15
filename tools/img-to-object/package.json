@@ -5,17 +5,23 @@
   "license": "MIT OR Apache-2.0",
   "type": "module",
   "description": "Image to LuminosiTS object: the vendored forge, the lts-object-spec emission target, and their cross-language checks.",
+  "exports": {
+    "./review": "./src/review.ts"
+  },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run src"
   },
-  "devDependencies": {
+  "dependencies": {
     "@hedronite/lts-objects": "workspace:*",
+    "@playwright/test": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
     "@hedronite/lts-primitives": "workspace:*",
     "@hedronite/lts-tokens": "workspace:*",
     "@types/three": "catalog:",
     "three": "catalog:",
-    "vitest": "catalog:",
-    "zod": "catalog:"
+    "vitest": "catalog:"
   }
 }

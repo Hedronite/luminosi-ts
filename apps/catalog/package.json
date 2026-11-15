@@ -33,6 +33,7 @@
     "@types/react-dom": "catalog:",
     "@types/three": "catalog:",
     "@vitejs/plugin-react": "catalog:",
+    "fast-check": "catalog:",
     "tailwindcss": "catalog:",
     "tool-assets": "workspace:*",
     "vite": "catalog:",

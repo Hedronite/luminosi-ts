@@ -23,6 +23,7 @@ jobs:
       - run: bun run icons:check
       - run: bun run typecheck
       - run: bun run build
+      - run: bun run objects:check
       - run: bun run validate
       - name: Forge tests (img-to-object, Python standard library only)
         run: python3 --version && bun run forge:test

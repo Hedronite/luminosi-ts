@@ -21,7 +21,8 @@
     "@hedronite/lts-objects": "workspace:*",
     "@hedronite/lts-primitives": "workspace:*",
     "@hedronite/lts-scenes": "workspace:*",
-    "@hedronite/lts-shaders": "workspace:*"
+    "@hedronite/lts-shaders": "workspace:*",
+    "img-to-object": "workspace:*"
   },
   "devDependencies": {
     "vitest": "catalog:"

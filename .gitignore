@@ -22,3 +22,6 @@ result-*
 # Playwright
 playwright-report/
 test-results/
+
+# Forge workspaces for image-to-object (lumin new-object): scratch, and they may hold private reference photos
+.img-to-object/

@@ -1,7 +1,9 @@
 #!/usr/bin/env nu
 # Deterministic body for the lumin-new skill: add source assets. Writes files; use only when a human asked.
-# Wraps `bun tools/lumin/src/cli.ts new-icon`.
-#   icon   lumin new-icon ID --name=N --tags=a,b --svg=FILE [--dry-run]
+# Wraps `bun tools/lumin/src/cli.ts new-icon | new-object | review-object`.
+#   icon    lumin new-icon ID --name=N --tags=a,b --svg=FILE [--dry-run]
+#   object  lumin new-object ID (--from-image=IMG | --from-workspace=DIR) [--name=N --tags=a,b --dry-run]
+#   review  lumin review-object --spec=FILE --reference=IMG [--out=DIR --look=L --yaw=D --pitch=D]
 
 def repo-root [] { $env.FILE_PWD | path dirname | path dirname | path dirname }
 
@@ -48,6 +50,22 @@ def "main icon" [id: string, --name: string = "", --tags: string = "", --svg: st
   finish (lumin "new-icon" (if $dry_run { $base ++ ["--dry-run"] } else { $base }))
 }
 
+# Image to library object through the forge. --from-image starts a forge workspace for a photo;
+# --from-workspace (once the forge reports action-ready) emits, reviews and adds it. Then `bun run objects`.
+def "main object" [id: string, --from-image: string = "", --from-workspace: string = "", --name: string = "", --tags: string = "", --dry-run] {
+  let image = (if ($from_image | is-empty) { "" } else { $from_image | path expand })
+  let workspace = (if ($from_workspace | is-empty) { "" } else { $from_workspace | path expand })
+  let base = ([$id] ++ (opt "from-image" $image) ++ (opt "from-workspace" $workspace) ++ (opt "name" $name) ++ (opt "tags" $tags))
+  finish (lumin "new-object" (if $dry_run { $base ++ ["--dry-run"] } else { $base }))
+}
+
+# Render an ObjectSpec framed like a reference photo and score it with the forge's review tools.
+def "main review" [--spec: string = "", --reference: string = "", --out: string = "", --look: string = "", --yaw: string = "", --pitch: string = ""] {
+  let expand = {|p| if ($p | is-empty) { "" } else { $p | path expand } }
+  let args = ((opt "spec" (do $expand $spec)) ++ (opt "reference" (do $expand $reference)) ++ (opt "out" (do $expand $out)) ++ (opt "look" $look) ++ (opt "yaw" $yaw) ++ (opt "pitch" $pitch))
+  finish (lumin "review-object" $args)
+}
+
 def main [] {
-  finish { ok: false, command: "lumin-new", error: "usage: nu lumin-new.nu icon ID --name N --tags a,b --svg FILE [--dry-run]", kind: "usage", exit: 2 }
+  finish { ok: false, command: "lumin-new", error: "usage: nu lumin-new.nu icon ID --name N --tags a,b --svg FILE [--dry-run] | object ID (--from-image IMG | --from-workspace DIR) [--name N --tags a,b --dry-run] | review --spec FILE --reference IMG [--out DIR --look L]", kind: "usage", exit: 2 }
 }

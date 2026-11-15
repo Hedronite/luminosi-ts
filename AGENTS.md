@@ -15,6 +15,7 @@ bun run typecheck      # tsc --noEmit in every package, through Turborepo
 bun run build          # tsc for packages, vite build for the catalog
 bun run test           # Vitest
 bun run icons          # regenerate packages/icons from assets/src/icons (icons:check verifies)
+bun run objects        # regenerate packages/objects from assets/src/objects, after build (objects:check verifies)
 bun run validate       # every package manifest loaded together: unique ids, dates, glTF sources and budgets
 bun run lint           # ESLint, type-aware, with the rules below
 bun run boundaries     # dependency-cruiser: the package boundaries below
@@ -44,13 +45,13 @@ Three agent skills in `.agents/skills` (copied to `.claude`, `.cursor` and `.gro
 
 - `lumin`: find and read. Search, show (with snippets), list, kinds, packages, budgets, boundaries. Read-only.
 - `lumin-check`: the gate, one summary per step.
-- `lumin-new`: add a source icon. Writes files; only when a human asked; dry-run first.
+- `lumin-new`: add a source icon, or an object from a reference photo through the forge (`object`), and review an object against a photo (`review`). Writes files; only when a human asked; dry-run first.
 
 Use `nu .agents/skills/lumin/lumin.nu show <id>` before grepping packages. Without Nushell, `bun run lumin <command>` prints the same envelope.
 
 ## img-to-object
 
-`tools/img-to-object` turns a reference image into an `object` asset. `upstream/` is a vendored Apache-2.0 forge, pinned in `SOURCE.md`; edit it only when needed, and mark each edit as `SOURCE.md` says. Its output is an `ObjectSpec` (`@hedronite/lts-objects`: `parseObjectSpec`, `createObjectFromSpec`), pure data with colors from the token palette. The forge produces one through `tools/img-to-object/plugin`, the `lts-object-spec` emission target (`--target lts-object-spec`); `bun run forge:test` covers the forge and the emitter. Reference images are our own or CC0; reconstructions carry no brand names, logos or text. Read `tools/img-to-object/README.md` before using it.
+`tools/img-to-object` turns a reference image into an `object` asset. `upstream/` is a vendored Apache-2.0 forge, pinned in `SOURCE.md`; edit it only when needed, and mark each edit as `SOURCE.md` says. Its output is an `ObjectSpec` (`@hedronite/lts-objects`: `parseObjectSpec`, `createObjectFromSpec`), pure data with colors from the token palette. The forge produces one through `tools/img-to-object/plugin`, the `lts-object-spec` emission target (`--target lts-object-spec`); `bun run forge:test` covers the forge and the emitter. `lumin new-object` brackets the forge (a workspace for a photo, then emit, review and add to `assets/src/objects`); `lumin review-object` renders a spec framed like the photo on the catalog's `embed.html` and scores it with the forge's Divine Eye. Read the side-by-side sheet before accepting a reconstruction. Reference images are our own or CC0; reconstructions carry no brand names, logos or text. Read `tools/img-to-object/README.md` before using it.
 
 ## Package boundaries
 

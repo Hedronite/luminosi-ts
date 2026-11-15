@@ -1,0 +1,8 @@
+{
+  "your-desk-lamp": {
+    "name": "Your desk lamp",
+    "tags": ["object-spec", "forge", "sample"],
+    "added": "2026-11-15",
+    "source": "Emitted by the lts-object-spec target from tools/img-to-object/fixtures/your-desk-lamp.sculpt.json"
+  }
+}

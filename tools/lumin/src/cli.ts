@@ -3,10 +3,10 @@
 // The lumin skills (.agents/skills/lumin*) wrap this with Nushell. See SKILL.md there.
 import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
-import { boundaries, budgets, check, kinds, list, newIcon, packages, search, show } from "./commands.js";
+import { boundaries, budgets, check, kinds, list, newIcon, packages, root, search, show } from "./commands.js";
 import { fail, type Envelope } from "./envelope.js";
 
-const usage = "commands: kinds | list [--kind --package --tag --limit --newest] | search QUERY [--kind --limit] | show ID | packages | budgets | boundaries [--package] | check [--only a,b --keep-going] | new-icon ID --name N --tags a,b (--svg FILE | --stdin) [--dry-run]";
+const usage = "commands: kinds | list [--kind --package --tag --limit --newest] | search QUERY [--kind --limit] | show ID | packages | budgets | boundaries [--package] | check [--only a,b --keep-going] | new-icon ID --name N --tags a,b (--svg FILE | --stdin) [--dry-run] | new-object ID (--from-image IMG | --from-workspace DIR) [--name N --tags a,b --dry-run] | review-object --spec FILE --reference IMG [--out DIR --look L --yaw D --pitch D]";
 
 async function readStdin(): Promise<string> {
   const chunks: Buffer[] = [];
@@ -34,6 +34,14 @@ async function run(argv: readonly string[]): Promise<Envelope> {
         svg: { type: "string" },
         stdin: { type: "boolean" },
         "dry-run": { type: "boolean" },
+        "from-image": { type: "string" },
+        "from-workspace": { type: "string" },
+        spec: { type: "string" },
+        reference: { type: "string" },
+        out: { type: "string" },
+        look: { type: "string" },
+        yaw: { type: "string" },
+        pitch: { type: "string" },
       },
     });
   } catch (error: unknown) {
@@ -68,6 +76,52 @@ async function run(argv: readonly string[]): Promise<Envelope> {
       else if (values.svg !== undefined) svg = readFileSync(values.svg, "utf8");
       else return fail("new-icon", "usage", "pass the SVG with --svg FILE or --stdin");
       return newIcon(id, { name: values.name ?? "", tags: csv(values.tags), svg, dryRun: values["dry-run"] === true });
+    }
+    case "new-object": {
+      const id = positionals[0];
+      if (id === undefined) return fail("new-object", "usage", "new-object needs an id");
+      // Loaded on demand: it brings in the review loop (Playwright), which the other commands don't need.
+      const { newObject } = await import("./objects.js");
+      return newObject(
+        id,
+        {
+          ...(values["from-image"] === undefined ? {} : { fromImage: values["from-image"] }),
+          ...(values["from-workspace"] === undefined ? {} : { fromWorkspace: values["from-workspace"] }),
+          ...(values.name === undefined ? {} : { name: values.name }),
+          ...(values.tags === undefined ? {} : { tags: csv(values.tags) }),
+          dryRun: values["dry-run"] === true,
+        },
+        { root },
+      );
+    }
+    case "review-object": {
+      if (values.spec === undefined || values.reference === undefined) return fail("review-object", "usage", "review-object needs --spec FILE and --reference IMG");
+      const angle = (value: string | undefined, label: string): number | undefined => {
+        if (value === undefined) return undefined;
+        const n = Number(value);
+        if (!Number.isFinite(n)) throw new RangeError(`--${label} must be a number of degrees`);
+        return n;
+      };
+      let yaw: number | undefined;
+      let pitch: number | undefined;
+      try {
+        yaw = angle(values.yaw, "yaw");
+        pitch = angle(values.pitch, "pitch");
+      } catch (error: unknown) {
+        return fail("review-object", "usage", error instanceof Error ? error.message : String(error));
+      }
+      const { reviewObjectCommand } = await import("./objects.js");
+      return reviewObjectCommand(
+        {
+          spec: values.spec,
+          reference: values.reference,
+          ...(values.out === undefined ? {} : { out: values.out }),
+          ...(values.look === undefined ? {} : { look: values.look }),
+          ...(yaw === undefined ? {} : { yaw }),
+          ...(pitch === undefined ? {} : { pitch }),
+        },
+        { root },
+      );
     }
     default:
       return fail(command || "lumin", "usage", command === "" ? usage : `unknown command "${command}". ${usage}`);
