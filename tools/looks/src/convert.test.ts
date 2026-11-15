@@ -1,12 +1,19 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { contrastRatio, hedron, type Hex } from "@hedronite/lts-tokens";
+import { contrastRatio, type Hex } from "@hedronite/lts-tokens";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { convertOmarchy, mix, pairLooks } from "./convert.js";
 import { parseFlatToml } from "./toml.js";
 
 const meta = { id: "your-look", name: "Your look", category: "omarchy" } as const;
+
+/** The hand-made hedron look (Hedronite/luminosi-ts#14) that the converted Hedron and Hedron Light replaced. */
+const hedron = {
+  dark: { surface: "#0a0e1e", surfaceRaised: "#141a38", fg: "#eef1ff", fgMuted: "#8b93b8", line: "#1c2450" },
+  light: { surface: "#eef3f8", surfaceRaised: "#e2ebf3", line: "#c9d8e6" },
+  scene: { base: "#b7bfe8", glass: "#9dc3d4", emissive: "#2e5ab8" },
+} as const;
 
 /** Hedron's Omahedron colors.toml (VirtualMachinist/Omahedron themes/hedron, 20c5dc40), transcribed. */
 const hedronToml = `
@@ -44,7 +51,7 @@ describe("parseFlatToml", () => {
 });
 
 describe("convertOmarchy", () => {
-  it("maps Hedron's roles onto the same surfaces and text the hand-made hedron look uses", () => {
+  it("maps Hedron's roles onto the same surfaces and text the hand-made hedron look used", () => {
     const { preset } = convertOmarchy(parseFlatToml(hedronToml), { ...meta, id: "hedron-converted", category: "virtualmachinist" });
     expect(preset.scheme).toBe("dark");
     const { surface, surfaceRaised, fg, fgMuted, line } = preset.dark;
