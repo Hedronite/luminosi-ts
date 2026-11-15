@@ -18,6 +18,7 @@
     "@hedronite/lts-materials": "workspace:*",
     "@hedronite/lts-objects": "workspace:*",
     "@hedronite/lts-primitives": "workspace:*",
+    "@hedronite/lts-scenes": "workspace:*",
     "@hedronite/lts-shaders": "workspace:*",
     "@hedronite/lts-tokens": "workspace:*",
     "@react-three/fiber": "catalog:",

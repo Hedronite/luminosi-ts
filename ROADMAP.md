@@ -77,13 +77,13 @@ Companion to the LuminosiTS manifesto. This document tracks progressive stages f
 
 **Goal:** Prebuilt scene kits, better generation/optimization, and demonstration of range.
 
-- [ ] Scenes package: several environment kits covering different moods or use cases
-- [ ] Growth timeline and “recently added” views in catalog
-- [ ] Tools: first CLI or script for asset validation / optimization (can bridge to Rust)
+- [x] Scenes package: several environment kits covering different moods or use cases
+- [x] Growth timeline and “recently added” views in catalog
+- [x] Tools: first CLI or script for asset validation / optimization (can bridge to Rust)
 - [ ] Expanded icon set and more materials/shaders
-- [ ] Documentation or expanded catalog docs
+- [x] Documentation or expanded catalog docs
 - [ ] Dogfood on a real page or small prototype (any aesthetic)
-- [ ] Optional open-source under Hedronite organization
+- [x] Optional open-source under Hedronite organization
 
 **Exit criteria:** Catalog feels like a complete progressive index. Library is pleasant to use in real projects across different visual styles.
 

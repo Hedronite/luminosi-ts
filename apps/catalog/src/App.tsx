@@ -4,6 +4,8 @@ import { presets } from "@hedronite/lts-tokens";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { AssetPreview } from "./AssetPreview";
 import { DetailDialog } from "./DetailDialog";
+import { Growth } from "./Growth";
+import { byNewest } from "./growthDays";
 import { PresetContext, usePresetState } from "./look";
 import { registry } from "./registry";
 import { filterAssets, kindCounts, type KindFilter } from "./search";
@@ -11,7 +13,12 @@ import { filterAssets, kindCounts, type KindFilter } from "./search";
 // The playground loads three.js and React Three Fiber only when opened.
 const Playground = lazy(() => import("./Playground").then((module) => ({ default: module.Playground })));
 
-type View = "assets" | "playground";
+type View = "assets" | "playground" | "growth";
+const views: readonly (readonly [View, string])[] = [
+  ["assets", "Assets"],
+  ["playground", "Playground"],
+  ["growth", "Growth"],
+];
 
 const allAssets = registry.list();
 const kinds = kindCounts(allAssets, assetKinds);
@@ -23,7 +30,8 @@ const toggle =
   "rounded-lg border border-line px-3 py-2 text-sm aria-pressed:border-accent aria-pressed:bg-accent aria-pressed:text-on-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
 function initialView(): View {
-  return new URLSearchParams(window.location.search).get("view") === "playground" ? "playground" : "assets";
+  const view = new URLSearchParams(window.location.search).get("view");
+  return view === "playground" || view === "growth" ? view : "assets";
 }
 
 function initialSelection(): AssetMeta | undefined {
@@ -37,9 +45,13 @@ export function App() {
   const [selected, setSelected] = useState<AssetMeta | undefined>(initialSelection);
   const [preset, setPreset] = usePresetState();
   const [view, setView] = useState<View>(initialView);
+  const [newest, setNewest] = useState(false);
   const opener = useRef<HTMLElement | null>(null);
 
-  const results = useMemo(() => filterAssets(allAssets, { text, kind }), [text, kind]);
+  const results = useMemo(() => {
+    const matches = filterAssets(allAssets, { text, kind });
+    return newest ? byNewest(matches) : matches;
+  }, [text, kind, newest]);
   // Stepping walks the visible results, or everything when the selection came from a deep link outside them.
   const stepList = selected !== undefined && results.includes(selected) ? results : allAssets;
   const index = selected === undefined ? -1 : stepList.indexOf(selected);
@@ -48,8 +60,8 @@ export function App() {
     const url = new URL(window.location.href);
     if (selected === undefined) url.searchParams.delete("asset");
     else url.searchParams.set("asset", selected.id);
-    if (view === "playground") url.searchParams.set("view", "playground");
-    else url.searchParams.delete("view");
+    if (view === "assets") url.searchParams.delete("view");
+    else url.searchParams.set("view", view);
     window.history.replaceState(null, "", url);
   }, [selected, view]);
 
@@ -96,7 +108,7 @@ export function App() {
           </header>
 
           <nav aria-label="Views" className="mt-6 flex gap-1">
-            {(["assets", "playground"] as const).map((option) => (
+            {views.map(([option, label]) => (
               <button
                 key={option}
                 type="button"
@@ -106,7 +118,7 @@ export function App() {
                 }}
                 className={toggle}
               >
-                {option === "assets" ? "Assets" : "Playground"}
+                {label}
               </button>
             ))}
           </nav>
@@ -115,6 +127,8 @@ export function App() {
             <Suspense fallback={<p className="mt-6 text-fg-muted">Loading the playground…</p>}>
               <Playground />
             </Suspense>
+          ) : view === "growth" ? (
+            <Growth assets={allAssets} onOpen={open} />
           ) : (
           <>
           <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -136,6 +150,18 @@ export function App() {
                 className="w-full rounded-lg border border-line bg-transparent py-2 pl-10 pr-3 placeholder:text-fg-muted focus-visible:outline-2 focus-visible:outline-accent"
               />
             </search>
+
+            <label className="flex items-center gap-2 text-sm text-fg-muted">
+              <input
+                type="checkbox"
+                checked={newest}
+                onChange={(event) => {
+                  setNewest(event.target.checked);
+                }}
+                className="accent-accent"
+              />
+              Newest first
+            </label>
 
             <div role="group" aria-label="Filter by kind" className="flex flex-wrap gap-1">
               {[["all", allAssets.length] as const, ...kinds].map(([value, count]) => (

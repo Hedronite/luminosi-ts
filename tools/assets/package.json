@@ -10,14 +10,20 @@
   },
   "scripts": {
     "build": "bun src/build.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "validate": "bun src/validate.ts"
   },
   "devDependencies": {
     "@gltf-transform/core": "catalog:",
     "@gltf-transform/extensions": "catalog:",
     "@gltf-transform/functions": "catalog:",
+    "@hedronite/lts-core": "workspace:*",
+    "@hedronite/lts-icons": "workspace:*",
+    "@hedronite/lts-materials": "workspace:*",
     "@hedronite/lts-objects": "workspace:*",
     "@hedronite/lts-primitives": "workspace:*",
+    "@hedronite/lts-scenes": "workspace:*",
+    "@hedronite/lts-shaders": "workspace:*",
     "meshoptimizer": "catalog:",
     "zod": "catalog:"
   }

@@ -15,6 +15,7 @@ bun run typecheck      # tsc --noEmit in every package, through Turborepo
 bun run build          # tsc for packages, vite build for the catalog
 bun run test           # Vitest
 bun run icons          # regenerate packages/icons from assets/src/icons (icons:check verifies)
+bun run validate       # every package manifest loaded together: unique ids, dates, glTF sources and budgets
 bun run lint           # ESLint, type-aware, with the rules below
 bun run boundaries     # dependency-cruiser: the package boundaries below
 bun run knip           # unused files, exports and dependencies

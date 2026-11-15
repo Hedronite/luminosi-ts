@@ -2,6 +2,7 @@ import type { AssetMeta } from "@hedronite/lts-core";
 import { createMaterial, isMaterialId } from "@hedronite/lts-materials";
 import { createCrystalCluster, createLattice, crystalCluster, latticePoints, loadGltf } from "@hedronite/lts-objects";
 import { createPolyhedronGeometry, geodesicSphere, isPrimitiveId, primitive } from "@hedronite/lts-primitives";
+import { createSceneKit, isSceneKitId } from "@hedronite/lts-scenes";
 import type { ScenePalette } from "@hedronite/lts-tokens";
 import { Mesh, type Object3D } from "three";
 import crystalClusterGlb from "tool-assets/models/crystal-cluster-glb.glb?url";
@@ -27,6 +28,10 @@ export async function buildSubject(meta: AssetMeta, palette: ScenePalette, signa
   if (meta.id === "instanced-lattice") {
     const { size, spacing, scale } = objectSettings.lattice;
     return createLattice(latticePoints({ size, spacing }), createMaterial("metal", palette), { scale });
+  }
+  const kit = meta.id.replace(/^scene-/, "");
+  if (meta.kind === "scene" && isSceneKitId(kit)) {
+    return createSceneKit(kit, palette);
   }
   if (meta.id === "crystal-cluster-glb") {
     return loadGltf(objectSettings.glbUrl, { signal });
