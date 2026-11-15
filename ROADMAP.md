@@ -82,7 +82,7 @@ Companion to the LuminosiTS manifesto. This document tracks progressive stages f
 - [x] Tools: first CLI or script for asset validation / optimization (can bridge to Rust)
 - [ ] Expanded icon set and more materials/shaders
 - [x] Documentation or expanded catalog docs
-- [ ] Dogfood on a real page or small prototype (any aesthetic)
+- [x] Dogfood on a real page or small prototype (any aesthetic)
 - [x] Optional open-source under Hedronite organization
 
 **Exit criteria:** Catalog feels like a complete progressive index. Library is pleasant to use in real projects across different visual styles.

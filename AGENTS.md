@@ -4,7 +4,7 @@ LuminosiTS is a progressive, modular TypeScript visual library: icons, Three.js 
 
 ## State
 
-Stage 0 (scaffold). Every package boundary exists. Only `core` has code: the asset registry with Zod metadata. The catalog shows an empty gallery. Do not document, run or claim a command that is not listed below.
+Stages 0–4 of [`ROADMAP.md`](ROADMAP.md) are built: core, tokens, icons, primitives, materials, objects, shaders, scenes and adapters; the catalog (`apps/catalog`, with a playground and a growth view); an Astro page that dogfoods the library (`apps/site`); and the asset pipeline and validator (`tools/`). Do not document, run or claim a command that is not listed below.
 
 ## Commands
 
@@ -22,9 +22,12 @@ bun run knip           # unused files, exports and dependencies
 bun run e2e            # Playwright smoke + axe on the built catalog (after build)
 bun run check          # all of the above, in CI order
 bun run dev            # the catalog at http://localhost:5173
+bun run --filter site dev   # the Astro page
 ```
 
 `bun run check` is the definition of done until Web-TOPS can gate this repo.
+
+`.astro` files are type-checked by `astro check` (`site:typecheck`). ESLint does not lint them yet; `eslint-plugin-astro` 1.7 is the line that supports ESLint 9.
 
 The asset pipeline (`tools/assets`) runs as part of `bun run build`: it turns `assets/src/models/*.json` into meshopt-compressed `.glb` files and fails the build when an asset exceeds `assets/budgets.json`. Source art is data; the repo holds no binary models.
 

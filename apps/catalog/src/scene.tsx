@@ -1,28 +1,9 @@
 import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef, type RefObject } from "react";
-import { PMREMGenerator } from "three";
+import { useEffect, useRef, type RefObject } from "react";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 
-/** A procedural studio environment for reflections; nothing is fetched. Attached to the scene, freed on unmount. */
-export function Environment() {
-  const gl = useThree((state) => state.gl);
-  const target = useMemo(() => {
-    const pmrem = new PMREMGenerator(gl);
-    const room = new RoomEnvironment();
-    const result = pmrem.fromScene(room, 0.04);
-    room.dispose();
-    pmrem.dispose();
-    return result;
-  }, [gl]);
-  useEffect(
-    () => () => {
-      target.dispose();
-    },
-    [target],
-  );
-  return <primitive object={target.texture} attach="environment" />;
-}
+/** The studio environment comes from the adapters, so the catalog uses what consumers use. */
+export { StudioEnvironment as Environment } from "@hedronite/lts-adapters";
 
 export function Controls() {
   const { camera, gl, invalidate } = useThree();

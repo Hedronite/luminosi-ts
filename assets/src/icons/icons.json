@@ -91,6 +91,13 @@
     ],
     "added": "2026-11-15"
   },
+  "dodecahedron": {
+    "name": "Dodecahedron",
+    "tags": [
+      "geometry"
+    ],
+    "added": "2026-11-15"
+  },
   "download": {
     "name": "Download",
     "tags": [
@@ -130,6 +137,13 @@
     "name": "Home",
     "tags": [
       "navigation"
+    ],
+    "added": "2026-11-15"
+  },
+  "icosahedron": {
+    "name": "Icosahedron",
+    "tags": [
+      "geometry"
     ],
     "added": "2026-11-15"
   },

@@ -2,8 +2,10 @@ import { createMaterial, type MaterialId } from "@hedronite/lts-materials";
 import { createCrystalCluster, createLattice, crystalCluster, latticePoints, type ClusterOptions, type LatticeOptions } from "@hedronite/lts-objects";
 import { createPolyhedronGeometry, createStudioLights, disposeObject, primitive, type PrimitiveId } from "@hedronite/lts-primitives";
 import { neutral, type ScenePalette } from "@hedronite/lts-tokens";
-import type { ThreeElements } from "@react-three/fiber";
+import { useThree, type ThreeElements } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
+import { PMREMGenerator } from "three";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 
 type GroupProps = Omit<ThreeElements["group"], "args" | "children" | "ref" | "object">;
 
@@ -32,6 +34,29 @@ export function PrimitiveMesh({ primitive: id, material = "satin", palette = neu
     [surface],
   );
   return <mesh geometry={geometry} material={surface} dispose={null} {...props} />;
+}
+
+/**
+ * A procedural studio room as the scene's environment, for reflections on metal, glass and glossy
+ * surfaces. Nothing is fetched. Freed on unmount.
+ */
+export function StudioEnvironment() {
+  const gl = useThree((state) => state.gl);
+  const target = useMemo(() => {
+    const pmrem = new PMREMGenerator(gl);
+    const room = new RoomEnvironment();
+    const result = pmrem.fromScene(room, 0.04);
+    room.dispose();
+    pmrem.dispose();
+    return result;
+  }, [gl]);
+  useEffect(
+    () => () => {
+      target.dispose();
+    },
+    [target],
+  );
+  return <primitive object={target.texture} attach="environment" />;
 }
 
 /** The library's three-point studio rig. */

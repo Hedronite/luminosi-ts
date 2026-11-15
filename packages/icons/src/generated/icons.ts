@@ -79,6 +79,12 @@ export const cube: IconData = {
   paths: ["m12 2.75 8.25 4.75v9L12 21.25 3.75 16.5v-9z", "M3.75 7.5 12 12.25l8.25-4.75M12 12.25v9"],
 };
 
+export const dodecahedron: IconData = {
+  id: "dodecahedron",
+  name: "Dodecahedron",
+  paths: ["m12 2.5 5.58 1.81 3.46 4.75v5.88l-3.46 4.75L12 21.5l-5.58-1.81-3.46-4.75V9.06l3.46-4.75z", "m12 7.4 4.37 3.18-1.67 5.14H9.3l-1.67-5.14zm0 0V2.5m4.37 8.08 4.67-1.52m-6.34 6.66 2.88 3.97M9.3 15.72l-2.88 3.97m1.21-9.11L2.96 9.06"],
+};
+
 export const download: IconData = {
   id: "download",
   name: "Download",
@@ -113,6 +119,12 @@ export const home: IconData = {
   id: "home",
   name: "Home",
   paths: ["M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1z"],
+};
+
+export const icosahedron: IconData = {
+  id: "icosahedron",
+  name: "Icosahedron",
+  paths: ["m12 2.5 8.5 4.75v9.5L12 21.5l-8.5-4.75v-9.5z", "m12 8 4 7H8zm-8.5-.75L12 8l8.5-.75M12 2.5V8m8.5-.75L16 15l4.5 1.75M16 15l-4 6.5m-8.5-4.75L8 15l4 6.5M8 15 3.5 7.25"],
 };
 
 export const info: IconData = {
