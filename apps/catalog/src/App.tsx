@@ -12,10 +12,12 @@ import { filterAssets, kindCounts, type KindFilter } from "lumin/search";
 
 // The playground loads three.js and React Three Fiber only when opened.
 const Playground = lazy(() => import("./Playground").then((module) => ({ default: module.Playground })));
+const IconPacks = lazy(() => import("./IconPacks").then((module) => ({ default: module.IconPacks })));
 
-type View = "assets" | "playground" | "growth";
+type View = "assets" | "playground" | "growth" | "icon-packs";
 const views: readonly (readonly [View, string])[] = [
   ["assets", "Assets"],
+  ["icon-packs", "Icon packs"],
   ["playground", "Playground"],
   ["growth", "Growth"],
 ];
@@ -31,7 +33,7 @@ const toggle =
 
 function initialView(): View {
   const view = new URLSearchParams(window.location.search).get("view");
-  return view === "playground" || view === "growth" ? view : "assets";
+  return view === "playground" || view === "growth" || view === "icon-packs" ? view : "assets";
 }
 
 function initialSelection(): AssetMeta | undefined {
@@ -135,6 +137,10 @@ export function App() {
             </Suspense>
           ) : view === "growth" ? (
             <Growth assets={allAssets} onOpen={open} />
+          ) : view === "icon-packs" ? (
+            <Suspense fallback={<p className="mt-6 text-fg-muted">Loading the icon packs…</p>}>
+              <IconPacks />
+            </Suspense>
           ) : (
           <>
           <div className="mt-6 flex flex-wrap items-center gap-3">

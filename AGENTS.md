@@ -15,6 +15,7 @@ bun run typecheck      # tsc --noEmit in every package, through Turborepo
 bun run build          # tsc for packages, vite build for the catalog
 bun run test           # Vitest
 bun run icons          # regenerate packages/icons from assets/src/icons (icons:check verifies)
+bun run icons:packs    # regenerate the icon packs from assets/vendor (icons:packs:check verifies)
 bun run objects        # regenerate packages/objects from assets/src/objects, after build (objects:check verifies)
 bun run looks          # regenerate the converted looks from assets/src/looks, after build (looks:check verifies)
 bun run looks:convert FILE   # print the look an Omarchy colors.toml makes, and what had to move
@@ -45,7 +46,7 @@ TypeScript is pinned to 6.0.x: `typescript-eslint` and `@astrojs/check` do not a
 
 Three agent skills in `.agents/skills` (copied to `.claude`, `.cursor` and `.grok` by `bun run skills:sync`; a test fails if the copies drift). Each is a short `SKILL.md` and a Nushell wrapper over `tools/lumin`, which prints one JSON envelope, `{ ok, command, data }` or `{ ok: false, error, kind, exit }`.
 
-- `lumin`: find and read. Search, show (with snippets), list, kinds, packages, budgets, boundaries. Read-only.
+- `lumin`: find and read. Search, show (with snippets), list, kinds, packages, icon packs (`lumin icon-packs`), budgets, boundaries. Read-only.
 - `lumin-check`: the gate, one summary per step.
 - `lumin-new`: add a source icon, or an object from a reference photo through the forge (`object`), and review an object against a photo (`review`). Writes files; only when a human asked; dry-run first.
 

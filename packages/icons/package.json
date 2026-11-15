@@ -17,6 +17,14 @@
     "./manifest": {
       "types": "./dist/manifest.d.ts",
       "import": "./dist/manifest.js"
+    },
+    "./packs": {
+      "types": "./dist/packs/index.d.ts",
+      "import": "./dist/packs/index.js"
+    },
+    "./packs/*": {
+      "types": "./dist/packs/*.d.ts",
+      "import": "./dist/packs/*.js"
     }
   },
   "files": [

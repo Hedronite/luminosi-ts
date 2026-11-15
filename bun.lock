@@ -252,6 +252,7 @@
       "version": "0.0.0",
       "devDependencies": {
         "svgo": "catalog:",
+        "vitest": "catalog:",
         "zod": "catalog:",
       },
     },

@@ -1,11 +1,18 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { boundaries, budgets, kinds, list, newIcon, packages, root, search, show } from "./commands.js";
+import { boundaries, budgets, iconPacks, kinds, list, newIcon, packages, root, search, show } from "./commands.js";
 
 const data = (envelope: ReturnType<typeof kinds>): unknown => (envelope.ok ? envelope.data : undefined);
 
 describe("read commands", () => {
+  it("lists the icon packs with their licenses and import paths", () => {
+    const text = JSON.stringify(data(iconPacks()));
+    expect(text).toContain('"id":"lucide"');
+    expect(text).toContain('"license":"ISC"');
+    expect(text).toContain('"import":"@hedronite/lts-icons/packs/lucide"');
+  });
+
   it("counts every kind", () => {
     const result = kinds();
     expect(result.ok).toBe(true);

@@ -7,10 +7,14 @@
   "scripts": {
     "generate": "bun src/generate.ts",
     "check": "bun src/generate.ts --check",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "packs": "bun src/packs.ts",
+    "packs:check": "bun src/packs.ts --check",
+    "test": "vitest run"
   },
   "devDependencies": {
     "svgo": "catalog:",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "vitest": "catalog:"
   }
 }
