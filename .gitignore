@@ -18,3 +18,7 @@ result-*
 # Editors and OS
 .DS_Store
 *.swp
+
+# Playwright
+playwright-report/
+test-results/

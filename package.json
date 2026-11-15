@@ -26,10 +26,28 @@
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
-    "dev": "turbo run dev --filter=catalog"
+    "dev": "turbo run dev --filter=catalog",
+    "lint": "eslint .",
+    "boundaries": "depcruise packages apps --config .dependency-cruiser.cjs",
+    "knip": "knip",
+    "e2e": "playwright test",
+    "check": "bun run typecheck && bun run build && bun run test && bun run lint && bun run boundaries && bun run knip && bun run e2e"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
+    "@eslint-community/eslint-plugin-eslint-comments": "4.8.1",
+    "@eslint/js": "9.39.5",
+    "@playwright/test": "1.65.1",
+    "@types/node": "24.19.2",
+    "@vitest/eslint-plugin": "1.6.28",
+    "dependency-cruiser": "18.7.2",
+    "eslint": "9.39.5",
+    "eslint-plugin-jsx-a11y": "6.10.2",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.14.0",
+    "knip": "6.45.1",
     "turbo": "2.11.11",
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.2"
   }
 }
