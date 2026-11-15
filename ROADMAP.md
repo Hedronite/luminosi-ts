@@ -80,7 +80,8 @@ Companion to the LuminosiTS manifesto. This document tracks progressive stages f
 - [x] Scenes package: several environment kits covering different moods or use cases
 - [x] Growth timeline and “recently added” views in catalog
 - [x] Tools: first CLI or script for asset validation / optimization (can bridge to Rust)
-- [ ] Expanded icon set and more materials/shaders
+- [x] Expanded icon set: 14 icon packs from open-source sets (Lucide, Famicons, CoreUI, Stash, isocons), 11,978 icons, credited
+- [ ] More materials and shaders
 - [x] Documentation or expanded catalog docs
 - [x] Dogfood on a real page or small prototype (any aesthetic)
 - [x] Optional open-source under Hedronite organization

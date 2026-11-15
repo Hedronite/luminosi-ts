@@ -275,3 +275,21 @@ test("the embed page draws a spec framed into the box it is given", async ({ pag
   expect(extent?.cx).toBeCloseTo(0.5, 1);
   expect(errors).toEqual([]);
 });
+
+test("icon packs: pick a pack, see its credit, search it and copy an icon", async ({ page }) => {
+  await page.goto("/?view=icon-packs");
+  await expect(page.getByRole("heading", { name: "Icon packs" })).toBeVisible();
+  await expect(page.getByText("1808 icons")).toBeVisible();
+  await expect(page.getByTestId("pack-credit")).toContainText("ISC");
+  await expect(page.getByTestId("pack-credit")).toContainText("Lucide Icons and contributors");
+  await page.getByRole("searchbox", { name: "Search this pack" }).fill("arrow-right");
+  await expect(page.getByText(/^\d+ of 1808 icons$/)).toBeVisible();
+  await page.getByRole("list", { name: "Lucide icons" }).getByRole("button", { name: "Arrow right", exact: true }).click();
+  const detail = page.getByRole("complementary", { name: "Arrow right, from Lucide" });
+  await expect(detail).toContainText('import { arrowRight } from "@hedronite/lts-icons/packs/lucide";');
+  await page.getByRole("combobox", { name: "Pack", exact: true }).selectOption("isocons-rounded-left");
+  await expect(page.getByTestId("pack-credit")).toContainText("CC-BY-4.0");
+  await expect(page.getByRole("list", { name: "Isocons rounded left icons" }).locator("svg").first()).toBeVisible();
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => v.id)).toEqual([]);
+});

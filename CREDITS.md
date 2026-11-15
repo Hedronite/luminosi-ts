@@ -17,5 +17,6 @@ LuminosiTS is MIT OR Apache-2.0. It also carries open-source work by others, eac
 | Three Three.js demos: geometry-in-flux, bioluminescence, threejs-3d-webpage | `assets/vendor/techartist/` | https://iamtechartist.github.io/ | MIT (a `LICENSE` beside each demo) | Techartist |
 | The landing-page-design agent skill | `assets/vendor/ai-design-skills/` | https://github.com/elayadesign/ai-design-skills (`456d9e0d`) | MIT (`LICENSE`) | Elaya |
 | Interface agent skills (better-ui, better-typography, better-colors, interface-review and more) | `assets/vendor/jakubkrehel-skills/` | https://github.com/jakubkrehel/skills | MIT (`LICENSE`) | Jakub Krehel (jakub.kr, interfaces.dev) |
+| Icon packs generated from the icon sets above (Lucide, Famicons, CoreUI, Stash, isocons) | `packages/icons/src/packs/` | `assets/vendor/` via `tools/icons` | Each pack keeps its source's license (ISC, MIT, CC BY 4.0); see `iconPacks` | As for each source above |
 
 The looks converted from these palettes (`packages/tokens/src/generated/looks.ts`) carry each scheme's credit in their `credit` field.

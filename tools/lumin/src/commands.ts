@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 import { assetKinds, type AssetMeta } from "@hedronite/lts-core";
 import type { IconData } from "@hedronite/lts-icons";
 import { allIcons } from "@hedronite/lts-icons/manifest";
+import { iconPacks as packList } from "@hedronite/lts-icons/packs";
 import { fail, ok, type Envelope } from "./envelope.js";
 import { loadRegistry } from "./registry.js";
 import { kindCounts, rankAssets, type KindFilter } from "./search.js";
@@ -217,4 +218,9 @@ export function newIcon(id: string, options: NewIconOptions): Envelope {
   writeFileSync(join(root, plan.svgPath), `${svg}\n`);
   writeFileSync(metaPath, `${JSON.stringify(next, null, 2)}\n`);
   return ok("new-icon", { ...plan, dryRun: false });
+}
+
+/** The icon packs (other people's open-source icon sets, as data): id, size, license and credit. */
+export function iconPacks(): Envelope {
+  return ok("icon-packs", { packs: packList.map((pack) => ({ ...pack, import: `@hedronite/lts-icons/packs/${pack.id}` })), total: packList.reduce((sum, pack) => sum + pack.count, 0) });
 }

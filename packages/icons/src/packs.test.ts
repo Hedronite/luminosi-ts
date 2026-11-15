@@ -1,0 +1,60 @@
+import { describe, expect, it } from "vitest";
+import { packIconToSvg, paintAttributes } from "./pack.js";
+import { iconPacks, loadIconPack } from "./packs/index.js";
+
+const pathData = /^[Mm][\d\s.,eE+\-MmLlHhVvCcSsQqTtAaZz]*$/;
+const colors = /^(currentColor|none|#[0-9a-fA-F]{3,8})$/;
+
+describe("icon packs", () => {
+  it("list every pack with a license, a credit and a source", () => {
+    expect(iconPacks.map((p) => p.id)).toEqual(Object.keys(loadIconPack));
+    for (const pack of iconPacks) {
+      expect(pack.license).toMatch(/^(ISC|MIT|CC-BY-4\.0)$/);
+      expect(pack.credit.length).toBeGreaterThan(0);
+      expect(pack.source).toMatch(/^https:\/\//);
+      expect(pack.count).toBeGreaterThan(0);
+    }
+  });
+
+  it.each(iconPacks.map((p) => [p.id]))("%s: every icon has a valid grid, path data and paint, and ids and names are unique", async (id) => {
+    const load = loadIconPack[id];
+    if (load === undefined) throw new Error(`no loader for ${id}`);
+    const { pack, icons } = await load();
+    expect(icons).toHaveLength(pack.count);
+    expect(new Set(icons.map((i) => i.id)).size).toBe(icons.length);
+    expect(new Set(icons.map((i) => i.importName)).size).toBe(icons.length);
+    for (const icon of icons) {
+      expect(icon.viewBox).toMatch(/^-?[\d.]+ -?[\d.]+ [\d.]+ [\d.]+$/);
+      expect(icon.paths.length).toBeGreaterThan(0);
+      for (const paint of [icon.paint, ...icon.paths]) {
+        for (const key of ["fill", "stroke"] as const) {
+          const value = paint[key];
+          expect(value === undefined || colors.test(value), `${icon.id} ${key}=${String(value)}`).toBe(true);
+        }
+      }
+      for (const path of icon.paths) expect(path.d).toMatch(pathData);
+    }
+  });
+});
+
+describe("rendering a pack icon", () => {
+  const icon = {
+    id: "box",
+    name: "Box",
+    importName: "box",
+    viewBox: "0 0 512 512",
+    paint: { fill: "none", stroke: "currentColor", strokeWidth: "32" },
+    paths: [{ d: "M0 0h10v10H0z", fill: "currentColor", fillRule: "evenodd" as const }],
+  };
+
+  it("as an SVG string, with the icon's grid and each path's paint", () => {
+    const svg = packIconToSvg(icon, { size: 32, title: "Box & co" });
+    expect(svg).toContain('viewBox="0 0 512 512"');
+    expect(svg).toContain('stroke-width="32"');
+    expect(svg).toContain('<path d="M0 0h10v10H0z" fill="currentColor" fill-rule="evenodd"/>');
+    expect(svg).toContain("<title>Box &amp; co</title>");
+    expect(svg).toContain('role="img"');
+    expect(Object.keys(paintAttributes)).toContain("strokeOpacity");
+  });
+
+});
