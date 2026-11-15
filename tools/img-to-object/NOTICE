@@ -1,0 +1,16 @@
+img-to-object, part of LuminosiTS
+
+The upstream/ directory is a modified copy of img2threejs 2.0.1
+(https://github.com/img2threejs/img2threejs, commit 0c0c49bc168e648dbaf9c8c080474de0b3a941b6),
+Copyright 2026 hoainho, licensed under the Apache License, Version 2.0. The license text is in
+upstream/LICENSE. Everything in upstream/ is under that license only.
+
+Modifications by the LuminosiTS contributors:
+
+- Removed: assets/ (the upstream logo and sponsor marks), bin/ and package.json (the npm
+  installer), integrations/glb_character_pipeline/, integrations/mesh3d/, CLAUDE.md and .github/.
+- No remaining upstream file has been edited. A file edited later carries a header saying so and
+  is listed in SOURCE.md.
+
+The files outside upstream/ (this NOTICE, README.md and SOURCE.md) are LuminosiTS's own, under
+MIT OR Apache-2.0 like the rest of the repository.
