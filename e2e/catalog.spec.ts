@@ -276,9 +276,26 @@ test("the embed page draws a spec framed into the box it is given", async ({ pag
   expect(errors).toEqual([]);
 });
 
+test("icons: the core set comes first, then open-source packs with their credit", async ({ page }) => {
+  await page.goto("/?view=icons");
+  await expect(page.getByRole("heading", { name: "Icons", exact: true })).toBeVisible();
+  const pack = page.getByRole("combobox", { name: "Pack", exact: true });
+  await expect(pack).toHaveValue("core");
+  const groups = await pack.locator("optgroup").evaluateAll((nodes) => nodes.map((node) => node.getAttribute("label")));
+  expect(groups).toEqual(["LuminosiTS", "Open source"]);
+  await expect(page.getByText("37 icons")).toBeVisible();
+  await page.getByRole("list", { name: "LuminosiTS core icons" }).getByRole("button", { name: "Icosahedron", exact: true }).click();
+  await expect(page.getByRole("complementary", { name: "Icosahedron, from LuminosiTS core" })).toContainText('import { Icosahedron } from "@hedronite/lts-icons/react";');
+});
+
+test("the old icon-packs link opens the Icons view", async ({ page }) => {
+  await page.goto("/?view=icon-packs&pack=lucide");
+  await expect(page.getByRole("combobox", { name: "Pack", exact: true })).toHaveValue("lucide");
+  await expect(page.getByRole("button", { name: "Icons", exact: true })).toHaveAttribute("aria-pressed", "true");
+});
+
 test("icon packs: pick a pack, see its credit, search it and copy an icon", async ({ page }) => {
-  await page.goto("/?view=icon-packs");
-  await expect(page.getByRole("heading", { name: "Icon packs" })).toBeVisible();
+  await page.goto("/?view=icons&pack=lucide");
   await expect(page.getByText("1808 icons")).toBeVisible();
   await expect(page.getByTestId("pack-credit")).toContainText("ISC");
   await expect(page.getByTestId("pack-credit")).toContainText("Lucide Icons and contributors");
@@ -292,4 +309,77 @@ test("icon packs: pick a pack, see its credit, search it and copy an icon", asyn
   await expect(page.getByRole("list", { name: "Isocons rounded left icons" }).locator("svg").first()).toBeVisible();
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => v.id)).toEqual([]);
+});
+
+test("looks: every look as a card, and picking one applies it", async ({ page }) => {
+  await page.goto("/?view=looks");
+  await expect(page.getByRole("heading", { name: "Looks", exact: true })).toBeVisible();
+  await Promise.all(["Core", "VirtualMachinist", "Omarchy"].map(async (group) => expect(page.getByRole("heading", { name: new RegExp(`^${group}`) })).toBeVisible()));
+  const card = page.getByRole("button", { name: /^Hedron Light/ });
+  await card.click();
+  await expect(card).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("html")).toHaveAttribute("data-preset", "hedron-light");
+  await expect(page.getByLabel("Look", { exact: true })).toHaveValue("hedron-light");
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => v.id)).toEqual([]);
+});
+
+test("open source: folders by kind, each with its credit, and their pages readable in place", async ({ page }) => {
+  await page.goto("/?view=open-source");
+  await expect(page.getByRole("heading", { name: "Open source", exact: true })).toBeVisible();
+  await Promise.all(["Icon sets", "Components", "Demos", "Agent skills"].map(async (kind) => expect(page.getByRole("heading", { name: kind })).toBeVisible()));
+
+  await page.getByRole("button", { name: /^Interface skills/ }).click();
+  await expect(page).toHaveURL(/set=jakubkrehel-skills/);
+  await expect(page.getByTestId("folder-credit")).toContainText("Jakub Krehel");
+  await expect(page.getByTestId("folder-credit")).toContainText("MIT");
+  await page.getByRole("button", { name: "Read better-ui" }).click();
+  await expect(page.getByRole("heading", { level: 2, name: "UI polish" })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Page" })).toBeVisible();
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => v.id)).toEqual([]);
+
+  // A deep link lands on the same page; back goes up a level.
+  await page.reload();
+  await expect(page.getByRole("heading", { level: 2, name: "UI polish" })).toBeVisible();
+  await page.getByRole("button", { name: "Interface skills", exact: true }).click();
+  await expect(page.getByRole("heading", { level: 2, name: "Interface skills" })).toBeVisible();
+});
+
+test("open source: an icon set leads to its packs in the Icons view", async ({ page }) => {
+  await page.goto("/?view=open-source&set=isocons");
+  await page.getByRole("button", { name: /^Isocons rounded left/ }).click();
+  await expect(page.getByRole("combobox", { name: "Pack", exact: true })).toHaveValue("isocons-rounded-left");
+  await expect(page).not.toHaveURL(/set=/);
+});
+
+test.describe("on a phone", () => {
+  test.use({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
+
+  for (const view of ["assets", "icons", "looks", "open-source", "playground", "growth"] as const) {
+    test(`the ${view} view fits the screen width`, async ({ page }) => {
+      const errors: string[] = [];
+      page.on("pageerror", (error) => errors.push(error.message));
+      await page.goto(view === "assets" ? "/" : `/?view=${view}`);
+      await expect(page.getByRole("button", { name: view === "open-source" ? "Open source" : new RegExp(`^${view}$`, "i") })).toHaveAttribute("aria-pressed", "true");
+      await expect(page.getByRole("main")).not.toBeEmpty();
+      // Let lazy views render before measuring.
+      await expect(page.getByText(/^Loading/)).toHaveCount(0);
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      expect(overflow).toBeLessThanOrEqual(0);
+      expect(errors).toEqual([]);
+    });
+  }
+
+  test("the views stay in reach while scrolling", async ({ page }) => {
+    await page.goto("/?view=looks");
+    await page.mouse.wheel(0, 2000);
+    await expect(page.getByRole("navigation", { name: "Views" })).toBeInViewport();
+  });
+
+  test("a skill page reads without sideways scrolling", async ({ page }) => {
+    await page.goto("/?view=open-source&set=ai-design-skills&item=landing-page-design&page=skills/landing-page-design/SKILL.md");
+    await expect(page.getByRole("heading", { level: 2, name: "Landing Page Design" })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+  });
 });

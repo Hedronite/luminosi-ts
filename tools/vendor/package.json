@@ -1,0 +1,16 @@
+{
+  "name": "tool-vendor",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT OR Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "generate": "bun src/vendor.ts generate",
+    "check": "bun src/vendor.ts check",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "catalog:"
+  }
+}
