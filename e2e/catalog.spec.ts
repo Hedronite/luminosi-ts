@@ -99,6 +99,8 @@ test("looks are grouped by category, and a one-scheme look keeps its scheme", as
   const look = page.getByLabel("Look");
   const groups = await look.locator("optgroup").evaluateAll((nodes) => nodes.map((node) => node.getAttribute("label")));
   expect(groups).toEqual(["Core", "VirtualMachinist", "Omarchy"]);
+  const vm = await look.locator('optgroup[label="VirtualMachinist"] option').allTextContents();
+  expect(vm).toEqual(["Hedronite", "Hedron (dark)", "Hedron Light (light)"]);
   // 24 themes, with Catppuccin and Catppuccin Latte paired into one look.
   await expect(look.locator('optgroup[label="Omarchy"] option')).toHaveCount(23);
   // A light-scheme viewer picking a dark Omarchy theme still gets it dark.

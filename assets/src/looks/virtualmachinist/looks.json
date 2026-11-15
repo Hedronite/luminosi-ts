@@ -1,0 +1,9 @@
+{
+  "category": "virtualmachinist",
+  "source": "https://github.com/VirtualMachinist/Omahedron/tree/20c5dc405bb7694d11e824efa2dd1823fd834f96/themes",
+  "license": "First-party (VirtualMachinist); the Hedron themes from the Omahedron Omarchy theme pack",
+  "looks": {
+    "hedron": { "name": "Hedron", "credit": "VirtualMachinist, Omahedron" },
+    "hedron-light": { "name": "Hedron Light", "credit": "VirtualMachinist, Omahedron" }
+  }
+}

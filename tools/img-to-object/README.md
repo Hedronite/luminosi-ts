@@ -47,7 +47,7 @@ The emitter (`plugin/emit_object_spec.py`, standard-library Python) reads the fi
 ## Rules
 
 - The tool is `img-to-object`. Nothing we ship is named or branded after the upstream project.
-- Reference images are our own photos or CC0, recorded in `assets/LICENSES.md`, or a private reference that never enters the repo (a product photo, for example). The `dress-watch` reference is private.
+- Reference images are our own photos, or openly licensed ones (CC0, CC BY and the like) credited in [`CREDITS.md`](../../CREDITS.md), or a private reference that never enters the repo (a product photo, for example). The `dress-watch` references are private.
 - Never commit product photos from a manufacturer or retailer.
 - Reconstructions are generic: no brand names, logos or dial text, even when the reference shows them. Sample names follow the "Your …" pattern.
 - Upstream's visual gate stands: a reconstruction is accepted only on saved, read-back screenshots compared against the reference, not on structural tests alone.

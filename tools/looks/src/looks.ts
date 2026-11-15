@@ -7,7 +7,7 @@
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { hedron, hedronite, lookCategories, neutral, type LookCategoryId } from "@hedronite/lts-tokens";
+import { hedronite, lookCategories, neutral, type LookCategoryId } from "@hedronite/lts-tokens";
 import { z } from "zod";
 import { convertOmarchy, pairLooks, type Conversion } from "./convert.js";
 import { parseFlatToml } from "./toml.js";
@@ -71,7 +71,7 @@ async function convertAll(): Promise<readonly Conversion[]> {
   );
   const order = (id: LookCategoryId): number => lookCategories.findIndex((c) => c.id === id);
   const all = jobs.flat().sort((a, b) => order(a.preset.category) - order(b.preset.category) || a.preset.id.localeCompare(b.preset.id));
-  const taken = new Set([neutral.id, hedronite.id, hedron.id]);
+  const taken = new Set([neutral.id, hedronite.id]);
   for (const { preset } of all) {
     if (taken.has(preset.id)) throw new Error(`look id "${preset.id}" is used twice`);
     taken.add(preset.id);
