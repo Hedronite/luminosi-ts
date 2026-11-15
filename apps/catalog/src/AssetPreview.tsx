@@ -12,7 +12,7 @@ export function AssetPreview({ meta, size }: { readonly meta: AssetMeta; readonl
     // Keep the drawn stroke near 2–4 px at any preview size.
     return <Icon icon={icon} size={size} strokeWidth={Math.min(2, 72 / size)} />;
   }
-  const shape = meta.kind === "primitive" ? shapeFor(meta.id) : undefined;
+  const shape = meta.kind === "primitive" || meta.kind === "object" ? shapeFor(meta.id) : undefined;
   if (shape !== undefined) {
     return <Wireframe shape={shape} size={size} />;
   }

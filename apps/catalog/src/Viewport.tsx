@@ -1,12 +1,12 @@
 import type { AssetMeta } from "@hedronite/lts-core";
-import { createMaterial, isMaterialId } from "@hedronite/lts-materials";
-import { createPolyhedronGeometry, createStudioLights, geodesicSphere, isPrimitiveId, primitive } from "@hedronite/lts-primitives";
+import { createStudioLights, disposeObject } from "@hedronite/lts-primitives";
 import type { ScenePalette } from "@hedronite/lts-tokens";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef, type RefObject } from "react";
-import { PMREMGenerator } from "three";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { PMREMGenerator, type Object3D } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+import { buildSubject } from "./subjects";
 
 /** A procedural studio environment for reflections; nothing is fetched. Attached to the scene, freed on unmount. */
 function Environment() {
@@ -52,24 +52,34 @@ function Lights() {
   return <primitive object={rig} />;
 }
 
-/** The asset's mesh. Geometry and material are created here and freed when the asset or look changes. */
+/** The asset's object, built on mount and freed on unmount. Keyed by asset and look, so a change remounts it. */
 function Subject({ meta, palette }: { readonly meta: AssetMeta; readonly palette: ScenePalette }) {
   const invalidate = useThree((state) => state.invalidate);
-  const resources = useMemo(
-    () => ({
-      geometry: createPolyhedronGeometry(isPrimitiveId(meta.id) ? primitive(meta.id) : geodesicSphere(6, 0.95), meta.id),
-      material: createMaterial(isMaterialId(meta.id) ? meta.id : "satin", palette),
-    }),
-    [meta.id, palette],
-  );
+  const [object, setObject] = useState<Object3D | undefined>(undefined);
   useEffect(() => {
-    invalidate();
+    const controller = new AbortController();
+    let built: Object3D | undefined;
+    buildSubject(meta, palette, controller.signal).then(
+      (result) => {
+        if (result === undefined) return;
+        if (controller.signal.aborted) {
+          disposeObject(result);
+          return;
+        }
+        built = result;
+        setObject(result);
+        invalidate();
+      },
+      (error: unknown) => {
+        if (!controller.signal.aborted) console.error(`could not build ${meta.id}`, error);
+      },
+    );
     return () => {
-      resources.geometry.dispose();
-      resources.material.dispose();
+      controller.abort();
+      if (built !== undefined) disposeObject(built);
     };
-  }, [resources, invalidate]);
-  return <mesh geometry={resources.geometry} material={resources.material} rotation={[0.35, 0.6, 0]} dispose={null} />;
+  }, [meta, palette, invalidate]);
+  return object === undefined ? null : <primitive object={object} rotation={[0.35, 0.6, 0]} />;
 }
 
 /** Writes the scene's rendered frame count and live GPU resource counts onto `target`, for tests. */
@@ -95,8 +105,8 @@ function GpuCounts({ target }: { readonly target: RefObject<HTMLDivElement | nul
   return null;
 }
 
-/** An interactive 3D view of a primitive or material. Renders only when something changes. */
-export function Viewport({ meta, palette }: { readonly meta: AssetMeta; readonly palette: ScenePalette }) {
+/** An interactive 3D view of a primitive, material or object. Renders only when something changes. */
+export function Viewport({ meta, palette, paletteId }: { readonly meta: AssetMeta; readonly palette: ScenePalette; readonly paletteId: string }) {
   const host = useRef<HTMLDivElement>(null);
   return (
     <div ref={host} role="img" aria-label={`${meta.name}, rendered in 3D. Drag to rotate, scroll to zoom.`} className="h-72 w-full" data-testid="viewport">
@@ -104,7 +114,7 @@ export function Viewport({ meta, palette }: { readonly meta: AssetMeta; readonly
         <Environment />
         <Lights />
         <Controls />
-        <Subject meta={meta} palette={palette} />
+        <Subject key={`${meta.id}:${paletteId}`} meta={meta} palette={palette} />
         <GpuCounts target={host} />
       </Canvas>
     </div>

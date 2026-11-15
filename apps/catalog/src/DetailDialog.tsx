@@ -10,7 +10,7 @@ import { snippetsFor } from "./snippets";
 // three.js and React Three Fiber load only when a 3D asset is opened.
 const Viewport = lazy(() => import("./Viewport").then((module) => ({ default: module.Viewport })));
 
-const has3d = (meta: AssetMeta): boolean => meta.kind === "primitive" || meta.kind === "material";
+const has3d = (meta: AssetMeta): boolean => meta.kind === "primitive" || meta.kind === "material" || meta.kind === "object";
 
 const iconButton =
   "rounded-md p-1.5 hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-40";
@@ -76,7 +76,7 @@ export function DetailDialog({ meta, onClose, onStep, position }: DetailDialogPr
                   </div>
                 }
               >
-                <Viewport meta={meta} palette={preset.scene} />
+                <Viewport meta={meta} palette={preset.scene} paletteId={preset.id} />
               </Suspense>
             ) : (
               <div className="py-10">

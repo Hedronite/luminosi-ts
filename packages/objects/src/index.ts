@@ -1,2 +1,2 @@
-// Stage 0: the package boundary exists. Its content lands in Stage 3 (see ROADMAP.md).
-export {};
+export { crystalCluster, latticePoints, type ClusterOptions, type CrystalSpec, type LatticeOptions } from "./cluster.js";
+export { createCrystalCluster, createLattice, loadGltf, type GltfOptions, type LatticeMeshOptions } from "./three.js";
