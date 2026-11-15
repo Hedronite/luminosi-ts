@@ -52,7 +52,7 @@ export const neutral: Preset = {
     accent: "#60a5fa",
     onAccent: "#0a0a0a",
   },
-  scene: { base: "#d4d4d8", accent: "#3b82f6", metal: "#c0c4cc", glass: "#e6f0ff", emissive: "#93c5fd" },
+  scene: { base: "#d4d4d8", accent: "#3b82f6", metal: "#c0c4cc", glass: "#8fb4e3", emissive: "#93c5fd" },
 };
 
 /** An optional pack: copper and lapis on deep slate, after hedronite.com. */
@@ -77,7 +77,7 @@ export const hedronite: Preset = {
     accent: "#dda77d",
     onAccent: "#08090d",
   },
-  scene: { base: "#9cabb8", accent: "#c07b42", metal: "#dda77d", glass: "#cfe0ff", emissive: "#3b5bd9" },
+  scene: { base: "#9cabb8", accent: "#c07b42", metal: "#dda77d", glass: "#7fa3dc", emissive: "#3b5bd9" },
 };
 
 export const presets: readonly Preset[] = [neutral, hedronite];

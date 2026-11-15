@@ -67,7 +67,8 @@ These follow the Web-TOPS protocol ([Hedronite/web-tops](https://github.com/Hedr
 - Color textures use `SRGBColorSpace`; data textures (normal, roughness, metalness, AO) stay linear.
 - Self-host decoders (Draco, Meshopt, KTX2) at the same version as `three`; never load them from a CDN.
 - Clamp the pixel ratio (`Math.min(devicePixelRatio, 2)`) and render on demand when nothing animates.
-- Procedural generators are pure and seeded: `(params, seed) → data`. No `Math.random()`.
+- Procedural generators are pure and seeded: `(params, seed) → data`. No `Math.random()`; use `createRandom` from `core`.
+- Shaders are TSL (`@hedronite/lts-shaders`) and need three's `WebGPURenderer`, which falls back to WebGL 2. Validate shader parameters with Zod where they enter.
 
 ## Tests
 

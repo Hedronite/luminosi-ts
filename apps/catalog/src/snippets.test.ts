@@ -36,3 +36,11 @@ describe("object snippets", () => {
     expect(snippet?.code).toContain("@hedronite/lts-objects");
   });
 });
+
+describe("shader snippets", () => {
+  it("uses WebGPURenderer", () => {
+    const [snippet] = snippetsFor({ ...meta, id: "fresnel-glow", kind: "shader" }, undefined);
+    expect(snippet?.code).toContain('createEffectMaterial("fresnel-glow")');
+    expect(snippet?.code).toContain("WebGPURenderer");
+  });
+});

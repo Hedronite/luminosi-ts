@@ -12,6 +12,8 @@ export interface MaterialPreset {
   readonly transmission?: number;
   readonly ior?: number;
   readonly thickness?: number;
+  /** For transmissive materials: how far light travels before taking the full color. Smaller is deeper. */
+  readonly attenuationDistance?: number;
   readonly emissiveIntensity?: number;
 }
 
@@ -19,7 +21,7 @@ export interface MaterialPreset {
 export const materialPresets = {
   ceramic: { name: "Ceramic", tags: ["dielectric", "glossy"], color: "base", roughness: 0.25, metalness: 0, clearcoat: 0.6 },
   emissive: { name: "Emissive", tags: ["light"], color: "emissive", roughness: 0.6, metalness: 0, emissiveIntensity: 2 },
-  glass: { name: "Glass", tags: ["dielectric", "transparent"], color: "glass", roughness: 0.04, metalness: 0, transmission: 1, ior: 1.5, thickness: 0.6 },
+  glass: { name: "Glass", tags: ["dielectric", "transparent"], color: "glass", roughness: 0.05, metalness: 0, transmission: 0.92, ior: 1.5, thickness: 1.2, attenuationDistance: 0.9 },
   matte: { name: "Matte", tags: ["dielectric"], color: "base", roughness: 0.9, metalness: 0 },
   metal: { name: "Metal", tags: ["metal", "polished"], color: "metal", roughness: 0.18, metalness: 1 },
   "metal-brushed": { name: "Brushed metal", tags: ["metal"], color: "metal", roughness: 0.45, metalness: 1 },

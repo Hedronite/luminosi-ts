@@ -135,3 +135,44 @@ for (const [id, name] of [
     expect(errors).toEqual([]);
   });
 }
+
+for (const [id, name] of [
+  ["fresnel-glow", "Fresnel glow"],
+  ["height-gradient", "Height gradient"],
+  ["pulse", "Pulse"],
+] as const) {
+  test(`the ${id} shader compiles and renders`, async ({ page }) => {
+    const errors: string[] = [];
+    page.on("console", (message) => {
+      if (message.type() === "error") errors.push(message.text());
+    });
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.goto(`/?asset=${id}`);
+    const viewport = page.getByRole("dialog", { name }).getByTestId("viewport");
+    await expect(viewport.locator("canvas")).toBeVisible();
+    await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 15000 });
+    expect(errors).toEqual([]);
+  });
+}
+
+test("the playground composes primitives and exports the scene", async ({ page }) => {
+  await page.goto("/?view=playground");
+  await expect(page.getByRole("heading", { name: "Playground" })).toBeVisible();
+  const scene = page.getByRole("list", { name: "Scene" }).getByRole("listitem");
+  const before = await scene.count();
+
+  await page.getByLabel("Primitive").selectOption("hexagonal-bipyramid");
+  await page.getByLabel("Material").selectOption("glass");
+  await page.getByRole("button", { name: "Add to scene" }).click();
+  await expect(scene).toHaveCount(before + 1);
+
+  await expect(page.getByRole("region", { name: "JSON export" }).locator("code")).toContainText('"primitive": "hexagonal-bipyramid"');
+  await expect(page.getByRole("region", { name: "React export" }).locator("code")).toContainText('<PrimitiveMesh primitive="hexagonal-bipyramid" material="glass"');
+  await expect(page.getByTestId("playground-viewport")).toHaveAttribute("data-frames", /^[1-9]\d*$/);
+
+  await page.getByRole("button", { name: "Remove Hexagonal bipyramid, Glass" }).click();
+  await expect(scene).toHaveCount(before);
+
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => v.id)).toEqual([]);
+});
