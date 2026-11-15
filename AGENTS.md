@@ -1,6 +1,6 @@
 # Agent standing orders (LuminosiTS)
 
-LuminosiTS is a progressive, modular TypeScript visual library: icons, Three.js primitives, objects, scenes, materials and shaders, with a catalog app as its living index. Read [`README.md`](README.md) (the manifesto) and [`ROADMAP.md`](ROADMAP.md) before changing anything.
+LuminosiTS is a progressive, modular TypeScript visual library: icons, Three.js primitives, objects, scenes, materials and shaders, with a catalog app as its living index. Read [`README.md`](README.md) (the manifesto), [`ROADMAP.md`](ROADMAP.md) and [`STACK.md`](STACK.md) (how the languages and tools fit together) before changing anything.
 
 ## State
 
