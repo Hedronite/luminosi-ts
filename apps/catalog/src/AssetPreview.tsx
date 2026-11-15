@@ -1,6 +1,8 @@
 import type { AssetMeta } from "@hedronite/lts-core";
 import { Icon } from "@hedronite/lts-icons/react";
 import { isMaterialId } from "@hedronite/lts-materials";
+import { isEffectId } from "@hedronite/lts-shaders";
+import { EffectSwatch } from "./EffectSwatch";
 import { iconFor, shapeFor } from "./registry";
 import { Swatch } from "./Swatch";
 import { Wireframe } from "./Wireframe";
@@ -18,6 +20,9 @@ export function AssetPreview({ meta, size }: { readonly meta: AssetMeta; readonl
   }
   if (meta.kind === "material" && isMaterialId(meta.id)) {
     return <Swatch id={meta.id} size={size} />;
+  }
+  if (meta.kind === "shader" && isEffectId(meta.id)) {
+    return <EffectSwatch id={meta.id} size={size} />;
   }
   return (
     <span aria-hidden="true" className="text-xs uppercase tracking-wide text-fg-muted">

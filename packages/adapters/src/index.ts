@@ -1,2 +1,3 @@
-// Stage 0: the package boundary exists. Its content lands in Stage 3 (see ROADMAP.md).
-export {};
+// React Three Fiber components over the LuminosiTS libraries. React and R3F are optional peers;
+// every other package works without this one.
+export { CrystalCluster, Lattice, PrimitiveMesh, StudioLights, type CrystalClusterProps, type LatticeProps, type PrimitiveMeshProps } from "./components.js";

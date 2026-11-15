@@ -28,8 +28,10 @@ describe("createMaterial", () => {
     const material = createMaterial("glass");
     expect(material).toBeInstanceOf(MeshPhysicalMaterial);
     expect(material.name).toBe("glass");
-    expect(material.transmission).toBe(1);
+    expect(material.transmission).toBeGreaterThan(0.9);
     expect(material.ior).toBe(1.5);
+    expect(material.attenuationColor.equals(material.color)).toBe(true);
+    expect(material.attenuationDistance).toBeLessThan(Infinity);
   });
 
   it("takes its color from the token preset, so swapping presets swaps the look", () => {

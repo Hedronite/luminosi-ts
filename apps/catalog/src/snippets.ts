@@ -52,6 +52,14 @@ export function snippetsFor(meta: AssetMeta, icon: IconData | undefined): readon
       },
     ];
   }
+  if (meta.kind === "shader") {
+    return [
+      {
+        label: "TypeScript",
+        code: `import { createEffectMaterial } from "@hedronite/lts-shaders";\nimport { WebGPURenderer } from "three/webgpu";\n\n// TSL materials need WebGPURenderer; it falls back to WebGL 2 where WebGPU is missing.\nconst renderer = new WebGPURenderer({ antialias: true });\nawait renderer.init();\nconst material = createEffectMaterial("${meta.id}");`,
+      },
+    ];
+  }
   if (meta.kind === "material") {
     return [
       {

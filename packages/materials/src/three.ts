@@ -19,6 +19,11 @@ export function createMaterial(id: MaterialId, palette: ScenePalette = neutral.s
     ior: preset.ior ?? 1.5,
     thickness: preset.thickness ?? 0,
   });
+  if (preset.attenuationDistance !== undefined) {
+    // Tint the light passing through, so facets read on any background.
+    material.attenuationColor = color.clone();
+    material.attenuationDistance = preset.attenuationDistance;
+  }
   if (preset.emissiveIntensity !== undefined) {
     material.emissive = color.clone();
     material.emissiveIntensity = preset.emissiveIntensity;

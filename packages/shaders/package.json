@@ -9,6 +9,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./manifest": {
+      "types": "./dist/manifest.d.ts",
+      "import": "./dist/manifest.js"
     }
   },
   "files": [
@@ -16,9 +20,20 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
   },
   "peerDependencies": {
     "three": "^0.187.0"
+  },
+  "dependencies": {
+    "@hedronite/lts-tokens": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@hedronite/lts-core": "workspace:*",
+    "@types/three": "catalog:",
+    "three": "catalog:",
+    "vitest": "catalog:"
   }
 }

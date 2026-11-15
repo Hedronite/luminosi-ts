@@ -1,12 +1,17 @@
 import { assetKinds, type AssetMeta } from "@hedronite/lts-core";
 import { Search } from "@hedronite/lts-icons/react";
 import { presets } from "@hedronite/lts-tokens";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { AssetPreview } from "./AssetPreview";
 import { DetailDialog } from "./DetailDialog";
 import { PresetContext, usePresetState } from "./look";
 import { registry } from "./registry";
 import { filterAssets, kindCounts, type KindFilter } from "./search";
+
+// The playground loads three.js and React Three Fiber only when opened.
+const Playground = lazy(() => import("./Playground").then((module) => ({ default: module.Playground })));
+
+type View = "assets" | "playground";
 
 const allAssets = registry.list();
 const kinds = kindCounts(allAssets, assetKinds);
@@ -16,6 +21,10 @@ const kindLabel = (kind: KindFilter): string => (kind === "all" ? "All" : `${kin
 
 const toggle =
   "rounded-lg border border-line px-3 py-2 text-sm aria-pressed:border-accent aria-pressed:bg-accent aria-pressed:text-on-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+
+function initialView(): View {
+  return new URLSearchParams(window.location.search).get("view") === "playground" ? "playground" : "assets";
+}
 
 function initialSelection(): AssetMeta | undefined {
   const id = new URLSearchParams(window.location.search).get("asset");
@@ -27,6 +36,7 @@ export function App() {
   const [kind, setKind] = useState<KindFilter>("all");
   const [selected, setSelected] = useState<AssetMeta | undefined>(initialSelection);
   const [preset, setPreset] = usePresetState();
+  const [view, setView] = useState<View>(initialView);
   const opener = useRef<HTMLElement | null>(null);
 
   const results = useMemo(() => filterAssets(allAssets, { text, kind }), [text, kind]);
@@ -38,8 +48,10 @@ export function App() {
     const url = new URL(window.location.href);
     if (selected === undefined) url.searchParams.delete("asset");
     else url.searchParams.set("asset", selected.id);
+    if (view === "playground") url.searchParams.set("view", "playground");
+    else url.searchParams.delete("view");
     window.history.replaceState(null, "", url);
-  }, [selected]);
+  }, [selected, view]);
 
   const open = (meta: AssetMeta, trigger: HTMLElement): void => {
     opener.current = trigger;
@@ -83,6 +95,28 @@ export function App() {
             </div>
           </header>
 
+          <nav aria-label="Views" className="mt-6 flex gap-1">
+            {(["assets", "playground"] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                aria-pressed={view === option}
+                onClick={() => {
+                  setView(option);
+                }}
+                className={toggle}
+              >
+                {option === "assets" ? "Assets" : "Playground"}
+              </button>
+            ))}
+          </nav>
+
+          {view === "playground" ? (
+            <Suspense fallback={<p className="mt-6 text-fg-muted">Loading the playground…</p>}>
+              <Playground />
+            </Suspense>
+          ) : (
+          <>
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <search className="relative min-w-60 flex-1">
               <label htmlFor="asset-search" className="sr-only">
@@ -145,6 +179,8 @@ export function App() {
                 </li>
               ))}
             </ul>
+          )}
+          </>
           )}
         </main>
         <DetailDialog meta={selected} onClose={close} onStep={step} position={index < 0 ? "" : `${String(index + 1)} / ${String(stepList.length)}`} />

@@ -1,2 +1,12 @@
-// Stage 0: the package boundary exists. Its content lands in Stage 3 (see ROADMAP.md).
-export {};
+export {
+  createEffectMaterial,
+  createFresnelGlowMaterial,
+  createHeightGradientMaterial,
+  createPulseMaterial,
+  effectIds,
+  effectInfo,
+  effectSchemas,
+  isEffectId,
+  type EffectId,
+  type EffectParams,
+} from "./effects.js";
