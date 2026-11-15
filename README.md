@@ -6,6 +6,8 @@ LuminosiTS is a typed arsenal of icons, Three.js primitives, objects, scenes, ma
 
 The library surface is pure TypeScript. React and TSX appear only where they are the natural interface. Heavy processing and generation can live in companion tools written in Rust or Go. The development environment is reproducible with Nix and fast with Bun.
 
+How these languages and tools fit together: [STACK.md](STACK.md).
+
 ---
 
 ## Philosophy
