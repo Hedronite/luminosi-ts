@@ -24,8 +24,13 @@ describe("snippetsFor", () => {
     expect(snippet?.code).toContain("hedronite.scene");
   });
 
-  it("gives nothing for a kind without a package yet", () => {
-    expect(snippetsFor({ ...meta, kind: "scene" }, undefined)).toEqual([]);
+  it("gives nothing for an asset it has no recipe for", () => {
+    expect(snippetsFor({ ...meta, id: "unknown-object", kind: "object" }, undefined)).toEqual([]);
+  });
+
+  it("builds a scene kit by name", () => {
+    const [snippet] = snippetsFor({ ...meta, id: "scene-dusk", kind: "scene" }, undefined);
+    expect(snippet?.code).toContain('createSceneKit("dusk")');
   });
 });
 

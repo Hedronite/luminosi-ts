@@ -42,9 +42,10 @@
     "boundaries": "depcruise packages apps --config .dependency-cruiser.cjs",
     "knip": "knip",
     "e2e": "playwright test",
-    "check": "bun run icons:check && bun run typecheck && bun run build && bun run test && bun run lint && bun run boundaries && bun run knip && bun run e2e",
+    "check": "bun run icons:check && bun run typecheck && bun run build && bun run validate && bun run test && bun run lint && bun run boundaries && bun run knip && bun run e2e",
     "icons": "bun run --filter tool-icons generate",
-    "icons:check": "bun run --filter tool-icons check"
+    "icons:check": "bun run --filter tool-icons check",
+    "validate": "bun run --filter tool-assets validate"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",

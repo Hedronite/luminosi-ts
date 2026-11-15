@@ -11,7 +11,7 @@ import { snippetsFor } from "./snippets";
 const Viewport = lazy(() => import("./Viewport").then((module) => ({ default: module.Viewport })));
 const ShaderViewport = lazy(() => import("./ShaderViewport").then((module) => ({ default: module.ShaderViewport })));
 
-const has3d = (meta: AssetMeta): boolean => meta.kind === "primitive" || meta.kind === "material" || meta.kind === "object" || meta.kind === "shader";
+const has3d = (meta: AssetMeta): boolean => meta.kind !== "icon";
 
 const iconButton =
   "rounded-md p-1.5 hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-40";

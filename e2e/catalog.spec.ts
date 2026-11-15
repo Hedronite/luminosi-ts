@@ -176,3 +176,18 @@ test("the playground composes primitives and exports the scene", async ({ page }
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => v.id)).toEqual([]);
 });
+
+test("a scene kit renders with its own lights", async ({ page }) => {
+  await page.goto("/?asset=scene-dusk");
+  const viewport = page.getByRole("dialog", { name: "Dusk" }).getByTestId("viewport");
+  await expect(viewport).toHaveAttribute("data-gpu-geometries", /^[1-9]\d*$/);
+  await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/);
+});
+
+test("the growth view groups assets by the day they were added", async ({ page }) => {
+  await page.goto("/?view=growth");
+  await expect(page.getByRole("heading", { name: "Growth" })).toBeVisible();
+  await expect(page.locator("time").first()).toHaveAttribute("datetime", /^\d{4}-\d{2}-\d{2}$/);
+  await page.getByRole("button", { name: "Dusk" }).click();
+  await expect(page.getByRole("dialog", { name: "Dusk" })).toBeVisible();
+});

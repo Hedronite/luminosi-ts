@@ -52,6 +52,15 @@ export function snippetsFor(meta: AssetMeta, icon: IconData | undefined): readon
       },
     ];
   }
+  if (meta.kind === "scene") {
+    const kit = meta.id.replace(/^scene-/, "");
+    return [
+      {
+        label: "TypeScript",
+        code: `import { disposeObject } from "@hedronite/lts-primitives";\nimport { createSceneKit } from "@hedronite/lts-scenes";\n\n// Lights and shapes in one group; use it instead of other lights.\nconst kit = createSceneKit("${kit}");\nscene.add(kit);\n// Later: disposeObject(kit);`,
+      },
+    ];
+  }
   if (meta.kind === "shader") {
     return [
       {

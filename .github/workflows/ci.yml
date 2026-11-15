@@ -20,6 +20,7 @@ jobs:
       - run: bun run icons:check
       - run: bun run typecheck
       - run: bun run build
+      - run: bun run validate
       - run: bun run test
       - run: bun run lint
       - run: bun run boundaries

@@ -1,7 +1,9 @@
 import type { AssetMeta } from "@hedronite/lts-core";
 import { Icon } from "@hedronite/lts-icons/react";
 import { isMaterialId } from "@hedronite/lts-materials";
+import { isSceneKitId } from "@hedronite/lts-scenes";
 import { isEffectId } from "@hedronite/lts-shaders";
+import { SceneThumb } from "./SceneThumb";
 import { EffectSwatch } from "./EffectSwatch";
 import { iconFor, shapeFor } from "./registry";
 import { Swatch } from "./Swatch";
@@ -23,6 +25,10 @@ export function AssetPreview({ meta, size }: { readonly meta: AssetMeta; readonl
   }
   if (meta.kind === "shader" && isEffectId(meta.id)) {
     return <EffectSwatch id={meta.id} size={size} />;
+  }
+  const kit = meta.id.replace(/^scene-/, "");
+  if (meta.kind === "scene" && isSceneKitId(kit)) {
+    return <SceneThumb id={kit} size={size} />;
   }
   return (
     <span aria-hidden="true" className="text-xs uppercase tracking-wide text-fg-muted">

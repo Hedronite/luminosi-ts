@@ -5,6 +5,7 @@ import { manifest as materialsManifest } from "@hedronite/lts-materials/manifest
 import { manifest as objectsManifest } from "@hedronite/lts-objects/manifest";
 import { bipyramid, isPrimitiveId, platonic, primitive, type Polyhedron } from "@hedronite/lts-primitives";
 import { manifest as primitivesManifest } from "@hedronite/lts-primitives/manifest";
+import { manifest as scenesManifest } from "@hedronite/lts-scenes/manifest";
 import { manifest as shadersManifest } from "@hedronite/lts-shaders/manifest";
 
 /** Every asset the catalog shows. New packages register their manifests here. */
@@ -14,6 +15,7 @@ registerManifest(registry, primitivesManifest);
 registerManifest(registry, materialsManifest);
 registerManifest(registry, objectsManifest);
 registerManifest(registry, shadersManifest);
+registerManifest(registry, scenesManifest);
 
 const icons = new Map<string, IconData>(allIcons.map((icon) => [icon.id, icon]));
 

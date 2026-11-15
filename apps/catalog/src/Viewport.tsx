@@ -39,7 +39,8 @@ function Subject({ meta, palette }: { readonly meta: AssetMeta; readonly palette
       if (built !== undefined) disposeObject(built);
     };
   }, [meta, palette, invalidate]);
-  return object === undefined ? null : <primitive object={object} rotation={[0.35, 0.6, 0]} />;
+  // Scene kits are composed upright; single assets get a three-quarter turn.
+  return object === undefined ? null : <primitive object={object} rotation={meta.kind === "scene" ? [0.25, 0, 0] : [0.35, 0.6, 0]} />;
 }
 
 /** An interactive 3D view of a primitive, material or object. Renders only when something changes. */
@@ -49,7 +50,7 @@ export function Viewport({ meta, palette, paletteId }: { readonly meta: AssetMet
     <div ref={host} role="img" aria-label={`${meta.name}, rendered in 3D. Drag to rotate, scroll to zoom.`} className="h-72 w-full" data-testid="viewport">
       <Canvas frameloop="demand" dpr={[1, 2]} camera={{ position: [0, 0, 3.4], fov: 35 }}>
         <Environment />
-        <Lights />
+        {meta.kind === "scene" ? null : <Lights />}
         <Controls />
         <Subject key={`${meta.id}:${paletteId}`} meta={meta} palette={palette} />
         <GpuCounts target={host} />

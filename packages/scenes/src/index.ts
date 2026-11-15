@@ -1,2 +1,2 @@
-// Stage 0: the package boundary exists. Its content lands in Stage 4 (see ROADMAP.md).
-export {};
+export { isSceneKitId, sceneKit, sceneKitIds, sceneKits, type LightSpec, type PlacementSpec, type SceneKit, type SceneKitId } from "./kits.js";
+export { createSceneKit } from "./three.js";
