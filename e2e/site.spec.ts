@@ -2,7 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
 // The Astro dogfood page, served by `astro preview`.
-test.use({ baseURL: "http://localhost:4174" });
+test.use({ baseURL: process.env["E2E_SITE_URL"] ?? "http://localhost:4174" });
 
 test("the page renders its icons and solids as static HTML", async ({ page }) => {
   await page.goto("/");

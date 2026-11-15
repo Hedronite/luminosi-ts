@@ -1,0 +1,11 @@
+.git
+**/node_modules
+**/dist
+**/.turbo
+**/.astro
+**/coverage
+playwright-report
+test-results
+.claude
+.cursor
+.grok

@@ -23,7 +23,11 @@ bun run e2e            # Playwright smoke + axe on the built catalog (after buil
 bun run check          # all of the above, in CI order
 bun run dev            # the catalog at http://localhost:5173
 bun run --filter site dev   # the Astro page
+docker compose up -d --build   # catalog on :4180, site on :4181, served by Caddy (deploy/Caddyfile)
+bun run e2e:container  # the same e2e suite against the running container
 ```
+
+The container builds from source and serves static files only (no Node or Bun at runtime). It runs as an unprivileged user with a read-only root and no capabilities. The catalog's CSP is a header in `deploy/Caddyfile`; the site's comes from Astro (`security.csp` in `apps/site/astro.config.mjs`), which hashes its inline island scripts. Never add `'unsafe-inline'` to `script-src`. Images are local; nothing is pushed to a registry.
 
 `bun run check` is the definition of done until Web-TOPS can gate this repo.
 
