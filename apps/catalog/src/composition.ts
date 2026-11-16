@@ -1,6 +1,7 @@
 import type { MaterialId } from "@hedronite/lts-materials";
 import { orderStack, type ScreenEffectId } from "@hedronite/lts-postfx";
 import type { PrimitiveId, Vec3 } from "@hedronite/lts-primitives";
+import type { EffectId } from "@hedronite/lts-shaders";
 
 /** Objects the playground can place, beside primitives and framed solids. */
 export const placeableObjects = [
@@ -13,10 +14,13 @@ export type PlaceableObject = (typeof placeableObjects)[number]["id"];
 
 export const isPlaceableObject = (id: string): id is PlaceableObject => placeableObjects.some((object) => object.id === id);
 
-/** One thing in the scene: a primitive in a material, a framed solid, or a library object. */
+/**
+ * One thing in the scene: a primitive in a material or a surface shader, a framed solid (its faces in a
+ * material or a shader), or a library object.
+ */
 export type Item =
-  | { readonly kind: "primitive"; readonly primitive: PrimitiveId; readonly material: MaterialId }
-  | { readonly kind: "framed"; readonly primitive: PrimitiveId; readonly faces: MaterialId; readonly edges: MaterialId }
+  | { readonly kind: "primitive"; readonly primitive: PrimitiveId; readonly material: MaterialId; readonly shader?: EffectId }
+  | { readonly kind: "framed"; readonly primitive: PrimitiveId; readonly faces: MaterialId; readonly edges: MaterialId; readonly shader?: EffectId }
   | { readonly kind: "object"; readonly object: PlaceableObject; readonly material: MaterialId };
 
 export type Placement = Item & { readonly key: string };
@@ -57,9 +61,9 @@ export function arrange(count: number): readonly Vec3[] {
 function plain(placement: Placement): Item {
   switch (placement.kind) {
     case "primitive":
-      return { kind: "primitive", primitive: placement.primitive, material: placement.material };
+      return { kind: "primitive", primitive: placement.primitive, material: placement.material, ...(placement.shader === undefined ? {} : { shader: placement.shader }) };
     case "framed":
-      return { kind: "framed", primitive: placement.primitive, faces: placement.faces, edges: placement.edges };
+      return { kind: "framed", primitive: placement.primitive, faces: placement.faces, edges: placement.edges, ...(placement.shader === undefined ? {} : { shader: placement.shader }) };
     case "object":
       return { kind: "object", object: placement.object, material: placement.material };
   }
@@ -88,9 +92,9 @@ function element(item: Item, [x, y, z]: Vec3): string {
   const at = `position={[${round(x)}, ${round(y)}, ${round(z)}]} scale={${String(scaleOf(item))}}`;
   switch (item.kind) {
     case "primitive":
-      return `<PrimitiveMesh primitive="${item.primitive}" material="${item.material}" ${at} />`;
+      return item.shader === undefined ? `<PrimitiveMesh primitive="${item.primitive}" material="${item.material}" ${at} />` : `<PrimitiveMesh primitive="${item.primitive}" shader="${item.shader}" ${at} />`;
     case "framed":
-      return `<FramedSolid primitive="${item.primitive}" faces="${item.faces}" edges="${item.edges}" ${at} />`;
+      return `<FramedSolid primitive="${item.primitive}" ${item.shader === undefined ? `faces="${item.faces}"` : `shader="${item.shader}"`} edges="${item.edges}" ${at} />`;
     case "object":
       switch (item.object) {
         case "crystal-cluster":
@@ -112,28 +116,30 @@ const componentOf = (item: Item): string => {
   return "LibraryObject";
 };
 
-/** The composition as React Three Fiber code using @hedronite/lts-adapters. */
+/**
+ * The composition as React Three Fiber code using @hedronite/lts-adapters, on `WebGPUCanvas`: the
+ * WebGPU renderer (with its WebGL 2 fallback) runs surface shaders, screen effects and materials alike.
+ */
 export function toTsx(composition: Composition): string {
   const positions = arrange(composition.placements.length);
   const stack = stackOf(composition);
-  const components = new Set(["StudioEnvironment", "StudioLights", ...composition.placements.map(componentOf), ...(stack.length > 0 ? ["ScreenEffectsPass"] : [])]);
+  const components = new Set(["StudioEnvironment", "StudioLights", "WebGPUCanvas", ...composition.placements.map(componentOf), ...(stack.length > 0 ? ["ScreenEffectsPass"] : [])]);
   const ink = composition.ink === "look" || stack.length === 0 ? "" : ` monochrome={palette.${composition.ink}}`;
   return [
     `import { ${[...components].sort().join(", ")} } from "@hedronite/lts-adapters";`,
     ...(ink === "" ? [] : ['import { neutral } from "@hedronite/lts-tokens";']),
-    'import { Canvas } from "@react-three/fiber";',
     "",
     ...(stack.length > 0 ? [`// Defined once, outside the component: a new array would rebuild the passes.`, `const stack = [${stack.map((id) => `{ id: "${id}" }`).join(", ")}] as const;`] : []),
     ...(ink === "" ? [] : ["const palette = neutral.scene;"]),
     ...(stack.length > 0 || ink !== "" ? [""] : []),
     "export function Scene() {",
     "  return (",
-    "    <Canvas>",
+    "    <WebGPUCanvas>",
     "      <StudioEnvironment />",
     `      <StudioLights intensity={${String(composition.lightIntensity)}} />`,
     ...composition.placements.map((placement, i) => `      ${element(placement, positions[i] ?? [0, 0, 0])}`),
     ...(stack.length > 0 ? [`      <ScreenEffectsPass effects={stack}${ink} />`] : []),
-    "    </Canvas>",
+    "    </WebGPUCanvas>",
     "  );",
     "}",
   ].join("\n");

@@ -1,10 +1,10 @@
-import { CrystalCluster, FramedSolid, Lattice, LibraryObject, PrimitiveMesh, ScreenEffectsPass, StudioLights } from "@hedronite/lts-adapters";
+import { CrystalCluster, FramedSolid, Lattice, LibraryObject, PrimitiveMesh, ScreenEffectsPass, StudioLights, WebGPUCanvas } from "@hedronite/lts-adapters";
 import { Close } from "@hedronite/lts-icons/react";
 import { isMaterialId, materialIds, materialPreset, type MaterialId } from "@hedronite/lts-materials";
 import { screenEffectIds, screenEffectInfo, type ScreenEffectConfig } from "@hedronite/lts-postfx";
 import { isPrimitiveId, primitiveIds, primitiveInfo, type PrimitiveId, type Vec3 } from "@hedronite/lts-primitives";
+import { effectIds, effectInfo, isEffectId, type EffectId } from "@hedronite/lts-shaders";
 import type { Hex, ScenePalette } from "@hedronite/lts-tokens";
-import { Canvas } from "@react-three/fiber";
 import { useMemo, useRef, useState } from "react";
 import { arrange, isPlaceableObject, MAX_PLACEMENTS, placeableObjects, scaleOf, toJson, toTsx, type Composition, type InkMode, type Item, type Placement, type PlaceableObject } from "./composition";
 import { CopyButton } from "./CopyButton";
@@ -53,9 +53,9 @@ const objectName = (id: PlaceableObject): string => placeableObjects.find((objec
 function describePlacement(item: Item): string {
   switch (item.kind) {
     case "primitive":
-      return `${primitiveInfo(item.primitive).name}, ${materialPreset(item.material).name}`;
+      return `${primitiveInfo(item.primitive).name}, ${item.shader === undefined ? materialPreset(item.material).name : effectInfo[item.shader].name}`;
     case "framed":
-      return `Framed ${primitiveInfo(item.primitive).name.toLowerCase()}`;
+      return `Framed ${primitiveInfo(item.primitive).name.toLowerCase()}${item.shader === undefined ? "" : `, ${effectInfo[item.shader].name}`}`;
     case "object":
       return item.object === "crystal-cluster" || item.object === "instanced-lattice" ? `${objectName(item.object)}, ${materialPreset(item.material).name}` : objectName(item.object);
   }
@@ -67,9 +67,9 @@ function Placed({ placement, position, palette }: { readonly placement: Placemen
   const at = { position, scale: scaleOf(placement), rotation: tilt };
   switch (placement.kind) {
     case "primitive":
-      return <PrimitiveMesh primitive={placement.primitive} material={placement.material} palette={palette} {...at} />;
+      return <PrimitiveMesh primitive={placement.primitive} material={placement.material} {...(placement.shader === undefined ? {} : { shader: placement.shader })} palette={palette} {...at} />;
     case "framed":
-      return <FramedSolid primitive={placement.primitive} faces={placement.faces} edges={placement.edges} palette={palette} {...at} />;
+      return <FramedSolid primitive={placement.primitive} faces={placement.faces} {...(placement.shader === undefined ? {} : { shader: placement.shader })} edges={placement.edges} palette={palette} {...at} />;
     case "object":
       switch (placement.object) {
         case "crystal-cluster":
@@ -90,20 +90,26 @@ export function Playground() {
   const [kind, setKind] = useState<AddKind>("primitive");
   const [primitive, setPrimitive] = useState<PrimitiveId>("platonic-dodecahedron");
   const [material, setMaterial] = useState<MaterialId>("ceramic");
+  // A surface shader in place of the material, for primitives and framed faces.
+  const [shader, setShader] = useState<EffectId | undefined>(undefined);
   const [object, setObject] = useState<PlaceableObject>("dress-watch");
   const host = useRef<HTMLDivElement>(null);
   const positions = arrange(composition.placements.length);
   const full = composition.placements.length >= MAX_PLACEMENTS;
   const effects = useMemo((): readonly ScreenEffectConfig[] => composition.effects.map((id) => (id === "scan" ? { id, params: { period: 4 } } : { id })), [composition.effects]);
   const monochrome: Hex | undefined = composition.ink === "look" ? undefined : preset.scene[composition.ink];
-  const takesMaterial = kind === "primitive" || (kind === "object" && (object === "crystal-cluster" || object === "instanced-lattice"));
+  const takesShader = kind === "primitive" || kind === "framed";
+  // Of the objects, the cluster and the lattice take a material; the spec objects bring their own.
+  const takesMaterial = takesShader || object === "crystal-cluster" || object === "instanced-lattice";
+  const withShader = takesShader && shader !== undefined ? { shader } : {};
+  const animated = composition.effects.length > 0 || composition.placements.some((placement) => placement.kind !== "object" && placement.shader !== undefined && effectInfo[placement.shader].animated === true);
 
   const item = ((): Item => {
     switch (kind) {
       case "primitive":
-        return { kind, primitive, material };
+        return { kind, primitive, material, ...withShader };
       case "framed":
-        return { kind, primitive, faces: "glass", edges: "metal" };
+        return { kind, primitive, faces: material, edges: "metal", ...withShader };
       case "object":
         return { kind, object, material };
     }
@@ -123,7 +129,11 @@ export function Playground() {
               className={field}
               value={kind}
               onChange={(event) => {
-                if (isAddKind(event.target.value)) setKind(event.target.value);
+                const next = event.target.value;
+                if (!isAddKind(next)) return;
+                setKind(next);
+                // Framed solids start in glass, as on hedronite.com.
+                if (next === "framed" && shader === undefined) setMaterial("glass");
               }}
             >
               {addKinds.map(([value, label]) => (
@@ -172,24 +182,43 @@ export function Playground() {
           )}
           {takesMaterial ? (
             <div className="flex flex-col gap-1 text-sm">
-              <label htmlFor="playground-material">Material</label>
+              <label htmlFor="playground-material">{kind === "framed" ? "Faces" : "Surface"}</label>
               <select
                 id="playground-material"
                 className={field}
-                value={material}
+                value={takesShader && shader !== undefined ? `shader:${shader}` : material}
                 onChange={(event) => {
-                  if (isMaterialId(event.target.value)) setMaterial(event.target.value);
+                  const value = event.target.value;
+                  const shaderId = value.startsWith("shader:") ? value.slice("shader:".length) : "";
+                  if (isEffectId(shaderId)) {
+                    setShader(shaderId);
+                  } else if (isMaterialId(value)) {
+                    setMaterial(value);
+                    setShader(undefined);
+                  }
                 }}
               >
-                {materialIds.map((id) => (
-                  <option key={id} value={id}>
-                    {materialPreset(id).name}
-                  </option>
-                ))}
+                <optgroup label="Materials">
+                  {materialIds.map((id) => (
+                    <option key={id} value={id}>
+                      {materialPreset(id).name}
+                    </option>
+                  ))}
+                </optgroup>
+                {takesShader ? (
+                  <optgroup label="Surface shaders">
+                    {effectIds.map((id) => (
+                      <option key={id} value={`shader:${id}`}>
+                        {effectInfo[id].name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null}
               </select>
+              {kind === "framed" ? <p className="text-fg-muted">Edges in metal, in the look's accent.</p> : null}
             </div>
           ) : (
-            <p className="text-sm text-fg-muted">{kind === "framed" ? "Glass faces, metal edges in the look's accent." : "Built from its spec, in the look's colors."}</p>
+            <p className="text-sm text-fg-muted">Built from its spec, in the look's colors.</p>
           )}
           <button
             type="button"
@@ -286,8 +315,9 @@ export function Playground() {
             className="h-96 overflow-hidden rounded-xl border border-line bg-surface-raised"
             data-testid="playground-viewport"
           >
-            {/* Screen effects animate, so the scene renders every frame while any are on. */}
-            <Canvas frameloop={composition.effects.length === 0 ? "demand" : "always"} dpr={[1, 2]} camera={{ position: [0, 2.2, 5.5], fov: 40 }}>
+            {/* Screen effects and some shaders animate, so the scene renders every frame while any are on. */}
+            {/* The WebGPU renderer (WebGL 2 where WebGPU is missing) runs surface shaders and screen effects together. */}
+            <WebGPUCanvas frameloop={animated ? "always" : "demand"} dpr={[1, 2]} camera={{ position: [0, 2.2, 5.5], fov: 40 }}>
               <Environment />
               <StudioLights intensity={composition.lightIntensity} />
               <Controls />
@@ -296,7 +326,7 @@ export function Playground() {
               ))}
               {effects.length === 0 ? null : <ScreenEffectsPass effects={effects} palette={preset.scene} {...(monochrome === undefined ? {} : { monochrome })} />}
               <GpuCounts target={host} />
-            </Canvas>
+            </WebGPUCanvas>
           </div>
           {[
             { label: "JSON export", code: toJson(composition) },

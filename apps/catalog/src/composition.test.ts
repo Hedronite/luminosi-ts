@@ -58,7 +58,8 @@ describe("export", () => {
 
   it("writes TSX that renders each placement with the adapters", () => {
     const code = toTsx(composition);
-    expect(code).toContain('import { PrimitiveMesh, StudioEnvironment, StudioLights } from "@hedronite/lts-adapters";');
+    expect(code).toContain('import { PrimitiveMesh, StudioEnvironment, StudioLights, WebGPUCanvas } from "@hedronite/lts-adapters";');
+    expect(code).toContain("<WebGPUCanvas>");
     expect(code).toContain("<StudioLights intensity={1.2} />");
     expect(code).toContain('<PrimitiveMesh primitive="platonic-icosahedron" material="glass"');
     expect(code).not.toContain("ScreenEffectsPass");
@@ -66,12 +67,28 @@ describe("export", () => {
 
   it("writes framed solids, objects and the screen effects", () => {
     const code = toTsx(mixed);
-    expect(code).toContain('import { CrystalCluster, FramedSolid, LibraryObject, ScreenEffectsPass, StudioEnvironment, StudioLights } from "@hedronite/lts-adapters";');
+    expect(code).toContain('import { CrystalCluster, FramedSolid, LibraryObject, ScreenEffectsPass, StudioEnvironment, StudioLights, WebGPUCanvas } from "@hedronite/lts-adapters";');
     expect(code).toContain('<FramedSolid primitive="archimedean-truncated-icosahedron" faces="glass" edges="metal"');
     expect(code).toContain('<LibraryObject object="dress-watch"');
     expect(code).toContain('<CrystalCluster count={14} spread={0.7} seed={11} material="glass"');
     expect(code).toContain('const stack = [{ id: "smoke" }, { id: "scan" }, { id: "lens" }] as const;');
     expect(code).toContain("<ScreenEffectsPass effects={stack} monochrome={palette.accent} />");
+  });
+
+  it("writes surface shaders in place of materials, in both exports", () => {
+    const shaded: Composition = {
+      lightIntensity: 1,
+      effects: [],
+      ink: "look",
+      placements: [
+        { key: "a", kind: "primitive", primitive: "platonic-cube", material: "satin", shader: "toon" },
+        { key: "b", kind: "framed", primitive: "platonic-icosahedron", faces: "glass", edges: "metal", shader: "hologram" },
+      ],
+    };
+    expect(JSON.parse(toJson(shaded))).toMatchObject({ placements: [{ shader: "toon" }, { shader: "hologram" }] });
+    const code = toTsx(shaded);
+    expect(code).toContain('<PrimitiveMesh primitive="platonic-cube" shader="toon"');
+    expect(code).toContain('<FramedSolid primitive="platonic-icosahedron" shader="hologram" edges="metal"');
   });
 
   it("knows which objects it can place", () => {

@@ -173,7 +173,7 @@ export function App() {
             </Suspense>
           ) : view === "effects" ? (
             <Suspense fallback={<p className="mt-6 text-fg-muted">Loading the effects…</p>}>
-              <Effects shaders={shaderAssets} onOpen={open} />
+              <Effects shaders={shaderAssets} />
             </Suspense>
           ) : view === "open-source" ? (
             <Suspense fallback={<p className="mt-6 text-fg-muted">Loading the open-source material…</p>}>

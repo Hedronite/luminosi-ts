@@ -1,12 +1,15 @@
 import type { AssetMeta } from "@hedronite/lts-core";
 import { materialIds, materialPreset } from "@hedronite/lts-materials";
 import { screenEffectIds, screenEffectInfo, type ScreenEffectConfig, type ScreenEffectId } from "@hedronite/lts-postfx";
-import { isPrimitiveId, primitiveIds, primitiveInfo, type PrimitiveId } from "@hedronite/lts-primitives";
+import { primitiveIds, primitiveInfo } from "@hedronite/lts-primitives";
+import { effectIds, effectInfo, isEffectId } from "@hedronite/lts-shaders";
 import type { Hex } from "@hedronite/lts-tokens";
 import { useMemo, useRef, useState } from "react";
 import { AssetPreview } from "./AssetPreview";
-import { EffectStage, type StageStyle } from "./EffectStage";
+import { placeableObjects } from "./composition";
+import { EffectStage } from "./EffectStage";
 import { usePreset } from "./look";
+import { parseSubject, parseSurface, subjectValue, surfaceValue, type StageSubject, type StageSurface } from "./stage";
 
 const field = "rounded-lg border border-line bg-surface px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-accent";
 
@@ -18,21 +21,41 @@ const inkModes = [
   { id: "glass", label: "One ink: glass" },
 ] as const;
 type InkMode = (typeof inkModes)[number]["id"];
-
-const isStyle = (value: string): value is StageStyle => value === "framed" || materialIds.some((id) => id === value);
 const isInkMode = (value: string): value is InkMode => inkModes.some((mode) => mode.id === value);
 
-/** Every effect: screen effects stacked live over a solid, and the surface shaders as assets. */
-export function Effects({ shaders, onOpen }: { readonly shaders: readonly AssetMeta[]; readonly onOpen: (meta: AssetMeta, trigger: HTMLElement) => void }) {
+const subjectName = (subject: StageSubject): string =>
+  subject.kind === "solid" ? primitiveInfo(subject.id).name : (placeableObjects.find((object) => object.id === subject.id)?.name ?? subject.id);
+
+const surfaceName = (surface: StageSurface): string => {
+  switch (surface.kind) {
+    case "own":
+      return "its own materials";
+    case "framed":
+      return "framed glass";
+    case "material":
+      return materialPreset(surface.id).name;
+    case "shader":
+      return effectInfo[surface.id].name;
+  }
+};
+
+/**
+ * Every effect on one stage: a solid or a real object, surfaced in framed glass, any material or any
+ * surface shader, under any stack of screen effects.
+ */
+export function Effects({ shaders }: { readonly shaders: readonly AssetMeta[] }) {
   const preset = usePreset();
   const [stack, setStack] = useState<readonly ScreenEffectId[]>(["scan", "lens"]);
-  const [solid, setSolid] = useState<PrimitiveId>("archimedean-truncated-icosahedron");
-  const [style, setStyle] = useState<StageStyle>("framed");
+  const [subject, setSubject] = useState<StageSubject>({ kind: "solid", id: "archimedean-truncated-icosahedron" });
+  const [surface, setSurface] = useState<StageSurface>({ kind: "framed" });
   const [ink, setInk] = useState<InkMode>("look");
   const host = useRef<HTMLDivElement>(null);
   // The sweep comes round every 4 s here, not 9, so it shows up while you look.
   const effects = useMemo((): readonly ScreenEffectConfig[] => stack.map((id) => (id === "scan" ? { id, params: { period: 4 } } : { id })), [stack]);
   const monochrome: Hex | undefined = ink === "look" ? undefined : preset.scene[ink];
+  // Solids have no surface of their own, objects can't be framed: offer what applies.
+  const plain: StageSurface = subject.kind === "solid" ? { kind: "framed" } : { kind: "own" };
+  const shown = surface.kind === "own" || surface.kind === "framed" ? plain : surface;
 
   return (
     <section aria-labelledby="effects-title" className="mt-6">
@@ -40,11 +63,66 @@ export function Effects({ shaders, onOpen }: { readonly shaders: readonly AssetM
         Effects
       </h2>
       <p className="mt-1 max-w-prose text-sm text-fg-muted">
-        Screen effects from hedronite.com, printed in the look's inks. Stack them over any solid; point at the stage for the lens.
+        Surface shaders and screen effects on one stage. Put a shader on a solid or a real object, stack screen effects from hedronite.com over it in the look's inks, and point at the stage for the lens.
       </p>
 
       <div className="mt-4 grid gap-6 lg:grid-cols-[18rem_1fr]">
         <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1 text-sm">
+            <label htmlFor="effects-subject">Subject</label>
+            <select
+              id="effects-subject"
+              className={field}
+              value={subjectValue(subject)}
+              onChange={(event) => {
+                const next = parseSubject(event.target.value);
+                if (next !== undefined) setSubject(next);
+              }}
+            >
+              <optgroup label="Objects">
+                {placeableObjects.map((object) => (
+                  <option key={object.id} value={subjectValue({ kind: "object", id: object.id })}>
+                    {object.name}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Solids">
+                {primitiveIds.map((id) => (
+                  <option key={id} value={subjectValue({ kind: "solid", id })}>
+                    {primitiveInfo(id).name}
+                  </option>
+                ))}
+              </optgroup>
+            </select>
+          </div>
+          <div className="flex flex-col gap-1 text-sm">
+            <label htmlFor="effects-surface">Surface</label>
+            <select
+              id="effects-surface"
+              className={field}
+              value={surfaceValue(shown)}
+              onChange={(event) => {
+                const next = parseSurface(event.target.value);
+                if (next !== undefined) setSurface(next);
+              }}
+            >
+              <option value={surfaceValue(plain)}>{plain.kind === "framed" ? "Framed glass (hedronite.com)" : "Its own materials"}</option>
+              <optgroup label="Surface shaders">
+                {effectIds.map((id) => (
+                  <option key={id} value={surfaceValue({ kind: "shader", id })}>
+                    {effectInfo[id].name}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Materials">
+                {materialIds.map((id) => (
+                  <option key={id} value={surfaceValue({ kind: "material", id })}>
+                    {materialPreset(id).name}
+                  </option>
+                ))}
+              </optgroup>
+            </select>
+          </div>
           <fieldset className="flex flex-col gap-1.5">
             <legend className="mb-1 text-sm font-medium">Screen effects</legend>
             {screenEffectIds.map((id) => (
@@ -63,58 +141,25 @@ export function Effects({ shaders, onOpen }: { readonly shaders: readonly AssetM
               </label>
             ))}
           </fieldset>
-          <div className="flex flex-col gap-1 text-sm">
-            <label htmlFor="effects-solid">Solid</label>
-            <select
-              id="effects-solid"
-              className={field}
-              value={solid}
-              onChange={(event) => {
-                if (isPrimitiveId(event.target.value)) setSolid(event.target.value);
-              }}
-            >
-              {primitiveIds.map((id) => (
-                <option key={id} value={id}>
-                  {primitiveInfo(id).name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex flex-col gap-1 text-sm">
-            <label htmlFor="effects-style">Surface</label>
-            <select
-              id="effects-style"
-              className={field}
-              value={style}
-              onChange={(event) => {
-                if (isStyle(event.target.value)) setStyle(event.target.value);
-              }}
-            >
-              <option value="framed">Framed glass (hedronite.com)</option>
-              {materialIds.map((id) => (
-                <option key={id} value={id}>
-                  {materialPreset(id).name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex flex-col gap-1 text-sm">
-            <label htmlFor="effects-ink">Ink</label>
-            <select
-              id="effects-ink"
-              className={field}
-              value={ink}
-              onChange={(event) => {
-                if (isInkMode(event.target.value)) setInk(event.target.value);
-              }}
-            >
-              {inkModes.map((mode) => (
-                <option key={mode.id} value={mode.id}>
-                  {mode.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          {stack.length === 0 ? null : (
+            <div className="flex flex-col gap-1 text-sm">
+              <label htmlFor="effects-ink">Ink</label>
+              <select
+                id="effects-ink"
+                className={field}
+                value={ink}
+                onChange={(event) => {
+                  if (isInkMode(event.target.value)) setInk(event.target.value);
+                }}
+              >
+                {inkModes.map((mode) => (
+                  <option key={mode.id} value={mode.id}>
+                    {mode.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         <div ref={host} data-testid="effects-stage" className="overflow-hidden rounded-xl border border-line bg-surface-raised">
@@ -122,12 +167,12 @@ export function Effects({ shaders, onOpen }: { readonly shaders: readonly AssetM
             effects={effects}
             palette={preset.scene}
             paletteId={preset.id}
-            solid={solid}
-            style={style}
+            subject={subject}
+            surface={shown}
             monochrome={monochrome}
             host={host}
             className="h-[22rem] w-full sm:h-[28rem]"
-            label={`${primitiveInfo(solid).name} under ${stack.length === 0 ? "no screen effects" : stack.map((id) => screenEffectInfo[id].name).join(", ")}.`}
+            label={`${subjectName(subject)} in ${surfaceName(shown)}, under ${stack.length === 0 ? "no screen effects" : stack.map((id) => screenEffectInfo[id].name).join(", ")}.`}
           />
         </div>
       </div>
@@ -136,22 +181,29 @@ export function Effects({ shaders, onOpen }: { readonly shaders: readonly AssetM
         <h3 id="surface-title" className="font-semibold">
           Surface shaders
         </h3>
-        <p className="mt-1 text-sm text-fg-muted">Effects that live on a surface instead of the whole frame. Open one to see it on a sphere.</p>
+        <p className="mt-1 text-sm text-fg-muted">Effects that live on a surface. Pick one to put it on the stage, under whatever screen effects are on.</p>
         <ul className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] gap-3">
-          {shaders.map((meta) => (
-            <li key={meta.id}>
-              <button
-                type="button"
-                onClick={(event) => {
-                  onOpen(meta, event.currentTarget);
-                }}
-                className="flex aspect-square w-full flex-col items-center justify-center gap-3 rounded-xl border border-line p-3 text-center hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-              >
-                <AssetPreview meta={meta} size={56} />
-                <span className="text-sm">{meta.name}</span>
-              </button>
-            </li>
-          ))}
+          {shaders.map((meta) => {
+            const id = meta.id;
+            if (!isEffectId(id)) return null;
+            const on = shown.kind === "shader" && shown.id === id;
+            return (
+              <li key={id}>
+                <button
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => {
+                    setSurface({ kind: "shader", id });
+                    host.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+                  }}
+                  className="flex aspect-square w-full flex-col items-center justify-center gap-3 rounded-xl border border-line p-3 text-center hover:bg-surface-raised aria-pressed:border-accent aria-pressed:ring-2 aria-pressed:ring-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                >
+                  <AssetPreview meta={meta} size={56} />
+                  <span className="text-sm">{meta.name}</span>
+                </button>
+              </li>
+            );
+          })}
         </ul>
       </section>
     </section>

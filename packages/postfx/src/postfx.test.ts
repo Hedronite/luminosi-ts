@@ -3,7 +3,9 @@ import { contrastRatio, hedronite, neutral } from "@hedronite/lts-tokens";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { orderStack, screenEffectIds, screenEffectInfo, screenEffectSchemas } from "./effects.js";
-import { grainFragment, printFragment, smokeFragment } from "./glsl.js";
+import { texture } from "three/tsl";
+import { Texture, Vector2 } from "three/webgpu";
+import { floatUniform as uniform, grainNode, printNode, smokeNode, vec2Uniform, type PrintUniforms } from "./nodes.js";
 import { inksFor, mixHex } from "./inks.js";
 import { manifest } from "./manifest.js";
 import { printSettings } from "./settings.js";
@@ -79,17 +81,29 @@ describe("print settings", () => {
   });
 });
 
-describe("shaders", () => {
-  it("read the frame from tDiffuse and write gl_FragColor", () => {
-    for (const source of [printFragment, grainFragment, smokeFragment]) {
-      expect(source).toContain("uniform sampler2D tDiffuse");
-      expect(source).toContain("gl_FragColor");
-    }
-  });
+describe("node graphs", () => {
+  const input = texture(new Texture());
+  const u: PrintUniforms = {
+    time: uniform(0),
+    dpr: uniform(1),
+    base: uniform(1),
+    intro: uniform(1),
+    appear: uniform(1),
+    scan: uniform(-1),
+    scanDepth: uniform(2),
+    lens: uniform(0),
+    lensRadius: uniform(118),
+    lensDepth: uniform(1),
+    grain: uniform(0.07),
+    ditherPx: uniform(3),
+    asciiPx: uniform(11),
+    mouse: vec2Uniform(new Vector2(-10, -10)),
+  };
 
-  it("declare every ink the runner feeds them", () => {
-    for (const name of ["uCool0", "uCool1", "uCool2", "uWarm0", "uWarm1", "uWarm2", "uHot", "uRule"]) expect(printFragment).toContain(`uniform vec3 ${name};`);
-    expect(printFragment).toContain("uniform float uChroma;");
+  it("build for the print, grain and smoke passes without a GPU", () => {
+    for (const node of [printNode(input, u, inksFor(hedronite.scene), new Texture(), 14), grainNode(input, uniform(0), 0.06), smokeNode(input, uniform(0), inksFor(hedronite.scene), 1)]) {
+      expect(node.isNode).toBe(true);
+    }
   });
 });
 

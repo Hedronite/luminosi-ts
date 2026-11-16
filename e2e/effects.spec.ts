@@ -10,22 +10,32 @@ const errorsOn = (page: Page): string[] => {
   return errors;
 };
 
-test("the Effects tab stacks screen effects over a solid and lists the surface shaders", async ({ page }) => {
+test("the Effects tab puts surface shaders and screen effects on one stage, on real objects", async ({ page }) => {
   const errors = errorsOn(page);
   await page.goto("/?view=effects");
   await expect(page.getByRole("heading", { name: "Effects", exact: true })).toBeVisible();
   const stage = page.getByTestId("effects-stage");
   await expect(stage).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 15000 });
+
+  // A surface shader from the list goes onto the stage, under the screen effects already on.
+  await page.getByRole("region", { name: "Surface shaders" }).getByRole("button", { name: "Toon outline" }).click();
+  await expect(page.getByRole("region", { name: "Surface shaders" }).getByRole("button", { name: "Toon outline" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("img", { name: /in Toon outline, under Scan sweep, Lens\.$/ })).toBeVisible();
+
+  // On a real object, with another shader and other screen effects.
+  await page.getByLabel("Subject", { exact: true }).selectOption("object:dress-watch");
+  await page.getByLabel("Surface", { exact: true }).selectOption("shader:hologram");
   await page.getByRole("checkbox", { name: "Dither" }).check();
   await page.getByRole("checkbox", { name: /^Lens/ }).uncheck();
-  await expect(page.getByRole("img", { name: /under Scan sweep, Dither\.$/ })).toBeVisible();
-  await page.getByLabel("Solid", { exact: true }).selectOption("catalan-rhombic-triacontahedron");
+  await expect(page.getByRole("img", { name: "Dress watch in Hologram, under Scan sweep, Dither." })).toBeVisible();
   await page.getByLabel("Ink", { exact: true }).selectOption("accent");
-  await page.getByLabel("Surface", { exact: true }).selectOption("metal");
-  // Still rendering after every change.
+  // Back to the watch's own materials, then a solid in a material preset.
+  await page.getByLabel("Surface", { exact: true }).selectOption("own");
+  await expect(page.getByRole("img", { name: /^Dress watch in its own materials/ })).toBeVisible();
+  await page.getByLabel("Subject", { exact: true }).selectOption("solid:catalan-rhombic-triacontahedron");
+  await page.getByLabel("Surface", { exact: true }).selectOption("material:metal");
   const before = Number(await stage.getAttribute("data-frames"));
   await expect.poll(async () => Number(await stage.getAttribute("data-frames"))).toBeGreaterThan(before);
-  await expect(page.getByRole("region", { name: "Surface shaders" }).getByRole("button")).toHaveCount(7);
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => v.id)).toEqual([]);
   expect(errors).toEqual([]);
@@ -78,7 +88,12 @@ test("the playground combines framed solids, objects and screen effects, and exp
   await page.getByLabel("Add", { exact: true }).selectOption("object");
   await page.getByLabel("Object", { exact: true }).selectOption("dress-watch");
   await page.getByRole("button", { name: "Add to scene" }).click();
-  await expect(scene).toHaveCount(before + 2);
+  await page.getByLabel("Add", { exact: true }).selectOption("primitive");
+  await page.getByLabel("Primitive", { exact: true }).selectOption("platonic-icosahedron");
+  await page.getByLabel("Surface", { exact: true }).selectOption("shader:dissolve");
+  await page.getByRole("button", { name: "Add to scene" }).click();
+  await expect(scene).toHaveCount(before + 3);
+  await expect(scene.filter({ hasText: "Icosahedron, Dissolve" })).toHaveCount(1);
   await expect(scene.filter({ hasText: "Framed rhombic triacontahedron" })).toHaveCount(1);
   await expect(scene.filter({ hasText: "Dress watch" })).toHaveCount(1);
 
@@ -97,5 +112,7 @@ test("the playground combines framed solids, objects and screen effects, and exp
   const tsx = page.getByRole("region", { name: "React export" }).locator("code");
   await expect(tsx).toContainText('<FramedSolid primitive="catalan-rhombic-triacontahedron"');
   await expect(tsx).toContainText("<ScreenEffectsPass effects={stack} monochrome={palette.glass} />");
+  await expect(tsx).toContainText('<PrimitiveMesh primitive="platonic-icosahedron" shader="dissolve"');
+  await expect(tsx).toContainText("<WebGPUCanvas>");
   expect(errors).toEqual([]);
 });

@@ -90,11 +90,11 @@ export function snippetsFor(meta: AssetMeta, icon: IconData | undefined): readon
     return [
       {
         label: "TypeScript",
-        code: `import { ScreenEffects } from "@hedronite/lts-postfx";\nimport { hedronite } from "@hedronite/lts-tokens";\n\n// Inks from the look: lapis and copper with the Hedronite preset.\nconst effects = new ScreenEffects(renderer, scene, camera, [{ id: "${meta.id}" }], { palette: hedronite.scene });\n// Each frame, instead of renderer.render(scene, camera):\neffects.render(delta);\n// Later: effects.dispose();`,
+        code: `import { ScreenEffects } from "@hedronite/lts-postfx";\nimport { hedronite } from "@hedronite/lts-tokens";\nimport { WebGPURenderer } from "three/webgpu";\n\nconst renderer = new WebGPURenderer({ antialias: true, alpha: true });\nawait renderer.init();\n// Inks from the look: lapis and copper with the Hedronite preset.\nconst effects = new ScreenEffects(renderer, scene, camera, [{ id: "${meta.id}" }], { palette: hedronite.scene });\n// Each frame, instead of renderer.render(scene, camera):\neffects.render(delta);\n// Later: effects.dispose();`,
       },
       {
         label: "React",
-        code: `import { ScreenEffectsPass } from "@hedronite/lts-adapters";\n\nconst stack = [{ id: "${meta.id}" }] as const; // keep it stable: a new array rebuilds the passes\n\n<Canvas>\n  {/* your scene */}\n  <ScreenEffectsPass effects={stack} />\n</Canvas>`,
+        code: `import { ScreenEffectsPass, WebGPUCanvas } from "@hedronite/lts-adapters";\n\nconst stack = [{ id: "${meta.id}" }] as const; // keep it stable: a new array rebuilds the passes\n\n// The WebGPU renderer (WebGL 2 where WebGPU is missing) runs screen effects and surface shaders together.\n<WebGPUCanvas>\n  {/* your scene */}\n  <ScreenEffectsPass effects={stack} />\n</WebGPUCanvas>`,
       },
     ];
   }
