@@ -387,6 +387,8 @@ test.describe("on a phone", () => {
   test("a skill page reads without sideways scrolling", async ({ page }) => {
     await page.goto("/?view=open-source&set=ai-design-skills&item=landing-page-design&page=skills/landing-page-design/SKILL.md");
     await expect(page.getByRole("heading", { level: 2, name: "Landing Page Design" })).toBeVisible();
+    // The page's Markdown loads on its own; measure once it is in.
+    await expect(page.getByText("Loading…")).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
   });
 });

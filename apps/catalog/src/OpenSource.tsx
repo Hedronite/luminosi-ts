@@ -5,7 +5,7 @@ import { vendored } from "./generated/vendor";
 import { Markdown } from "./Markdown";
 import { formatBytes, kindTitles, packFromSet, type VendorEntry, type VendorItem, type VendorKind, type VendorPage } from "./vendored";
 
-const kinds: readonly VendorKind[] = ["icons", "components", "demos", "skills"];
+const kinds: readonly VendorKind[] = ["icons", "components", "demos", "engines", "skills"];
 
 const button =
   "inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-sm hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
@@ -102,9 +102,11 @@ export function OpenSource({ onBrowsePack }: { readonly onBrowsePack: (packId: s
   );
 }
 
+const itemWord = (entry: VendorEntry): string => (entry.kind === "skills" ? "skill" : entry.kind === "demos" ? "demo" : "item");
+
 function summary(entry: VendorEntry): string {
   const packs = packsOf(entry);
-  const count = packs.length > 0 ? `${String(packs.length)} pack${packs.length === 1 ? "" : "s"}` : entry.items.length > 0 ? `${String(entry.items.length)} ${entry.kind === "skills" ? "skill" : "demo"}${entry.items.length === 1 ? "" : "s"}` : `${String(entry.files)} files`;
+  const count = packs.length > 0 ? `${String(packs.length)} pack${packs.length === 1 ? "" : "s"}` : entry.items.length > 0 ? `${String(entry.items.length)} ${itemWord(entry)}${entry.items.length === 1 ? "" : "s"}` : `${String(entry.files)} files`;
   return `${count} · ${shortLicense(entry.license)}`;
 }
 
@@ -200,7 +202,7 @@ function Folder({ entry, go, onBrowsePack }: { readonly entry: VendorEntry; read
       {entry.items.length === 0 ? null : (
         <section aria-labelledby="folder-items" className="mt-6">
           <h3 id="folder-items" className="font-semibold">
-            {entry.kind === "skills" ? "Skills" : "Demos"}
+            {entry.kind === "skills" ? "Skills" : entry.kind === "demos" ? "Demos" : "Read"}
           </h3>
           <ul className="mt-2 grid gap-3 md:grid-cols-2">
             {entry.items.map((candidate) => (
@@ -243,10 +245,35 @@ function ItemCard({ entry, item, go }: { readonly entry: VendorEntry; readonly i
 }
 
 /** The page's Markdown without a leading `# Title` that repeats the heading above it. */
-const withoutTitle = (page: VendorPage): string => {
-  const match = /^#\s+(.+)\n?/.exec(page.markdown);
-  return match?.[1]?.trim() === page.title ? page.markdown.slice(match[0].length) : page.markdown;
+const withoutTitle = (page: VendorPage, markdown: string): string => {
+  const match = /^#\s+(.+)\n?/.exec(markdown);
+  return match?.[1]?.trim() === page.title ? markdown.slice(match[0].length) : markdown;
 };
+
+// Each folder's Markdown is its own module, loaded when one of its pages is opened.
+const pageModules = import.meta.glob<{ readonly markdown: Readonly<Record<string, string>> }>("./generated/vendor-pages/*.ts");
+
+/** A folder's Markdown by page path, once loaded; undefined while loading; an Error if it failed. */
+function useFolderMarkdown(id: string): Readonly<Record<string, string>> | Error | undefined {
+  const [loaded, setLoaded] = useState<{ readonly id: string; readonly value: Readonly<Record<string, string>> | Error } | undefined>(undefined);
+  useEffect(() => {
+    let live = true;
+    const load = pageModules[`./generated/vendor-pages/${id}.ts`];
+    if (load === undefined) return undefined;
+    load().then(
+      (module) => {
+        if (live) setLoaded({ id, value: module.markdown });
+      },
+      (error: unknown) => {
+        if (live) setLoaded({ id, value: error instanceof Error ? error : new Error(String(error)) });
+      },
+    );
+    return () => {
+      live = false;
+    };
+  }, [id]);
+  return loaded?.id === id ? loaded.value : undefined;
+}
 
 function Reader({
   entry,
@@ -262,6 +289,8 @@ function Reader({
   readonly go: (place: Place) => void;
 }) {
   const at = (path: string): Place => ({ set: entry.id, ...(item === undefined ? {} : { item: item.id }), page: path });
+  const folder = useFolderMarkdown(entry.id);
+  const markdown = folder === undefined || folder instanceof Error ? undefined : folder[page.path];
   return (
     <article aria-labelledby="reader-title" className="mt-6">
       <Back
@@ -297,8 +326,11 @@ function Reader({
         </div>
       ) : null}
       <div className="mt-4 border-t border-line pt-4">
+        {folder instanceof Error ? <p className="text-fg">Couldn't load this page: {folder.message}</p> : null}
+        {folder === undefined ? <p className="text-fg-muted">Loading…</p> : null}
+        {markdown === undefined ? null : (
         <Markdown
-          markdown={withoutTitle(page)}
+          markdown={withoutTitle(page, markdown)}
           path={page.path}
           repo={entry.repo}
           pages={pages.map((candidate) => candidate.path)}
@@ -306,6 +338,7 @@ function Reader({
             go(at(path));
           }}
         />
+        )}
       </div>
     </article>
   );

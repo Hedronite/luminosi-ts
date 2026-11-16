@@ -1,12 +1,11 @@
 /** What the Open source view shows: other people's open-source material vendored under assets/vendor. */
 
-export type VendorKind = "icons" | "components" | "demos" | "skills";
+export type VendorKind = "icons" | "components" | "demos" | "engines" | "skills";
 
-/** A Markdown file from a vendored folder; `path` is relative to that folder. */
+/** A Markdown file from a vendored folder; `path` is relative to that folder. Its text loads separately (vendor-pages). */
 export interface VendorPage {
   readonly path: string;
   readonly title: string;
-  readonly markdown: string;
 }
 
 /** A skill or a demo inside a folder. */
@@ -46,6 +45,7 @@ export const kindTitles: Readonly<Record<VendorKind, string>> = {
   icons: "Icon sets",
   components: "Components",
   demos: "Demos",
+  engines: "Engines",
   skills: "Agent skills",
 };
 
