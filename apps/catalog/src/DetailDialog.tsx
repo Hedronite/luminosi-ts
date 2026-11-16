@@ -10,6 +10,7 @@ import { snippetsFor } from "lumin/snippets";
 // three.js and React Three Fiber load only when a 3D asset is opened.
 const Viewport = lazy(() => import("./Viewport").then((module) => ({ default: module.Viewport })));
 const ShaderViewport = lazy(() => import("./ShaderViewport").then((module) => ({ default: module.ShaderViewport })));
+const EffectViewport = lazy(() => import("./EffectViewport").then((module) => ({ default: module.EffectViewport })));
 
 const has3d = (meta: AssetMeta): boolean => meta.kind !== "icon";
 
@@ -79,6 +80,8 @@ export function DetailDialog({ meta, onClose, onStep, position }: DetailDialogPr
               >
                 {meta.kind === "shader" ? (
                   <ShaderViewport meta={meta} palette={preset.scene} paletteId={preset.id} />
+                ) : meta.kind === "effect" ? (
+                  <EffectViewport meta={meta} palette={preset.scene} paletteId={preset.id} />
                 ) : (
                   <Viewport meta={meta} palette={preset.scene} paletteId={preset.id} />
                 )}

@@ -2,12 +2,13 @@ import { createRegistry, registerManifest, type Registry } from "@hedronite/lts-
 import { manifest as icons } from "@hedronite/lts-icons/manifest";
 import { manifest as materials } from "@hedronite/lts-materials/manifest";
 import { manifest as objects } from "@hedronite/lts-objects/manifest";
+import { manifest as postfx } from "@hedronite/lts-postfx/manifest";
 import { manifest as primitives } from "@hedronite/lts-primitives/manifest";
 import { manifest as scenes } from "@hedronite/lts-scenes/manifest";
 import { manifest as shaders } from "@hedronite/lts-shaders/manifest";
 
 /** Every package's manifest, in the order an app registers them. */
-export const manifests = [icons, primitives, materials, objects, shaders, scenes] as const;
+export const manifests = [icons, primitives, materials, objects, shaders, scenes, postfx] as const;
 
 /** Registers every manifest, collecting problems (such as an id two packages use) instead of throwing. */
 export function buildRegistry(): { readonly registry: Registry; readonly problems: readonly string[] } {

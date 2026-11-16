@@ -1,0 +1,79 @@
+import { inksFor, type ScreenEffectId } from "@hedronite/lts-postfx";
+import { useId, type ReactNode } from "react";
+import { usePreset } from "./look";
+
+// A fixed scatter, so the grain hint looks the same on every render.
+const specks = Array.from({ length: 40 }, (_, i) => [((i * 37) % 97) / 97, ((i * 61) % 89) / 89] as const);
+
+/** A flat hint of a screen effect, in the inks it would print with. */
+export function ScreenSwatch({ id, size }: { readonly id: ScreenEffectId; readonly size: number }) {
+  const inks = inksFor(usePreset().scene);
+  const clip = useId();
+  const smoke = useId();
+  const disc = <circle cx="1" cy="1" r="0.92" fill={inks.cool[0]} fillOpacity={0.55} />;
+  const dots = (from: number, to: number): ReactNode =>
+    Array.from({ length: 10 }, (_, row) =>
+      Array.from({ length: 10 }, (_, col) => {
+        const level = (row + col) / 18;
+        if (row < from * 10 || row >= to * 10 || (row * 7 + col * 3) % 4 > level * 4) return null;
+        return <rect key={`${String(row)}-${String(col)}`} x={0.1 + col * 0.18} y={0.1 + row * 0.18} width={0.13} height={0.13} fill={level > 0.6 ? inks.cool[2] : inks.cool[1]} />;
+      }),
+    );
+  const content = ((): ReactNode => {
+    switch (id) {
+      case "dither":
+        return dots(0, 1);
+      case "ascii":
+      case "crystallize":
+        return (
+          <>
+            {id === "crystallize" ? dots(0.5, 1) : null}
+            <text x="1" y={id === "crystallize" ? 0.82 : 1.2} textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="0.5" fontWeight="600" fill={inks.cool[2]}>
+              {id === "crystallize" ? "@#" : "@#+:"}
+            </text>
+          </>
+        );
+      case "grain":
+        return specks.map(([x, y], i) => <rect key={i} x={0.15 + x * 1.7} y={0.15 + y * 1.7} width={0.05} height={0.05} fill={inks.hot} fillOpacity={0.8} />);
+      case "scan":
+        return (
+          <>
+            {dots(0.4, 0.6)}
+            <line x1="0" y1="1.05" x2="2" y2="1.05" stroke={inks.rule} strokeWidth={0.05} />
+          </>
+        );
+      case "lens":
+        return (
+          <>
+            <circle cx="1.15" cy="0.9" r="0.5" fill={inks.cool[1]} fillOpacity={0.35} />
+            <circle cx="1.15" cy="0.9" r="0.5" fill="none" stroke={inks.rule} strokeWidth={0.05} />
+          </>
+        );
+      case "smoke":
+        return (
+          <>
+            <defs>
+              <radialGradient id={smoke} cx="0.4" cy="0.6" r="0.6">
+                <stop offset="0" stopColor={inks.warm[1]} stopOpacity={0.8} />
+                <stop offset="0.5" stopColor={inks.cool[1]} stopOpacity={0.6} />
+                <stop offset="1" stopColor={inks.cool[0]} stopOpacity={0} />
+              </radialGradient>
+            </defs>
+            <rect width="2" height="2" fill={`url(#${smoke})`} />
+          </>
+        );
+    }
+  })();
+  return (
+    <svg width={size} height={size} viewBox="0 0 2 2" aria-hidden="true">
+      <defs>
+        <clipPath id={clip}>
+          <circle cx="1" cy="1" r="0.92" />
+        </clipPath>
+      </defs>
+      {disc}
+      <g clipPath={`url(#${clip})`}>{content}</g>
+      <circle cx="1" cy="1" r="0.92" fill="none" stroke="currentColor" strokeOpacity={0.15} strokeWidth={0.04} />
+    </svg>
+  );
+}

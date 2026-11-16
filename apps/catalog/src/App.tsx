@@ -15,13 +15,15 @@ const Playground = lazy(() => import("./Playground").then((module) => ({ default
 const IconPacks = lazy(() => import("./IconPacks").then((module) => ({ default: module.IconPacks })));
 const OpenSource = lazy(() => import("./OpenSource").then((module) => ({ default: module.OpenSource })));
 const Looks = lazy(() => import("./Looks").then((module) => ({ default: module.Looks })));
+const Effects = lazy(() => import("./Effects").then((module) => ({ default: module.Effects })));
 
-type View = "assets" | "icons" | "looks" | "open-source" | "playground" | "growth";
+type View = "assets" | "icons" | "looks" | "effects" | "open-source" | "playground" | "growth";
 /** The views, in nav order, with the URL parameters each one owns (cleared when another view opens). */
 const views: readonly { readonly id: View; readonly label: string; readonly params: readonly string[] }[] = [
   { id: "assets", label: "Assets", params: [] },
   { id: "icons", label: "Icons", params: ["pack"] },
   { id: "looks", label: "Looks", params: [] },
+  { id: "effects", label: "Effects", params: [] },
   { id: "open-source", label: "Open source", params: ["set", "item", "page"] },
   { id: "playground", label: "Playground", params: [] },
   { id: "growth", label: "Growth", params: [] },
@@ -30,6 +32,7 @@ const viewParams = views.flatMap((option) => option.params);
 
 const allAssets = registry.list();
 const kinds = kindCounts(allAssets, assetKinds);
+const shaderAssets = allAssets.filter((meta) => meta.kind === "shader");
 
 const plural = (n: number, word: string): string => `${String(n)} ${word}${n === 1 ? "" : "s"}`;
 const kindLabel = (kind: KindFilter): string => (kind === "all" ? "All" : `${kind[0]?.toUpperCase() ?? ""}${kind.slice(1)}s`);
@@ -167,6 +170,10 @@ export function App() {
           ) : view === "looks" ? (
             <Suspense fallback={<p className="mt-6 text-fg-muted">Loading the looks…</p>}>
               <Looks current={preset} onPick={setPreset} />
+            </Suspense>
+          ) : view === "effects" ? (
+            <Suspense fallback={<p className="mt-6 text-fg-muted">Loading the effects…</p>}>
+              <Effects shaders={shaderAssets} onOpen={open} />
             </Suspense>
           ) : view === "open-source" ? (
             <Suspense fallback={<p className="mt-6 text-fg-muted">Loading the open-source material…</p>}>

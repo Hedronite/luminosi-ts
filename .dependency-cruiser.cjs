@@ -26,7 +26,7 @@ module.exports = {
       name: "only-core-is-shared",
       comment: "Libraries import core and tokens, not each other.",
       severity: "error",
-      from: { path: "^packages/(icons|primitives|materials|shaders)/" },
+      from: { path: "^packages/(icons|primitives|materials|shaders|postfx)/" },
       to: { path: anyPackage, pathNot: [pkg("core|tokens"), "^(packages/$1/|@hedronite/lts-$1$)"] },
     },
     {
@@ -47,7 +47,7 @@ module.exports = {
       name: "pure-typescript-core",
       comment: "No React or React Three Fiber outside icons/react, adapters and the apps.",
       severity: "error",
-      from: { path: ["^packages/(core|tokens|primitives|objects|scenes|materials|shaders)/", "^packages/icons/src/(?!react/)"] },
+      from: { path: ["^packages/(core|tokens|primitives|objects|scenes|materials|shaders|postfx)/", "^packages/icons/src/(?!react/)"] },
       to: { path: react },
     },
     {

@@ -363,7 +363,7 @@ test("open source: an icon set leads to its packs in the Icons view", async ({ p
 test.describe("on a phone", () => {
   test.use({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
 
-  for (const view of ["assets", "icons", "looks", "open-source", "playground", "growth"] as const) {
+  for (const view of ["assets", "icons", "looks", "effects", "open-source", "playground", "growth"] as const) {
     test(`the ${view} view fits the screen width`, async ({ page }) => {
       const errors: string[] = [];
       page.on("pageerror", (error) => errors.push(error.message));
