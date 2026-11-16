@@ -1,0 +1,12 @@
+{
+  "name": "tool-solids",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT OR Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "generate": "bun src/solids.ts generate",
+    "check": "bun src/solids.ts check",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

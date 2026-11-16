@@ -131,7 +131,10 @@ test("a material renders with its environment", async ({ page }) => {
 
 test("stepping through 3D assets frees each geometry it replaces", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("group", { name: "Filter by kind" }).getByRole("button", { name: /^Primitives/ }).click();
+  const primitives = page.getByRole("group", { name: "Filter by kind" }).getByRole("button", { name: /^Primitives/ });
+  const total = Number(/\d+/.exec((await primitives.textContent()) ?? "")?.[0] ?? "0");
+  expect(total).toBeGreaterThan(30);
+  await primitives.click();
   await gallery(page).first().click();
   const viewport = page.getByTestId("viewport");
   await expect(viewport).toHaveAttribute("data-gpu-geometries", /^[1-9]\d*$/);
@@ -139,11 +142,11 @@ test("stepping through 3D assets frees each geometry it replaces", async ({ page
   const baseline = await viewport.getAttribute("data-gpu-geometries");
 
   const next = page.getByRole("button", { name: "Next asset" });
-  for (let i = 0; i < 9; i++) {
+  for (let i = 0; i < total; i++) {
     // eslint-disable-next-line no-await-in-loop -- each step must render before the next, to load and free one geometry at a time
     await next.click();
   }
-  await expect(page.getByRole("dialog")).toContainText("1 / 9");
+  await expect(page.getByRole("dialog")).toContainText(`1 / ${String(total)}`);
   await expect.poll(() => viewport.getAttribute("data-gpu-geometries"), { timeout: 5000 }).toBe(baseline);
 });
 

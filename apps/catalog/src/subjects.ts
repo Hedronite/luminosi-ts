@@ -1,7 +1,7 @@
 import type { AssetMeta } from "@hedronite/lts-core";
 import { createMaterial, isMaterialId } from "@hedronite/lts-materials";
-import { createCrystalCluster, createLattice, createObjectFromSpec, crystalCluster, dressWatchSpec, latticePoints, loadGltf, objectSpecById } from "@hedronite/lts-objects";
-import { createPolyhedronGeometry, geodesicSphere, isPrimitiveId, primitive } from "@hedronite/lts-primitives";
+import { createCrystalCluster, createFramedSolid, createLattice, createObjectFromSpec, crystalCluster, dressWatchSpec, latticePoints, loadGltf, objectSpecById } from "@hedronite/lts-objects";
+import { createPolyhedronGeometry, geodesicSphere, isPrimitiveId, platonic, primitive } from "@hedronite/lts-primitives";
 import { createSceneKit, isSceneKitId } from "@hedronite/lts-scenes";
 import type { ScenePalette } from "@hedronite/lts-tokens";
 import { Mesh, type Object3D } from "three";
@@ -25,6 +25,11 @@ export async function buildSubject(meta: AssetMeta, palette: ScenePalette, signa
   }
   if (meta.id === "crystal-cluster") {
     return createCrystalCluster(crystalCluster(objectSettings.cluster), createMaterial("satin", palette));
+  }
+  if (meta.id === "framed-solid") {
+    // Glass faces with edges and beads in metal tinted by the look's accent: copper in the Hedronite look.
+    const solid = platonic("dodecahedron", 0.95);
+    return createFramedSolid(solid, { faces: createMaterial("glass", palette), edges: createMaterial("metal", { ...palette, metal: palette.accent }) });
   }
   if (meta.id === "instanced-lattice") {
     const { size, spacing, scale } = objectSettings.lattice;

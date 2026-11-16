@@ -311,6 +311,10 @@
         "zod": "catalog:",
       },
     },
+    "tools/solids": {
+      "name": "tool-solids",
+      "version": "0.0.0",
+    },
     "tools/vendor": {
       "name": "tool-vendor",
       "version": "0.0.0",
@@ -1755,6 +1759,8 @@
     "tool-looks": ["tool-looks@workspace:tools/looks"],
 
     "tool-objects": ["tool-objects@workspace:tools/objects"],
+
+    "tool-solids": ["tool-solids@workspace:tools/solids"],
 
     "tool-vendor": ["tool-vendor@workspace:tools/vendor"],
 

@@ -19,6 +19,7 @@ const objectShapes: Record<string, () => Polyhedron> = {
   "crystal-cluster": () => bipyramid(6, { radius: 0.4, height: 2 }),
   "crystal-cluster-glb": () => bipyramid(5, { radius: 0.4, height: 2 }),
   "instanced-lattice": () => platonic("cube"),
+  "framed-solid": () => platonic("dodecahedron"),
 };
 
 /** The polyhedron that stands for an asset in thumbnails (primitives, and objects by stand-in), built once. */
