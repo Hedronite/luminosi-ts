@@ -6,6 +6,7 @@ import { Canvas } from "@react-three/fiber";
 import { useRef, useState } from "react";
 import { arrange, MAX_PLACEMENTS, PLACEMENT_SCALE, toJson, toTsx, type Composition, type Placement } from "./composition";
 import { CopyButton } from "./CopyButton";
+import { MaterialLineup } from "./MaterialLineup";
 import { usePreset } from "./look";
 import { Controls, Environment, GpuCounts } from "./scene";
 
@@ -33,14 +34,16 @@ export function Playground() {
   const full = composition.placements.length >= MAX_PLACEMENTS;
 
   return (
+    <>
     <section aria-labelledby="playground-title" className="mt-6 grid gap-6 lg:grid-cols-[20rem_1fr]">
       <div className="flex flex-col gap-4">
         <h2 id="playground-title" className="text-lg font-semibold">
           Playground
         </h2>
-        <label className="flex flex-col gap-1 text-sm">
-          Primitive
+        <div className="flex flex-col gap-1 text-sm">
+          <label htmlFor="playground-primitive">Primitive</label>
           <select
+            id="playground-primitive"
             className={field}
             value={primitive}
             onChange={(event) => {
@@ -53,10 +56,11 @@ export function Playground() {
               </option>
             ))}
           </select>
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Material
+        </div>
+        <div className="flex flex-col gap-1 text-sm">
+          <label htmlFor="playground-material">Material</label>
           <select
+            id="playground-material"
             className={field}
             value={material}
             onChange={(event) => {
@@ -69,7 +73,7 @@ export function Playground() {
               </option>
             ))}
           </select>
-        </label>
+        </div>
         <button
           type="button"
           disabled={full}
@@ -161,5 +165,7 @@ export function Playground() {
         ))}
       </div>
     </section>
+    <MaterialLineup />
+    </>
   );
 }
