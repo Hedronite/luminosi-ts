@@ -63,3 +63,39 @@ for (const [id, name] of [
     expect(errors).toEqual([]);
   });
 }
+
+test("the playground combines framed solids, objects and screen effects, and exports them", async ({ page }) => {
+  const errors = errorsOn(page);
+  await page.goto("/?view=playground");
+  const scene = page.getByRole("list", { name: "Scene" }).getByRole("listitem");
+  // The playground starts with three things; wait for the lazy view before counting.
+  await expect(scene).toHaveCount(3);
+  const before = 3;
+
+  await page.getByLabel("Add", { exact: true }).selectOption("framed");
+  await page.getByLabel("Primitive", { exact: true }).selectOption("catalan-rhombic-triacontahedron");
+  await page.getByRole("button", { name: "Add to scene" }).click();
+  await page.getByLabel("Add", { exact: true }).selectOption("object");
+  await page.getByLabel("Object", { exact: true }).selectOption("dress-watch");
+  await page.getByRole("button", { name: "Add to scene" }).click();
+  await expect(scene).toHaveCount(before + 2);
+  await expect(scene.filter({ hasText: "Framed rhombic triacontahedron" })).toHaveCount(1);
+  await expect(scene.filter({ hasText: "Dress watch" })).toHaveCount(1);
+
+  await page.getByRole("checkbox", { name: "Dither" }).check();
+  await page.getByRole("checkbox", { name: "Smoke" }).check();
+  await page.getByLabel("Ink", { exact: true }).selectOption("glass");
+  const viewport = page.getByTestId("playground-viewport");
+  await expect(viewport).toHaveAttribute("aria-label", /under Dither, Smoke\./);
+  const frames = Number(await viewport.getAttribute("data-frames"));
+  // With effects on, the scene renders every frame.
+  await expect.poll(async () => Number(await viewport.getAttribute("data-frames")), { timeout: 15000 }).toBeGreaterThan(frames + 5);
+
+  const json = page.getByRole("region", { name: "JSON export" }).locator("code");
+  await expect(json).toContainText('"effects": [\n    "smoke",\n    "dither"\n  ]');
+  await expect(json).toContainText('"object": "dress-watch"');
+  const tsx = page.getByRole("region", { name: "React export" }).locator("code");
+  await expect(tsx).toContainText('<FramedSolid primitive="catalan-rhombic-triacontahedron"');
+  await expect(tsx).toContainText("<ScreenEffectsPass effects={stack} monochrome={palette.glass} />");
+  expect(errors).toEqual([]);
+});

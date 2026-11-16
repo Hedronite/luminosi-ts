@@ -11,3 +11,4 @@ export {
   type PrimitiveMeshProps,
 } from "./components.js";
 export { ScreenEffectsPass, type ScreenEffectsPassProps } from "./postfx.js";
+export { accentPalette, FramedSolid, LibraryObject, type FramedSolidProps, type LibraryObjectProps } from "./objects.js";
