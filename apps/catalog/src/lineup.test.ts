@@ -12,7 +12,8 @@ it("always has room for every material in square cells", () => {
     fc.property(fc.integer({ min: 200, max: 3000 }), fc.integer({ min: 1, max: 40 }), (width, count) => {
       const { cols, cell, height } = lineupLayout(width, count);
       expect(cols * cell).toBeCloseTo(width);
-      expect((height / cell) * cols).toBeGreaterThanOrEqual(count);
+      // Rows are whole numbers; round away float noise (21 rows can come back as 20.999…).
+      expect(Math.round(height / cell) * cols).toBeGreaterThanOrEqual(count);
     }),
   );
 });
