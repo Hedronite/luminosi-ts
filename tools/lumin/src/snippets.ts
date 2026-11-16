@@ -86,6 +86,18 @@ export function snippetsFor(meta: AssetMeta, icon: IconData | undefined): readon
       },
     ];
   }
+  if (meta.kind === "effect") {
+    return [
+      {
+        label: "TypeScript",
+        code: `import { ScreenEffects } from "@hedronite/lts-postfx";\nimport { hedronite } from "@hedronite/lts-tokens";\n\n// Inks from the look: lapis and copper with the Hedronite preset.\nconst effects = new ScreenEffects(renderer, scene, camera, [{ id: "${meta.id}" }], { palette: hedronite.scene });\n// Each frame, instead of renderer.render(scene, camera):\neffects.render(delta);\n// Later: effects.dispose();`,
+      },
+      {
+        label: "React",
+        code: `import { ScreenEffectsPass } from "@hedronite/lts-adapters";\n\nconst stack = [{ id: "${meta.id}" }] as const; // keep it stable: a new array rebuilds the passes\n\n<Canvas>\n  {/* your scene */}\n  <ScreenEffectsPass effects={stack} />\n</Canvas>`,
+      },
+    ];
+  }
   if (meta.kind === "shader") {
     return [
       {

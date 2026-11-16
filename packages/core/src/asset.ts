@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /** The kinds of asset LuminosiTS ships. */
-export const assetKinds = ["icon", "primitive", "object", "scene", "material", "shader"] as const;
+export const assetKinds = ["icon", "primitive", "object", "scene", "material", "shader", "effect"] as const;
 
 export const assetKindSchema = z.enum(assetKinds);
 

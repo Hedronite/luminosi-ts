@@ -10,3 +10,4 @@ export {
   type LatticeProps,
   type PrimitiveMeshProps,
 } from "./components.js";
+export { ScreenEffectsPass, type ScreenEffectsPassProps } from "./postfx.js";

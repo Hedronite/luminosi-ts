@@ -35,6 +35,7 @@
   "dependencies": {
     "@hedronite/lts-materials": "workspace:*",
     "@hedronite/lts-objects": "workspace:*",
+    "@hedronite/lts-postfx": "workspace:*",
     "@hedronite/lts-primitives": "workspace:*",
     "@hedronite/lts-tokens": "workspace:*"
   },
