@@ -169,6 +169,10 @@ for (const [id, name] of [
   ["fresnel-glow", "Fresnel glow"],
   ["height-gradient", "Height gradient"],
   ["pulse", "Pulse"],
+  ["toon", "Toon outline"],
+  ["refraction", "Refraction"],
+  ["dissolve", "Dissolve"],
+  ["hologram", "Hologram"],
 ] as const) {
   test(`the ${id} shader compiles and renders`, async ({ page }) => {
     const errors: string[] = [];
@@ -190,8 +194,8 @@ test("the playground composes primitives and exports the scene", async ({ page }
   const scene = page.getByRole("list", { name: "Scene" }).getByRole("listitem");
   const before = await scene.count();
 
-  await page.getByLabel("Primitive").selectOption("hexagonal-bipyramid");
-  await page.getByLabel("Material").selectOption("glass");
+  await page.getByLabel("Primitive", { exact: true }).selectOption("hexagonal-bipyramid");
+  await page.getByLabel("Material", { exact: true }).selectOption("glass");
   await page.getByRole("button", { name: "Add to scene" }).click();
   await expect(scene).toHaveCount(before + 1);
 
@@ -382,4 +386,41 @@ test.describe("on a phone", () => {
     await expect(page.getByRole("heading", { level: 2, name: "Landing Page Design" })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
   });
+});
+
+for (const [id, name] of [
+  ["clearcoat", "Clearcoat"],
+  ["fabric", "Fabric"],
+  ["glass-frosted", "Frosted glass"],
+  ["iridescent", "Iridescent"],
+  ["metal-anodized", "Anodized metal"],
+  ["rubber", "Rubber"],
+] as const) {
+  test(`the ${id} material renders`, async ({ page }) => {
+    const errors: string[] = [];
+    page.on("console", (message) => {
+      if (message.type() === "error") errors.push(message.text());
+    });
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.goto(`/?asset=${id}`);
+    const viewport = page.getByRole("dialog", { name }).getByTestId("viewport");
+    await expect(viewport).toHaveAttribute("data-gpu-geometries", /^[1-9]\d*$/);
+    await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/);
+    expect(errors).toEqual([]);
+  });
+}
+
+test("the playground lines up every material on one shape", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto("/?view=playground");
+  const lineup = page.getByTestId("material-lineup");
+  await lineup.scrollIntoViewIfNeeded();
+  await expect(page.getByRole("list", { name: "Materials in the lineup" }).getByRole("listitem")).toHaveCount(13);
+  await expect(lineup).toHaveAttribute("data-frames", /^[1-9]\d*$/);
+  // One shared shape: a single geometry however many materials.
+  await expect(lineup).toHaveAttribute("data-gpu-geometries", "1");
+  await page.getByLabel("Shape", { exact: true }).selectOption("platonic-icosahedron");
+  await expect(page.getByRole("img", { name: "13 materials on the Icosahedron shape, in a grid." })).toBeVisible();
+  expect(errors).toEqual([]);
 });

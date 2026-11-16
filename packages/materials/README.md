@@ -1,6 +1,6 @@
 # @hedronite/lts-materials
 
-Physically based material presets as data (matte, satin, ceramic, metal, brushed metal, glass, emissive). Colors come from a token preset, so swapping presets swaps the look.
+Physically based material presets as data: matte, satin, ceramic, clearcoat, rubber, fabric (sheen), metal, brushed metal (anisotropic), anodized metal, iridescent (thin film), glass, frosted glass and emissive. All procedural, with no texture files. Colors come from a token preset, so swapping presets swaps the look.
 
 ```ts
 import { createMaterial } from "@hedronite/lts-materials";

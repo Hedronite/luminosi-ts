@@ -81,7 +81,7 @@ Companion to the LuminosiTS manifesto. This document tracks progressive stages f
 - [x] Growth timeline and “recently added” views in catalog
 - [x] Tools: first CLI or script for asset validation / optimization (can bridge to Rust)
 - [x] Expanded icon set: 14 icon packs from open-source sets (Lucide, Famicons, CoreUI, Stash, isocons), 11,978 icons, credited
-- [ ] More materials and shaders
+- [x] More materials and shaders: 13 material presets (clearcoat, fabric sheen, frosted glass, iridescent thin film, anodized metal, rubber added) and 7 TSL effects (toon outline, refraction, dissolve, hologram added), with a side-by-side material lineup in the catalog
 - [x] Documentation or expanded catalog docs
 - [x] Dogfood on a real page or small prototype (any aesthetic)
 - [x] Optional open-source under Hedronite organization

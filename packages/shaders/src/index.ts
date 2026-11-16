@@ -1,12 +1,17 @@
 export {
+  createDissolveMaterial,
   createEffectMaterial,
   createFresnelGlowMaterial,
   createHeightGradientMaterial,
+  createHologramMaterial,
   createPulseMaterial,
+  createRefractionMaterial,
+  createToonMaterial,
   effectIds,
   effectInfo,
   effectSchemas,
   isEffectId,
   type EffectId,
+  type EffectInfo,
   type EffectParams,
 } from "./effects.js";

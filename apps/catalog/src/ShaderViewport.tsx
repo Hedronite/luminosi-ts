@@ -1,16 +1,16 @@
 import type { AssetMeta } from "@hedronite/lts-core";
 import { StudioLights } from "@hedronite/lts-adapters";
-import { createPolyhedronGeometry, geodesicSphere } from "@hedronite/lts-primitives";
-import { createEffectMaterial, isEffectId } from "@hedronite/lts-shaders";
+import { createEffectMaterial, effectInfo, isEffectId } from "@hedronite/lts-shaders";
 import type { ScenePalette } from "@hedronite/lts-tokens";
 import { Canvas } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { WebGPURenderer } from "three/webgpu";
+import { BoxGeometry, Color, MeshBasicMaterial, SphereGeometry, WebGPURenderer } from "three/webgpu";
 import { Controls, GpuCounts } from "./scene";
 
+// A smooth sphere: effects that read the surface's turn (toon bands, refraction, rims) need smooth normals.
 function EffectSphere({ id, palette }: { readonly id: string; readonly palette: ScenePalette }) {
   const resources = useMemo(
-    () => (isEffectId(id) ? { geometry: createPolyhedronGeometry(geodesicSphere(6, 0.95), "sphere"), material: createEffectMaterial(id, palette) } : undefined),
+    () => (isEffectId(id) ? { geometry: new SphereGeometry(0.95, 64, 32), material: createEffectMaterial(id, palette) } : undefined),
     [id, palette],
   );
   useEffect(
@@ -21,6 +21,29 @@ function EffectSphere({ id, palette }: { readonly id: string; readonly palette: 
     [resources],
   );
   return resources === undefined ? null : <mesh geometry={resources.geometry} material={resources.material} dispose={null} />;
+}
+
+/** Stripes behind the sphere, for effects that show what's behind them (refraction, hologram). */
+function Backdrop({ palette }: { readonly palette: ScenePalette }) {
+  const resources = useMemo(
+    () => ({ geometry: new BoxGeometry(0.22, 4, 0.02), light: new MeshBasicMaterial({ color: new Color(palette.accent) }), dark: new MeshBasicMaterial({ color: new Color(palette.base) }) }),
+    [palette],
+  );
+  useEffect(
+    () => () => {
+      resources.geometry.dispose();
+      resources.light.dispose();
+      resources.dark.dispose();
+    },
+    [resources],
+  );
+  return (
+    <group position={[0, 0, -1.4]} rotation={[0, 0, 0.35]}>
+      {Array.from({ length: 11 }, (_, i) => (
+        <mesh key={i} geometry={resources.geometry} material={i % 2 === 0 ? resources.light : resources.dark} position={[(i - 5) * 0.44, 0, 0]} dispose={null} />
+      ))}
+    </group>
+  );
 }
 
 /**
@@ -44,6 +67,7 @@ export function ShaderViewport({ meta, palette, paletteId }: { readonly meta: As
       >
         <StudioLights />
         <Controls />
+        {isEffectId(meta.id) && effectInfo[meta.id].seeThrough === true ? <Backdrop key={paletteId} palette={palette} /> : null}
         <EffectSphere key={`${meta.id}:${paletteId}`} id={meta.id} palette={palette} />
         <GpuCounts target={host} />
       </Canvas>
