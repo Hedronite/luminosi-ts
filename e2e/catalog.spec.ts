@@ -420,7 +420,8 @@ test("the playground lines up every material on one shape", async ({ page }) => 
   const lineup = page.getByTestId("material-lineup");
   await lineup.scrollIntoViewIfNeeded();
   await expect(page.getByRole("list", { name: "Materials in the lineup" }).getByRole("listitem")).toHaveCount(13);
-  await expect(lineup).toHaveAttribute("data-frames", /^[1-9]\d*$/);
+  // Thirteen materials, transmission among them, compile slowly under software rendering in CI.
+  await expect(lineup).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 20000 });
   // One shared shape: a single geometry however many materials.
   await expect(lineup).toHaveAttribute("data-gpu-geometries", "1");
   await page.getByLabel("Shape", { exact: true }).selectOption("platonic-icosahedron");
