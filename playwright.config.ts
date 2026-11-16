@@ -10,6 +10,10 @@ export default defineConfig({
   // runs local tooling on the local build, so it stays with the normal run.
   testIgnore: external ? ["**/review.spec.ts"] : [],
   forbidOnly: process.env["CI"] !== undefined,
+  // On CI the 3D tests draw with software WebGL on shared runners: the first frame of a viewport
+  // (three.js loaded, the studio environment baked) can take longer than the 5 s default, and did,
+  // intermittently, from Hedronite/luminosi-ts#26 on. Locally the default stays.
+  ...(process.env["CI"] === undefined ? {} : { expect: { timeout: 15_000 }, timeout: 60_000 }),
   reporter: process.env["CI"] === undefined ? "list" : [["list"], ["html", { open: "never" }]],
   use: { baseURL: process.env["E2E_CATALOG_URL"] ?? "http://localhost:4173" },
   projects: [
