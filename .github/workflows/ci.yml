@@ -23,6 +23,7 @@ jobs:
       - run: bun run icons:check
       - run: bun run icons:packs:check
       - run: bun run vendor:check
+      - run: bun run solids:check
       - run: bun run typecheck
       - run: bun run build
       - run: bun run objects:check

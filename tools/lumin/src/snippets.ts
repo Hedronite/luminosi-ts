@@ -37,6 +37,14 @@ export function snippetsFor(meta: AssetMeta, icon: IconData | undefined): readon
       },
     ];
   }
+  if (meta.id === "framed-solid") {
+    return [
+      {
+        label: "TypeScript",
+        code: `import { createMaterial } from "@hedronite/lts-materials";\nimport { createFramedSolid } from "@hedronite/lts-objects";\nimport { archimedean, disposeObject } from "@hedronite/lts-primitives";\nimport { hedronite } from "@hedronite/lts-tokens";\n\n// Glass faces, copper edges and glass beads: three draw calls for any solid.\nconst palette = hedronite.scene;\nconst solid = createFramedSolid(archimedean("truncated-icosahedron"), {\n  faces: createMaterial("glass", palette),\n  edges: createMaterial("metal", { ...palette, metal: palette.accent }),\n});\n// Later: disposeObject(solid);`,
+      },
+    ];
+  }
   if (meta.id === "instanced-lattice") {
     return [
       {

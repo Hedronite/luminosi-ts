@@ -1,4 +1,5 @@
-import { convexHull, type Polyhedron } from "./polyhedron.js";
+import { archimedeanData, archimedeanSolids, type ArchimedeanSolid } from "./generated/archimedean.js";
+import { convexHull, dual, withRadius, type Polyhedron } from "./polyhedron.js";
 import { length, normalize, scale, type Vec3 } from "./vec.js";
 
 const PHI = (1 + Math.sqrt(5)) / 2;
@@ -112,4 +113,35 @@ export function geodesicSphere(frequency: number, radius = 1): Polyhedron {
     }
   }
   return { vertices, faces };
+}
+
+export { archimedeanSolids, type ArchimedeanSolid };
+
+/** The Catalan solid dual to each Archimedean solid. */
+export const catalanOf = {
+  "truncated-tetrahedron": "triakis-tetrahedron",
+  cuboctahedron: "rhombic-dodecahedron",
+  "truncated-cube": "triakis-octahedron",
+  "truncated-octahedron": "tetrakis-hexahedron",
+  rhombicuboctahedron: "deltoidal-icositetrahedron",
+  "truncated-cuboctahedron": "disdyakis-dodecahedron",
+  "snub-cube": "pentagonal-icositetrahedron",
+  icosidodecahedron: "rhombic-triacontahedron",
+  "truncated-dodecahedron": "triakis-icosahedron",
+  "truncated-icosahedron": "pentakis-dodecahedron",
+  rhombicosidodecahedron: "deltoidal-hexecontahedron",
+  "truncated-icosidodecahedron": "disdyakis-triacontahedron",
+  "snub-dodecahedron": "pentagonal-hexecontahedron",
+} as const satisfies Record<ArchimedeanSolid, string>;
+
+export type CatalanSolid = (typeof catalanOf)[ArchimedeanSolid];
+
+/** An Archimedean solid (vertex-uniform, regular faces of two or three kinds) with every vertex at `radius`. */
+export function archimedean(solid: ArchimedeanSolid, radius = 1): Polyhedron {
+  return withRadius(archimedeanData[solid], radius);
+}
+
+/** The Catalan solid dual to an Archimedean one (face-uniform), with its farthest vertex at `radius`. */
+export function catalan(of: ArchimedeanSolid, radius = 1): Polyhedron {
+  return withRadius(dual(archimedeanData[of]), radius);
 }

@@ -16,6 +16,7 @@ bun run build          # tsc for packages, vite build for the catalog
 bun run test           # Vitest
 bun run icons          # regenerate packages/icons from assets/src/icons (icons:check verifies)
 bun run icons:packs    # regenerate the icon packs from assets/vendor (icons:packs:check verifies)
+bun run solids         # regenerate the Archimedean solids' faces from assets/src/solids (solids:check verifies)
 bun run vendor         # regenerate the catalog's Open source view from assets/vendor (vendor:check verifies)
 bun run objects        # regenerate packages/objects from assets/src/objects, after build (objects:check verifies)
 bun run looks          # regenerate the converted looks from assets/src/looks, after build (looks:check verifies)

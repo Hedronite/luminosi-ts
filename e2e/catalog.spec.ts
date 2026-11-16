@@ -131,7 +131,10 @@ test("a material renders with its environment", async ({ page }) => {
 
 test("stepping through 3D assets frees each geometry it replaces", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("group", { name: "Filter by kind" }).getByRole("button", { name: /^Primitives/ }).click();
+  const primitives = page.getByRole("group", { name: "Filter by kind" }).getByRole("button", { name: /^Primitives/ });
+  const total = Number(/\d+/.exec((await primitives.textContent()) ?? "")?.[0] ?? "0");
+  expect(total).toBeGreaterThan(30);
+  await primitives.click();
   await gallery(page).first().click();
   const viewport = page.getByTestId("viewport");
   await expect(viewport).toHaveAttribute("data-gpu-geometries", /^[1-9]\d*$/);
@@ -139,11 +142,11 @@ test("stepping through 3D assets frees each geometry it replaces", async ({ page
   const baseline = await viewport.getAttribute("data-gpu-geometries");
 
   const next = page.getByRole("button", { name: "Next asset" });
-  for (let i = 0; i < 9; i++) {
+  for (let i = 0; i < total; i++) {
     // eslint-disable-next-line no-await-in-loop -- each step must render before the next, to load and free one geometry at a time
     await next.click();
   }
-  await expect(page.getByRole("dialog")).toContainText("1 / 9");
+  await expect(page.getByRole("dialog")).toContainText(`1 / ${String(total)}`);
   await expect.poll(() => viewport.getAttribute("data-gpu-geometries"), { timeout: 5000 }).toBe(baseline);
 });
 
@@ -417,7 +420,8 @@ test("the playground lines up every material on one shape", async ({ page }) => 
   const lineup = page.getByTestId("material-lineup");
   await lineup.scrollIntoViewIfNeeded();
   await expect(page.getByRole("list", { name: "Materials in the lineup" }).getByRole("listitem")).toHaveCount(13);
-  await expect(lineup).toHaveAttribute("data-frames", /^[1-9]\d*$/);
+  // Thirteen materials, transmission among them, compile slowly under software rendering in CI.
+  await expect(lineup).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 20000 });
   // One shared shape: a single geometry however many materials.
   await expect(lineup).toHaveAttribute("data-gpu-geometries", "1");
   await page.getByLabel("Shape", { exact: true }).selectOption("platonic-icosahedron");

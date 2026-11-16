@@ -63,6 +63,33 @@ function orderAround(points: readonly Vec3[], indices: readonly number[], normal
   return [...indices].sort((x, y) => angle(x) - angle(y));
 }
 
+/**
+ * The polar dual: one vertex per face (its plane reciprocated about the origin) and one face per vertex.
+ * Every face of the dual is exactly planar. The dual of an Archimedean solid is its Catalan solid; of a
+ * cube, an octahedron. The origin must be inside the polyhedron.
+ */
+export function dual(polyhedron: Polyhedron): Polyhedron {
+  const at = (index: number): Vec3 => polyhedron.vertices[index] ?? [0, 0, 0];
+  const vertices = polyhedron.faces.map((face): Vec3 => {
+    const first = at(face[0] ?? 0);
+    const normal = normalize(cross(sub(at(face[1] ?? 0), first), sub(at(face[2] ?? 0), first)));
+    const offset = dot(normal, first);
+    if (offset <= EPSILON) throw new RangeError("the origin must be inside the polyhedron to take its dual");
+    return scale(normal, 1 / offset);
+  });
+  const faces = polyhedron.vertices.map((vertex, index) => {
+    const around = polyhedron.faces.flatMap((face, faceIndex) => (face.includes(index) ? [faceIndex] : []));
+    return orderAround(vertices, around, normalize(vertex));
+  });
+  return { vertices, faces };
+}
+
+/** The same shape scaled so its farthest vertex is `radius` from the origin. */
+export function withRadius(polyhedron: Polyhedron, radius: number): Polyhedron {
+  const farthest = Math.max(...polyhedron.vertices.map((v) => length(v)));
+  return { vertices: polyhedron.vertices.map((v) => scale(v, radius / farthest)), faces: polyhedron.faces };
+}
+
 /** Each edge once, as an ordered pair of vertex indices. */
 export function edges(polyhedron: Polyhedron): readonly (readonly [number, number])[] {
   const seen = new Map<string, readonly [number, number]>();
