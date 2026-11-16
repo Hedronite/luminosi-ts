@@ -1,4 +1,5 @@
 import { createMaterial, materialPreset, type MaterialId } from "@hedronite/lts-materials";
+import { createEffectMaterial, type EffectId } from "@hedronite/lts-shaders";
 import { createFramedSolid, createObjectFromSpec, dressWatchSpec, objectSpecById, type WatchTime } from "@hedronite/lts-objects";
 import { disposeObject, primitive, type PrimitiveId } from "@hedronite/lts-primitives";
 import { neutral, type ScenePalette } from "@hedronite/lts-tokens";
@@ -12,6 +13,8 @@ export interface FramedSolidProps extends GroupProps {
   readonly primitive: PrimitiveId;
   /** The faces' material. Default "glass". */
   readonly faces?: MaterialId;
+  /** A surface shader for the faces instead of a material preset. Needs the WebGPU renderer (`WebGPUCanvas`). */
+  readonly shader?: EffectId;
   /** The edges' material, tinted with the scene's accent color. Default "metal" (copper in the Hedronite look). */
   readonly edges?: MaterialId;
   readonly palette?: ScenePalette;
@@ -23,10 +26,14 @@ export function accentPalette(palette: ScenePalette, material: MaterialId): Scen
 }
 
 /** A framed solid (faces, edge tubes, vertex beads), as on hedronite.com. Owns and frees what it builds. */
-export function FramedSolid({ primitive: id, faces = "glass", edges = "metal", palette = neutral.scene, ...props }: FramedSolidProps) {
+export function FramedSolid({ primitive: id, faces = "glass", shader, edges = "metal", palette = neutral.scene, ...props }: FramedSolidProps) {
   const object = useMemo(
-    () => createFramedSolid(primitive(id), { faces: createMaterial(faces, palette), edges: createMaterial(edges, accentPalette(palette, edges)) }),
-    [id, faces, edges, palette],
+    () =>
+      createFramedSolid(primitive(id), {
+        faces: shader === undefined ? createMaterial(faces, palette) : createEffectMaterial(shader, palette),
+        edges: createMaterial(edges, accentPalette(palette, edges)),
+      }),
+    [id, faces, shader, edges, palette],
   );
   useEffect(
     () => () => {

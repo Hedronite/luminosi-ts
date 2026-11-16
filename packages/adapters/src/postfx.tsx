@@ -1,7 +1,28 @@
 import { ScreenEffects, type ScreenEffectConfig } from "@hedronite/lts-postfx";
 import { neutral, type Hex, type ScenePalette } from "@hedronite/lts-tokens";
-import { useFrame, useThree } from "@react-three/fiber";
+import { Canvas, useFrame, useThree, type CanvasProps } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
+import { WebGPURenderer } from "three/webgpu";
+
+/**
+ * A React Three Fiber canvas on three's WebGPURenderer: WebGPU where the browser has it, WebGL 2 where
+ * it doesn't. TSL surface shaders (`@hedronite/lts-shaders`) and screen effects need it; material
+ * presets and every other adapter work on it too.
+ */
+export function WebGPUCanvas(props: Omit<CanvasProps, "gl">) {
+  return (
+    <Canvas
+      {...props}
+      gl={async ({ canvas }) => {
+        // In the browser R3F hands over a DOM canvas; its OffscreenCanvas type differs from three's.
+        if (!(canvas instanceof HTMLCanvasElement)) throw new Error("WebGPUCanvas needs a DOM canvas");
+        const renderer = new WebGPURenderer({ canvas, antialias: true, alpha: true });
+        await renderer.init();
+        return renderer;
+      }}
+    />
+  );
+}
 
 export interface ScreenEffectsPassProps {
   /** The stack, in any order (it runs smoke behind, prints, then grain). Memoize it: a new array rebuilds the passes. */
@@ -15,12 +36,13 @@ export interface ScreenEffectsPassProps {
 }
 
 /**
- * Renders the canvas through screen effects (`@hedronite/lts-postfx`). It takes over rendering from
- * React Three Fiber, follows the pointer for the lens (a tap opens it for a moment on touch), and frees
+ * Renders the canvas through screen effects (`@hedronite/lts-postfx`). Use it inside `WebGPUCanvas`:
+ * the effects are TSL passes on the WebGPU renderer. It takes over rendering from React Three Fiber, follows the pointer for the lens (a tap opens it for a moment on touch), and frees
  * its passes when the stack changes or it unmounts.
  */
 export function ScreenEffectsPass({ effects, palette = neutral.scene, monochrome, reducedMotion = false }: ScreenEffectsPassProps) {
-  const gl = useThree((state) => state.gl);
+  const gl: unknown = useThree((state) => state.gl);
+  if (!(gl instanceof WebGPURenderer)) throw new Error("ScreenEffectsPass runs on the WebGPU renderer: put it inside <WebGPUCanvas>");
   const scene = useThree((state) => state.scene);
   const camera = useThree((state) => state.camera);
   const size = useThree((state) => state.size);
@@ -35,7 +57,7 @@ export function ScreenEffectsPass({ effects, palette = neutral.scene, monochrome
     [runner],
   );
   useEffect(() => {
-    runner.setSize(size.width, size.height);
+    runner.setSize();
   }, [runner, size]);
 
   useEffect(() => {

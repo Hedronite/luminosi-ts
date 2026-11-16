@@ -198,7 +198,7 @@ test("the playground composes primitives and exports the scene", async ({ page }
   const before = await scene.count();
 
   await page.getByLabel("Primitive", { exact: true }).selectOption("hexagonal-bipyramid");
-  await page.getByLabel("Material", { exact: true }).selectOption("glass");
+  await page.getByLabel("Surface", { exact: true }).selectOption("glass");
   await page.getByRole("button", { name: "Add to scene" }).click();
   await expect(scene).toHaveCount(before + 1);
 

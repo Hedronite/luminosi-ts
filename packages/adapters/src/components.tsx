@@ -1,10 +1,12 @@
 import { createMaterial, type MaterialId } from "@hedronite/lts-materials";
+import { createEffectMaterial, type EffectId } from "@hedronite/lts-shaders";
 import { createCrystalCluster, createLattice, crystalCluster, latticePoints, type ClusterOptions, type LatticeOptions } from "@hedronite/lts-objects";
 import { createPolyhedronGeometry, createStudioLights, disposeObject, primitive, type PrimitiveId } from "@hedronite/lts-primitives";
 import { neutral, type ScenePalette } from "@hedronite/lts-tokens";
 import { useThree, type ThreeElements } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
-import { PMREMGenerator } from "three";
+import { PMREMGenerator, type Material, type WebGLRenderer } from "three";
+import { PMREMGenerator as NodePMREMGenerator, WebGPURenderer } from "three/webgpu";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 
 type GroupProps = Omit<ThreeElements["group"], "args" | "children" | "ref" | "object">;
@@ -13,14 +15,16 @@ export interface PrimitiveMeshProps extends Omit<ThreeElements["mesh"], "args" |
   readonly primitive: PrimitiveId;
   /** Material preset. Default "satin". */
   readonly material?: MaterialId;
+  /** A surface shader instead of a material preset. Needs the WebGPU renderer (`WebGPUCanvas`). */
+  readonly shader?: EffectId;
   /** Scene colors. Default: the neutral token preset. */
   readonly palette?: ScenePalette;
 }
 
 /** A primitive with a preset material. Owns both, and frees them when they change or it unmounts. */
-export function PrimitiveMesh({ primitive: id, material = "satin", palette = neutral.scene, ...props }: PrimitiveMeshProps) {
+export function PrimitiveMesh({ primitive: id, material = "satin", shader, palette = neutral.scene, ...props }: PrimitiveMeshProps) {
   const geometry = useMemo(() => createPolyhedronGeometry(primitive(id), id), [id]);
-  const surface = useMemo(() => createMaterial(material, palette), [material, palette]);
+  const surface = useMemo((): Material => (shader === undefined ? createMaterial(material, palette) : createEffectMaterial(shader, palette)), [material, shader, palette]);
   useEffect(
     () => () => {
       geometry.dispose();
@@ -36,20 +40,24 @@ export function PrimitiveMesh({ primitive: id, material = "satin", palette = neu
   return <mesh geometry={geometry} material={surface} dispose={null} {...props} />;
 }
 
+/** A prefiltered environment for either renderer: WebGL's PMREM generator, or the WebGPU renderer's own. */
+function studioTexture(gl: WebGLRenderer | WebGPURenderer) {
+  const room = new RoomEnvironment();
+  const pmrem = gl instanceof WebGPURenderer ? new NodePMREMGenerator(gl) : new PMREMGenerator(gl);
+  const target = pmrem.fromScene(room, 0.04);
+  room.dispose();
+  pmrem.dispose();
+  return target;
+}
+
 /**
  * A procedural studio room as the scene's environment, for reflections on metal, glass and glossy
- * surfaces. Nothing is fetched. Freed on unmount.
+ * surfaces. Nothing is fetched. Works on the WebGL and the WebGPU renderer. Freed on unmount.
  */
 export function StudioEnvironment() {
-  const gl = useThree((state) => state.gl);
-  const target = useMemo(() => {
-    const pmrem = new PMREMGenerator(gl);
-    const room = new RoomEnvironment();
-    const result = pmrem.fromScene(room, 0.04);
-    room.dispose();
-    pmrem.dispose();
-    return result;
-  }, [gl]);
+  // Inside WebGPUCanvas the renderer React Three Fiber hands over is a WebGPURenderer.
+  const gl: WebGLRenderer | WebGPURenderer = useThree((state) => state.gl);
+  const target = useMemo(() => studioTexture(gl), [gl]);
   useEffect(
     () => () => {
       target.dispose();
