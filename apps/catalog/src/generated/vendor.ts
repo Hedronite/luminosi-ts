@@ -8,7 +8,7 @@ export const vendored: readonly VendorEntry[] = [
     "name": "CoreUI Icons",
     "kind": "icons",
     "what": "CoreUI Icons Free (562 SVGs)",
-    "source": "https://github.com/coreui/coreui-icons",
+    "source": "https://github.com/coreui/coreui-icons (`88d1cfc47fc3cc84114de2a01b04db11a941bdf9`)",
     "license": "Icons CC BY 4.0; fonts SIL OFL 1.1; code MIT (`LICENSE`)",
     "credit": "CoreUI (coreui.io)",
     "pulled": "2026-08",
@@ -16,7 +16,7 @@ export const vendored: readonly VendorEntry[] = [
     "repo": "https://github.com/coreui/coreui-icons",
     "packPrefix": "coreui",
     "files": 565,
-    "bytes": 351938,
+    "bytes": 351983,
     "readme": {
       "path": "README.md",
       "title": "CoreUI Icons (1500+ Free icons)- Simply beautiful open source icons"
@@ -28,7 +28,7 @@ export const vendored: readonly VendorEntry[] = [
     "name": "Famicons",
     "kind": "icons",
     "what": "Famicons (1,342 SVGs)",
-    "source": "https://github.com/familyjs/famicons",
+    "source": "https://github.com/familyjs/famicons (`e702639cfe08c6ff087d25b34c57540c1f63c1e3`)",
     "license": "MIT (`LICENSE`)",
     "credit": "Family",
     "pulled": "2026-08",
@@ -36,7 +36,7 @@ export const vendored: readonly VendorEntry[] = [
     "repo": "https://github.com/familyjs/famicons",
     "packPrefix": "famicons",
     "files": 1345,
-    "bytes": 863987,
+    "bytes": 864032,
     "readme": {
       "path": "readme.md",
       "title": "Famicons"
@@ -48,14 +48,14 @@ export const vendored: readonly VendorEntry[] = [
     "name": "Isometric Icons",
     "kind": "icons",
     "what": "Isometric Icons: isometric SVG icons, six edge variants each, with `catalog.json`",
-    "source": "https://www.isocons.app/ (v2.1)",
+    "source": "https://www.isocons.app/ (v2.1, `sha256:d096478f06551496f70c863918a14ad2be8e6601f6383b4c0717efc593477d43`)",
     "license": "CC BY 4.0 (`LICENSE`)",
     "credit": "Isometric Icons by isocons.app (leyeConnect and meandchimso)",
     "pulled": "2026-08-27, from the site's published bundle",
     "sourceUrl": "https://www.isocons.app/",
     "packPrefix": "isocons",
     "files": 6038,
-    "bytes": 31543023,
+    "bytes": 31543324,
     "items": []
   },
   {
@@ -63,7 +63,7 @@ export const vendored: readonly VendorEntry[] = [
     "name": "Lucide",
     "kind": "icons",
     "what": "Lucide icons (1,808 SVGs)",
-    "source": "https://github.com/lucide-icons/lucide",
+    "source": "https://github.com/lucide-icons/lucide (`6f56b8f1f665ce64c41506033b66ca67e2bc7724`)",
     "license": "ISC (`LICENSE`)",
     "credit": "Lucide Icons and contributors",
     "pulled": "2026-08",
@@ -71,7 +71,7 @@ export const vendored: readonly VendorEntry[] = [
     "repo": "https://github.com/lucide-icons/lucide",
     "packPrefix": "lucide",
     "files": 1810,
-    "bytes": 734091,
+    "bytes": 734136,
     "items": []
   },
   {
@@ -79,7 +79,7 @@ export const vendored: readonly VendorEntry[] = [
     "name": "Stash icons",
     "kind": "icons",
     "what": "Stash icons (five styles, as TSX with inline SVG)",
-    "source": "https://github.com/stash-ui/icons",
+    "source": "https://github.com/stash-ui/icons (`44091b180904469d27cf9fa218b4bd0f4c1f9310`)",
     "license": "MIT (`LICENSE`)",
     "credit": "Pingback LLC",
     "pulled": "2026-08",
@@ -87,7 +87,7 @@ export const vendored: readonly VendorEntry[] = [
     "repo": "https://github.com/stash-ui/icons",
     "packPrefix": "stash",
     "files": 1244,
-    "bytes": 3309169,
+    "bytes": 3309214,
     "readme": {
       "path": "readme.md",
       "title": "Readme"
@@ -99,7 +99,7 @@ export const vendored: readonly VendorEntry[] = [
     "name": "ThreeUI Community",
     "kind": "components",
     "what": "ThreeUI Community: the open-source edition of the ThreeUI component catalog (app, components, shaders, scene assets)",
-    "source": "https://github.com/MengTo/threeui",
+    "source": "https://github.com/MengTo/threeui (`02f9835e60ef8f0cac7907810aa223b7d414db1b`)",
     "license": "MIT (`LICENSE`); fonts SIL OFL 1.1 (`FONT-LICENSES.md`); see `ASSET-LICENSES.md` and `THIRD_PARTY_NOTICES.md`",
     "credit": "Meng To / ThreeUI",
     "pulled": "2026-08-26",
@@ -108,7 +108,7 @@ export const vendored: readonly VendorEntry[] = [
     "link": "https://threeui.com",
     "preview": "vendor/threeui-preview.jpg",
     "files": 300,
-    "bytes": 94392272,
+    "bytes": 94392515,
     "readme": {
       "path": "README.md",
       "title": "ThreeUI Community"
@@ -277,13 +277,13 @@ export const vendored: readonly VendorEntry[] = [
     "name": "Techartist demos",
     "kind": "demos",
     "what": "Three Three.js demos: geometry-in-flux, bioluminescence, threejs-3d-webpage",
-    "source": "https://iamtechartist.github.io/",
+    "source": "https://iamtechartist.github.io/ (each demo is its own repository under https://github.com/iamtechartist/: `geometry-in-flux` at `da187f6316c7ee18b8f1b60bbb5363be2aec40c2`, `bioluminescence` at `2dc70cfd855704c1a8385f606e82f41505fdd5e9`, `threejs-3d-webpage` (repository `Threejs-3D-Webpage`) at `d827a2a409abc44ff35b4965e3d3aadfbe66278a`)",
     "license": "MIT (a `LICENSE` beside each demo)",
     "credit": "Techartist",
     "pulled": "2026-08-21",
     "sourceUrl": "https://iamtechartist.github.io/",
     "files": 10,
-    "bytes": 182563,
+    "bytes": 182870,
     "items": [
       {
         "id": "bioluminescence",
@@ -412,14 +412,14 @@ export const vendored: readonly VendorEntry[] = [
     "name": "Interface skills",
     "kind": "skills",
     "what": "Interface agent skills (better-ui, better-typography, better-colors, interface-review and more)",
-    "source": "https://github.com/jakubkrehel/skills",
+    "source": "https://github.com/jakubkrehel/skills (`267330e1adfc66a718fb65fa6918c1f06d0a689e`)",
     "license": "MIT (`LICENSE`)",
     "credit": "Jakub Krehel (jakub.kr, interfaces.dev)",
     "pulled": "2026-08",
     "sourceUrl": "https://github.com/jakubkrehel/skills",
     "repo": "https://github.com/jakubkrehel/skills",
     "files": 60,
-    "bytes": 259238,
+    "bytes": 259283,
     "readme": {
       "path": "README.md",
       "title": "README"

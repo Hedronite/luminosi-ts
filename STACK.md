@@ -15,7 +15,7 @@ A browser natively runs four kinds of thing. Everything else in this repo exists
 | **JavaScript** | Logic and interactivity | Everything TypeScript compiles to |
 | **GPU APIs** (WebGL 2, WebGPU) with their shader languages (GLSL, WGSL) | Drawing 3D | Three.js renders through these; shaders run on the GPU |
 
-Assets ship as files the browser or GPU decodes directly: SVG for icons, glTF binary (`.glb`) for models, KTX2 for compressed textures, WOFF2 for fonts, AVIF or WebP for images.
+Assets ship as files the browser or GPU decodes directly: SVG for icons and glTF binary (`.glb`, meshopt-compressed) for models. The build has no texture, font, image or Blender pipeline yet.
 
 ---
 
@@ -27,7 +27,7 @@ Assets ship as files the browser or GPU decodes directly: SVG for icons, glTF bi
 | **TSX** | TypeScript with JSX markup | `.tsx` | JavaScript (React calls) |
 | **React** | UI library | TSX components | JavaScript in the app bundle |
 | **Three.js** | 3D library | TypeScript calls | JavaScript that drives WebGL or WebGPU |
-| **React Three Fiber** (R3F) + drei | React renderer for Three.js | TSX scene components | JavaScript, same as React |
+| **React Three Fiber** (R3F) | React renderer for Three.js | TSX scene components | JavaScript, same as React |
 | **TSL** | Three.js shading language, written in TypeScript | `.ts` node graphs | GLSL or WGSL, generated at runtime for the active GPU backend |
 | **Tailwind CSS** | CSS framework | Utility classes in markup, tokens in `@theme` | Only the CSS rules actually used |
 | **Astro** | Web framework | `.astro` components | HTML and CSS; JavaScript only for islands |
@@ -66,20 +66,23 @@ Each class string is written out in full. Tailwind finds classes by scanning sou
 
 ### A 3D island on an Astro page
 
-WebGL cannot render on the server, so a React Three Fiber scene is a client-only island. A poster image is the static fallback: it is what loads first, and it stays if JavaScript never runs.
+WebGL cannot render on the server, so a React Three Fiber scene is a client-only island. A static fallback (here an SVG wireframe drawn at build time) is what loads first, and it stays if JavaScript never runs.
 
 ```astro
 ---
+import { platonic } from "@hedronite/lts-primitives";
+import Wireframe from "../components/Wireframe.astro";
 import Layout from "../layouts/Layout.astro";
-// Illustrative: the adapters API lands in Stage 3 (see ROADMAP.md).
-import { ScenePreview } from "@hedronite/lts-adapters";
+// The site's own island: a React component (apps/site/src/components/Showcase.tsx)
+// that draws library solids with @hedronite/lts-adapters.
+import Showcase from "../components/Showcase";
 ---
 
 <Layout title="Showcase">
   <h1 class="text-3xl font-semibold">Showcase</h1>
-  <ScenePreview client:only="react" kit="studio">
-    <img slot="fallback" src="/posters/studio.avif" alt="Studio lighting kit with three primitives" width="1200" height="675" />
-  </ScenePreview>
+  <Showcase client:only="react">
+    <div slot="fallback"><Wireframe shape={platonic("icosahedron")} size={120} /></div>
+  </Showcase>
 </Layout>
 ```
 
@@ -95,15 +98,14 @@ import { ScenePreview } from "@hedronite/lts-adapters";
   *.astro                        astro build                       static HTML (+ island JS)
   Tailwind classes, @theme       @tailwindcss/vite                 one minimal CSS file
   TSL node graphs                Three.js, at runtime              GLSL (WebGL) or WGSL (WebGPU)
-  assets/src/*.blend             export, then glTF Transform       public/models/*.glb (meshopt)
-  raw textures                   toktx                             *.ktx2 (ETC1S / UASTC)
+  assets/src/models/*.json       glTF Transform + meshopt          tools/assets/dist/models/*.glb
   assets/src/icons/*.svg         SVGO, then codegen                icon modules (.ts, ./react)
 ```
 
 - **Libraries are not bundled.** Packages ship ESM and type declarations; the app that uses them does the bundling, so it can tree-shake down to the pieces it imports.
 - **Apps bundle with Vite.** Three.js and R3F load through a dynamic `import()`, so the first paint does not wait for them.
 - **Sites build with Astro.** Pages are static HTML unless a component opts into an island.
-- **Assets are build outputs.** Optimized `.glb` and `.ktx2` files are regenerated from source art, never edited by hand. KTX2 textures stay compressed in GPU memory; PNG and JPEG expand to raw pixels there.
+- **Assets are build outputs.** Optimized `.glb` files are regenerated from their scene descriptions in `assets/src/models`, never edited by hand.
 
 ---
 
@@ -112,12 +114,14 @@ import { ScenePreview } from "@hedronite/lts-adapters";
 | Part | Languages and tools | Ships |
 |---|---|---|
 | `core` | TypeScript, Zod | ESM library |
+| `tokens` | TypeScript | ESM library |
 | `primitives`, `objects`, `scenes`, `materials` | TypeScript, Three.js (peer) | ESM library |
 | `shaders` | TypeScript, TSL, GLSL where needed | ESM library |
+| `postfx` | TypeScript, TSL, Three.js WebGPU (peer) | ESM library |
 | `icons` | TypeScript (`.`), TSX + React (`./react`) | ESM library, two entries |
-| `adapters` | TSX, React, React Three Fiber, drei | ESM library |
-| `apps/catalog`, `apps/playground` | TSX, React, R3F, Tailwind, Vite | Static site (not published) |
-| Astro sites (consumers, later dogfood) | Astro, HTML, Tailwind, TypeScript, R3F islands | Static HTML |
+| `adapters` | TSX, React, React Three Fiber | ESM library |
+| `apps/catalog` (with its playground) | TSX, React, R3F, Tailwind, Vite | Static site (not published) |
+| `apps/site` (dogfoods the library) | Astro, HTML, Tailwind, TypeScript, an R3F island | Static HTML |
 | `tools/` | TypeScript; Rust or Go for heavy processing | Nothing; runs at build time |
 
 React appears only where it is the natural interface: `icons/react`, `adapters`, and the apps. Every other package works in vanilla Three.js, a game, or any framework.
@@ -134,8 +138,8 @@ React appears only where it is the natural interface: `icons/react`, `adapters`,
 | **Vite** | Dev server with hot reload; production bundler for apps |
 | **Vitest** | Unit and property tests |
 | **Playwright** | Browser tests, accessibility checks, screenshots |
-| **glTF Transform, toktx, SVGO** | Asset optimization |
-| **ESLint, Stylelint, dependency-cruiser** | Lint and package boundaries (not yet wired) |
+| **glTF Transform, meshoptimizer, SVGO** | Asset optimization |
+| **ESLint, dependency-cruiser, knip** | Lint, package boundaries, unused code (all three run in `bun run check`) |
 | **[Web-TOPS](https://github.com/Hedronite/web-tops)** | The quality protocol that will gate this repo: types, tests, mutation, and checks on built pages |
 
 ---
@@ -143,7 +147,7 @@ React appears only where it is the natural interface: `icons/react`, `adapters`,
 ## 6. Choosing between them
 
 - **The platform first.** If HTML or CSS can do it (a dialog, a popover, a container query, a transition), don't add JavaScript for it.
-- **Astro for pages people read**, such as sites, docs and showcases. **Vite + React for apps people use**, such as the catalog and playground.
+- **Astro for pages people read**, such as sites, docs and showcases. **Vite + React for apps people use**, such as the catalog (with its playground).
 - **Three.js directly in packages; R3F only at the edges.** The library stays usable without React.
 - **TSL for new shaders.** One source runs on both WebGL and WebGPU. Write raw GLSL only for WebGL-only effects or ports.
 - **Tailwind tokens, not raw values.** Colors and spacing come from `@theme`, so a preset can swap the look without touching components.

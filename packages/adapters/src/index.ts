@@ -12,3 +12,4 @@ export {
   type PrimitiveMeshProps,
 } from "./components.js";
 export { accentPalette, FramedSolid, LibraryObject, type FramedSolidProps, type LibraryObjectProps } from "./objects.js";
+export { useReducedMotion } from "./motion.js";

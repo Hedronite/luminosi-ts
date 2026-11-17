@@ -19,7 +19,7 @@ How these languages and tools fit together: [STACK.md](STACK.md).
 - **TSX is complementary.** React components and R3F wrappers exist where they are the natural interface (icons, adapters, catalog). React is an optional peer dependency.
 - **Modular consumption.** Import only what you need. Icons alone, primitives alone, or the full stack.
 - **Optimization-first.** Web and game constraints (poly budgets, compressed formats, proper disposal) are considered from the start.
-- **Dogfooding and portfolio.** The catalog and playground are the first real consumers. The project itself demonstrates range and quality.
+- **Dogfooding and portfolio.** The catalog (with its playground) and the Astro site are the first real consumers. The project itself demonstrates range and quality.
 
 ---
 
@@ -30,17 +30,19 @@ Monorepo managed with Bun workspaces + Turborepo. Nix flake for the reproducible
 | Package | Scope | Responsibility | Notes |
 |---------|-------|----------------|-------|
 | `core` | `@hedronite/lts-core` | Asset registry, typed metadata (Zod), progressive loaders, manifests, versioning, disposal, shared types | Zero runtime deps beyond Zod. Pure TS. |
+| `tokens` | `@hedronite/lts-tokens` | Design tokens: scales, colors and looks (presets), with the CSS they generate | Pure TS. Every text pair in every look is contrast-tested. |
 | `icons` | `@hedronite/lts-icons` | Tree-shakeable SVG data + optional React components. Categories and tags are flexible. Optional 3D extrusions. | Dual export: pure TS + `/react` TSX. React optional peer. |
 | `primitives` | `@hedronite/lts-primitives` | Three.js geometric primitives, materials, lights, helpers | Pure TS. Style-agnostic. |
 | `objects` | `@hedronite/lts-objects` | Composable 3D objects, typed GLTF/GLB wrappers, procedural generators | Pure TS. |
 | `scenes` | `@hedronite/lts-scenes` | Prebuilt scene kits, environments, lighting setups, camera presets | Pure TS. Kits can target different aesthetics. |
 | `materials` | `@hedronite/lts-materials` | PBR material presets, texture packs, shared palettes | Pure TS. Presets are examples, not constraints. |
 | `shaders` | `@hedronite/lts-shaders` | Custom GLSL / TSL shaders | Pure TS. Effects are tools, not a fixed look. |
+| `postfx` | `@hedronite/lts-postfx` | Screen effects: passes over the rendered frame (dither, ASCII, grain, scan, lens, smoke) | Pure TS. Three.js WebGPU (peer). |
 | `adapters` | `@hedronite/lts-adapters` | R3F components, vanilla helpers, future framework targets | TSX. React + R3F optional peers. |
 
 **Apps (not published):**
-- `catalog` — interactive visual browser and progressive showcase
-- `playground` — live demos and experiments
+- `catalog` — interactive visual browser and progressive showcase, with a scene playground and a growth view
+- `site` — an Astro page that dogfoods the library from a built island
 
 **Tools (not published):**
 - CLIs and pipelines for optimization, generation, and validation. These may call out to Rust or Go.
@@ -60,7 +62,7 @@ Monorepo managed with Bun workspaces + Turborepo. Nix flake for the reproducible
 - Bun workspaces
 - Turborepo for task orchestration
 - `tsconfig.base.json` with strict settings and `jsx: "react-jsx"` available for packages that need it
-- Nix flake providing Node, Bun, TypeScript, and optional Rust/Go
+- Nix flake providing Bun and Node (TypeScript and every other JS tool come from `bun.lock`)
 - `AGENTS.md` at the root for AI agent guidance
 
 ### Package pattern
@@ -71,7 +73,7 @@ Monorepo managed with Bun workspaces + Turborepo. Nix flake for the reproducible
 
 ### Bun-specific
 - Use `bun install` and `bun run`
-- Catalog and playground use Vite under Bun for fast iteration
+- The catalog uses Vite under Bun for fast iteration; the site uses Astro
 
 ---
 
@@ -79,7 +81,7 @@ Monorepo managed with Bun workspaces + Turborepo. Nix flake for the reproducible
 
 The catalog is both a development tool and a demonstration of range. It surfaces every icon, primitive, object, material, shader, and scene as the library grows.
 
-**Stack:** Bun + Vite + React + TypeScript + React Three Fiber + drei + Tailwind
+**Stack:** Bun + Vite + React + TypeScript + React Three Fiber + Tailwind
 
 **Surfaces:**
 1. **Gallery / Grid** — Filterable, searchable cards with live or static thumbnails. Categories and tags. Progressive empty states.
@@ -94,7 +96,7 @@ The catalog imports from local workspace packages and uses the core registry so 
 
 ## Aesthetic Flexibility
 
-Visual language is not prescribed by the library. Primitives, materials, and shaders are tools. Specific looks (including any house style) are optional packs, presets, or consuming-project decisions. The catalog and playground should be able to demonstrate contrasting examples so the library’s generality is obvious.
+Visual language is not prescribed by the library. Primitives, materials, and shaders are tools. Specific looks (including any house style) are optional packs, presets, or consuming-project decisions. The catalog and its playground should be able to demonstrate contrasting examples so the library’s generality is obvious.
 
 ---
 
