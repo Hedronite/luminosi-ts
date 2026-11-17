@@ -10,6 +10,8 @@ export default defineConfig<ConsoleOptions>({
   // Against a deployed container only the served pages are under test; the image-to-object review
   // runs local tooling on the local build, so it stays with the normal run.
   testIgnore: external ? ["**/review.spec.ts"] : [],
+  // Tests, not files, are what workers and CI shards divide: catalog.spec.ts alone is over half the suite.
+  fullyParallel: true,
   forbidOnly: process.env["CI"] !== undefined,
   // On CI the 3D tests draw with software WebGL on shared runners: the first frame of a viewport
   // (three.js loaded, the studio environment baked) can take longer than the 5 s default, and did,
