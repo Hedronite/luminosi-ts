@@ -16,5 +16,4 @@ export {
   type PlatonicSolid,
   type RingOptions,
 } from "./solids.js";
-export { createPolyhedronGeometry, createStudioLights, disposeObject, type StudioLightOptions } from "./three.js";
 export type { Vec3 } from "./vec.js";

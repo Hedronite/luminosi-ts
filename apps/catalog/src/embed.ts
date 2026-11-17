@@ -1,5 +1,6 @@
-import { createObjectFromSpec, parseObjectSpec } from "@hedronite/lts-objects";
-import { disposeObject } from "@hedronite/lts-primitives";
+import { parseObjectSpec } from "@hedronite/lts-objects";
+import { createObjectFromSpec } from "@hedronite/lts-objects/three";
+import { disposeObject } from "@hedronite/lts-primitives/three";
 import { presets } from "@hedronite/lts-tokens";
 import { ACESFilmicToneMapping, Color, DirectionalLight, Mesh, OrthographicCamera, PMREMGenerator, Scene, Vector3, WebGLRenderer, type Object3D } from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";

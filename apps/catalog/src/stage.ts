@@ -1,7 +1,11 @@
-import { createMaterial, isMaterialId, type MaterialId } from "@hedronite/lts-materials";
-import { createCrystalCluster, createFramedSolid, createLattice, createObjectFromSpec, crystalCluster, dressWatchSpec, latticePoints, objectSpecById } from "@hedronite/lts-objects";
-import { createPolyhedronGeometry, isPrimitiveId, primitive, type PrimitiveId } from "@hedronite/lts-primitives";
-import { createEffectMaterial, isEffectId, type EffectId } from "@hedronite/lts-shaders";
+import { isMaterialId, type MaterialId } from "@hedronite/lts-materials";
+import { createMaterial } from "@hedronite/lts-materials/three";
+import { crystalCluster, dressWatchSpec, latticePoints, objectSpecById } from "@hedronite/lts-objects";
+import { createCrystalCluster, createFramedSolid, createLattice, createObjectFromSpec } from "@hedronite/lts-objects/three";
+import { isPrimitiveId, primitive, type PrimitiveId } from "@hedronite/lts-primitives";
+import { createPolyhedronGeometry } from "@hedronite/lts-primitives/three";
+import { isEffectId, type EffectId } from "@hedronite/lts-shaders";
+import { createEffectMaterial } from "@hedronite/lts-shaders/three";
 import type { ScenePalette } from "@hedronite/lts-tokens";
 import { Material, Mesh, type Object3D } from "three";
 import { isPlaceableObject, type PlaceableObject } from "./composition";

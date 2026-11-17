@@ -1,4 +1,4 @@
-import { disposeObject } from "@hedronite/lts-primitives";
+import { disposeObject } from "@hedronite/lts-primitives/three";
 import { hedronite } from "@hedronite/lts-tokens";
 import { Box3, Vector3, type Object3D } from "three";
 import { describe, expect, it } from "vitest";

@@ -3,7 +3,7 @@
 Screen effects: passes over the rendered frame, ported from hedronite.com. Dither (8×8 Bayer dot matrix), ASCII (a glyph ramp tinted by the source), film grain, the scan sweep, the lens loupe, the crystallize intro (ASCII settling through dither into the clean render) and the smoke field. Inks come from the token preset: the Hedronite look prints lapis and copper; pass `monochrome` for a one-ink print.
 
 ```ts
-import { ScreenEffects } from "@hedronite/lts-postfx";
+import { ScreenEffects } from "@hedronite/lts-postfx/three";
 import { WebGPURenderer } from "three/webgpu";
 import { hedronite } from "@hedronite/lts-tokens";
 

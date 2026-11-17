@@ -1,8 +1,12 @@
 import type { AssetMeta } from "@hedronite/lts-core";
-import { createMaterial, isMaterialId } from "@hedronite/lts-materials";
-import { createCrystalCluster, createFramedSolid, createLattice, createObjectFromSpec, crystalCluster, dressWatchSpec, latticePoints, loadGltf, objectSpecById } from "@hedronite/lts-objects";
-import { createPolyhedronGeometry, geodesicSphere, isPrimitiveId, platonic, primitive } from "@hedronite/lts-primitives";
-import { createSceneKit, isSceneKitId } from "@hedronite/lts-scenes";
+import { isMaterialId } from "@hedronite/lts-materials";
+import { createMaterial } from "@hedronite/lts-materials/three";
+import { crystalCluster, dressWatchSpec, latticePoints, objectSpecById } from "@hedronite/lts-objects";
+import { createCrystalCluster, createFramedSolid, createLattice, createObjectFromSpec, loadGltf } from "@hedronite/lts-objects/three";
+import { geodesicSphere, isPrimitiveId, platonic, primitive } from "@hedronite/lts-primitives";
+import { createPolyhedronGeometry } from "@hedronite/lts-primitives/three";
+import { isSceneKitId } from "@hedronite/lts-scenes";
+import { createSceneKit } from "@hedronite/lts-scenes/three";
 import type { ScenePalette } from "@hedronite/lts-tokens";
 import { Mesh, type Object3D } from "three";
 import crystalClusterGlb from "tool-assets/models/crystal-cluster-glb.glb?url";

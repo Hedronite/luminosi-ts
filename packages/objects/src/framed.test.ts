@@ -1,4 +1,5 @@
-import { archimedean, disposeObject, edges, platonic } from "@hedronite/lts-primitives";
+import { archimedean, edges, platonic } from "@hedronite/lts-primitives";
+import { disposeObject } from "@hedronite/lts-primitives/three";
 import { InstancedMesh, Matrix4, Mesh, MeshStandardMaterial, Vector3 } from "three";
 import { describe, expect, it } from "vitest";
 import { createFramedSolid } from "./framed.js";

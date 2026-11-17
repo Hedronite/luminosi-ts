@@ -1,6 +1,6 @@
 import { ScreenEffectsPass, StudioEnvironment, StudioLights, WebGPUCanvas } from "@hedronite/lts-adapters";
 import type { ScreenEffectConfig } from "@hedronite/lts-postfx";
-import { disposeObject } from "@hedronite/lts-primitives";
+import { disposeObject } from "@hedronite/lts-primitives/three";
 import type { Hex, ScenePalette } from "@hedronite/lts-tokens";
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, type RefObject } from "react";
