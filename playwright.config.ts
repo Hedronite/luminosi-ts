@@ -12,6 +12,10 @@ export default defineConfig<ConsoleOptions>({
   testIgnore: external ? ["**/review.spec.ts"] : [],
   // Tests, not files, are what workers and CI shards divide: catalog.spec.ts alone is over half the suite.
   fullyParallel: true,
+  // Locally every test draws with software WebGL, and each browser's GPU process takes one to three cores, so the default
+  // (half the cores) overloads a machine shared with other work and first-frame tests miss the 5 s expect timeout.
+  // CI keeps the default: one shard per runner, with the longer timeouts below.
+  ...(process.env["CI"] === undefined ? { workers: 2 } : {}),
   forbidOnly: process.env["CI"] !== undefined,
   // On CI the 3D tests draw with software WebGL on shared runners: the first frame of a viewport
   // (three.js loaded, the studio environment baked) can take longer than the 5 s default, and did,
