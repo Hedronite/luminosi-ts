@@ -1,9 +1,22 @@
 {
   "$schema": "https://turborepo.com/schema.json",
+  // Files at the root that every task reads: the compiler options every tsconfig extends, the root manifest and the lockfile.
+  // Turborepo hashes each package's own files; without these a change to one of them replays a cached pass.
+  "globalDependencies": ["tsconfig.base.json", "tsconfig.json", "package.json", "bun.lock"],
   "tasks": {
     "build": { "dependsOn": ["^build"], "outputs": ["dist/**"] },
+    // Builds depend on their package's files and the packages they build on, except the asset pipeline: it reads the
+    // scene files and budgets that sit outside its package, so those are its inputs too.
+    "tool-assets#build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/assets/src/models/**", "$TURBO_ROOT$/assets/budgets.json"]
+    },
     "typecheck": { "dependsOn": ["^build"] },
-    "test": { "dependsOn": ["^build"] },
+    // Never cached. The tests read the repository at large (the README, STACK.md, the skill copies and the harness
+    // folders, assets/vendor, the fixtures under tools/, nu and python on the PATH), a set no inputs list can keep
+    // complete, and a cached pass over a file that has since changed is a green that proves nothing.
+    "test": { "dependsOn": ["^build"], "cache": false },
     "dev": { "cache": false, "persistent": true }
   }
 }
