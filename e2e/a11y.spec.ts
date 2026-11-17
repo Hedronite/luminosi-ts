@@ -26,6 +26,29 @@ const errorsOn = (page: Page): string[] => {
 
 const number = async (host: Locator, attribute: string): Promise<number> => Number(await host.getAttribute(attribute));
 
+/**
+ * The counters of a paused stage. The frame that was in flight when the button was pressed can still land, and on a
+ * loaded runner (software WebGL) that takes longer than any fixed wait; so wait until the frame counter has held
+ * steady across two samples in a row, then read what it held.
+ */
+async function heldCounters(host: Locator): Promise<{ readonly frames: number; readonly time: number }> {
+  let last = await number(host, "data-frames");
+  let steady = 0;
+  await expect
+    .poll(
+      async () => {
+        await host.page().waitForTimeout(500);
+        const now = await number(host, "data-frames");
+        steady = now === last ? steady + 1 : 0;
+        last = now;
+        return steady;
+      },
+      { message: "the frame counter settles after a pause", timeout: 15_000 },
+    )
+    .toBeGreaterThanOrEqual(2);
+  return { frames: last, time: await number(host, "data-time") };
+}
+
 /** The canvas is on screen for real: opaque all the way up, visible, sized, and nothing sits over its centre. */
 async function expectCanvasLive(host: Locator): Promise<void> {
   const canvas = host.locator("canvas").first();
@@ -145,9 +168,7 @@ for (const stage of stages.filter((s) => s.animated)) {
     const resume = scope.getByRole("button", { name: "Resume motion" });
     await expect(resume).toBeVisible();
     // Let the frame in flight and the counters' own sampling settle, then nothing may advance.
-    await page.waitForTimeout(500);
-    const heldFrames = await number(host, "data-frames");
-    const heldTime = await number(host, "data-time");
+    const { frames: heldFrames, time: heldTime } = await heldCounters(host);
     await page.waitForTimeout(2000);
     expect(await number(host, "data-frames")).toBe(heldFrames);
     expect(await number(host, "data-time")).toBe(heldTime);
@@ -171,9 +192,7 @@ test("a paused stage still orbits from the keyboard, redraws, and keeps its time
   const host = stage.host(page);
   await stage.scope(page).getByRole("button", { name: "Pause motion" }).click();
   await expect(stage.scope(page).getByRole("button", { name: "Resume motion" })).toBeVisible();
-  await page.waitForTimeout(500);
-  const heldFrames = await number(host, "data-frames");
-  const heldTime = await number(host, "data-time");
+  const { frames: heldFrames, time: heldTime } = await heldCounters(host);
   const azimuth = await number(host, "data-azimuth");
   await stage.group(page).focus();
   await page.keyboard.press("ArrowRight");
