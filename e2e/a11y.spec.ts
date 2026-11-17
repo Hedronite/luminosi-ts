@@ -258,6 +258,8 @@ for (const stage of stages) {
 }
 
 test("the camera keys are heard only from the stage", async ({ page }) => {
+  // It loads two stages one after the other; on a loaded runner that comes close to the default limit.
+  test.slow();
   const errors = errorsOn(page);
   // On the Effects page the focus goes to a checkbox: the arrows and + mean nothing to it, and the stage must not take them.
   await ready(effectsStage, page);
