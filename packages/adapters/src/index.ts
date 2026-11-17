@@ -12,3 +12,4 @@ export {
 } from "./components.js";
 export { ScreenEffectsPass, WebGPUCanvas, type ScreenEffectsPassProps } from "./postfx.js";
 export { accentPalette, FramedSolid, LibraryObject, type FramedSolidProps, type LibraryObjectProps } from "./objects.js";
+export { useReducedMotion } from "./motion.js";
