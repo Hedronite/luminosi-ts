@@ -1,14 +1,18 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-// Written against the DOM G2 plans for every 3D stage, before the catalog has it:
+// What every 3D stage owes a viewer who cannot drag or who wants less motion:
 //
-// - A visible button named "Pause motion" stops time on an animated stage and then reads
-//   "Resume motion". Time stopped means the stage's `data-frames` counter stays flat.
-// - The stage is a focusable (`tabindex="0"`) `role="group"` with an accessible name and an
-//   accessible description that names the keys: arrows orbit, + and - zoom, 0 resets.
+// - An animated stage has a visible button named "Pause motion" that reads "Resume motion" once
+//   pressed. Pausing stops time: the stage's own animation clock (`data-time`, seconds) and its
+//   frame counter (`data-frames`) hold still, on a paused stage that redraws for the keyboard too,
+//   and resuming carries on from the held value.
+// - The stage is a focusable (`tabindex="0"`) `role="group"` with an accessible name and a
+//   description that names the keys: arrows orbit, + and - zoom, 0 resets.
 // - The stage reports its camera in `data-azimuth` and `data-polar` (degrees) and `data-distance`
 //   (scene units), beside `data-frames`, on the element that carries `data-frames`.
+// - Under reduced motion nothing animates, so there is nothing to pause and no pause button; the
+//   keys still work.
 
 const errorsOn = (page: Page): string[] => {
   const errors: string[] = [];
@@ -21,10 +25,40 @@ const errorsOn = (page: Page): string[] => {
 
 const number = async (host: Locator, attribute: string): Promise<number> => Number(await host.getAttribute(attribute));
 
+/** The canvas is on screen for real: opaque all the way up, visible, sized, and nothing sits over its centre. */
+async function expectCanvasLive(host: Locator): Promise<void> {
+  const canvas = host.locator("canvas").first();
+  await canvas.scrollIntoViewIfNeeded();
+  await expect
+    .poll(async () =>
+      canvas.evaluate((element) => {
+        let opacity = 1;
+        for (let node: Element | null = element; node !== null; node = node.parentElement) opacity *= Number(getComputedStyle(node).opacity);
+        const box = element.getBoundingClientRect();
+        const top = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+        return { opacity, visibility: getComputedStyle(element).visibility, sized: box.width > 50 && box.height > 50, onTop: top === element };
+      }),
+    )
+    .toEqual({ opacity: 1, visibility: "visible", sized: true, onTop: true });
+}
+
+/** Presses the keys one after another. */
+const pressAll = async (page: Page, keys: readonly string[]): Promise<void> => {
+  await keys.reduce<Promise<void>>((done, key) => done.then(() => page.keyboard.press(key)), Promise.resolve());
+};
+
+/** Tabs from wherever focus is until `target` has it, in at most `limit` presses. */
+const tabTo = async (page: Page, target: Locator, limit: number): Promise<boolean> => {
+  if (limit === 0) return false;
+  await page.keyboard.press("Tab");
+  if (await target.evaluate((element) => element === document.activeElement)) return true;
+  return tabTo(page, target, limit - 1);
+};
+
 interface Stage {
   readonly name: string;
   readonly path: string;
-  /** The element that carries `data-frames` and the camera attributes. */
+  /** The element that carries `data-frames`, `data-time` and the camera attributes. */
   readonly host: (page: Page) => Locator;
   /** The focusable group; the same element as `host` unless the page wraps the stage. */
   readonly group: (page: Page) => Locator;
@@ -80,43 +114,78 @@ const stages: readonly Stage[] = [
   },
 ];
 
+const effectsStage = stages[0];
+const hologramStage = stages[2];
+const playgroundStage = stages[3];
+const primitiveStage = stages[4];
+if (effectsStage === undefined || hologramStage === undefined || playgroundStage === undefined || primitiveStage === undefined) throw new Error("the stage list changed");
+
 const ready = async (stage: Stage, page: Page): Promise<void> => {
   await page.goto(stage.path);
   // The playground only animates once something animated is in it.
-  if (stage.name === "the playground viewport") {
-    await page.getByRole("checkbox", { name: "Smoke" }).check();
-  }
+  if (stage === playgroundStage) await page.getByRole("checkbox", { name: "Smoke" }).check();
   await expect(stage.host(page)).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 15000 });
 };
 
 for (const stage of stages.filter((s) => s.animated)) {
-  test(`pausing ${stage.name} stops time, and resuming restarts it`, async ({ page }) => {
+  test(`pausing ${stage.name} stops time, and resuming carries on from where it stopped`, async ({ page }) => {
     const errors = errorsOn(page);
     await ready(stage, page);
     const host = stage.host(page);
     const scope = stage.scope(page);
     const pause = scope.getByRole("button", { name: "Pause motion" });
     await expect(pause).toBeVisible();
-    await expect.poll(async () => number(host, "data-frames")).toBeGreaterThan(0);
+    await expect(host).toHaveAttribute("data-time", /^\d/);
+    await expect.poll(async () => number(host, "data-time")).toBeGreaterThan(0.3);
+    await expectCanvasLive(host);
 
     await pause.click();
     // The label says what the button does next, so it flips instead of carrying a pressed state.
     const resume = scope.getByRole("button", { name: "Resume motion" });
     await expect(resume).toBeVisible();
-    // Let the frame in flight and the counter's own sampling settle, then nothing may advance.
+    // Let the frame in flight and the counters' own sampling settle, then nothing may advance.
     await page.waitForTimeout(500);
-    const held = await number(host, "data-frames");
-    await page.waitForTimeout(1200);
-    expect(await number(host, "data-frames")).toBe(held);
-    // The canvas stays on screen: pause stops time, it does not hide the stage.
-    await expect(host.locator("canvas")).toBeVisible();
+    const heldFrames = await number(host, "data-frames");
+    const heldTime = await number(host, "data-time");
+    await page.waitForTimeout(2000);
+    expect(await number(host, "data-frames")).toBe(heldFrames);
+    expect(await number(host, "data-time")).toBe(heldTime);
+    // The stage stays on screen: pause stops time, it does not hide the picture.
+    await expectCanvasLive(host);
 
     await resume.click();
     await expect(scope.getByRole("button", { name: "Pause motion" })).toBeVisible();
-    await expect.poll(async () => number(host, "data-frames")).toBeGreaterThan(held);
+    // It carries on from the held value, not from the wall clock: no jump by the length of the pause.
+    await expect.poll(async () => number(host, "data-time")).toBeGreaterThan(heldTime);
+    expect((await number(host, "data-time")) - heldTime).toBeLessThan(1.5);
+    await expect.poll(async () => number(host, "data-frames")).toBeGreaterThan(heldFrames);
     expect(errors).toEqual([]);
   });
 }
+
+test("a paused stage still orbits from the keyboard, redraws, and keeps its time", async ({ page }) => {
+  const errors = errorsOn(page);
+  const stage = effectsStage;
+  await ready(stage, page);
+  const host = stage.host(page);
+  await stage.scope(page).getByRole("button", { name: "Pause motion" }).click();
+  await expect(stage.scope(page).getByRole("button", { name: "Resume motion" })).toBeVisible();
+  await page.waitForTimeout(500);
+  const heldFrames = await number(host, "data-frames");
+  const heldTime = await number(host, "data-time");
+  const azimuth = await number(host, "data-azimuth");
+  await stage.group(page).focus();
+  await page.keyboard.press("ArrowRight");
+  await page.waitForTimeout(1500);
+  await page.keyboard.press("ArrowRight");
+  // Time is stopped, but the viewer still moves the camera, and the stage draws the new view.
+  await expect.poll(async () => number(host, "data-azimuth")).not.toBe(azimuth);
+  await expect.poll(async () => number(host, "data-frames")).toBeGreaterThan(heldFrames);
+  await page.waitForTimeout(500);
+  expect(await number(host, "data-time")).toBe(heldTime);
+  await expectCanvasLive(host);
+  expect(errors).toEqual([]);
+});
 
 for (const stage of stages) {
   test(`${stage.name} is a labelled group that the keyboard orbits and zooms`, async ({ page }) => {
@@ -129,10 +198,9 @@ for (const stage of stages) {
     await expect(group).toHaveAttribute("role", "group");
     await expect(group).toHaveAttribute("tabindex", "0");
     await expect(group).not.toHaveAccessibleName("");
-    await expect(group).toHaveAccessibleDescription(/arrow/i);
-    await expect(group).toHaveAccessibleDescription(/\+/);
-    await expect(group).toHaveAccessibleDescription(/-/);
-    await expect(group).toHaveAccessibleDescription(/\b0\b/);
+    await expect(group).toHaveAccessibleDescription(/arrow keys orbit/i);
+    await expect(group).toHaveAccessibleDescription(/\+ and - zoom/i);
+    await expect(group).toHaveAccessibleDescription(/\b0 resets/i);
 
     // The keys work from focus alone, with no pointer in sight.
     await group.focus();
@@ -169,30 +237,100 @@ for (const stage of stages) {
   });
 }
 
-test("a paused stage still orbits from the keyboard", async ({ page }) => {
+test("the camera keys are heard only from the stage", async ({ page }) => {
   const errors = errorsOn(page);
-  const stage = stages[0];
-  if (stage === undefined) throw new Error("no stage");
-  await ready(stage, page);
-  const host = stage.host(page);
-  await stage.scope(page).getByRole("button", { name: "Pause motion" }).click();
-  await expect(stage.scope(page).getByRole("button", { name: "Resume motion" })).toBeVisible();
-  await page.waitForTimeout(500);
-  const held = await number(host, "data-frames");
-  const azimuth = await number(host, "data-azimuth");
-  await stage.group(page).focus();
+  // On the Effects page the focus goes to a checkbox: the arrows and + mean nothing to it, and the stage must not take them.
+  await ready(effectsStage, page);
+  const host = effectsStage.host(page);
+  const start = { azimuth: await number(host, "data-azimuth"), distance: await number(host, "data-distance") };
+  const dither = page.getByRole("checkbox", { name: "Dither" });
+  await dither.focus();
+  await pressAll(page, ["ArrowRight", "ArrowLeft", "ArrowUp", "+", "-", "0"]);
+  // Space still belongs to the checkbox, which shows the focus really is there.
+  const was = await dither.isChecked();
+  await page.keyboard.press("Space");
+  await expect(dither).toBeChecked({ checked: !was });
+  await page.waitForTimeout(600);
+  expect(await number(host, "data-azimuth")).toBe(start.azimuth);
+  expect(await number(host, "data-distance")).toBe(start.distance);
+
+  // In the playground a slider takes the arrows.
+  await ready(playgroundStage, page);
+  const playground = playgroundStage.host(page);
+  const before = { azimuth: await number(playground, "data-azimuth"), distance: await number(playground, "data-distance") };
+  const slider = page.getByRole("slider").first();
+  await slider.focus();
+  const level = await slider.inputValue();
   await page.keyboard.press("ArrowRight");
-  // Time is stopped, but the viewer still moves the camera, and the stage draws the new view.
-  await expect.poll(async () => number(host, "data-azimuth")).not.toBe(azimuth);
-  await expect.poll(async () => number(host, "data-frames")).toBeGreaterThan(held);
+  await page.keyboard.press("+");
+  await expect(slider).not.toHaveValue(level);
+  await page.waitForTimeout(600);
+  expect(await number(playground, "data-azimuth")).toBe(before.azimuth);
+  expect(await number(playground, "data-distance")).toBe(before.distance);
   expect(errors).toEqual([]);
 });
 
-test("the stage's pause and keyboard controls pass axe", async ({ page }) => {
-  const stage = stages[0];
-  if (stage === undefined) throw new Error("no stage");
-  await ready(stage, page);
-  await stage.group(page).focus();
+for (const stage of [effectsStage, primitiveStage]) {
+  test(`the keyboard reaches ${stage.name} with Tab`, async ({ page }) => {
+    await page.goto(stage.path);
+    await expect(stage.host(page)).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 15000 });
+    const group = stage.group(page);
+    expect(await tabTo(page, group, 150)).toBe(true);
+    await expect(group).toBeFocused();
+    if (stage.animated) {
+      // The pause button is the next stop, so a keyboard viewer finds it beside the stage.
+      await page.keyboard.press("Tab");
+      await expect(stage.scope(page).getByRole("button", { name: "Pause motion" })).toBeFocused();
+      await page.keyboard.press("Enter");
+      await expect(stage.scope(page).getByRole("button", { name: "Resume motion" })).toBeFocused();
+    }
+  });
+}
+
+test.describe("under reduced motion", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+  });
+
+  for (const stage of stages.filter((s) => s.animated)) {
+    test(`${stage.name} holds still, offers no pause button, and still takes the keys`, async ({ page }) => {
+      const errors = errorsOn(page);
+      await ready(stage, page);
+      const host = stage.host(page);
+      // Nothing moves, so there is nothing to pause.
+      await expect(stage.scope(page).getByRole("button", { name: /^(Pause|Resume) motion$/ })).toHaveCount(0);
+      await page.waitForTimeout(1000);
+      const settledFrames = await number(host, "data-frames");
+      const settledTime = await number(host, "data-time");
+      await page.waitForTimeout(1500);
+      expect(await number(host, "data-frames")).toBe(settledFrames);
+      expect(await number(host, "data-time")).toBe(settledTime);
+      await expectCanvasLive(host);
+
+      // The keys still move the camera, and the stage draws it, with time still stopped.
+      const azimuth = await number(host, "data-azimuth");
+      await stage.group(page).focus();
+      await page.keyboard.press("ArrowRight");
+      await expect.poll(async () => number(host, "data-azimuth")).not.toBe(azimuth);
+      await expect.poll(async () => number(host, "data-frames")).toBeGreaterThan(settledFrames);
+      await page.waitForTimeout(500);
+      expect(await number(host, "data-time")).toBe(settledTime);
+      expect(errors).toEqual([]);
+    });
+  }
+});
+
+test("the Effects stage's pause and keyboard controls pass axe", async ({ page }) => {
+  await ready(effectsStage, page);
+  await effectsStage.group(page).focus();
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => v.id)).toEqual([]);
+});
+
+test("a stage in a detail dialog passes axe", async ({ page }) => {
+  await ready(hologramStage, page);
+  await hologramStage.group(page).focus();
+  await expect(hologramStage.scope(page).getByRole("button", { name: "Pause motion" })).toBeVisible();
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => v.id)).toEqual([]);
 });

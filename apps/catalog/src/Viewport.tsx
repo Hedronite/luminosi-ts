@@ -4,7 +4,7 @@ import type { ScenePalette } from "@hedronite/lts-tokens";
 import { Canvas, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Object3D } from "three";
-import { Controls, Environment, GpuCounts } from "./scene";
+import { Controls, Environment, GpuCounts, StageFrame, useMotion } from "./scene";
 import { buildSubject } from "./subjects";
 
 function Lights() {
@@ -45,16 +45,18 @@ function Subject({ meta, palette }: { readonly meta: AssetMeta; readonly palette
 
 /** An interactive 3D view of a primitive, material or object. Renders only when something changes. */
 export function Viewport({ meta, palette, paletteId }: { readonly meta: AssetMeta; readonly palette: ScenePalette; readonly paletteId: string }) {
-  const host = useRef<HTMLDivElement>(null);
+  // Renders only on change, so nothing here moves on its own.
+  const group = useRef<HTMLDivElement>(null);
+  const motion = useMotion(false);
   return (
-    <div ref={host} role="img" aria-label={`${meta.name}, rendered in 3D. Drag to rotate, scroll to zoom.`} className="h-72 w-full" data-testid="viewport">
+    <StageFrame group={group} motion={motion} label={`${meta.name}, rendered in 3D.`} className="h-72 w-full" testId="viewport">
       <Canvas frameloop="demand" dpr={[1, 2]} camera={{ position: [0, 0, 3.4], fov: 35 }}>
         <Environment />
         {meta.kind === "scene" ? null : <Lights />}
-        <Controls />
+        <Controls keys={group} />
         <Subject key={`${meta.id}:${paletteId}`} meta={meta} palette={palette} />
-        <GpuCounts target={host} />
+        <GpuCounts target={group} />
       </Canvas>
-    </div>
+    </StageFrame>
   );
 }
