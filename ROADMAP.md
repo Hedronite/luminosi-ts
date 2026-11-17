@@ -29,7 +29,7 @@ Companion to the LuminosiTS manifesto. This document tracks progressive stages f
 
 **Goal:** Usable icon system and a living visual index.
 
-- [x] Core: asset registry, progressive loader interface, manifest schema, disposal helpers
+- [x] Core: asset registry, progressive loader interface, manifest schema, disposal helpers (the loader interface and disposal helpers were removed in W1 G4)
 - [x] Icons package: first flexible set of SVGs (UI, geometric, common symbols)
   - Pure TS data export
   - Optional React components (`./react`)

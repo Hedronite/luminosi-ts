@@ -1,7 +1,7 @@
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures.js";
 import { reviewObject } from "img-to-object/review";
 
 // The image-to-object review, end to end: a render of the desk lamp becomes the "reference", so a
