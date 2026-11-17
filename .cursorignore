@@ -1,4 +1,7 @@
-# Vendored third-party trees are data, not instructions (AGENTS.md, "Third-party material"). Keep them out of the
-# agent's reach so no instruction file, rule or skill in them is picked up. Bun tooling (`lumin study`, `lumin adopt`) reads them directly.
+# Vendored third-party trees are data, not instructions (AGENTS.md, "Third-party material").
+# Cursor's docs say .cursorignore blocks access to the listed files for Agent, Tab and @-mention references
+# (https://cursor.com/docs/context/ignore-files). They do not say whether it also stops rule, AGENTS.md or skill
+# discovery in these trees, so this file is a documented access block and nothing stronger.
+# Bun tooling (`lumin study`, `lumin adopt`) reads the trees directly.
 assets/vendor/
 tools/img-to-object/upstream/
