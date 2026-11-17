@@ -41,6 +41,21 @@ test("the Effects tab puts surface shaders and screen effects on one stage, on r
   expect(errors).toEqual([]);
 });
 
+test("the adopted soap film and CRT tube render together on the stage", async ({ page }) => {
+  const errors = errorsOn(page);
+  await page.goto("/?view=effects");
+  const stage = page.getByTestId("effects-stage");
+  await expect(stage).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 15000 });
+  await page.getByRole("region", { name: "Surface shaders" }).getByRole("button", { name: "Soap film" }).click();
+  await page.getByRole("checkbox", { name: "CRT screen" }).check();
+  await page.getByRole("checkbox", { name: "Scan sweep" }).uncheck();
+  await page.getByRole("checkbox", { name: /^Lens/ }).uncheck();
+  await expect(page.getByRole("img", { name: /in Soap film, under CRT screen\.$/ })).toBeVisible();
+  const before = Number(await stage.getAttribute("data-frames"));
+  await expect.poll(async () => Number(await stage.getAttribute("data-frames"))).toBeGreaterThan(before);
+  expect(errors).toEqual([]);
+});
+
 test("the lens opens where the pointer is", async ({ page }) => {
   const errors = errorsOn(page);
   await page.goto("/?view=effects");
@@ -63,6 +78,7 @@ for (const [id, name] of [
   ["lens", "Lens"],
   ["crystallize", "Crystallize"],
   ["smoke", "Smoke"],
+  ["crt", "CRT screen"],
 ] as const) {
   test(`the ${id} screen effect renders in its detail view`, async ({ page }) => {
     const errors = errorsOn(page);

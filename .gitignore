@@ -25,3 +25,6 @@ test-results/
 
 # Forge workspaces for image-to-object (lumin new-object): scratch, and they may hold private reference photos
 .img-to-object/
+
+# Adoption workspaces (lumin adopt): upstream files copied for porting, scratch
+.adopt/

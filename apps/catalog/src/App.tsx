@@ -182,6 +182,7 @@ export function App() {
                   setStartPack(packId);
                   show("icons");
                 }}
+                onOpenAsset={open}
               />
             </Suspense>
           ) : (

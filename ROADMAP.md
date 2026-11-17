@@ -101,6 +101,20 @@ Companion to the LuminosiTS manifesto. This document tracks progressive stages f
 - [ ] Client or project usage patterns inform new packs and presets
 - [ ] Optional integration points with other tooling (non-blocking)
 
+### Adopt and remix open-source work
+
+Vendored work (`assets/vendor`) becomes library parts, projects and skills, not only a showcase.
+
+- [x] Provenance: an asset's `origin` names the vendored file it was ported from; the catalog credits it and lists it under its folder
+- [x] `lumin study`: what each vendored module is, what it leans on, and what could be ported
+- [x] `lumin adopt`: a planned port with its credit, license and porting steps, in a gitignored workspace
+- [x] First ports: the CRT screen effect (ThreeUI) and the soap film shader (Codevember day 07)
+- [x] `lumin adopt-skill`: vendored agent skills adopted as published (the interface skills)
+- [ ] `lumin fork`: a vendored project copied into a runnable, modifiable workspace wired to the library
+- [ ] `lumin new-project`: new projects of that shape from a LuminosiTS template
+- [ ] Study inline scripts in HTML demos (the Techartist demos are single HTML files)
+- [ ] More ports from the study's candidates: ThreeUI's dot matrix, energy orb and liquid form; Codevember's depth of field and nacre
+
 ---
 
 ## Cross-Cutting Concerns

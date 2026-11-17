@@ -1,6 +1,7 @@
 import { neutral, type ScenePalette } from "@hedronite/lts-tokens";
 import {
   abs,
+  cos,
   dot,
   float,
   floor,
@@ -11,6 +12,7 @@ import {
   positionLocal,
   positionViewDirection,
   pow,
+  reflectView,
   saturate,
   screenUV,
   sin,
@@ -18,6 +20,7 @@ import {
   step,
   time,
   uniform,
+  vec3,
   viewportSharedTexture,
 } from "three/tsl";
 import { AdditiveBlending, Color, DoubleSide, MeshBasicNodeMaterial, MeshStandardNodeMaterial, Vector3, type NodeMaterial } from "three/webgpu";
@@ -80,6 +83,18 @@ export const effectSchemas = {
     speed: z.number().min(0).max(10).default(1.5),
     intensity: z.number().min(0).max(10).default(1.5),
   }),
+  "soap-film": z.object({
+    /** The pale sheen the film's colors sit in. Default: the scene's glass color. */
+    tint: hex.optional(),
+    /** How much of the interference rainbow shows against the pale sheen. 0 to 1. */
+    color: z.number().min(0).max(1).default(0.4),
+    /** Turns of the rainbow across the film's range of thickness. */
+    bands: z.number().min(0.5).max(4).default(1.6),
+    /** How fast the thickness swirls. */
+    speed: z.number().min(0).max(1).default(0.025),
+    /** How bright the film reads edge on. */
+    sheen: z.number().min(0).max(1).default(0.3),
+  }),
 } as const;
 
 export type EffectId = keyof typeof effectSchemas;
@@ -98,6 +113,10 @@ export interface EffectInfo {
   readonly animated?: boolean;
   /** Shows the scene behind it, so it reads only with something there. */
   readonly seeThrough?: boolean;
+  /** The day it joined the library (YYYY-MM-DD). Default: 2026-11-15, when the first shaders landed. */
+  readonly added?: string;
+  /** Set when it was ported from open-source work in assets/vendor. */
+  readonly origin?: { readonly vendor: string; readonly path: string; readonly note: string };
 }
 
 export const effectInfo: Record<EffectId, EffectInfo> = {
@@ -106,6 +125,18 @@ export const effectInfo: Record<EffectId, EffectInfo> = {
   "height-gradient": { name: "Height gradient", tags: ["gradient", "color"] },
   hologram: { name: "Hologram", tags: ["animated", "transparent", "scanlines"], animated: true, seeThrough: true },
   pulse: { name: "Pulse", tags: ["animated", "emissive"], animated: true },
+  "soap-film": {
+    name: "Soap film",
+    tags: ["animated", "transparent", "iridescent", "thin-film"],
+    animated: true,
+    seeThrough: true,
+    added: "2026-11-16",
+    origin: {
+      vendor: "codevember-2026",
+      path: "07/src/Balloon.tsx",
+      note: "The soap film from Hollow's balloon (a thin-film rainbow set by a swirling thickness that thins toward the rim, over a pale sheen) for any surface, without the paint; a key-light glint stands in for its studio map.",
+    },
+  },
   refraction: { name: "Refraction", tags: ["transparent", "glass", "screen-space"], seeThrough: true },
   toon: { name: "Toon outline", tags: ["stylized", "outline", "flat"] },
 };
@@ -196,6 +227,31 @@ export function createHologramMaterial(params: EffectParams<"hologram"> = {}, pa
   return material;
 }
 
+/**
+ * A soap bubble's film: the rainbow of light bouncing between the film's two faces, its color set by how
+ * thick the film is there, which swirls slowly and runs thinner toward the rim, over a faint pale sheen,
+ * with a glint where it mirrors the key light. Clear, so it reads over something.
+ *
+ * Adopted from Codevember 2026 by Theo Tillberg (https://github.com/ttillberg/codevember-2026),
+ * 07/src/Balloon.tsx (filmMaterial), under MIT. The upstream notice: assets/vendor/codevember-2026/LICENSE.
+ */
+export function createSoapFilmMaterial(params: EffectParams<"soap-film"> = {}, palette: ScenePalette = neutral.scene): MeshBasicNodeMaterial {
+  const p = effectSchemas["soap-film"].parse(params);
+  const material = new MeshBasicNodeMaterial({ name: "soap-film", transparent: true, depthWrite: false, side: DoubleSide });
+  const edgeOn = saturate(oneMinus(abs(dot(normalView, positionViewDirection))));
+  const swirl = mx_noise_float(positionLocal.mul(1.4).add(vec3(0, time.mul(p.speed), 0)));
+  // In bands: each whole step of thickness is one turn of the rainbow.
+  const thickness = swirl.mul(0.35).add(0.5).add(edgeOn.mul(0.7));
+  const rainbow = cos(thickness.mul(Math.PI * 2 * p.bands).add(vec3(0, 2.1, 4.2))).mul(0.5).add(0.5);
+  const film = mix(rainbow, uniform(new Color(p.tint ?? palette.glass)), 1 - p.color);
+  // The film mirrors only bright things: here the studio's key light, upper right.
+  const key = uniform(new Vector3(0.5, 0.7, 0.6).normalize());
+  const glint = smoothstep(0.93, 0.99, dot(reflectView, key));
+  material.colorNode = mix(film, vec3(1), glint);
+  material.opacityNode = saturate(edgeOn.mul(edgeOn).mul(p.sheen).add(0.03).add(glint));
+  return material;
+}
+
 /** The material for any effect id, with its default parameters. */
 export function createEffectMaterial(id: EffectId, palette: ScenePalette = neutral.scene): NodeMaterial {
   switch (id) {
@@ -213,5 +269,7 @@ export function createEffectMaterial(id: EffectId, palette: ScenePalette = neutr
       return createHeightGradientMaterial({}, palette);
     case "pulse":
       return createPulseMaterial({}, palette);
+    case "soap-film":
+      return createSoapFilmMaterial({}, palette);
   }
 }

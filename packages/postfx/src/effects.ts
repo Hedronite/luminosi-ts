@@ -51,6 +51,16 @@ export const screenEffectSchemas = {
     speed: z.number().min(0).max(4).default(1),
     intensity: z.number().min(0).max(3).default(1),
   }),
+  crt: z.object({
+    /** How far the glass bulges: 0 is a flat screen. */
+    curvature: z.number().min(0).max(2).default(1),
+    /** CSS pixels from one scan line to the next; the shadow-mask triads are 2.75 times as wide. */
+    pitch: z.number().min(1.5).max(8).default(2),
+    /** How far red and blue split toward the corners. */
+    aberration: z.number().min(0).max(4).default(1),
+    /** The rolling bar, line crawl and flicker. 0 holds the picture still. */
+    motion: z.number().min(0).max(1).default(1),
+  }),
 } as const;
 
 export type ScreenEffectId = keyof typeof screenEffectSchemas;
@@ -61,7 +71,7 @@ export function isScreenEffectId(id: string): id is ScreenEffectId {
 }
 
 /** Every screen effect, in the order passes are stacked: smoke behind, prints, then grain on top. */
-export const screenEffectIds: readonly ScreenEffectId[] = ["smoke", "crystallize", "dither", "ascii", "scan", "lens", "grain"];
+export const screenEffectIds: readonly ScreenEffectId[] = ["smoke", "crystallize", "dither", "ascii", "scan", "lens", "crt", "grain"];
 
 export interface ScreenEffectInfo {
   readonly name: string;
@@ -70,6 +80,10 @@ export interface ScreenEffectInfo {
   readonly interactive?: boolean;
   /** Changes over time, so it needs continuous rendering while visible. */
   readonly animated?: boolean;
+  /** The day it joined the library (YYYY-MM-DD). Default: 2026-11-15, when the first effects landed. */
+  readonly added?: string;
+  /** Set when it was ported from open-source work in assets/vendor. */
+  readonly origin?: { readonly vendor: string; readonly path: string; readonly note: string };
 }
 
 export const screenEffectInfo: Record<ScreenEffectId, ScreenEffectInfo> = {
@@ -79,6 +93,17 @@ export const screenEffectInfo: Record<ScreenEffectId, ScreenEffectInfo> = {
   ascii: { name: "ASCII", tags: ["glyphs", "print", "terminal"], animated: true },
   scan: { name: "Scan sweep", tags: ["sweep", "ascii", "hedronite"], animated: true },
   lens: { name: "Lens", tags: ["loupe", "pointer", "hedronite"], interactive: true, animated: true },
+  crt: {
+    name: "CRT screen",
+    tags: ["retro", "scanlines", "barrel", "chromatic-aberration"],
+    animated: true,
+    added: "2026-11-16",
+    origin: {
+      vendor: "threeui",
+      path: "src/shaders/crt/crtShaders.ts",
+      note: "The tube from ThreeUI's CRT background (barrel glass, RGB split, scan lines, aperture grille, rolling bar, vignette) as a TSL pass over any scene, tinted by the look's inks; its boot text is left behind.",
+    },
+  },
   grain: { name: "Film grain", tags: ["noise", "grain"], animated: true },
 };
 

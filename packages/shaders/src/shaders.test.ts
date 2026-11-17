@@ -11,6 +11,7 @@ import {
   createHologramMaterial,
   createPulseMaterial,
   createRefractionMaterial,
+  createSoapFilmMaterial,
   createToonMaterial,
   effectIds,
   effectInfo,
@@ -28,14 +29,25 @@ describe("effects", () => {
   });
 
   it("says which effects animate and which need something behind them", () => {
-    expect(effectIds.filter((id) => effectInfo[id].animated === true)).toEqual(["dissolve", "hologram", "pulse"]);
-    expect(effectIds.filter((id) => effectInfo[id].seeThrough === true)).toEqual(["hologram", "refraction"]);
+    expect(effectIds.filter((id) => effectInfo[id].animated === true)).toEqual(["dissolve", "hologram", "pulse", "soap-film"]);
+    expect(effectIds.filter((id) => effectInfo[id].seeThrough === true)).toEqual(["hologram", "refraction", "soap-film"]);
   });
 
   it("draws see-through effects after the opaque scene", () => {
     expect(createRefractionMaterial().transparent).toBe(true);
     const hologram = createHologramMaterial();
     expect([hologram.transparent, hologram.depthWrite]).toEqual([true, false]);
+    const film = createSoapFilmMaterial();
+    expect([film.transparent, film.depthWrite]).toEqual([true, false]);
+  });
+
+  it("credits the soap film to the Codevember day it was ported from", () => {
+    const registry = createRegistry();
+    registerManifest(registry, manifest);
+    expect(registry.get("soap-film")?.origin).toMatchObject({ vendor: "codevember-2026", path: "07/src/Balloon.tsx" });
+    expect(registry.get("soap-film")?.added).toBe("2026-11-16");
+    expect(registry.get("toon")?.origin).toBeUndefined();
+    expect(() => createSoapFilmMaterial({ color: 2 })).toThrow(z.ZodError);
   });
 
   it("cuts dissolved surface away by alpha test, at a fixed progress when given one", () => {

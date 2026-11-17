@@ -24,3 +24,22 @@ test("ThreeRT sits under Engines, with its docs readable page by page", async ({
   await expect(page.getByText("Loading…")).toHaveCount(0);
   await expect(page.locator("article").getByRole("paragraph").first()).toBeVisible();
 });
+
+test("work ported from a vendored folder is listed under it and credits it from the asset's details", async ({ page }) => {
+  await page.goto("/?view=open-source&set=codevember-2026");
+  const library = page.getByRole("region", { name: "In the library" });
+  await expect(library).toContainText("07/src/Balloon.tsx");
+  await expect(page.getByRole("listitem").filter({ hasText: "07 / Hollow" })).toContainText("In the library: Soap film");
+  await library.getByRole("button", { name: /Soap film/ }).click();
+  const dialog = page.getByRole("dialog", { name: "Soap film" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("link", { name: "codevember-2026" })).toHaveAttribute("href", "?view=open-source&set=codevember-2026");
+  await expect(dialog).toContainText("07/src/Balloon.tsx");
+});
+
+test("the CRT screen effect credits ThreeUI", async ({ page }) => {
+  await page.goto("/?asset=crt");
+  const dialog = page.getByRole("dialog", { name: "CRT screen" });
+  await expect(dialog).toContainText("Adopted from");
+  await expect(dialog).toContainText("src/shaders/crt/crtShaders.ts");
+});
