@@ -16,4 +16,4 @@ effects.render(delta);
 // When done: effects.dispose();
 ```
 
-It runs on three's `WebGPURenderer` (WebGPU, or WebGL 2 where WebGPU is missing), the renderer TSL surface shaders need, so both share one scene. In React Three Fiber, use `<ScreenEffectsPass>` inside `<WebGPUCanvas>` from `@hedronite/lts-adapters`.
+It runs on three's `WebGPURenderer` (WebGPU, or WebGL 2 where WebGPU is missing), the renderer TSL surface shaders need, so both share one scene. In React Three Fiber, use `<ScreenEffectsPass>` inside `<WebGPUCanvas>`, both from `@hedronite/lts-adapters/webgpu`.

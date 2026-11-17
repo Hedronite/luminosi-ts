@@ -123,10 +123,13 @@ const componentOf = (item: Item): string => {
 export function toTsx(composition: Composition): string {
   const positions = arrange(composition.placements.length);
   const stack = stackOf(composition);
-  const components = new Set(["StudioEnvironment", "StudioLights", "WebGPUCanvas", ...composition.placements.map(componentOf), ...(stack.length > 0 ? ["ScreenEffectsPass"] : [])]);
+  // The WebGPU renderer's parts come from their own entry, so a page that skips them never loads three's WebGPU build.
+  const components = new Set(["StudioLights", ...composition.placements.map(componentOf)]);
+  const webgpu = new Set(["WebGPUCanvas", "WebGPUStudioEnvironment", ...(stack.length > 0 ? ["ScreenEffectsPass"] : [])]);
   const ink = composition.ink === "look" || stack.length === 0 ? "" : ` monochrome={palette.${composition.ink}}`;
   return [
     `import { ${[...components].sort().join(", ")} } from "@hedronite/lts-adapters";`,
+    `import { ${[...webgpu].sort().join(", ")} } from "@hedronite/lts-adapters/webgpu";`,
     ...(ink === "" ? [] : ['import { neutral } from "@hedronite/lts-tokens";']),
     "",
     ...(stack.length > 0 ? [`// Defined once, outside the component: a new array would rebuild the passes.`, `const stack = [${stack.map((id) => `{ id: "${id}" }`).join(", ")}] as const;`] : []),
@@ -135,7 +138,7 @@ export function toTsx(composition: Composition): string {
     "export function Scene() {",
     "  return (",
     "    <WebGPUCanvas>",
-    "      <StudioEnvironment />",
+    "      <WebGPUStudioEnvironment />",
     `      <StudioLights intensity={${String(composition.lightIntensity)}} />`,
     ...composition.placements.map((placement, i) => `      ${element(placement, positions[i] ?? [0, 0, 0])}`),
     ...(stack.length > 0 ? [`      <ScreenEffectsPass effects={stack}${ink} />`] : []),
