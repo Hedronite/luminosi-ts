@@ -83,7 +83,6 @@ export function mix(from: Hex, to: Hex, t: number): Hex {
   return `#${channel(0)}${channel(1)}${channel(2)}`;
 }
 
-const ratio = (a: Hex, b: Hex): string => `${contrastRatio(a, b).toFixed(2)}:1`;
 /** The lowest contrast `color` has on any of `backgrounds`, for the notes. */
 const worst = (color: Hex, backgrounds: readonly Hex[]): string => `${Math.min(...backgrounds.map((bg) => contrastRatio(color, bg))).toFixed(2)}:1 at worst`;
 const STEPS = Array.from({ length: 21 }, (_, i) => i / 20);
