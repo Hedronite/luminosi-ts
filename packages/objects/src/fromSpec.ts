@@ -1,5 +1,7 @@
-import { createMaterial, materialPreset } from "@hedronite/lts-materials";
-import { createPolyhedronGeometry, primitive } from "@hedronite/lts-primitives";
+import { materialPreset } from "@hedronite/lts-materials";
+import { createMaterial } from "@hedronite/lts-materials/three";
+import { primitive } from "@hedronite/lts-primitives";
+import { createPolyhedronGeometry } from "@hedronite/lts-primitives/three";
 import { neutral, type ScenePalette } from "@hedronite/lts-tokens";
 import {
   BoxGeometry,

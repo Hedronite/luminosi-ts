@@ -1,6 +1,7 @@
 import type { AssetMeta } from "@hedronite/lts-core";
 import { StudioLights } from "@hedronite/lts-adapters";
-import { createEffectMaterial, effectInfo, isEffectId } from "@hedronite/lts-shaders";
+import { effectInfo, isEffectId } from "@hedronite/lts-shaders";
+import { createEffectMaterial } from "@hedronite/lts-shaders/three";
 import type { ScenePalette } from "@hedronite/lts-tokens";
 import { Canvas } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";

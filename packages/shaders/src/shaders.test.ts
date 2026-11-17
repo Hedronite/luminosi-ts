@@ -13,9 +13,8 @@ import {
   createRefractionMaterial,
   createSoapFilmMaterial,
   createToonMaterial,
-  effectIds,
-  effectInfo,
 } from "./effects.js";
+import { effectIds, effectInfo } from "./info.js";
 import { manifest } from "./manifest.js";
 
 describe("effects", () => {

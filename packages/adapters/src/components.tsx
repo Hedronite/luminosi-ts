@@ -1,7 +1,11 @@
-import { createMaterial, type MaterialId } from "@hedronite/lts-materials";
-import { createEffectMaterial, type EffectId } from "@hedronite/lts-shaders";
-import { createCrystalCluster, createLattice, crystalCluster, latticePoints, type ClusterOptions, type LatticeOptions } from "@hedronite/lts-objects";
-import { createPolyhedronGeometry, createStudioLights, disposeObject, primitive, type PrimitiveId } from "@hedronite/lts-primitives";
+import { type MaterialId } from "@hedronite/lts-materials";
+import { createMaterial } from "@hedronite/lts-materials/three";
+import { type EffectId } from "@hedronite/lts-shaders";
+import { createEffectMaterial } from "@hedronite/lts-shaders/three";
+import { crystalCluster, latticePoints, type ClusterOptions, type LatticeOptions } from "@hedronite/lts-objects";
+import { createCrystalCluster, createLattice } from "@hedronite/lts-objects/three";
+import { primitive, type PrimitiveId } from "@hedronite/lts-primitives";
+import { createPolyhedronGeometry, createStudioLights, disposeObject } from "@hedronite/lts-primitives/three";
 import { neutral, type ScenePalette } from "@hedronite/lts-tokens";
 import { useThree, type ThreeElements } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";

@@ -1,5 +1,5 @@
 import { createRegistry, registerManifest } from "@hedronite/lts-core";
-import { disposeObject } from "@hedronite/lts-primitives";
+import { disposeObject } from "@hedronite/lts-primitives/three";
 import { Light, Mesh, type Object3D } from "three";
 import { describe, expect, it, vi } from "vitest";
 import { sceneKit, sceneKitIds } from "./kits.js";

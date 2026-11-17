@@ -1,6 +1,8 @@
 import { StudioLights } from "@hedronite/lts-adapters";
-import { createMaterial, materialIds, materialPreset } from "@hedronite/lts-materials";
-import { createPolyhedronGeometry, isPrimitiveId, primitive, primitiveIds, primitiveInfo, type PrimitiveId } from "@hedronite/lts-primitives";
+import { materialIds, materialPreset } from "@hedronite/lts-materials";
+import { createMaterial } from "@hedronite/lts-materials/three";
+import { isPrimitiveId, primitive, primitiveIds, primitiveInfo, type PrimitiveId } from "@hedronite/lts-primitives";
+import { createPolyhedronGeometry } from "@hedronite/lts-primitives/three";
 import type { ScenePalette } from "@hedronite/lts-tokens";
 import { Canvas } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";

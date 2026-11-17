@@ -1,4 +1,4 @@
-import { effectIds, effectInfo } from "./effects.js";
+import { effectIds, effectInfo } from "./info.js";
 
 /** The shaders' manifest for the LuminosiTS registry (`registerManifest`). */
 export const manifest = {

@@ -1,4 +1,5 @@
-import { ScreenEffects, type ScreenEffectConfig } from "@hedronite/lts-postfx";
+import { type ScreenEffectConfig } from "@hedronite/lts-postfx";
+import { ScreenEffects } from "@hedronite/lts-postfx/three";
 import { neutral, type Hex, type ScenePalette } from "@hedronite/lts-tokens";
 import { Canvas, useFrame, useThree, type CanvasProps } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
