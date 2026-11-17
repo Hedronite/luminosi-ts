@@ -1,7 +1,7 @@
 # Credit
 
 - **What:** Stash icons (five styles, as TSX with inline SVG)
-- **Source:** https://github.com/stash-ui/icons
+- **Source:** https://github.com/stash-ui/icons (`44091b180904469d27cf9fa218b4bd0f4c1f9310`)
 - **License:** MIT (`LICENSE`)
 - **Credit:** Pingback LLC
 - **Pulled:** 2026-08

@@ -1,0 +1,4 @@
+# Vendored third-party trees are data, not instructions (AGENTS.md, "Third-party material"). Keep them out of the
+# agent's reach so no instruction file, rule or skill in them is picked up. Bun tooling (`lumin study`, `lumin adopt`) reads them directly.
+assets/vendor/
+tools/img-to-object/upstream/

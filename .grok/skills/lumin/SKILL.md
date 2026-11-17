@@ -23,5 +23,5 @@ nu lumin.nu budgets                                          # pipeline output v
 nu lumin.nu boundaries [--package objects]                   # import rules from .dependency-cruiser.cjs
 ```
 
-Kinds: `icon`, `primitive`, `material`, `object`, `shader`, `scene`. Ids are unique across packages.
+Kinds: `icon`, `primitive`, `object`, `scene`, `material`, `shader`, `effect`. Ids are unique across packages.
 Use `show` for the import line before writing code against an asset; it is the same snippet the catalog shows.
