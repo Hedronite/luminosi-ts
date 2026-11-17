@@ -124,25 +124,43 @@ export function packages(): Envelope {
   return ok("packages", rows);
 }
 
+/** `{ id: { key: n } }` from parsed JSON: the numbers of each row, whatever else the row holds. */
+const numbersById = (rows: unknown): Record<string, Record<string, number>> => {
+  const result: Record<string, Record<string, number>> = {};
+  if (typeof rows !== "object" || rows === null) return result;
+  for (const [id, value] of Object.entries(rows)) {
+    const row: unknown = value;
+    const numbers: Record<string, number> = {};
+    if (typeof row === "object" && row !== null) for (const [key, n] of Object.entries(row)) if (typeof n === "number") numbers[key] = n;
+    result[id] = numbers;
+  }
+  return result;
+};
+
+/**
+ * Every budget in assets/budgets.json against the last measurement: the pipeline's models (tools/assets/dist/report.json),
+ * and the bundles and objects the size check measured (tools/assets/dist/sizes.json, written by `bun run validate`).
+ */
 export function budgets(): Envelope {
   const reportPath = join(root, "tools/assets/dist/report.json");
+  const sizesPath = join(root, "tools/assets/dist/sizes.json");
   if (!existsSync(reportPath)) return fail("budgets", "not_built", "no asset report yet; run `bun run build`");
-  const report: unknown = JSON.parse(readFileSync(reportPath, "utf8"));
+  if (!existsSync(sizesPath)) return fail("budgets", "not_built", "no size report yet; run `bun run build`, then `bun run validate`");
   const limits: unknown = JSON.parse(readFileSync(join(root, "assets/budgets.json"), "utf8"));
-  const pick = (source: unknown, id: string): Record<string, number> => {
-    const value = field(source, id);
-    if (typeof value !== "object" || value === null) return {};
-    const numbers: Record<string, number> = {};
-    for (const [key, n] of Object.entries(value)) if (typeof n === "number") numbers[key] = n;
-    return numbers;
-  };
-  const ids = typeof report === "object" && report !== null ? Object.keys(report) : [];
-  const rows = ids.map((id) => {
-    const actual = pick(report, id);
-    const limit = pick(limits, id);
-    const checks = Object.entries(limit).map(([key, max]) => ({ key, actual: actual[key] ?? null, budget: max, ok: (actual[key] ?? Infinity) <= max }));
-    return { id, ok: checks.every((c) => c.ok), checks, bytes: actual["bytes"] ?? null };
-  });
+  const report: unknown = JSON.parse(readFileSync(reportPath, "utf8"));
+  const sizes: unknown = JSON.parse(readFileSync(sizesPath, "utf8"));
+  const families = [
+    { family: "model", limit: field(limits, "models"), actual: numbersById(report) },
+    { family: "bundle", limit: field(limits, "bundles"), actual: numbersById(field(sizes, "bundles")) },
+    { family: "object", limit: field(limits, "objects"), actual: numbersById(field(sizes, "objects")) },
+  ] as const;
+  const rows = families.flatMap(({ family, limit, actual }) =>
+    Object.entries(numbersById(limit)).map(([id, max]) => {
+      const measured = actual[id] ?? {};
+      const checks = Object.entries(max).map(([key, budget]) => ({ key, actual: measured[key] ?? null, budget, ok: (measured[key] ?? Infinity) <= budget }));
+      return { family, id, ok: checks.every((c) => c.ok), checks, bytes: measured["bytes"] ?? measured["gzipBytes"] ?? null };
+    }),
+  );
   return ok("budgets", rows);
 }
 

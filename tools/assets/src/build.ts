@@ -3,7 +3,8 @@
 //   flatten + join  → one draw call per material
 //   weld + quantize → indexed, compact vertex data
 //   meshopt         → EXT_meshopt_compression, decoded in the browser by three's bundled decoder
-// Fails (exit 1) when any asset is over its budget in assets/budgets.json.
+// Fails (exit 1) when any asset is over its budget under "models" in assets/budgets.json. The size check that needs the apps built
+// (bundles, draw calls and triangles per object) is sizes.ts, run by `bun run validate`.
 import { brotliCompressSync } from "node:zlib";
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
@@ -14,6 +15,7 @@ import { crystalCluster } from "@hedronite/lts-objects";
 import { bipyramid, triangulate, type Vec3 } from "@hedronite/lts-primitives";
 import { MeshoptEncoder } from "meshoptimizer";
 import { z } from "zod";
+import { loadBudgets } from "./budgets.js";
 
 const root = resolve(import.meta.dirname, "../../..");
 const sourceDir = join(root, "assets/src/models");
@@ -26,7 +28,6 @@ const sceneSchema = z
     material: z.object({ name: z.string(), color: z.string().regex(/^#[0-9a-f]{6}$/i), roughness: z.number(), metalness: z.number() }).strict(),
   })
   .strict();
-const budgetsSchema = z.record(z.string(), z.object({ triangles: z.number(), drawCalls: z.number(), brotliBytes: z.number() }).strict());
 
 /** sRGB hex to the linear RGB that glTF's baseColorFactor expects. */
 const linearRgb = (hex: string): [number, number, number] => {
@@ -103,7 +104,7 @@ function measure(document: Document): Pick<Report, "triangles" | "drawCalls"> {
 
 await MeshoptEncoder.ready;
 const io = new WebIO().registerExtensions([EXTMeshoptCompression, KHRMeshQuantization]).registerDependencies({ "meshopt.encoder": MeshoptEncoder });
-const budgets = budgetsSchema.parse(JSON.parse(await readFile(join(root, "assets/budgets.json"), "utf8")));
+const { models: budgets } = await loadBudgets(root);
 const ids = (await readdir(sourceDir)).filter((f) => f.endsWith(".json")).map((f) => f.slice(0, -".json".length)).sort();
 
 await mkdir(join(outDir, "models"), { recursive: true });
@@ -116,7 +117,7 @@ async function buildOne(id: string): Promise<readonly [string, Report, readonly 
   await writeFile(join(outDir, "models", `${id}.glb`), glb);
   const entry: Report = { ...measure(document), bytes: glb.byteLength, brotliBytes: brotliCompressSync(glb).byteLength };
   const budget = budgets[id];
-  if (budget === undefined) return [id, entry, [`${id}: no budget in assets/budgets.json`]];
+  if (budget === undefined) return [id, entry, [`${id}: no model budget in assets/budgets.json`]];
   const over = (["triangles", "drawCalls", "brotliBytes"] as const)
     .filter((key) => entry[key] > budget[key])
     .map((key) => `${id}: ${key} ${String(entry[key])} > budget ${String(budget[key])}`);
