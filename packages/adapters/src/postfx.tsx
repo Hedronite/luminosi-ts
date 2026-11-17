@@ -3,6 +3,7 @@ import { ScreenEffects } from "@hedronite/lts-postfx/three";
 import { neutral, type Hex, type ScenePalette } from "@hedronite/lts-tokens";
 import { Canvas, useFrame, useThree, type CanvasProps } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
+import { useReducedMotion } from "./motion.js";
 import { WebGPURenderer } from "three/webgpu";
 
 /**
@@ -32,7 +33,10 @@ export interface ScreenEffectsPassProps {
   readonly palette?: ScenePalette;
   /** Print in one ink only. */
   readonly monochrome?: Hex;
-  /** Skip the intro and the sweep, and open and close the lens at once. Pair it with frameloop="demand" for a still stage. */
+  /**
+   * Skip the intro and the sweep, and open and close the lens at once. Pair it with frameloop="demand" for a still stage.
+   * Default: the viewer's reduced-motion setting (`useReducedMotion`).
+   */
   readonly reducedMotion?: boolean;
 }
 
@@ -41,7 +45,9 @@ export interface ScreenEffectsPassProps {
  * the effects are TSL passes on the WebGPU renderer. It takes over rendering from React Three Fiber, follows the pointer for the lens (a tap opens it for a moment on touch), and frees
  * its passes when the stack changes or it unmounts.
  */
-export function ScreenEffectsPass({ effects, palette = neutral.scene, monochrome, reducedMotion = false }: ScreenEffectsPassProps) {
+export function ScreenEffectsPass({ effects, palette = neutral.scene, monochrome, reducedMotion }: ScreenEffectsPassProps) {
+  const preferred = useReducedMotion();
+  const still = reducedMotion ?? preferred;
   const gl: unknown = useThree((state) => state.gl);
   if (!(gl instanceof WebGPURenderer)) throw new Error("ScreenEffectsPass runs on the WebGPU renderer: put it inside <WebGPUCanvas>");
   const scene = useThree((state) => state.scene);
@@ -50,8 +56,8 @@ export function ScreenEffectsPass({ effects, palette = neutral.scene, monochrome
   // Under frameloop="demand" (a still stage for reduced motion) the pointer asks for each lens frame.
   const invalidate = useThree((state) => state.invalidate);
   const runner = useMemo(
-    () => new ScreenEffects(gl, scene, camera, effects, { palette, reducedMotion, ...(monochrome === undefined ? {} : { monochrome }) }),
-    [gl, scene, camera, effects, palette, monochrome, reducedMotion],
+    () => new ScreenEffects(gl, scene, camera, effects, { palette, reducedMotion: still, ...(monochrome === undefined ? {} : { monochrome }) }),
+    [gl, scene, camera, effects, palette, monochrome, still],
   );
   useEffect(
     () => () => {
@@ -96,7 +102,8 @@ export function ScreenEffectsPass({ effects, palette = neutral.scene, monochrome
 
   // A positive priority takes over rendering from React Three Fiber.
   useFrame((_, delta) => {
-    runner.render(delta);
+    // A long gap (a hidden tab, a paused stage) is one short step, not a jump through the intro and the sweep.
+    runner.render(Math.min(delta, 0.1));
   }, 1);
   return null;
 }
