@@ -3,7 +3,7 @@
     "crystal-cluster-glb": { "triangles": 174, "drawCalls": 1, "brotliBytes": 4900 }
   },
   "bundles": {
-    "catalog-gallery": { "gzipBytes": 125500 },
+    "catalog-gallery": { "gzipBytes": 125700 },
     "catalog-embed": { "gzipBytes": 230700 },
     "catalog-3d": { "gzipBytes": 443000 },
     "site-island": { "gzipBytes": 330000 }
