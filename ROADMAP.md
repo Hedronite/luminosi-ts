@@ -94,12 +94,7 @@ Companion to the LuminosiTS manifesto. This document tracks progressive stages f
 
 **Goal:** Sustainable growth driven by actual use.
 
-- [ ] Procedural generation improvements
-- [ ] Additional adapters or targets if needed
-- [ ] Companion Rust tools for heavy mesh processing or generation
-- [ ] Performance budgets and automated checks
-- [ ] Client or project usage patterns inform new packs and presets
-- [ ] Optional integration points with other tooling (non-blocking)
+The open lines of this stage are now concrete slices in Stages 6 to 12 below: budgets (A3, B5), adapters and targets (A2, C5, F3), procedural range (D4, D5, D9), and usage-driven packs (G2). Rust tools stay optional and unplanned.
 
 ### Adopt and remix open-source work
 
@@ -110,10 +105,91 @@ Vendored work (`assets/vendor`) becomes library parts, projects and skills, not 
 - [x] `lumin adopt`: a planned port with its credit, license and porting steps, in a gitignored workspace
 - [x] First ports: the CRT screen effect (ThreeUI) and the soap film shader (Codevember day 07)
 - [x] `lumin adopt-skill`: a vendored agent skill into `.agents/skills` with its license and credit (none adopted yet: vendored skills are read as data until a person has reviewed one)
-- [ ] `lumin fork`: a vendored project copied into a runnable, modifiable workspace wired to the library
-- [ ] `lumin new-project`: new projects of that shape from a LuminosiTS template
+- [ ] Forking and new projects: superseded by E6 (scaffold from a scene document or a vendored demo) and E7 (modify through the scene document), which need Stage 8
 - [ ] Study inline scripts in HTML demos (the Techartist demos are single HTML files)
 - [ ] More ports from the study's candidates: ThreeUI's dot matrix, energy orb and liquid form; Codevember's depth of field and nacre
+
+---
+
+## Stages 6 to 12 — from asset library to design suite
+
+The aim: the design system for 3D and screen effects that lives in the repo. One versioned, validated scene document that people edit in a studio and agents edit through `lumin`, compiled to plain three.js and React Three Fiber code with no proprietary runtime; looks that recolor interface, scene and inks together; a remix pipeline with a provenance trail; and gates that prove each artifact is fast, accessible and legally clean before it merges.
+
+Each line is one PR. Order holds in one place: Stage 6, then 7, then 8; Stages 9 to 11 interleave once C1 and C2 exist. **Quick win** marks a small, low-risk slice. Decisions still open are noted where they gate a slice.
+
+### Stage 6 (A) — True ground
+
+- [ ] A1 Data entries (quick win): package entries split into data and `./three` builders; no three.js on the gallery's first route
+- [ ] A2 Adapter split (quick win): adapters root without `three/webgpu`, a `./webgpu` subpath; smaller site island
+- [ ] A3 Budgets that bite (quick win): entry chunks, 3D chunks, site island, draw calls and triangles per object
+- [ ] A4 Motion and keys (quick win): reduced motion is done (#32); still to do: a pause control, keyboard orbit, the hologram flicker, the hook in adapters
+- [ ] A5 WebGPU lane: an automated run on the WebGPU backend; the catalog on a secure origin (needs a decision on HTTPS)
+- [ ] A6 Truth pass (quick win): README, STACK and skill docs match the code, with a test
+- [ ] A7 Vendor pins and quarantine (quick win): every vendored source pinned; vendored agent files excluded from discovery (the policy itself landed in #30)
+- [ ] A8 CI split (quick win): cached parallel jobs, faster PRs
+- [ ] A9 Loose ends (quick win): disposal of instanced meshes, icon package licenses, unused loader and scope
+- [ ] A10 Vendor home: where the vendored tree lives (needs a decision)
+
+### Stage 7 (B) — Live parameters
+
+- [ ] B1 Asset descriptors: one contract (metadata, parameter schema, lazy build, snippets, poster) replaces the per-id switches
+- [ ] B2 Uniform handles: parameter edits without recompiles; an injected clock
+- [ ] B3 One print pass: cheaper, editable screen effects; `setParams` and `setInks`
+- [ ] B4 Looks without rebuilds: a look change is a uniform write
+- [ ] B5 Merged objects (quick win): the dress watch in a few draw calls
+- [ ] B6 Posters: real thumbnails for every 3D asset
+- [ ] B7 Golden images: appearance under test
+- [ ] B8 Parameter panel: a schema-driven panel in the detail view
+
+### Stage 8 (C) — The scene document
+
+- [ ] C1 `lts-scene` schema: one versioned format for a composition, with migrations
+- [ ] C2 Build and emit: document to pixels and to code (TSX, vanilla)
+- [ ] C3 Playground on documents: open, save, share, undo, free transforms
+- [ ] C4 `lumin scene`: validate, render, diff, patch, export for agents
+- [ ] C5 `<lts-scene>` element: poster first, lazy three, reduced-motion aware, no React needed
+- [ ] C6 Credits travel with the scene: emitted code carries its attribution
+
+### Stage 9 (D) — Fidelity
+
+- [ ] D1 One renderer: every viewport on the WebGPU renderer (needs a decision)
+- [ ] D2 Scene tokens v2: looks light the scene; no raw colors in packages (revisit an `accent-text` token here)
+- [ ] D3 Stage quality: shadows, bloom, depth of field, tone mapping per look, with a lite tier
+- [ ] D4 Procedural finishes: brushed, weave, grain, orange peel, frost, with no texture files
+- [ ] D5 ObjectSpec v2: repeat, extrude, sweep, tube, text, per-part shader
+- [ ] D6 Environments: more than one room; credited CC0 HDRIs optional
+- [ ] D7 Motion tracks: animation as data, with a rest pose for reduced motion (needs a decision on scope)
+- [ ] D8 Interface tokens and a design pass: type scale, spacing, elevation, easing; the interface quality tooling is in place (`lumin-ui`, #31) and the catalog passes it (#32)
+- [ ] D9 Generators: isometric icons from the primitives; generated looks
+
+### Stage 10 (E) — Adopt and remix, matured
+
+- [ ] E1 Provenance record: commit, license id, transformations, reviewer (the `origin` field landed in #30)
+- [ ] E2 License gate: a policy table decides what can be adopted and what stays showcase-only
+- [ ] E3 Equivalence rig: a port is scored against its source, side by side
+- [ ] E4 Parameter lifting: ported literals become a reviewed schema bound to the palette
+- [ ] E5 Adoption checklist as a command
+- [ ] E6 Scaffold: start projects from a scene document or a vendored demo
+- [ ] E7 Modify: change a scaffolded project through its scene document
+- [x] E8 Skills: decided (#30, #31): vendored skills are data; their ideas are rewritten in-house (`lumin-ui`)
+- [ ] E9 Upstream drift: compare pins with upstream on demand
+- [ ] E10 Two-way catalog links: source to component and back, with what changed ("In the library" landed in #30)
+
+### Stage 11 (F) — Studio and distribution
+
+- [ ] F1 Release mechanics: changesets, API reports, packs split by license (needs a go-ahead to publish)
+- [ ] F2 Public catalog on HTTPS with share links (needs a decision on hosting)
+- [ ] F3 `lumin add`: copy a component's source, tests and credits into a project
+- [ ] F4 Studio: the playground graduated to an app, over the scene document (needs a decision on which studio)
+- [ ] F5 Token interchange: W3C design tokens and Figma variables in and out
+- [ ] F6 Stills and video: deterministic frames from a scene
+
+### Stage 12 (G) — Proof
+
+- [ ] G1 hedronite.com's hero from a scene document
+- [ ] G2 Three contrasting pages from scaffolds, each in a different look
+- [ ] G3 Device and assistive pass on real phones and a screen reader
+- [ ] G4 Cost comparison against a runtime-embed tool, with published numbers
 
 ---
 
