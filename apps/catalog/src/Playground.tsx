@@ -11,6 +11,7 @@ import { CopyButton } from "./CopyButton";
 import { usePreset } from "./look";
 import { MaterialLineup } from "./MaterialLineup";
 import { Controls, Environment, GpuCounts } from "./scene";
+import { useReducedMotion } from "./motion";
 
 const field = "rounded-lg border border-line bg-surface px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-accent";
 
@@ -102,6 +103,7 @@ export function Playground() {
   // Of the objects, the cluster and the lattice take a material; the spec objects bring their own.
   const takesMaterial = takesShader || object === "crystal-cluster" || object === "instanced-lattice";
   const withShader = takesShader && shader !== undefined ? { shader } : {};
+  const still = useReducedMotion();
   const animated = composition.effects.length > 0 || composition.placements.some((placement) => placement.kind !== "object" && placement.shader !== undefined && effectInfo[placement.shader].animated === true);
 
   const item = ((): Item => {
@@ -255,7 +257,7 @@ export function Playground() {
           <fieldset className="flex flex-col gap-1.5">
             <legend className="mb-1 text-sm font-medium">Screen effects</legend>
             {screenEffectIds.map((id) => (
-              <label key={id} className="flex items-center gap-2 text-sm">
+              <label key={id} className="flex min-h-6 items-center gap-2 text-sm">
                 <input
                   type="checkbox"
                   className="accent-accent"
@@ -317,14 +319,14 @@ export function Playground() {
           >
             {/* Screen effects and some shaders animate, so the scene renders every frame while any are on. */}
             {/* The WebGPU renderer (WebGL 2 where WebGPU is missing) runs surface shaders and screen effects together. */}
-            <WebGPUCanvas frameloop={animated ? "always" : "demand"} dpr={[1, 2]} camera={{ position: [0, 2.2, 5.5], fov: 40 }}>
+            <WebGPUCanvas frameloop={animated && !still ? "always" : "demand"} dpr={[1, 2]} camera={{ position: [0, 2.2, 5.5], fov: 40 }}>
               <Environment />
               <StudioLights intensity={composition.lightIntensity} />
               <Controls />
               {composition.placements.map((placement, i) => (
                 <Placed key={placement.key} placement={placement} position={positions[i] ?? [0, 0, 0]} palette={preset.scene} />
               ))}
-              {effects.length === 0 ? null : <ScreenEffectsPass effects={effects} palette={preset.scene} {...(monochrome === undefined ? {} : { monochrome })} />}
+              {effects.length === 0 ? null : <ScreenEffectsPass effects={effects} palette={preset.scene} reducedMotion={still} {...(monochrome === undefined ? {} : { monochrome })} />}
               <GpuCounts target={host} />
             </WebGPUCanvas>
           </div>

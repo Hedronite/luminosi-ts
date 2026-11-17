@@ -11,7 +11,8 @@ const kinds: readonly VendorKind[] = ["icons", "components", "demos", "engines",
 
 const button =
   "inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-sm hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
-const linkButton = `${button} text-accent`;
+// Links read in the text color, marked by an accent underline or icon: accent text falls short of 4.5:1 in some looks.
+const linkButton = `${button} text-fg`;
 
 interface Place {
   readonly set?: string;
@@ -154,7 +155,7 @@ function Folder({ entry, go, onBrowsePack, onOpenAsset }: { readonly entry: Vend
         <dd>{entry.license.replace(/`/g, "")}</dd>
         <dt className="text-fg-muted">Source</dt>
         <dd className="min-w-0 break-words">
-          <a href={entry.sourceUrl} className="text-accent underline underline-offset-2" rel="noreferrer">
+          <a href={entry.sourceUrl} className="text-fg underline decoration-accent decoration-2 underline-offset-2" rel="noreferrer">
             {entry.source.replace(/`/g, "")}
           </a>
         </dd>
@@ -222,7 +223,7 @@ function Folder({ entry, go, onBrowsePack, onOpenAsset }: { readonly entry: Vend
                   onClick={(event) => {
                     onOpenAsset(meta, event.currentTarget);
                   }}
-                  className="self-start font-medium text-accent underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-accent"
+                  className="self-start font-medium text-fg underline decoration-accent decoration-2 underline-offset-2 focus-visible:outline-2 focus-visible:outline-accent"
                 >
                   {meta.name} <span className="font-normal text-fg-muted">({meta.kind})</span>
                 </button>
@@ -256,8 +257,8 @@ function ItemCard({ entry, item, go }: { readonly entry: VendorEntry; readonly i
   return (
     <li className="flex flex-col gap-2 rounded-xl border border-line p-4">
       <span className="font-medium">{item.name}</span>
-      {ported.length === 0 ? null : <span className="text-xs text-accent">In the library: {ported.map((meta) => meta.name).join(", ")}</span>}
-      <span className="line-clamp-4 text-sm text-fg-muted">{item.description}</span>
+      {ported.length === 0 ? null : <span className="text-xs text-fg-muted">In the library: {ported.map((meta) => meta.name).join(", ")}</span>}
+      <span className="line-clamp-4 text-sm text-fg-muted" title={item.description}>{item.description}</span>
       <div className="mt-auto flex flex-wrap gap-2 pt-1">
         {first === undefined ? null : (
           <button

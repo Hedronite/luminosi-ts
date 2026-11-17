@@ -78,14 +78,14 @@ export function EffectSwatch({ id, size }: { readonly id: EffectId; readonly siz
           ),
         };
       case "soap-film":
-        // A thin-film rainbow, pale at the middle and brightest toward the rim.
+        // A thin film, pale at the middle and brightest toward the rim, in the look's own colors.
         return {
           defs: (
             <radialGradient id={paint} cx="0.45" cy="0.42" r="0.6">
               <stop offset="0.3" stopColor={scene.glass} stopOpacity={0.12} />
-              <stop offset="0.62" stopColor="#f2b8d8" stopOpacity={0.45} />
-              <stop offset="0.78" stopColor="#a8e0d0" stopOpacity={0.55} />
-              <stop offset="0.92" stopColor="#c8c0f4" stopOpacity={0.7} />
+              <stop offset="0.62" stopColor={scene.accent} stopOpacity={0.35} />
+              <stop offset="0.78" stopColor={scene.emissive} stopOpacity={0.45} />
+              <stop offset="0.92" stopColor={scene.metal} stopOpacity={0.6} />
               <stop offset="1" stopColor={scene.glass} stopOpacity={0.9} />
             </radialGradient>
           ),

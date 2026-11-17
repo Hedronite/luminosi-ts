@@ -23,7 +23,8 @@ import { z } from "zod";
  * | scene.emissive  | blue                           | blue                           |
  *
  * Every look must pass WCAG 2.2: 4.5:1 for fg and fgMuted on both surfaces and for onAccent on
- * the accent, 3:1 for the accent on the surface. Where a theme's own color falls short, the
+ * the accent, 3:1 for the accent on both surfaces (it marks controls and draws focus rings on raised
+ * panels too). Where a theme's own color falls short, the
  * converter moves it the least it can toward where it needs to go (fgMuted toward fg; fg and the
  * accent toward white on a dark theme, black on a light one), in 5% steps, and records the change.
  * Nothing is changed silently.
@@ -82,7 +83,6 @@ export function mix(from: Hex, to: Hex, t: number): Hex {
   return `#${channel(0)}${channel(1)}${channel(2)}`;
 }
 
-const ratio = (a: Hex, b: Hex): string => `${contrastRatio(a, b).toFixed(2)}:1`;
 /** The lowest contrast `color` has on any of `backgrounds`, for the notes. */
 const worst = (color: Hex, backgrounds: readonly Hex[]): string => `${Math.min(...backgrounds.map((bg) => contrastRatio(color, bg))).toFixed(2)}:1 at worst`;
 const STEPS = Array.from({ length: 21 }, (_, i) => i / 20);
@@ -147,10 +147,10 @@ export function convertOmarchy(input: unknown, meta: LookMeta): Conversion {
   for (const t of STEPS) {
     const candidate = mix(colors.accent, extreme, t);
     const text = onAccentFor(candidate);
-    if (contrastRatio(candidate, surface) >= UI && text !== undefined) {
+    if (surfaces.every((bg) => contrastRatio(candidate, bg) >= UI) && text !== undefined) {
       accent = candidate;
       onAccent = text;
-      if (t > 0) adjustments.push(`accent: ${colors.accent} (${ratio(colors.accent, surface)} on the surface) moved ${String(Math.round(t * 100))}% toward ${extreme} → ${candidate}`);
+      if (t > 0) adjustments.push(`accent: ${colors.accent} (${worst(colors.accent, surfaces)} on the surfaces) moved ${String(Math.round(t * 100))}% toward ${extreme} → ${candidate}`);
       break;
     }
   }

@@ -126,7 +126,7 @@ export function Effects({ shaders }: { readonly shaders: readonly AssetMeta[] })
           <fieldset className="flex flex-col gap-1.5">
             <legend className="mb-1 text-sm font-medium">Screen effects</legend>
             {screenEffectIds.map((id) => (
-              <label key={id} className="flex items-center gap-2 text-sm">
+              <label key={id} className="flex min-h-6 items-center gap-2 text-sm">
                 <input
                   type="checkbox"
                   className="accent-accent"

@@ -12,7 +12,7 @@ interface MarkdownProps {
   readonly onPage?: (path: string) => void;
 }
 
-const link = "text-accent underline underline-offset-2";
+const link = "text-fg underline decoration-accent decoration-2 underline-offset-2";
 
 /**
  * Someone else's Markdown, rendered as React elements. Raw HTML in it is skipped, never injected, and
