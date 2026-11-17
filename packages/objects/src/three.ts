@@ -1,4 +1,5 @@
-import { bipyramid, createPolyhedronGeometry, platonic, type Vec3 } from "@hedronite/lts-primitives";
+import { bipyramid, platonic, type Vec3 } from "@hedronite/lts-primitives";
+import { createPolyhedronGeometry } from "@hedronite/lts-primitives/three";
 import { Group, InstancedMesh, Matrix4, Mesh, Quaternion, Vector3, type BufferGeometry, type Material, type Object3D } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
@@ -65,3 +66,6 @@ export async function loadGltf(source: string | ArrayBuffer, { signal }: GltfOpt
   const gltf = await loader.parseAsync(bytes, "");
   return gltf.scene;
 }
+
+export { createFramedSolid, type FramedSolidOptions } from "./framed.js";
+export { createObjectFromSpec, type ObjectFromSpecOptions } from "./fromSpec.js";

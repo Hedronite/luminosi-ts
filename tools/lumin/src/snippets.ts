@@ -25,7 +25,7 @@ export function snippetsFor(meta: AssetMeta, icon: IconData | undefined): readon
     return [
       {
         label: "TypeScript",
-        code: `import { createPolyhedronGeometry, primitive } from "@hedronite/lts-primitives";\nimport { Mesh, MeshStandardMaterial } from "three";\n\nconst geometry = createPolyhedronGeometry(primitive("${meta.id}"));\nconst mesh = new Mesh(geometry, new MeshStandardMaterial());\n// Later: geometry.dispose();`,
+        code: `import { primitive } from "@hedronite/lts-primitives";\nimport { createPolyhedronGeometry } from "@hedronite/lts-primitives/three";\nimport { Mesh, MeshStandardMaterial } from "three";\n\nconst geometry = createPolyhedronGeometry(primitive("${meta.id}"));\nconst mesh = new Mesh(geometry, new MeshStandardMaterial());\n// Later: geometry.dispose();`,
       },
     ];
   }
@@ -33,7 +33,7 @@ export function snippetsFor(meta: AssetMeta, icon: IconData | undefined): readon
     return [
       {
         label: "TypeScript",
-        code: `import { createMaterial } from "@hedronite/lts-materials";\nimport { createCrystalCluster, crystalCluster } from "@hedronite/lts-objects";\nimport { disposeObject } from "@hedronite/lts-primitives";\n\n// Same seed, same cluster.\nconst cluster = createCrystalCluster(crystalCluster({ count: 14, spread: 0.7, seed: 11 }), createMaterial("satin"));\n// Later: disposeObject(cluster);`,
+        code: `import { createMaterial } from "@hedronite/lts-materials/three";\nimport { crystalCluster } from "@hedronite/lts-objects";\nimport { createCrystalCluster } from "@hedronite/lts-objects/three";\nimport { disposeObject } from "@hedronite/lts-primitives/three";\n\n// Same seed, same cluster.\nconst cluster = createCrystalCluster(crystalCluster({ count: 14, spread: 0.7, seed: 11 }), createMaterial("satin"));\n// Later: disposeObject(cluster);`,
       },
     ];
   }
@@ -41,7 +41,7 @@ export function snippetsFor(meta: AssetMeta, icon: IconData | undefined): readon
     return [
       {
         label: "TypeScript",
-        code: `import { createMaterial } from "@hedronite/lts-materials";\nimport { createFramedSolid } from "@hedronite/lts-objects";\nimport { archimedean, disposeObject } from "@hedronite/lts-primitives";\nimport { hedronite } from "@hedronite/lts-tokens";\n\n// Glass faces, copper edges and glass beads: three draw calls for any solid.\nconst palette = hedronite.scene;\nconst solid = createFramedSolid(archimedean("truncated-icosahedron"), {\n  faces: createMaterial("glass", palette),\n  edges: createMaterial("metal", { ...palette, metal: palette.accent }),\n});\n// Later: disposeObject(solid);`,
+        code: `import { createMaterial } from "@hedronite/lts-materials/three";\nimport { createFramedSolid } from "@hedronite/lts-objects/three";\nimport { archimedean } from "@hedronite/lts-primitives";\nimport { disposeObject } from "@hedronite/lts-primitives/three";\nimport { hedronite } from "@hedronite/lts-tokens";\n\n// Glass faces, copper edges and glass beads: three draw calls for any solid.\nconst palette = hedronite.scene;\nconst solid = createFramedSolid(archimedean("truncated-icosahedron"), {\n  faces: createMaterial("glass", palette),\n  edges: createMaterial("metal", { ...palette, metal: palette.accent }),\n});\n// Later: disposeObject(solid);`,
       },
     ];
   }
@@ -49,7 +49,7 @@ export function snippetsFor(meta: AssetMeta, icon: IconData | undefined): readon
     return [
       {
         label: "TypeScript",
-        code: `import { createMaterial } from "@hedronite/lts-materials";\nimport { createLattice, latticePoints } from "@hedronite/lts-objects";\n\n// 216 octahedra, one draw call.\nconst lattice = createLattice(latticePoints({ size: 6, spacing: 0.28 }), createMaterial("metal"), { scale: 0.06 });`,
+        code: `import { createMaterial } from "@hedronite/lts-materials/three";\nimport { latticePoints } from "@hedronite/lts-objects";\nimport { createLattice } from "@hedronite/lts-objects/three";\n\n// 216 octahedra, one draw call.\nconst lattice = createLattice(latticePoints({ size: 6, spacing: 0.28 }), createMaterial("metal"), { scale: 0.06 });`,
       },
     ];
   }
@@ -57,7 +57,7 @@ export function snippetsFor(meta: AssetMeta, icon: IconData | undefined): readon
     return [
       {
         label: "TypeScript",
-        code: `import { loadGltf } from "@hedronite/lts-objects";\n\n// Built by tools/assets: one draw call, meshopt-compressed, decoded by three's bundled decoder.\nconst scene = await loadGltf("/models/crystal-cluster-glb.glb");`,
+        code: `import { loadGltf } from "@hedronite/lts-objects/three";\n\n// Built by tools/assets: one draw call, meshopt-compressed, decoded by three's bundled decoder.\nconst scene = await loadGltf("/models/crystal-cluster-glb.glb");`,
       },
     ];
   }
@@ -65,7 +65,7 @@ export function snippetsFor(meta: AssetMeta, icon: IconData | undefined): readon
     return [
       {
         label: "TypeScript",
-        code: `import { createObjectFromSpec, objectSpecById } from "@hedronite/lts-objects";\nimport { disposeObject } from "@hedronite/lts-primitives";\n\n// Stored as data in assets/src/objects; the palette picks the colors.\nconst spec = objectSpecById("${meta.id}");\nif (spec !== undefined) {\n  const object = createObjectFromSpec(spec);\n  // Later: disposeObject(object);\n}`,
+        code: `import { objectSpecById } from "@hedronite/lts-objects";\nimport { createObjectFromSpec } from "@hedronite/lts-objects/three";\nimport { disposeObject } from "@hedronite/lts-primitives/three";\n\n// Stored as data in assets/src/objects; the palette picks the colors.\nconst spec = objectSpecById("${meta.id}");\nif (spec !== undefined) {\n  const object = createObjectFromSpec(spec);\n  // Later: disposeObject(object);\n}`,
       },
     ];
   }
@@ -73,7 +73,7 @@ export function snippetsFor(meta: AssetMeta, icon: IconData | undefined): readon
     return [
       {
         label: "TypeScript",
-        code: `import { createObjectFromSpec, dressWatchSpec } from "@hedronite/lts-objects";\nimport { hedronite } from "@hedronite/lts-tokens";\n\n// The spec is plain JSON: store it, diff it, review it. The palette picks the metal and strap.\nconst spec = dressWatchSpec({ hours: 10, minutes: 9, seconds: 36 });\nconst watch = createObjectFromSpec(spec, { palette: hedronite.scene });\n// Later: disposeObject(watch) from @hedronite/lts-primitives.`,
+        code: `import { dressWatchSpec } from "@hedronite/lts-objects";\nimport { createObjectFromSpec } from "@hedronite/lts-objects/three";\nimport { hedronite } from "@hedronite/lts-tokens";\n\n// The spec is plain JSON: store it, diff it, review it. The palette picks the metal and strap.\nconst spec = dressWatchSpec({ hours: 10, minutes: 9, seconds: 36 });\nconst watch = createObjectFromSpec(spec, { palette: hedronite.scene });\n// Later: disposeObject(watch) from @hedronite/lts-primitives.`,
       },
     ];
   }
@@ -82,7 +82,7 @@ export function snippetsFor(meta: AssetMeta, icon: IconData | undefined): readon
     return [
       {
         label: "TypeScript",
-        code: `import { disposeObject } from "@hedronite/lts-primitives";\nimport { createSceneKit } from "@hedronite/lts-scenes";\n\n// Lights and shapes in one group; use it instead of other lights.\nconst kit = createSceneKit("${kit}");\nscene.add(kit);\n// Later: disposeObject(kit);`,
+        code: `import { disposeObject } from "@hedronite/lts-primitives/three";\nimport { createSceneKit } from "@hedronite/lts-scenes/three";\n\n// Lights and shapes in one group; use it instead of other lights.\nconst kit = createSceneKit("${kit}");\nscene.add(kit);\n// Later: disposeObject(kit);`,
       },
     ];
   }
@@ -90,7 +90,7 @@ export function snippetsFor(meta: AssetMeta, icon: IconData | undefined): readon
     return [
       {
         label: "TypeScript",
-        code: `import { ScreenEffects } from "@hedronite/lts-postfx";\nimport { hedronite } from "@hedronite/lts-tokens";\nimport { WebGPURenderer } from "three/webgpu";\n\nconst renderer = new WebGPURenderer({ antialias: true, alpha: true });\nawait renderer.init();\n// Inks from the look: lapis and copper with the Hedronite preset.\nconst effects = new ScreenEffects(renderer, scene, camera, [{ id: "${meta.id}" }], { palette: hedronite.scene });\n// Each frame, instead of renderer.render(scene, camera):\neffects.render(delta);\n// Later: effects.dispose();`,
+        code: `import { ScreenEffects } from "@hedronite/lts-postfx/three";\nimport { hedronite } from "@hedronite/lts-tokens";\nimport { WebGPURenderer } from "three/webgpu";\n\nconst renderer = new WebGPURenderer({ antialias: true, alpha: true });\nawait renderer.init();\n// Inks from the look: lapis and copper with the Hedronite preset.\nconst effects = new ScreenEffects(renderer, scene, camera, [{ id: "${meta.id}" }], { palette: hedronite.scene });\n// Each frame, instead of renderer.render(scene, camera):\neffects.render(delta);\n// Later: effects.dispose();`,
       },
       {
         label: "React",
@@ -102,7 +102,7 @@ export function snippetsFor(meta: AssetMeta, icon: IconData | undefined): readon
     return [
       {
         label: "TypeScript",
-        code: `import { createEffectMaterial } from "@hedronite/lts-shaders";\nimport { WebGPURenderer } from "three/webgpu";\n\n// TSL materials need WebGPURenderer; it falls back to WebGL 2 where WebGPU is missing.\nconst renderer = new WebGPURenderer({ antialias: true });\nawait renderer.init();\nconst material = createEffectMaterial("${meta.id}");`,
+        code: `import { createEffectMaterial } from "@hedronite/lts-shaders/three";\nimport { WebGPURenderer } from "three/webgpu";\n\n// TSL materials need WebGPURenderer; it falls back to WebGL 2 where WebGPU is missing.\nconst renderer = new WebGPURenderer({ antialias: true });\nawait renderer.init();\nconst material = createEffectMaterial("${meta.id}");`,
       },
     ];
   }
@@ -110,7 +110,7 @@ export function snippetsFor(meta: AssetMeta, icon: IconData | undefined): readon
     return [
       {
         label: "TypeScript",
-        code: `import { createMaterial } from "@hedronite/lts-materials";\nimport { hedronite } from "@hedronite/lts-tokens";\n\nconst material = createMaterial("${meta.id}"); // neutral colors\nconst branded = createMaterial("${meta.id}", hedronite.scene);\n// Later: material.dispose();`,
+        code: `import { createMaterial } from "@hedronite/lts-materials/three";\nimport { hedronite } from "@hedronite/lts-tokens";\n\nconst material = createMaterial("${meta.id}"); // neutral colors\nconst branded = createMaterial("${meta.id}", hedronite.scene);\n// Later: material.dispose();`,
       },
     ];
   }

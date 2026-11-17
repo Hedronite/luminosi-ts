@@ -1,5 +1,5 @@
 import type { AssetMeta } from "@hedronite/lts-core";
-import { createStudioLights, disposeObject } from "@hedronite/lts-primitives";
+import { createStudioLights, disposeObject } from "@hedronite/lts-primitives/three";
 import type { ScenePalette } from "@hedronite/lts-tokens";
 import { Canvas, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";

@@ -1,5 +1,6 @@
-import { createMaterial } from "@hedronite/lts-materials";
-import { createPolyhedronGeometry, primitive } from "@hedronite/lts-primitives";
+import { createMaterial } from "@hedronite/lts-materials/three";
+import { primitive } from "@hedronite/lts-primitives";
+import { createPolyhedronGeometry } from "@hedronite/lts-primitives/three";
 import { neutral, type ScenePalette } from "@hedronite/lts-tokens";
 import { AmbientLight, Color, DirectionalLight, Group, HemisphereLight, Mesh, type Light } from "three";
 import { sceneKit, type LightSpec, type SceneKitId } from "./kits.js";

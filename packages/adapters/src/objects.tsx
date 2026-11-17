@@ -1,7 +1,11 @@
-import { createMaterial, materialPreset, type MaterialId } from "@hedronite/lts-materials";
-import { createEffectMaterial, type EffectId } from "@hedronite/lts-shaders";
-import { createFramedSolid, createObjectFromSpec, dressWatchSpec, objectSpecById, type WatchTime } from "@hedronite/lts-objects";
-import { disposeObject, primitive, type PrimitiveId } from "@hedronite/lts-primitives";
+import { materialPreset, type MaterialId } from "@hedronite/lts-materials";
+import { createMaterial } from "@hedronite/lts-materials/three";
+import { type EffectId } from "@hedronite/lts-shaders";
+import { createEffectMaterial } from "@hedronite/lts-shaders/three";
+import { dressWatchSpec, objectSpecById, type WatchTime } from "@hedronite/lts-objects";
+import { createFramedSolid, createObjectFromSpec } from "@hedronite/lts-objects/three";
+import { primitive, type PrimitiveId } from "@hedronite/lts-primitives";
+import { disposeObject } from "@hedronite/lts-primitives/three";
 import { neutral, type ScenePalette } from "@hedronite/lts-tokens";
 import type { ThreeElements } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";

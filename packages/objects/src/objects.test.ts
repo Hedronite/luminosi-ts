@@ -1,6 +1,6 @@
 import { Document, WebIO } from "@gltf-transform/core";
 import { EXTMeshoptCompression } from "@gltf-transform/extensions";
-import { disposeObject } from "@hedronite/lts-primitives";
+import { disposeObject } from "@hedronite/lts-primitives/three";
 import fc from "fast-check";
 import { MeshoptEncoder } from "meshoptimizer";
 import { InstancedMesh, Mesh, MeshStandardMaterial, type Object3D } from "three";

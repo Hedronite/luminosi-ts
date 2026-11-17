@@ -1,4 +1,5 @@
-import { createPolyhedronGeometry, edges, type Polyhedron } from "@hedronite/lts-primitives";
+import { edges, type Polyhedron } from "@hedronite/lts-primitives";
+import { createPolyhedronGeometry } from "@hedronite/lts-primitives/three";
 import { CylinderGeometry, Group, IcosahedronGeometry, InstancedMesh, Matrix4, Mesh, Quaternion, Vector3, type Material } from "three";
 
 export interface FramedSolidOptions {

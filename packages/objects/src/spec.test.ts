@@ -1,4 +1,4 @@
-import { disposeObject } from "@hedronite/lts-primitives";
+import { disposeObject } from "@hedronite/lts-primitives/three";
 import { hedronite, neutral } from "@hedronite/lts-tokens";
 import fc from "fast-check";
 import { Box3, Mesh, MeshPhysicalMaterial, Vector3, type BufferGeometry, type Material, type Object3D } from "three";
