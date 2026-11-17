@@ -25,6 +25,30 @@ export function parseCredit(markdown: string, where: string): Credit {
   return { what: get("what"), source: get("source"), license: get("license"), credit: get("credit"), pulled: get("pulled") };
 }
 
+/** What a source line pins a folder to: an upstream commit, or a release version with the hash of the folder as vendored. */
+export type Pin = { readonly kind: "commit"; readonly commit: string } | { readonly kind: "archive"; readonly version: string; readonly sha256: string };
+
+/** A commit is written in backticks as 8 to 40 hex digits: `4df8e67a`. */
+const commitPin = /`([0-9a-f]{8,40})`/g;
+/** A release version, then the folder's hash in backticks: `v2.1, `sha256:` and 64 hex digits`. See assets/vendor/README.md. */
+const archivePin = /\bv?(\d+(?:\.\d+)+)\b[^`\n]*`sha256:([0-9a-f]{64})`/g;
+
+/** Every pin on a source line. A branch name, a bare tag, "latest" or a short hash is not a pin. */
+export function sourcePins(source: string): readonly Pin[] {
+  const commits = [...source.matchAll(commitPin)].map((m): Pin => ({ kind: "commit", commit: m[1] ?? "" }));
+  const archives = [...source.matchAll(archivePin)].map((m): Pin => ({ kind: "archive", version: m[1] ?? "", sha256: m[2] ?? "" }));
+  return [...commits, ...archives];
+}
+
+/** The pins on a source line; throws, naming where, when there is none. */
+export function requirePin(source: string, where: string): readonly Pin[] {
+  const pins = sourcePins(source);
+  if (pins.length === 0) {
+    throw new Error(`${where}: the source line has no pin: give the upstream commit in backticks (8 to 40 hex digits), or a release version and the folder's backticked sha256:<64 hex> hash`);
+  }
+  return pins;
+}
+
 /** The first URL in a string (a credit's source line may add a version or commit after it). */
 export function firstUrl(text: string): string | undefined {
   return /https?:\/\/[^\s)`'"]+/.exec(text)?.[0];

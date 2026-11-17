@@ -1,10 +1,12 @@
 // The vendor tool: assets/vendor → the catalog's Open source view.
 //   bun run vendor          regenerate apps/catalog/src/generated/vendor.ts and the preview images it names
 //   bun run vendor:check    fail if either is stale
-// Every folder under assets/vendor must be listed in `folders` below, with its CREDIT.md.
+// Every folder under assets/vendor must be listed in `folders` below, with its CREDIT.md, and the CREDIT.md source line must pin it:
+// an upstream commit, or a release version with the sha256 of the folder as vendored (checked here).
+import { createHash } from "node:crypto";
 import { copyFile, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { basename, join, relative, resolve } from "node:path";
-import { firstUrl, humanize, parseCredit, parseDemoReadme, parseFrontMatter } from "./parse.js";
+import { firstUrl, humanize, parseCredit, parseDemoReadme, parseFrontMatter, requirePin } from "./parse.js";
 
 const root = resolve(import.meta.dirname, "../../..");
 const vendorDir = join(root, "assets/vendor");
@@ -145,6 +147,13 @@ async function readmeOf(folderDir: string): Promise<Page | undefined> {
   return name === undefined ? undefined : page(folderDir, join(folderDir, name));
 }
 
+/** The sha256 of a folder as vendored: of its files' `sha256  path` lines, sorted by path, CREDIT.md and .DS_Store left out. */
+async function folderDigest(dir: string): Promise<string> {
+  const paths = (await walk(dir)).map((file) => relative(dir, file).split("\\").join("/")).filter((path) => path !== "CREDIT.md" && basename(path) !== ".DS_Store").sort();
+  const lines = await Promise.all(paths.map(async (path) => `${createHash("sha256").update(await readFile(join(dir, path))).digest("hex")}  ${path}\n`));
+  return createHash("sha256").update(lines.join("")).digest("hex");
+}
+
 async function entries() {
   const present = (await readdir(vendorDir, { withFileTypes: true })).filter((e) => e.isDirectory()).map((e) => e.name).sort();
   const unlisted = present.filter((id) => folders[id] === undefined);
@@ -157,7 +166,15 @@ async function entries() {
       const folder = folders[id];
       if (folder === undefined) throw new Error(`assets/vendor/${id}: not listed`);
       const dir = join(vendorDir, id);
-      const credit = parseCredit(await readFile(join(dir, "CREDIT.md"), "utf8"), `assets/vendor/${id}/CREDIT.md`);
+      const where = `assets/vendor/${id}/CREDIT.md`;
+      const credit = parseCredit(await readFile(join(dir, "CREDIT.md"), "utf8"), where);
+      const archives = requirePin(credit.source, where).flatMap((pin) => (pin.kind === "archive" ? [pin] : []));
+      if (archives.length > 0) {
+        const actual = await folderDigest(dir);
+        for (const pin of archives) {
+          if (actual !== pin.sha256) throw new Error(`${where}: the folder's sha256 is ${actual}, not the pinned ${pin.sha256}: re-pin after a deliberate change`);
+        }
+      }
       const sourceUrl = firstUrl(credit.source);
       if (sourceUrl === undefined) throw new Error(`assets/vendor/${id}/CREDIT.md: the source line has no URL`);
       const files = await walk(dir);
