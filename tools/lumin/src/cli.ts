@@ -2,11 +2,12 @@
 //   bun tools/lumin/src/cli.ts <command> [args] [--flag=value]
 // The lumin skills (.agents/skills/lumin*) wrap this with Nushell. See SKILL.md there.
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { boundaries, budgets, check, iconPacks, kinds, list, newIcon, packages, root, search, show } from "./commands.js";
 import { fail, type Envelope } from "./envelope.js";
 
-const usage = "commands: kinds | list [--kind --package --tag --limit --newest] | search QUERY [--kind --limit] | show ID | packages | icon-packs | budgets | boundaries [--package] | check [--only a,b --keep-going] | new-icon ID --name N --tags a,b (--svg FILE | --stdin) [--dry-run] | new-object ID (--from-image IMG | --from-workspace DIR) [--name N --tags a,b --dry-run] | review-object --spec FILE --reference IMG [--out DIR --look L --yaw D --pitch D]";
+const usage = "commands: kinds | list [--kind --package --tag --limit --newest] | search QUERY [--kind --limit] | show ID | packages | icon-packs | budgets | boundaries [--package] | check [--only a,b --keep-going] | new-icon ID --name N --tags a,b (--svg FILE | --stdin) [--dry-run] | new-object ID (--from-image IMG | --from-workspace DIR) [--name N --tags a,b --dry-run] | review-object --spec FILE --reference IMG [--out DIR --look L --yaw D --pitch D] | study VENDOR[/PATH] [--limit] | adopt VENDOR/PATH --as KIND --id ID [--name N --dry-run] | adopt-skill VENDOR/SKILL-DIR [--dry-run --force]";
 
 async function readStdin(): Promise<string> {
   const chunks: Buffer[] = [];
@@ -42,6 +43,9 @@ async function run(argv: readonly string[]): Promise<Envelope> {
         look: { type: "string" },
         yaw: { type: "string" },
         pitch: { type: "string" },
+        as: { type: "string" },
+        id: { type: "string" },
+        force: { type: "boolean" },
       },
     });
   } catch (error: unknown) {
@@ -123,6 +127,22 @@ async function run(argv: readonly string[]): Promise<Envelope> {
           ...(pitch === undefined ? {} : { pitch }),
         },
         { root },
+      );
+    }
+    case "study":
+    case "adopt":
+    case "adopt-skill": {
+      const target = positionals[0];
+      if (target === undefined) return fail(command, "usage", `${command} needs a vendored path, such as threeui/src/shaders/crt`);
+      const { adopt, adoptSkill, study } = await import("./adopt.js");
+      const vendorDir = join(root, "assets/vendor");
+      if (command === "adopt-skill") return adoptSkill(target, { dryRun: values["dry-run"] === true, force: values.force === true }, { root, vendorDir });
+      if (command === "study") return study(target, limit === undefined ? {} : { limit }, { vendorDir });
+      const { loadRegistry } = await import("./registry.js");
+      return adopt(
+        target,
+        { ...(values.as === undefined ? {} : { as: values.as }), ...(values.id === undefined ? {} : { id: values.id }), ...(values.name === undefined ? {} : { name: values.name }), dryRun: values["dry-run"] === true },
+        { root, vendorDir, registry: loadRegistry() },
       );
     }
     default:

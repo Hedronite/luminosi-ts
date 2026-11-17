@@ -4,6 +4,9 @@
   "private": true,
   "license": "MIT OR Apache-2.0",
   "type": "module",
+  "exports": {
+    "./parse": "./src/parse.ts"
+  },
   "scripts": {
     "generate": "bun src/vendor.ts generate",
     "check": "bun src/vendor.ts check",

@@ -8,7 +8,8 @@
   "exports": {
     "./registry": "./src/registry.ts",
     "./search": "./src/search.ts",
-    "./snippets": "./src/snippets.ts"
+    "./snippets": "./src/snippets.ts",
+    "./study": "./src/study.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -23,7 +24,9 @@
     "@hedronite/lts-primitives": "workspace:*",
     "@hedronite/lts-scenes": "workspace:*",
     "@hedronite/lts-shaders": "workspace:*",
-    "img-to-object": "workspace:*"
+    "img-to-object": "workspace:*",
+    "tool-vendor": "workspace:*",
+    "typescript": "6.0.3"
   },
   "devDependencies": {
     "vitest": "catalog:"

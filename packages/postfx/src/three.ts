@@ -3,7 +3,7 @@ import { convertToTexture, pass } from "three/tsl";
 import { CanvasTexture, DataTexture, LinearFilter, MathUtils, RedFormat, RenderPipeline, Vector2, type Camera, type Node, type Scene, type Texture, type TextureNode, type WebGPURenderer } from "three/webgpu";
 import { orderStack, screenEffectSchemas, type ScreenEffectConfig, type ScreenEffectId } from "./effects.js";
 import { inksFor, type InkOptions } from "./inks.js";
-import { floatUniform, grainNode, printNode, smokeNode, vec2Uniform, type PrintUniforms } from "./nodes.js";
+import { crtNode, floatUniform, grainNode, printNode, smokeNode, vec2Uniform, type FloatUniform, type PrintUniforms } from "./nodes.js";
 import { printSettings } from "./settings.js";
 
 export interface ScreenEffectsOptions extends InkOptions {
@@ -59,7 +59,7 @@ interface PrintState {
  * Renders a scene through a stack of screen effects on three's WebGPURenderer (WebGPU, or WebGL 2
  * where WebGPU is missing), so surface shaders and screen effects share one renderer. Call
  * `render(delta)` instead of `renderer.render`, `setPointer` for the lens, and `dispose` when done. The
- * stack runs in canonical order: smoke behind, prints, grain on top.
+ * stack runs in canonical order: smoke behind, prints, the CRT tube, grain on top.
  */
 export class ScreenEffects {
   readonly pipeline: RenderPipeline;
@@ -71,6 +71,8 @@ export class ScreenEffects {
   private readonly smokeTime = floatUniform(0);
   private readonly textures: readonly Texture[];
   private readonly smokeSpeed: number;
+  /** Pixel ratios the CRT passes size their lines by. */
+  private readonly dprs: readonly FloatUniform[];
   private pointer: ScreenPointer = null;
 
   constructor(renderer: WebGPURenderer, scene: Scene, camera: Camera, stack: readonly ScreenEffectConfig[], options: ScreenEffectsOptions = {}) {
@@ -84,6 +86,7 @@ export class ScreenEffects {
 
     const prints: PrintState[] = [];
     const textures: Texture[] = [];
+    const dprs: FloatUniform[] = [];
     const scenePass = pass(scene, camera);
     // Each effect reads the one before as a texture, since prints sample their input at cell centres.
     let input: TextureNode = scenePass.getTextureNode();
@@ -94,6 +97,11 @@ export class ScreenEffects {
         output = smokeNode(input, this.smokeTime, inks, screenEffectSchemas.smoke.parse(effect.params ?? {}).intensity);
       } else if (effect.id === "grain") {
         output = grainNode(input, this.time, screenEffectSchemas.grain.parse(effect.params ?? {}).amount);
+      } else if (effect.id === "crt") {
+        const p = screenEffectSchemas.crt.parse(effect.params ?? {});
+        const dpr = floatUniform(renderer.getPixelRatio());
+        dprs.push(dpr);
+        output = crtNode(input, this.time, dpr, inks, reduced ? { ...p, motion: 0 } : p);
       } else {
         const settings = printSettings(effect, reduced);
         const v = settings.values;
@@ -129,6 +137,7 @@ export class ScreenEffects {
     }
     this.prints = prints;
     this.textures = textures;
+    this.dprs = dprs;
     this.pipeline = new RenderPipeline(renderer, output);
   }
 
@@ -140,6 +149,7 @@ export class ScreenEffects {
   setSize(): void {
     const dpr = this.renderer.getPixelRatio();
     for (const state of this.prints) state.uniforms.dpr.value = dpr;
+    for (const uniform of this.dprs) uniform.value = dpr;
   }
 
   /** Advances the clocks by `delta` seconds and renders one frame. */

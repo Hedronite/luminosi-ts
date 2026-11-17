@@ -49,6 +49,15 @@ export function ScreenSwatch({ id, size }: { readonly id: ScreenEffectId; readon
             <circle cx="1.15" cy="0.9" r="0.5" fill="none" stroke={inks.rule} strokeWidth={0.05} />
           </>
         );
+      case "crt":
+        return (
+          <>
+            <rect x="0.2" y="0.3" width="1.6" height="1.4" rx="0.3" fill={inks.cool[0]} fillOpacity={0.7} />
+            {Array.from({ length: 7 }, (_, i) => (
+              <line key={i} x1="0.3" x2="1.7" y1={0.45 + i * 0.18} y2={0.45 + i * 0.18} stroke={inks.cool[2]} strokeOpacity={0.55} strokeWidth={0.05} />
+            ))}
+          </>
+        );
       case "smoke":
         return (
           <>

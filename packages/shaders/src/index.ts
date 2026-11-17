@@ -6,6 +6,7 @@ export {
   createHologramMaterial,
   createPulseMaterial,
   createRefractionMaterial,
+  createSoapFilmMaterial,
   createToonMaterial,
   effectIds,
   effectInfo,

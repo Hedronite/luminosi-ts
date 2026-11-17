@@ -21,4 +21,11 @@ LuminosiTS is MIT OR Apache-2.0. It also carries open-source work by others, eac
 | Interface agent skills (better-ui, better-typography, better-colors, interface-review and more) | `assets/vendor/jakubkrehel-skills/` | https://github.com/jakubkrehel/skills | MIT (`LICENSE`) | Jakub Krehel (jakub.kr, interfaces.dev) |
 | Icon packs generated from the icon sets above (Lucide, Famicons, CoreUI, Stash, isocons) | `packages/icons/src/packs/` | `assets/vendor/` via `tools/icons` | Each pack keeps its source's license (ISC, MIT, CC BY 4.0); see `iconPacks` | As for each source above |
 
+Ported from the vendored work above into the library, each with its `origin` in its manifest and a credit header above its code:
+
+| What | Where in this repo | Ported from | License | Credit |
+|---|---|---|---|---|
+| CRT screen effect (`crt`) | `packages/postfx/src/nodes.ts` (`crtNode`) | `assets/vendor/threeui/src/shaders/crt/crtShaders.ts` | MIT (`assets/vendor/threeui/LICENSE`) | Meng To / ThreeUI |
+| Soap film surface shader (`soap-film`) | `packages/shaders/src/effects.ts` (`createSoapFilmMaterial`) | `assets/vendor/codevember-2026/07/src/Balloon.tsx` | MIT (`assets/vendor/codevember-2026/LICENSE`) | Theo Tillberg |
+
 The looks converted from these palettes (`packages/tokens/src/generated/looks.ts`) carry each scheme's credit in their `credit` field.

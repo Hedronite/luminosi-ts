@@ -1,8 +1,10 @@
+import type { AssetMeta } from "@hedronite/lts-core";
 import { iconPacks } from "@hedronite/lts-icons/packs";
 import { ChevronLeft, ExternalLink } from "@hedronite/lts-icons/react";
 import { useEffect, useState } from "react";
 import { vendored } from "./generated/vendor";
 import { Markdown } from "./Markdown";
+import { registry } from "./registry";
 import { formatBytes, kindTitles, packFromSet, type VendorEntry, type VendorItem, type VendorKind, type VendorPage } from "./vendored";
 
 const kinds: readonly VendorKind[] = ["icons", "components", "demos", "engines", "skills"];
@@ -25,10 +27,16 @@ function initialPlace(): Place {
   return { ...(set === null ? {} : { set }), ...(item === null ? {} : { item }), ...(page === null ? {} : { page }) };
 }
 
+type OpenAsset = (meta: AssetMeta, trigger: HTMLElement) => void;
+
+/** Library assets ported from a vendored folder (or one item in it), by their origin. */
+const adoptedFrom = (vendor: string, item?: string): readonly AssetMeta[] =>
+  registry.list().filter((meta) => meta.origin?.vendor === vendor && (item === undefined || meta.origin.path.startsWith(`${item}/`)));
+
 const packsOf = (entry: VendorEntry) => (entry.packPrefix === undefined ? [] : iconPacks.filter((pack) => packFromSet(pack.id, entry.packPrefix ?? "")));
 
 /** The open-source material vendored into LuminosiTS, with each folder's license and credit. */
-export function OpenSource({ onBrowsePack }: { readonly onBrowsePack: (packId: string) => void }) {
+export function OpenSource({ onBrowsePack, onOpenAsset }: { readonly onBrowsePack: (packId: string) => void; readonly onOpenAsset: OpenAsset }) {
   const [place, setPlace] = useState<Place>(initialPlace);
   const entry = vendored.find((candidate) => candidate.id === place.set);
   const item = entry?.items.find((candidate) => candidate.id === place.item);
@@ -54,7 +62,7 @@ export function OpenSource({ onBrowsePack }: { readonly onBrowsePack: (packId: s
     return <Reader entry={entry} item={item} pages={pages} page={page} go={go} />;
   }
   if (entry !== undefined) {
-    return <Folder entry={entry} go={go} onBrowsePack={onBrowsePack} />;
+    return <Folder entry={entry} go={go} onBrowsePack={onBrowsePack} onOpenAsset={onOpenAsset} />;
   }
 
   return (
@@ -122,8 +130,9 @@ function Back({ label, onClick }: { readonly label: string; readonly onClick: ()
   );
 }
 
-function Folder({ entry, go, onBrowsePack }: { readonly entry: VendorEntry; readonly go: (place: Place) => void; readonly onBrowsePack: (packId: string) => void }) {
+function Folder({ entry, go, onBrowsePack, onOpenAsset }: { readonly entry: VendorEntry; readonly go: (place: Place) => void; readonly onBrowsePack: (packId: string) => void; readonly onOpenAsset: OpenAsset }) {
   const packs = packsOf(entry);
+  const adopted = adoptedFrom(entry.id);
   return (
     <section aria-labelledby="folder-title" className="mt-6">
       <Back
@@ -199,6 +208,32 @@ function Folder({ entry, go, onBrowsePack }: { readonly entry: VendorEntry; read
         </section>
       )}
 
+      {adopted.length === 0 ? null : (
+        <section aria-labelledby="folder-adopted" className="mt-6">
+          <h3 id="folder-adopted" className="font-semibold">
+            In the library
+          </h3>
+          <p className="mt-1 text-sm text-fg-muted">Ported from this folder into LuminosiTS, rewritten to the library's rules and credited here.</p>
+          <ul className="mt-2 grid gap-3 md:grid-cols-2">
+            {adopted.map((meta) => (
+              <li key={meta.id} className="flex flex-col gap-1.5 rounded-xl border border-line p-4">
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    onOpenAsset(meta, event.currentTarget);
+                  }}
+                  className="self-start font-medium text-accent underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-accent"
+                >
+                  {meta.name} <span className="font-normal text-fg-muted">({meta.kind})</span>
+                </button>
+                <span className="break-all font-mono text-xs text-fg-muted">from {meta.origin?.path}</span>
+                {meta.origin?.note === undefined ? null : <span className="text-sm text-fg-muted">{meta.origin.note}</span>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {entry.items.length === 0 ? null : (
         <section aria-labelledby="folder-items" className="mt-6">
           <h3 id="folder-items" className="font-semibold">
@@ -217,9 +252,11 @@ function Folder({ entry, go, onBrowsePack }: { readonly entry: VendorEntry; read
 
 function ItemCard({ entry, item, go }: { readonly entry: VendorEntry; readonly item: VendorItem; readonly go: (place: Place) => void }) {
   const first = item.pages[0];
+  const ported = adoptedFrom(entry.id, item.id);
   return (
     <li className="flex flex-col gap-2 rounded-xl border border-line p-4">
       <span className="font-medium">{item.name}</span>
+      {ported.length === 0 ? null : <span className="text-xs text-accent">In the library: {ported.map((meta) => meta.name).join(", ")}</span>}
       <span className="line-clamp-4 text-sm text-fg-muted">{item.description}</span>
       <div className="mt-auto flex flex-wrap gap-2 pt-1">
         {first === undefined ? null : (

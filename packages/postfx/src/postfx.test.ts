@@ -5,7 +5,7 @@ import { z } from "zod";
 import { orderStack, screenEffectIds, screenEffectInfo, screenEffectSchemas } from "./effects.js";
 import { texture } from "three/tsl";
 import { Texture, Vector2 } from "three/webgpu";
-import { floatUniform as uniform, grainNode, printNode, smokeNode, vec2Uniform, type PrintUniforms } from "./nodes.js";
+import { crtNode, floatUniform as uniform, grainNode, printNode, smokeNode, vec2Uniform, type PrintUniforms } from "./nodes.js";
 import { inksFor, mixHex } from "./inks.js";
 import { manifest } from "./manifest.js";
 import { printSettings } from "./settings.js";
@@ -100,11 +100,20 @@ describe("node graphs", () => {
     mouse: vec2Uniform(new Vector2(-10, -10)),
   };
 
-  it("build for the print, grain and smoke passes without a GPU", () => {
-    for (const node of [printNode(input, u, inksFor(hedronite.scene), new Texture(), 14), grainNode(input, uniform(0), 0.06), smokeNode(input, uniform(0), inksFor(hedronite.scene), 1)]) {
+  it("build for the print, grain, smoke and CRT passes without a GPU", () => {
+    const crt = crtNode(input, uniform(0), uniform(2), inksFor(hedronite.scene), screenEffectSchemas.crt.parse({}));
+    for (const node of [printNode(input, u, inksFor(hedronite.scene), new Texture(), 14), grainNode(input, uniform(0), 0.06), smokeNode(input, uniform(0), inksFor(hedronite.scene), 1), crt]) {
       expect(node.isNode).toBe(true);
     }
   });
+});
+
+it("credits the CRT tube to the ThreeUI shader it was ported from", () => {
+  const registry = createRegistry();
+  registerManifest(registry, manifest);
+  expect(registry.get("crt")?.origin).toMatchObject({ vendor: "threeui", path: "src/shaders/crt/crtShaders.ts" });
+  expect(registry.get("dither")?.origin).toBeUndefined();
+  expect(() => screenEffectSchemas.crt.parse({ pitch: 0.5 })).toThrow();
 });
 
 it("registers one effect asset per screen effect", () => {

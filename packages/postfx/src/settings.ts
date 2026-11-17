@@ -61,6 +61,7 @@ export function printSettings(effect: ScreenEffectConfig, reduced: boolean): Pri
     }
     case "smoke":
     case "grain":
+    case "crt":
       throw new Error(`${effect.id} is not a print effect`);
   }
 }

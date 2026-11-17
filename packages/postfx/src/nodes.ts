@@ -2,7 +2,7 @@
 // Ported from hedronite.com's GLSL (CrystalFx and NoiseField): the same print levels, inks, Bayer
 // matrix, glyph ramp, sweep, loupe and smoke, written as nodes so surface shaders (TSL materials) and
 // screen effects can share one renderer.
-import { abs, clamp, dot, exp, float, floor, fract, max, mix, pow, screenSize, screenUV, select, smoothstep, step, texture, uniform, vec2, vec3, vec4 } from "three/tsl";
+import { abs, clamp, cos, distance, dot, exp, float, floor, fract, length, max, min, mix, pow, screenSize, screenUV, select, sin, smoothstep, step, texture, uniform, vec2, vec3, vec4 } from "three/tsl";
 import { Color, Vector3, type Node, type Texture, type TextureNode, type Vector2 } from "three/webgpu";
 import type { Inks } from "./inks.js";
 
@@ -182,4 +182,57 @@ export function smokeNode(input: TextureNode, time: FloatUniform, inks: Inks, in
   const a = clamp(body.mul(0.2).add(filament.mul(0.42)).mul(0.9 * intensity), 0, 1);
   const behind = float(1).sub(scene.a);
   return vec4(scene.rgb.mul(scene.a).add(smoke.mul(a).mul(behind)), scene.a.add(a.mul(behind)));
+}
+
+/** The CRT tube's settings, as parsed from its schema. */
+export interface CrtParams {
+  readonly curvature: number;
+  readonly pitch: number;
+  readonly aberration: number;
+  readonly motion: number;
+}
+
+/** 1 below `from`, 0 above `to` (from < to): smoothstep run backwards, which WGSL leaves undefined. */
+const fall = (from: number, to: number, x: FloatNode): FloatNode => float(1).sub(smoothstep(from, to, x));
+
+/**
+ * The scene on a CRT tube: barrel glass, red and blue split toward the corners, scan lines, an aperture
+ * grille, a rolling bar, a soft sheen and the room around the glass, in the look's cool ink. Opaque.
+ *
+ * Adopted from ThreeUI Community by Meng To / ThreeUI (https://github.com/MengTo/threeui),
+ * src/shaders/crt/crtShaders.ts, under MIT. The upstream notice: assets/vendor/threeui/LICENSE.
+ * Ported from GLSL to TSL over any scene's frame instead of its own typed-text canvas; the line and
+ * triad sizes are in CSS pixels, and the colors come from the inks rather than the original's green.
+ */
+export function crtNode(input: TextureNode, time: FloatUniform, dpr: FloatUniform, inks: Inks, p: CrtParams) {
+  // Push each point out by the square of the other axis: the bulge of the glass.
+  const c = screenUV.mul(2).sub(1);
+  const uv = c.add(c.mul(c.yx.mul(c.yx)).mul(vec2(0.115 * p.curvature, 0.165 * p.curvature))).mul(0.5).add(0.5);
+  const within = step(vec2(0), uv).mul(step(uv, vec2(1)));
+  const edge = min(uv, vec2(1).sub(uv));
+  const inside = within.x.mul(within.y).mul(smoothstep(0, 0.02, min(edge.x, edge.y)));
+  const dir = uv.sub(0.5);
+  const split = dir.mul(dot(dir, dir).mul(0.012).add(0.0016).mul(p.aberration));
+  // The scene over the tube's dark phosphor; the input is premultiplied.
+  const phosphor = color(inks.cool[0]).mul(0.02);
+  const at = (q: Vec2Node): Vec3Node => {
+    const s = input.sample(q);
+    return s.rgb.add(phosphor.mul(float(1).sub(s.a)));
+  };
+  let col: Vec3Node = vec3(at(uv.add(split)).x, at(uv).y, at(uv.sub(split)).z);
+  const lines = sin(uv.y.mul(Math.PI).mul(screenSize.y.div(dpr).div(p.pitch)).add(time.mul(4 * p.motion)));
+  col = col.mul(mix(float(0.7), float(1), lines.mul(lines)));
+  const triad = screenUV.x.mul(screenSize.x).div(dpr).mul((Math.PI * 2) / (2.75 * p.pitch));
+  col = col.mul(cos(vec3(triad).add(vec3(0, 2.094, 4.188))).mul(0.34).add(0.66)).mul(1.34);
+  // The original's y ran from the bottom, screenUV's from the top: the bar still rolls upward.
+  const roll = fract(float(1).sub(uv.y).mul(0.5).sub(time.mul(0.07 * p.motion)));
+  col = col.add(smoothstep(0, 0.05, roll).mul(fall(0.05, 0.18, roll)).mul(0.045 * p.motion));
+  const sheen = fall(0, 0.55, distance(uv, vec2(0.5, 0.85)));
+  col = col.add(mix(vec3(1), color(inks.cool[2]), 0.45).mul(sheen.mul(0.03)));
+  col = col.mul(mix(float(0.42), float(1), fall(0.3, 0.98, length(dir.mul(vec2(1.05, 1))))));
+  col = col.mul(float(1).sub(sin(time.mul(8)).mul(0.028 * p.motion)));
+  col = col.add(hash(screenUV.mul(screenSize).add(fract(time.mul(0.37)).mul(91))).sub(0.5).mul(0.022));
+  const spill = fall(0.18, 0.85, length(screenUV.sub(0.5))).mul(0.05);
+  const room = color(inks.cool[0]).mul(0.03).add(color(inks.cool[1]).mul(spill.mul(0.5)));
+  return vec4(max(mix(room, col, inside), vec3(0.004)), 1);
 }

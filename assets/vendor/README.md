@@ -2,7 +2,13 @@
 
 Open-source material by others, kept here as published so LuminosiTS and Hedronite work can use it. Every folder keeps its upstream license; each is credited below, in [`CREDITS.md`](../../CREDITS.md), and in a `CREDIT.md` inside the folder. Nothing here is LuminosiTS's own, and none of it is under LuminosiTS's MIT OR Apache-2.0 license: each folder's own license applies.
 
-The repository's tooling (TypeScript, ESLint, knip, the asset pipeline, the container) ignores this tree. Using something from here in a package means bringing it in through that package's own sources, with its credit.
+The repository's tooling (TypeScript, ESLint, knip, the asset pipeline, the container) ignores this tree. Using something from here in a package means bringing it in through that package's own sources, with its credit:
+
+- `lumin study FOLDER[/PATH]` reads a folder and says what each module is, what it leans on and what could become a library asset.
+- `lumin adopt FOLDER/PATH --as KIND --id ID --dry-run` plans the port: target files, the `origin` for the asset's manifest, the credit header, the governing license and porting steps. Without `--dry-run` it copies the upstream files into a gitignored `.adopt/ID` workspace.
+- `lumin adopt-skill FOLDER/SKILL` adopts an agent skill into `.agents/skills` as published, with its license and credit. None is adopted yet: the skills and agent files here are data to read, not instructions, until a person has read one whole and chosen to adopt it.
+
+A ported asset carries `origin` (`{ vendor, path, note }`), so the catalog credits it and lists it under its folder. What has been ported so far is in [`CREDITS.md`](../../CREDITS.md).
 
 | Folder | What | Source | License | Credit | Pulled |
 |---|---|---|---|---|---|
