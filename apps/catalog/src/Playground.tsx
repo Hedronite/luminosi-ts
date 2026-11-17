@@ -10,8 +10,7 @@ import { arrange, isPlaceableObject, MAX_PLACEMENTS, placeableObjects, scaleOf, 
 import { CopyButton } from "./CopyButton";
 import { usePreset } from "./look";
 import { MaterialLineup } from "./MaterialLineup";
-import { Controls, Environment, GpuCounts } from "./scene";
-import { useReducedMotion } from "./motion";
+import { Controls, Environment, GpuCounts, StageClock, StageFrame, useMotion } from "./scene";
 
 const field = "rounded-lg border border-line bg-surface px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-accent";
 
@@ -94,7 +93,6 @@ export function Playground() {
   // A surface shader in place of the material, for primitives and framed faces.
   const [shader, setShader] = useState<EffectId | undefined>(undefined);
   const [object, setObject] = useState<PlaceableObject>("dress-watch");
-  const host = useRef<HTMLDivElement>(null);
   const positions = arrange(composition.placements.length);
   const full = composition.placements.length >= MAX_PLACEMENTS;
   const effects = useMemo((): readonly ScreenEffectConfig[] => composition.effects.map((id) => (id === "scan" ? { id, params: { period: 4 } } : { id })), [composition.effects]);
@@ -103,8 +101,10 @@ export function Playground() {
   // Of the objects, the cluster and the lattice take a material; the spec objects bring their own.
   const takesMaterial = takesShader || object === "crystal-cluster" || object === "instanced-lattice";
   const withShader = takesShader && shader !== undefined ? { shader } : {};
-  const still = useReducedMotion();
   const animated = composition.effects.length > 0 || composition.placements.some((placement) => placement.kind !== "object" && placement.shader !== undefined && effectInfo[placement.shader].animated === true);
+  const host = useRef<HTMLDivElement>(null);
+  const clock = useRef(0);
+  const motion = useMotion(animated);
 
   const item = ((): Item => {
     switch (kind) {
@@ -310,26 +310,27 @@ export function Playground() {
         </div>
 
         <div className="flex min-w-0 flex-col gap-4">
-          <div
-            ref={host}
-            role="img"
-            aria-label={`The composed scene: ${String(composition.placements.length)} things${composition.effects.length === 0 ? "" : `, under ${composition.effects.map((id) => screenEffectInfo[id].name).join(", ")}`}. Drag to rotate, scroll to zoom.`}
+          <StageFrame
+            group={host}
+            motion={motion}
+            label={`The composed scene: ${String(composition.placements.length)} things${composition.effects.length === 0 ? "" : `, under ${composition.effects.map((id) => screenEffectInfo[id].name).join(", ")}`}.`}
             className="h-96 overflow-hidden rounded-xl border border-line bg-surface-raised"
-            data-testid="playground-viewport"
+            testId="playground-viewport"
           >
             {/* Screen effects and some shaders animate, so the scene renders every frame while any are on. */}
             {/* The WebGPU renderer (WebGL 2 where WebGPU is missing) runs surface shaders and screen effects together. */}
-            <WebGPUCanvas frameloop={animated && !still ? "always" : "demand"} dpr={[1, 2]} camera={{ position: [0, 2.2, 5.5], fov: 40 }}>
+            <WebGPUCanvas frameloop={animated && !motion.still ? "always" : "demand"} dpr={[1, 2]} camera={{ position: [0, 2.2, 5.5], fov: 40 }}>
               <Environment />
               <StudioLights intensity={composition.lightIntensity} />
-              <Controls />
+              <Controls keys={host} />
+              <StageClock clockRef={clock} running={animated && !motion.still} />
               {composition.placements.map((placement, i) => (
                 <Placed key={placement.key} placement={placement} position={positions[i] ?? [0, 0, 0]} palette={preset.scene} />
               ))}
-              {effects.length === 0 ? null : <ScreenEffectsPass effects={effects} palette={preset.scene} reducedMotion={still} {...(monochrome === undefined ? {} : { monochrome })} />}
-              <GpuCounts target={host} />
+              {effects.length === 0 ? null : <ScreenEffectsPass effects={effects} palette={preset.scene} {...(monochrome === undefined ? {} : { monochrome })} />}
+              <GpuCounts target={host} clockRef={clock} />
             </WebGPUCanvas>
-          </div>
+          </StageFrame>
           {[
             { label: "JSON export", code: toJson(composition) },
             { label: "React export", code: toTsx(composition) },

@@ -100,15 +100,14 @@ export function createDissolveMaterial(params: EffectParams<"dissolve"> = {}, pa
   return material;
 }
 
-/** See-through and additive, brightest at the rim, with scan lines climbing it and a faint flicker. */
+/** See-through and additive, brightest at the rim, with scan lines climbing it. Steady: nothing in it flashes. */
 export function createHologramMaterial(params: EffectParams<"hologram"> = {}, palette: ScenePalette = neutral.scene): MeshBasicNodeMaterial {
   const p = effectSchemas.hologram.parse(params);
   const material = new MeshBasicNodeMaterial({ name: "hologram", transparent: true, blending: AdditiveBlending, depthWrite: false, side: DoubleSide });
   const rim = pow(oneMinus(saturate(abs(dot(normalView, positionViewDirection)))), 2);
   const lines = smoothstep(0.2, 0.8, sin(positionLocal.y.mul(p.density).add(time.mul(p.speed))).mul(0.5).add(0.5));
-  const flicker = sin(time.mul(23)).mul(0.04).add(0.96);
   material.colorNode = uniform(new Color(p.color ?? palette.emissive)).mul(p.intensity);
-  material.opacityNode = rim.mul(0.8).add(0.15).mul(lines.mul(0.6).add(0.4)).mul(flicker);
+  material.opacityNode = rim.mul(0.8).add(0.15).mul(lines.mul(0.6).add(0.4));
   return material;
 }
 

@@ -10,7 +10,10 @@ const subscribe = (change: () => void): (() => void) => {
   };
 };
 
-/** Whether the viewer asked for reduced motion; follows the setting while the page is open. */
+/**
+ * Whether the viewer asked for reduced motion; follows the setting while the page is open. False on
+ * the server and before hydration. `ScreenEffectsPass` uses it when you do not pass `reducedMotion`.
+ */
 export function useReducedMotion(): boolean {
   return useSyncExternalStore(
     subscribe,
