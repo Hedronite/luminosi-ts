@@ -6,9 +6,9 @@
 //   3D chunks    every JavaScript file in the catalog build that carries three.js (found by three's own markers), entry or lazy
 //   objects      draw calls and triangles per object (objects.ts)
 //
-// Writes tools/assets/dist/sizes.json for `lumin budgets`. Exits 1 when anything is over, unbudgeted, or budgeted but not measured.
+// Writes tools/assets/sizes.json for `lumin budgets` (not under dist/, which Turborepo restores from its cache on a build hit). Exits 1 when anything is over, unbudgeted, or budgeted but not measured.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { mkdir, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { gzipSync } from "node:zlib";
 import { loadBudgets, type Budgets } from "./budgets.js";
@@ -106,12 +106,10 @@ export function checkAgainst(budgets: Budgets, measured: Measured): { readonly r
   return { rows, problems };
 }
 
-/** Measures, writes tools/assets/dist/sizes.json, and returns what is wrong. */
+/** Measures, writes tools/assets/sizes.json, and returns what is wrong. */
 export async function checkSizes(root: string): Promise<{ readonly rows: readonly Row[]; readonly problems: readonly string[] }> {
   const measured: Measured = { bundles: measureBundles(root), objects: measureObjects() };
-  const out = join(root, "tools/assets/dist");
-  await mkdir(out, { recursive: true });
-  await writeFile(join(out, "sizes.json"), `${JSON.stringify(measured, null, 2)}\n`);
+  await writeFile(join(root, "tools/assets/sizes.json"), `${JSON.stringify(measured, null, 2)}\n`);
   return checkAgainst(await loadBudgets(root), measured);
 }
 

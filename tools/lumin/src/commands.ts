@@ -139,11 +139,11 @@ const numbersById = (rows: unknown): Record<string, Record<string, number>> => {
 
 /**
  * Every budget in assets/budgets.json against the last measurement: the pipeline's models (tools/assets/dist/report.json),
- * and the bundles and objects the size check measured (tools/assets/dist/sizes.json, written by `bun run validate`).
+ * and the bundles and objects the size check measured (tools/assets/sizes.json, written by `bun run validate`).
  */
 export function budgets(): Envelope {
   const reportPath = join(root, "tools/assets/dist/report.json");
-  const sizesPath = join(root, "tools/assets/dist/sizes.json");
+  const sizesPath = join(root, "tools/assets/sizes.json");
   if (!existsSync(reportPath)) return fail("budgets", "not_built", "no asset report yet; run `bun run build`");
   if (!existsSync(sizesPath)) return fail("budgets", "not_built", "no size report yet; run `bun run build`, then `bun run validate`");
   const limits: unknown = JSON.parse(readFileSync(join(root, "assets/budgets.json"), "utf8"));
