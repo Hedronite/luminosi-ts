@@ -21,7 +21,6 @@ import {
   Vector3,
   type Material,
 } from "three";
-import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { shadeHex, type ObjectMaterial, type ObjectShape, type ObjectSpec } from "./spec.js";
 
 export interface ObjectFromSpecOptions {
@@ -103,7 +102,7 @@ export function createObjectFromSpec(spec: ObjectSpec, { palette = neutral.scene
   const materials = new Map<string, Material>();
   const geometries = new Map<string, BufferGeometry>();
   const nodes = new Map<string, Object3D>();
-  const deferred: { readonly part: ObjectSpec["parts"][number]; readonly geometry: BufferGeometry }[] = [];
+  const deferred: Deferred[] = [];
 
   const parentOf = (owner: string, parent: string | undefined): Object3D => {
     if (parent === undefined) return root;
@@ -139,7 +138,7 @@ export function createObjectFromSpec(spec: ObjectSpec, { palette = neutral.scene
       mesh.scale.set(...part.scale);
       pivot.add(mesh);
     } else {
-      deferred.push({ part, geometry });
+      deferred.push({ part, pivot, material, geometry });
     }
     parentOf(part.id, part.parent).add(pivot);
     nodes.set(part.id, pivot);
@@ -153,39 +152,51 @@ export function createObjectFromSpec(spec: ObjectSpec, { palette = neutral.scene
     parentOf(socket.id, socket.parent).add(node);
   }
 
-  if (merge !== undefined) mergeByMaterial(root, deferred, nodes, materials, geometries);
+  if (merge !== undefined) mergeByMaterial(root, deferred, geometries);
   return root;
 }
 
-/** Replaces the deferred per-part shapes with one baked mesh per material, in the order materials first appear. */
-function mergeByMaterial(
-  root: Group,
-  deferred: readonly { readonly part: ObjectSpec["parts"][number]; readonly geometry: BufferGeometry }[],
-  nodes: ReadonlyMap<string, Object3D>,
-  materials: ReadonlyMap<string, Material>,
-  sources: ReadonlyMap<string, BufferGeometry>,
-): void {
+/** The baked geometries (non-indexed, position and normal only) end to end as one. Not `mergeGeometries`: that pulls a general merger into every bundle that builds an object. */
+function join(geometries: readonly BufferGeometry[]): BufferGeometry {
+  const merged = new BufferGeometry();
+  for (const name of ["position", "normal"] as const) {
+    const arrays = geometries.map((geometry) => geometry.getAttribute(name).array);
+    const data = new Float32Array(arrays.reduce((total, array) => total + array.length, 0));
+    let offset = 0;
+    for (const array of arrays) {
+      data.set(array, offset);
+      offset += array.length;
+    }
+    merged.setAttribute(name, new Float32BufferAttribute(data, 3));
+  }
+  return merged;
+}
+
+/** A part whose shape waits to be baked: where it sits, what it is made of, and the shape itself. */
+interface Deferred {
+  readonly part: ObjectSpec["parts"][number];
+  readonly pivot: Object3D;
+  readonly material: Material;
+  readonly geometry: BufferGeometry;
+}
+
+/** Adds one baked mesh per material under the root, in the order materials first appear, and frees the shared shapes it baked from. */
+function mergeByMaterial(root: Group, deferred: readonly Deferred[], sources: ReadonlyMap<string, BufferGeometry>): void {
   root.updateMatrixWorld(true);
-  const baked = new Map<string, BufferGeometry[]>();
+  const baked = new Map<string, { readonly material: Material; readonly geometries: BufferGeometry[] }>();
   const local = new Matrix4();
-  for (const { part, geometry } of deferred) {
-    const pivot = nodes.get(part.id);
-    if (pivot === undefined) throw new Error(`part "${part.id}" has no pivot`);
+  for (const { part, pivot, material, geometry } of deferred) {
     local.compose(new Vector3(...part.shapePosition), new Quaternion().setFromEuler(new Euler(...part.shapeRotation)), new Vector3(...part.scale));
-    const group = baked.get(part.material) ?? [];
-    group.push(bake(geometry, local.premultiply(pivot.matrixWorld)));
+    const group = baked.get(part.material) ?? { material, geometries: [] };
+    group.geometries.push(bake(geometry, local.premultiply(pivot.matrixWorld)));
     baked.set(part.material, group);
   }
-  for (const [name, geometries] of baked) {
-    const material = materials.get(name);
-    const merged = mergeGeometries(geometries, false);
-    if (material === undefined) throw new Error(`material "${name}" was never built`);
+  for (const [name, { material, geometries }] of baked) {
+    const merged = join(geometries);
     merged.computeBoundingSphere();
     const mesh = new Mesh(merged, material);
     mesh.name = `material:${name}`;
     root.add(mesh);
-    for (const geometry of geometries) geometry.dispose();
   }
-  // The shared shapes were only sources; the merged meshes own their own copies.
   for (const geometry of sources.values()) geometry.dispose();
 }

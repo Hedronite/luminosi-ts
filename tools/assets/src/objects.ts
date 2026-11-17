@@ -52,6 +52,7 @@ function objectBuilders(): Readonly<Record<string, () => Object3D>> {
     "framed-solid": () => createFramedSolid(platonic(showcase.framedSolid.solid, showcase.framedSolid.radius), { faces: createMaterial("glass", palette), edges: createMaterial("metal", { ...palette, metal: palette.accent }) }),
     "instanced-lattice": () => createLattice(latticePoints({ size: showcase.lattice.size, spacing: showcase.lattice.spacing }), createMaterial("metal", palette), { scale: showcase.lattice.scale }),
     "dress-watch": () => createObjectFromSpec(dressWatchSpec(showcase.watch), { palette }),
+    "dress-watch-merged": () => createObjectFromSpec(dressWatchSpec(showcase.watch), { palette, merge: "material" }),
     ...stored,
   };
 }
