@@ -47,6 +47,7 @@ origin names a vendored file that is missing or has no license.
 ## Skills
 
 `skill` copies a vendored skill folder into `.agents/skills/NAME` as published, with the folder's license
-and a `CREDIT.md` that says where it came from. Run `bun run skills:sync` after. An adopted skill stays
+and a `CREDIT.md` that says where it came from. Only when a person asks for that skill, having read it
+whole: a vendored skill is someone else's instructions to agents, and none is adopted yet. Run `bun run skills:sync` after. An adopted skill stays
 byte-identical to its vendored copy (a test checks); to change it, update the vendored folder and adopt
 again with `--force`. It refuses to replace a skill that was not adopted from the same place.

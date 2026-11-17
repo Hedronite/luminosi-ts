@@ -1,4 +1,5 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { adopt, adoptSkill, licenseFor, portingSteps, study, upstreamSkillFiles } from "./adopt.js";
@@ -67,27 +68,55 @@ describe("lumin adopt", () => {
   });
 });
 
-describe("adopted skills", () => {
-  const skills = join(root, ".agents/skills");
-  const adopted = readdirSync(skills).flatMap((name) => {
-    const credit = join(skills, name, "CREDIT.md");
-    const from = existsSync(credit) ? /^- \*\*Adopted from:\*\* (.+)$/m.exec(readFileSync(credit, "utf8"))?.[1] : undefined;
-    return from === undefined ? [] : [[name, from] as const];
+describe("lumin adopt-skill", () => {
+  // A scratch repository root, so adopting writes nowhere real; the vendored folders are the repo's own.
+  const scratch = () => mkdtempSync(join(tmpdir(), "lumin-adopt-"));
+  const target = "jakubkrehel-skills/skills/better-ui";
+  const upstream = join(vendorDir, target);
+
+  it("plans on a dry run and writes nothing", () => {
+    const at = scratch();
+    expect(adoptSkill(target, { dryRun: true }, { root: at, vendorDir })).toMatchObject({ ok: true, data: { dryRun: true, name: "better-ui", to: ".agents/skills/better-ui" } });
+    expect(existsSync(join(at, ".agents/skills/better-ui"))).toBe(false);
   });
 
-  it("include the interface review skills", () => {
-    expect(adopted.map(([name]) => name)).toEqual(expect.arrayContaining(["interface-review", "better-ui", "better-accessibility"]));
-  });
-
-  it.each(adopted)("%s matches its vendored copy byte for byte, with its license", (name, from) => {
-    const upstream = join(root, from);
+  it("copies the skill as published, with its license and a credit naming its source", () => {
+    const at = scratch();
+    expect(adoptSkill(target, { dryRun: false }, { root: at, vendorDir })).toMatchObject({ ok: true });
+    const dest = join(at, ".agents/skills/better-ui");
     const files = upstreamSkillFiles(upstream);
-    expect(upstreamSkillFiles(join(skills, name))).toEqual(files);
-    for (const file of files) expect(readFileSync(join(skills, name, file), "utf8")).toBe(readFileSync(join(upstream, file), "utf8"));
-    expect(readdirSync(join(skills, name)).some((file) => /^LICEN[CS]E/i.test(file))).toBe(true);
+    expect(upstreamSkillFiles(dest)).toEqual(files);
+    for (const file of files) expect(readFileSync(join(dest, file), "utf8")).toBe(readFileSync(join(upstream, file), "utf8"));
+    expect(existsSync(join(dest, "LICENSE"))).toBe(true);
+    expect(readFileSync(join(dest, "CREDIT.md"), "utf8")).toContain(`- **Adopted from:** assets/vendor/${target}`);
   });
 
-  it("replaces an adopted skill only when forced", () => {
-    expect(adoptSkill("jakubkrehel-skills/skills/better-ui", { dryRun: true }, { root, vendorDir })).toMatchObject({ ok: false, kind: "exists" });
+  it("replaces an adopted skill only when forced, and never a skill it did not adopt", () => {
+    const at = scratch();
+    adoptSkill(target, { dryRun: false }, { root: at, vendorDir });
+    expect(adoptSkill(target, { dryRun: false }, { root: at, vendorDir })).toMatchObject({ ok: false, kind: "exists" });
+    expect(adoptSkill(target, { dryRun: false, force: true }, { root: at, vendorDir })).toMatchObject({ ok: true });
+    const other = scratch();
+    mkdirSync(join(other, ".agents/skills/better-ui"), { recursive: true });
+    writeFileSync(join(other, ".agents/skills/better-ui/SKILL.md"), "---\nname: better-ui\n---\nOur own.\n");
+    expect(adoptSkill(target, { dryRun: false, force: true }, { root: other, vendorDir })).toMatchObject({ ok: false, kind: "exists" });
+  });
+
+  it("refuses a folder with no SKILL.md", () => {
+    expect(adoptSkill("jakubkrehel-skills/skills", { dryRun: true }, { root: scratch(), vendorDir })).toMatchObject({ ok: false, kind: "not_a_skill" });
+  });
+});
+
+describe("skills in the repository", () => {
+  it("that were adopted still match their vendored copies byte for byte", () => {
+    const skills = join(root, ".agents/skills");
+    for (const name of readdirSync(skills)) {
+      const credit = join(skills, name, "CREDIT.md");
+      const from = existsSync(credit) ? /^- \*\*Adopted from:\*\* (.+)$/m.exec(readFileSync(credit, "utf8"))?.[1] : undefined;
+      if (from === undefined) continue;
+      const files = upstreamSkillFiles(join(root, from));
+      expect(upstreamSkillFiles(join(skills, name))).toEqual(files);
+      for (const file of files) expect(readFileSync(join(skills, name, file), "utf8")).toBe(readFileSync(join(root, from, file), "utf8"));
+    }
   });
 });

@@ -109,7 +109,7 @@ Vendored work (`assets/vendor`) becomes library parts, projects and skills, not 
 - [x] `lumin study`: what each vendored module is, what it leans on, and what could be ported
 - [x] `lumin adopt`: a planned port with its credit, license and porting steps, in a gitignored workspace
 - [x] First ports: the CRT screen effect (ThreeUI) and the soap film shader (Codevember day 07)
-- [x] `lumin adopt-skill`: vendored agent skills adopted as published (the interface skills)
+- [x] `lumin adopt-skill`: a vendored agent skill into `.agents/skills` with its license and credit (none adopted yet: vendored skills are read as data until a person has reviewed one)
 - [ ] `lumin fork`: a vendored project copied into a runnable, modifiable workspace wired to the library
 - [ ] `lumin new-project`: new projects of that shape from a LuminosiTS template
 - [ ] Study inline scripts in HTML demos (the Techartist demos are single HTML files)
