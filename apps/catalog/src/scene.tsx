@@ -1,5 +1,5 @@
 import { useReducedMotion } from "@hedronite/lts-adapters";
-import { useFrame, useThree } from "@react-three/fiber";
+import { useFrame, useStore, useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode, type RefObject } from "react";
 import { MathUtils, Spherical, Vector3 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -100,6 +100,17 @@ const MAX_STEP = 0.1;
  * when the frame loop changes, and jumps by the whole pause on the next frame.)
  */
 export function StageClock({ clockRef, running }: { readonly clockRef: RefObject<number>; readonly running: boolean }) {
+  const store = useStore();
+  const was = useRef(running);
+  useEffect(() => {
+    // Pausing leaves one frame owed: the loop is already armed for its next tick, and the switch to on-demand
+    // rendering asks for a frame of its own. Where the browser is slow to run animation frames (software WebGL on
+    // a busy runner), that tick lands seconds after the pause, and a paused stage then draws on its own. The
+    // picture on screen is already the stage as it stands, so the frame is not owed: drop it. Camera moves and
+    // pointer moves ask again after this, through `invalidate`.
+    if (was.current && !running) store.getState().internal.frames = 0;
+    was.current = running;
+  }, [running, store]);
   useFrame((_, delta) => {
     if (running) clockRef.current += Math.min(delta, MAX_STEP);
   });
