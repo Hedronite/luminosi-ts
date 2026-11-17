@@ -1,7 +1,7 @@
 // Draw calls and triangles of every object the catalog shows, built the way the catalog builds it
-// (apps/catalog/src/subjects.ts): the same settings, the default look. Needs `bun run build` first, for the packages' `./three` entries.
+// (apps/catalog/src/subjects.ts): the same settings (`showcase` in @hedronite/lts-objects, which the catalog builds from too), the default look. Needs `bun run build` first, for the packages' `./three` entries.
 import { createMaterial } from "@hedronite/lts-materials/three";
-import { crystalCluster, dressWatchSpec, latticePoints, libraryObjects, objectSpecById } from "@hedronite/lts-objects";
+import { crystalCluster, dressWatchSpec, latticePoints, libraryObjects, objectSpecById, showcase } from "@hedronite/lts-objects";
 import { createCrystalCluster, createFramedSolid, createLattice, createObjectFromSpec } from "@hedronite/lts-objects/three";
 import { platonic } from "@hedronite/lts-primitives";
 import { neutral } from "@hedronite/lts-tokens";
@@ -48,10 +48,10 @@ function objectBuilders(): Readonly<Record<string, () => Object3D>> {
     ]),
   );
   return {
-    "crystal-cluster": () => createCrystalCluster(crystalCluster({ count: 14, spread: 0.7, seed: 11 }), createMaterial("satin", palette)),
-    "framed-solid": () => createFramedSolid(platonic("dodecahedron", 0.95), { faces: createMaterial("glass", palette), edges: createMaterial("metal", { ...palette, metal: palette.accent }) }),
-    "instanced-lattice": () => createLattice(latticePoints({ size: 6, spacing: 0.28 }), createMaterial("metal", palette), { scale: 0.06 }),
-    "dress-watch": () => createObjectFromSpec(dressWatchSpec({ hours: 10, minutes: 9, seconds: 36 }), { palette }),
+    "crystal-cluster": () => createCrystalCluster(crystalCluster(showcase.cluster), createMaterial("satin", palette)),
+    "framed-solid": () => createFramedSolid(platonic(showcase.framedSolid.solid, showcase.framedSolid.radius), { faces: createMaterial("glass", palette), edges: createMaterial("metal", { ...palette, metal: palette.accent }) }),
+    "instanced-lattice": () => createLattice(latticePoints({ size: showcase.lattice.size, spacing: showcase.lattice.spacing }), createMaterial("metal", palette), { scale: showcase.lattice.scale }),
+    "dress-watch": () => createObjectFromSpec(dressWatchSpec(showcase.watch), { palette }),
     ...stored,
   };
 }

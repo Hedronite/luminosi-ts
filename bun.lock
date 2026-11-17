@@ -270,6 +270,7 @@
         "lumin": "workspace:*",
         "meshoptimizer": "catalog:",
         "three": "catalog:",
+        "vitest": "catalog:",
         "zod": "catalog:",
       },
     },

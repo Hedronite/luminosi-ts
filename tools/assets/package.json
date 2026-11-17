@@ -12,7 +12,8 @@
     "build": "bun src/build.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "validate": "bun src/validate.ts",
-    "sizes": "bun src/sizes.ts"
+    "sizes": "bun src/sizes.ts",
+    "test": "vitest run"
   },
   "devDependencies": {
     "@gltf-transform/core": "catalog:",
@@ -27,6 +28,7 @@
     "lumin": "workspace:*",
     "meshoptimizer": "catalog:",
     "three": "catalog:",
+    "vitest": "catalog:",
     "zod": "catalog:"
   }
 }

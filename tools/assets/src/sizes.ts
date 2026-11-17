@@ -3,11 +3,13 @@
 //
 //   entry sets   the JavaScript a page loads at once: its module script, its modulepreloads, an Astro island's component and
 //                renderer, and everything those import statically, gzip -9 each (the same file set a browser fetches at page load)
-//   3D chunks    every JavaScript file in the catalog build that carries three.js (found by three's own markers), entry or lazy
+//   3D chunks    the files the catalog pages can reach, by static or dynamic import from their HTML entries, that carry three.js
+//                (found by three's own markers). Files in dist that nothing reaches are ignored: a Turborepo cache restore can
+//                leave chunks of an older build behind, and they ship to nobody.
 //   objects      draw calls and triangles per object (objects.ts)
 //
 // Writes tools/assets/sizes.json for `lumin budgets` (not under dist/, which Turborepo restores from its cache on a build hit). Exits 1 when anything is over, unbudgeted, or budgeted but not measured.
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { gzipSync } from "node:zlib";
@@ -38,34 +40,42 @@ export interface Row {
   readonly checks: readonly Check[];
 }
 
-type Bundle = { readonly dist: string; readonly page: string } | { readonly dist: string; readonly carries: readonly string[] };
+interface Bundle {
+  readonly dist: string;
+  readonly pages: readonly string[];
+  /** Without it, the static closure of the pages (what loads at once); with it, everything reachable that carries one of these markers. */
+  readonly carries?: readonly string[];
+}
 
-/** What each bundle budget measures. A page's set is its entry; the 3D set is by content. */
+/** What each bundle budget measures. */
 const bundles: Readonly<Record<string, Bundle>> = {
-  "catalog-gallery": { dist: "apps/catalog/dist", page: "index.html" },
-  "catalog-embed": { dist: "apps/catalog/dist", page: "embed.html" },
-  "catalog-3d": { dist: "apps/catalog/dist", carries: ["isObject3D", "isWebGPURenderer"] },
-  "site-island": { dist: "apps/site/dist", page: "index.html" },
+  "catalog-gallery": { dist: "apps/catalog/dist", pages: ["index.html"] },
+  "catalog-embed": { dist: "apps/catalog/dist", pages: ["embed.html"] },
+  "catalog-3d": { dist: "apps/catalog/dist", pages: ["index.html", "embed.html"], carries: ["isObject3D", "isWebGPURenderer"] },
+  "site-island": { dist: "apps/site/dist", pages: ["index.html"] },
 };
 
 const gzipBytes = (files: readonly string[]): number => files.reduce((sum, file) => sum + gzipSync(readFileSync(file), { level: 9 }).length, 0);
 
-const jsFiles = (dir: string): string[] =>
-  readdirSync(dir, { withFileTypes: true }).flatMap((entry) => (entry.isDirectory() ? jsFiles(join(dir, entry.name)) : entry.name.endsWith(".js") ? [join(dir, entry.name)] : []));
+const staticImport = /(?:\bfrom|\bimport)\s*["'](\.{1,2}\/[^"']+\.js)["']/g;
+const dynamicImport = /\bimport\(\s*["'`](\.{1,2}\/[^"'`]+\.js)["'`]\s*\)/g;
 
-/** The files a page's HTML pulls in as scripts, with every file those import statically (dynamic imports are lazy, so left out). */
-function entrySet(dist: string, page: string): string[] {
-  const html = readFileSync(join(dist, page), "utf8");
-  const references = [
-    ...html.matchAll(/<script\b[^>]*\btype="module"[^>]*\bsrc="([^"]+)"/g),
-    ...html.matchAll(/<link\b[^>]*\brel="modulepreload"[^>]*\bhref="([^"]+)"/g),
-    ...html.matchAll(/\b(?:component-url|renderer-url|before-hydration-url)="([^"]+)"/g),
-  ].map((match) => resolve(dist, (match[1] ?? "").replace(/^\//, "")));
+/** The files the pages' HTML pulls in as scripts, with every file those import statically, and dynamically too when `lazy`. */
+function reach(dist: string, pages: readonly string[], lazy: boolean): string[] {
+  const references = pages.flatMap((page) => {
+    const html = readFileSync(join(dist, page), "utf8");
+    return [
+      ...html.matchAll(/<script\b[^>]*\btype="module"[^>]*\bsrc="([^"]+)"/g),
+      ...html.matchAll(/<link\b[^>]*\brel="modulepreload"[^>]*\bhref="([^"]+)"/g),
+      ...html.matchAll(/\b(?:component-url|renderer-url|before-hydration-url)="([^"]+)"/g),
+    ].map((match) => resolve(dist, (match[1] ?? "").replace(/^\//, "")));
+  });
   const seen = new Set<string>();
   const visit = (file: string): void => {
     if (seen.has(file)) return;
     seen.add(file);
-    for (const match of readFileSync(file, "utf8").matchAll(/(?:\bfrom|\bimport)\s*["'](\.{1,2}\/[^"']+\.js)["']/g)) visit(resolve(dirname(file), match[1] ?? ""));
+    const source = readFileSync(file, "utf8");
+    for (const pattern of lazy ? [staticImport, dynamicImport] : [staticImport]) for (const match of source.matchAll(pattern)) visit(resolve(dirname(file), match[1] ?? ""));
   };
   references.forEach(visit);
   return [...seen].sort();
@@ -76,8 +86,9 @@ export function measureBundles(root: string): Readonly<Record<string, BundleSize
     Object.entries(bundles).map(([id, bundle]): readonly [string, BundleSize] => {
       const dist = join(root, bundle.dist);
       if (!existsSync(dist)) throw new Error(`${id}: no build output at ${bundle.dist}; run \`bun run build\``);
+      const { carries } = bundle;
       const files =
-        "page" in bundle ? entrySet(dist, bundle.page) : jsFiles(dist).filter((file) => bundle.carries.some((marker) => readFileSync(file, "utf8").includes(marker)));
+        carries === undefined ? reach(dist, bundle.pages, false) : reach(dist, bundle.pages, true).filter((file) => carries.some((marker) => readFileSync(file, "utf8").includes(marker)));
       return [id, { gzipBytes: gzipBytes(files), files: files.map((file) => file.slice(root.length + 1)) }];
     }),
   );
