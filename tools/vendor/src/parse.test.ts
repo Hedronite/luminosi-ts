@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { firstUrl, humanize, parseCredit, parseDemoReadme, parseFrontMatter } from "./parse.js";
+import { firstUrl, humanize, parseCredit, parseDemoReadme, parseFrontMatter, requirePin, sourcePins } from "./parse.js";
 
 const credit = `# Credit
 
@@ -59,4 +59,30 @@ describe("parseDemoReadme", () => {
 
 it("humanizes ids", () => {
   expect(humanize("geometry-in-flux")).toBe("Geometry in flux");
+});
+
+describe("pins", () => {
+  const commit = "4df8e67ab6584b3c354f06f0f9ce9a4348f82dbe";
+  const hash = "a".repeat(64);
+
+  it("reads a commit, short or full, and each commit of a multi-repository source", () => {
+    expect(sourcePins("https://github.com/ttillberg/codevember-2026 (`4df8e67a`)")).toEqual([{ kind: "commit", commit: "4df8e67a" }]);
+    expect(sourcePins(`https://example.org/ (\`${commit}\`, \`${commit.slice(0, 12)}\`)`)).toHaveLength(2);
+  });
+
+  it("reads a version with the folder's hash", () => {
+    expect(sourcePins(`https://www.isocons.app/ (v2.1, \`sha256:${hash}\`)`)).toEqual([{ kind: "archive", version: "2.1", sha256: hash }]);
+  });
+
+  it.each([
+    ["no pin", "https://github.com/lucide-icons/lucide"],
+    ["a branch name", "https://github.com/lucide-icons/lucide (`main`)"],
+    ["latest", "https://github.com/lucide-icons/lucide (latest)"],
+    ["a bare version", "https://www.isocons.app/ (v2.1)"],
+    ["a commit too short", "https://github.com/lucide-icons/lucide (`4df8e67`)"],
+    ["a commit not in backticks", `https://github.com/lucide-icons/lucide (${commit})`],
+    ["a hash of the wrong length", "https://www.isocons.app/ (v2.1, `sha256:abc123`)"],
+  ])("rejects %s", (_name, source) => {
+    expect(() => requirePin(source, "lucide/CREDIT.md")).toThrow("lucide/CREDIT.md: the source line has no pin");
+  });
 });

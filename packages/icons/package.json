@@ -1,7 +1,7 @@
 {
   "name": "@hedronite/lts-icons",
   "version": "0.0.0",
-  "license": "MIT OR Apache-2.0",
+  "license": "(MIT OR Apache-2.0) AND MIT AND ISC AND CC-BY-4.0",
   "private": true,
   "type": "module",
   "sideEffects": false,
@@ -31,7 +31,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && mkdir -p dist/licenses && cp licenses/* dist/licenses/",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },
