@@ -29,7 +29,7 @@ Companion to the LuminosiTS manifesto. This document tracks progressive stages f
 
 **Goal:** Usable icon system and a living visual index.
 
-- [x] Core: asset registry, progressive loader interface, manifest schema, disposal helpers (the loader interface and disposal helpers were removed in W1 G4)
+- [x] Core: asset registry, progressive loader interface, manifest schema, disposal helpers (the loader interface and the disposal scope were removed in #36)
 - [x] Icons package: first flexible set of SVGs (UI, geometric, common symbols)
   - Pure TS data export
   - Optional React components (`./react`)
@@ -100,11 +100,11 @@ The open lines of this stage are now concrete slices in Stages 6 to 12 below: bu
 
 Vendored work (`assets/vendor`) becomes library parts, projects and skills, not only a showcase.
 
-- [x] Provenance: an asset's `origin` names the vendored file it was ported from; the catalog credits it and lists it under its folder
-- [x] `lumin study`: what each vendored module is, what it leans on, and what could be ported
-- [x] `lumin adopt`: a planned port with its credit, license and porting steps, in a gitignored workspace
-- [x] First ports: the CRT screen effect (ThreeUI) and the soap film shader (Codevember day 07)
-- [x] `lumin adopt-skill`: a vendored agent skill into `.agents/skills` with its license and credit (none adopted yet: vendored skills are read as data until a person has reviewed one)
+- [x] Provenance: an asset's `origin` names the vendored file it was ported from; the catalog credits it and lists it under its folder (#30)
+- [x] `lumin study`: what each vendored module is, what it leans on, and what could be ported (#30)
+- [x] `lumin adopt`: a planned port with its credit, license and porting steps, in a gitignored workspace (#30)
+- [x] First ports: the CRT screen effect (ThreeUI) and the soap film shader (Codevember day 07) (#30)
+- [x] `lumin adopt-skill`: a vendored agent skill into `.agents/skills` with its license and credit (none adopted yet: vendored skills are read as data until a person has reviewed one) (#30)
 - [ ] Forking and new projects: superseded by E6 (scaffold from a scene document or a vendored demo) and E7 (modify through the scene document), which need Stage 8
 - [ ] Study inline scripts in HTML demos (the Techartist demos are single HTML files)
 - [ ] More ports from the study's candidates: ThreeUI's dot matrix, energy orb and liquid form; Codevember's depth of field and nacre
@@ -119,15 +119,15 @@ Each line is one PR. Order holds in one place: Stage 6, then 7, then 8; Stages 9
 
 ### Stage 6 (A) — True ground
 
-- [ ] A1 Data entries (quick win): package entries split into data and `./three` builders; no three.js on the gallery's first route
-- [ ] A2 Adapter split (quick win): adapters root without `three/webgpu`, a `./webgpu` subpath; smaller site island
-- [ ] A3 Budgets that bite (quick win): entry chunks, 3D chunks, site island, draw calls and triangles per object
-- [ ] A4 Motion and keys (quick win): reduced motion is done (#32); still to do: a pause control, keyboard orbit, the hologram flicker, the hook in adapters
+- [x] A1 Data entries (quick win): package entries split into data and `./three` builders; no three.js on the gallery's first route (#34)
+- [x] A2 Adapter split (quick win): adapters root without `three/webgpu`, a `./webgpu` subpath; smaller site island (#39)
+- [x] A3 Budgets that bite (quick win): entry chunks, 3D chunks, site island, draw calls and triangles per object (#41)
+- [x] A4 Motion and keys (quick win): reduced motion, a pause control, keyboard orbit, a steady hologram, the hook in adapters; a paused stage draws nothing on its own (#32, #37, #44)
 - [ ] A5 WebGPU lane: an automated run on the WebGPU backend; the catalog on a secure origin (needs a decision on HTTPS)
-- [ ] A6 Truth pass (quick win): README, STACK and skill docs match the code, with a test
-- [ ] A7 Vendor pins and quarantine (quick win): every vendored source pinned; vendored agent files excluded from discovery (the policy itself landed in #30)
-- [ ] A8 CI split (quick win): cached parallel jobs, faster PRs
-- [ ] A9 Loose ends (quick win): disposal of instanced meshes, icon package licenses, unused loader and scope
+- [x] A6 Truth pass (quick win): README, STACK and skill docs match the code, with a test (#35)
+- [x] A7 Vendor pins and quarantine (quick win): every vendored source pinned; vendored agent files excluded from discovery (the policy in #30, the settings in #35)
+- [x] A8 CI split (quick win): cached parallel jobs, faster PRs (#38, #40)
+- [x] A9 Loose ends (quick win): disposal of instanced meshes, icon package licenses, unused loader and scope (#36)
 - [ ] A10 Vendor home: where the vendored tree lives (needs a decision)
 
 ### Stage 7 (B) — Live parameters
@@ -136,7 +136,7 @@ Each line is one PR. Order holds in one place: Stage 6, then 7, then 8; Stages 9
 - [ ] B2 Uniform handles: parameter edits without recompiles; an injected clock
 - [ ] B3 One print pass: cheaper, editable screen effects; `setParams` and `setInks`
 - [ ] B4 Looks without rebuilds: a look change is a uniform write
-- [ ] B5 Merged objects (quick win): the dress watch in a few draw calls
+- [x] B5 Merged objects (quick win): the dress watch in 8 draw calls (#42)
 - [ ] B6 Posters: real thumbnails for every 3D asset
 - [ ] B7 Golden images: appearance under test
 - [ ] B8 Parameter panel: a schema-driven panel in the detail view
@@ -159,12 +159,12 @@ Each line is one PR. Order holds in one place: Stage 6, then 7, then 8; Stages 9
 - [ ] D5 ObjectSpec v2: repeat, extrude, sweep, tube, text, per-part shader
 - [ ] D6 Environments: more than one room; credited CC0 HDRIs optional
 - [ ] D7 Motion tracks: animation as data, with a rest pose for reduced motion (needs a decision on scope)
-- [ ] D8 Interface tokens and a design pass: type scale, spacing, elevation, easing; the interface quality tooling is in place (`lumin-ui`, #31) and the catalog passes it (#32)
+- [ ] D8 Interface tokens and a design pass: type scale, spacing, elevation, easing; the interface quality tooling is in place (partial: `lumin-ui` #31, the catalog passing it #32)
 - [ ] D9 Generators: isometric icons from the primitives; generated looks
 
 ### Stage 10 (E) — Adopt and remix, matured
 
-- [ ] E1 Provenance record: commit, license id, transformations, reviewer (the `origin` field landed in #30)
+- [ ] E1 Provenance record: commit, license id, transformations, reviewer (partial: the `origin` field, #30)
 - [ ] E2 License gate: a policy table decides what can be adopted and what stays showcase-only
 - [ ] E3 Equivalence rig: a port is scored against its source, side by side
 - [ ] E4 Parameter lifting: ported literals become a reviewed schema bound to the palette
@@ -173,7 +173,7 @@ Each line is one PR. Order holds in one place: Stage 6, then 7, then 8; Stages 9
 - [ ] E7 Modify: change a scaffolded project through its scene document
 - [x] E8 Skills: decided (#30, #31): vendored skills are data; their ideas are rewritten in-house (`lumin-ui`)
 - [ ] E9 Upstream drift: compare pins with upstream on demand
-- [ ] E10 Two-way catalog links: source to component and back, with what changed ("In the library" landed in #30)
+- [ ] E10 Two-way catalog links: source to component and back, with what changed (partial: "In the library", #30)
 
 ### Stage 11 (F) — Studio and distribution
 
