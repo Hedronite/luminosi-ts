@@ -32,6 +32,8 @@ export default defineConfig<ConsoleOptions>({
       /^No available adapters\.$/,
       // Chromium's own performance note when a test reads pixels back from the canvas.
       /GL Driver Message \(OpenGL, Performance, GL_CLOSE_PATH_NV, High\): GPU stall due to ReadPixels/,
+      // The software GL driver (ANGLE on swiftshader) ending a render pass early on a heavy frame.
+      /GL Driver Message \(OpenGL, Performance, GL_CLOSE_PATH_NV, High\): Running out of reserved outsideRenderPass queueSerial/,
     ],
   },
   projects: [
