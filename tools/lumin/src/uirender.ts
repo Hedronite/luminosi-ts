@@ -1,3 +1,6 @@
+// The code passed to page.evaluate runs in the browser; DOM types for this file only.
+/// <reference lib="dom" />
+/* eslint-disable no-await-in-loop -- one page driven step by step: views, widths and Tab presses run in order, each after the last has settled */
 // The rendered half of the lumin-ui audit: what only a laid-out page shows. Visits each view of a
 // running catalog in Chromium, at desktop and phone width, and with reduced motion, and reports
 // measurements as findings. The lumin-ui skill's Nushell body merges them with the source checks.
@@ -28,7 +31,7 @@ async function measure(page: Page): Promise<{
   readonly long: readonly { target: string; chars: number }[];
 }> {
   return page.evaluate(() => {
-    const textOf = (el: Element): string => (el instanceof HTMLElement ? el.innerText : (el.textContent ?? ""));
+    const textOf = (el: Element): string => (el instanceof HTMLElement ? el.innerText : el.textContent);
     const handle = (el: Element): string => {
       const id = el.id === "" ? "" : `#${el.id}`;
       const cls = typeof el.className === "string" && el.className !== "" ? `.${el.className.trim().split(/\s+/).slice(0, 2).join(".")}` : "";
@@ -142,3 +145,4 @@ export async function renderAudit(url: string, views: readonly string[]): Promis
   }
   return findings;
 }
+/* eslint-enable no-await-in-loop -- end of the step-by-step audit */
