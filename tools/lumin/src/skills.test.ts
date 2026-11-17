@@ -84,6 +84,81 @@ describe.runIf(hasNu)("skills through Nushell", () => {
     expect(refused.envelope.kind).toBe("usage");
   });
 
+  describe("lumin-ui", () => {
+    const fixture = (name: string, body: string): string => {
+      const dir = mkdtempSync(join(tmpdir(), "lumin-ui-"));
+      const file = join(dir, name);
+      writeFileSync(file, body);
+      return file;
+    };
+    const rulesOf = (data: unknown): string[] => {
+      const findings: unknown = typeof data === "object" && data !== null && "findings" in data ? data.findings : [];
+      return Array.isArray(findings) ? findings.map((f: unknown) => (typeof f === "object" && f !== null && "rule" in f ? String(f.rule) : "")) : [];
+    };
+
+    it("rules lists the rule table", () => {
+      const { code, envelope } = runSkill("lumin-ui", ["rules", "--area", "a11y"]);
+      expect(code).toBe(0);
+      expect(JSON.stringify(envelope.data)).toContain('"id":"a11y.pointer-only"');
+      expect(JSON.stringify(envelope.data)).not.toContain('"area":"copy"');
+    });
+
+    it("scan finds what a broken component breaks, and nothing in a clean one", () => {
+      const broken = fixture(
+        "Broken.tsx",
+        `import { Close } from "@hedronite/lts-icons/react";
+export const Broken = () => (
+  <section>
+    <div onClick={() => {}} className="outline-none animate-spin">Open</div>
+    <button className="bg-blue-500 transition-all"><Close /></button>
+    <img src="a.png" />
+    <span className="text-[10px] truncate">Long name</span>
+    <button>OK</button>
+  </section>
+);`,
+      );
+      const { code, envelope } = runSkill("lumin-ui", ["scan", broken]);
+      expect(code).toBe(0);
+      expect(rulesOf(envelope.data).sort()).toEqual(
+        ["a11y.focus-hidden", "a11y.img-alt", "a11y.pointer-only", "a11y.unnamed-control", "color.primitive", "copy.vague-action", "motion.no-reduce", "type.off-scale", "type.tiny-text", "type.truncated-unreachable", "ui.transition-all"].sort(),
+      );
+      const clean = fixture(
+        "Clean.tsx",
+        `export const Clean = ({ label }: { label: string }) => (
+  <label className="flex gap-2">
+    <input type="checkbox" />
+    <button type="button" className="bg-accent text-on-accent focus-visible:outline-2 focus-visible:outline-accent">{label}</button>
+  </label>
+);`,
+      );
+      expect(rulesOf(runSkill("lumin-ui", ["scan", clean]).envelope.data)).toEqual([]);
+    });
+
+    it("scan reads CSS: a removed outline and an animation with no reduced-motion rule", () => {
+      const css = fixture("bad.css", "button:focus { outline: none; }\n@keyframes spin { to { rotate: 1turn; } }\n");
+      expect(rulesOf(runSkill("lumin-ui", ["scan", css]).envelope.data).sort()).toEqual(["a11y.focus-hidden", "motion.no-reduce"]);
+    });
+
+    it("contrast measures every token pair the UI uses, in every look and scheme", () => {
+      const { code, envelope } = runSkill("lumin-ui", ["contrast"]);
+      expect(code).toBe(0);
+      const rows: unknown = envelope.data;
+      expect(Array.isArray(rows) && rows.length).toBeGreaterThan(3);
+      expect(JSON.stringify(rows)).toContain('"fg":"fg-muted","bg":"surface"');
+      expect(JSON.stringify(rows)).toMatch(/"of":[1-9]\d/);
+    });
+
+    it("scope and a diff review work against HEAD; render without a server says so", () => {
+      expect(runSkill("lumin-ui", ["scope", "--against", "HEAD"]).envelope.ok).toBe(true);
+      const review = runSkill("lumin-ui", ["review", "--against", "HEAD"]);
+      expect(review.code).toBe(0);
+      expect(JSON.stringify(review.envelope.data)).toContain('"mode":"diff"');
+      const offline = runSkill("lumin-ui", ["render", "--url", "http://127.0.0.1:9"]);
+      expect(offline.code).toBe(1);
+      expect(offline.envelope.kind).toBe("no_server");
+    });
+  });
+
   it("lumin-check runs one step and reports it", () => {
     const { code, envelope } = runSkill("lumin-check", ["--only", "icons:check"]);
     expect(code).toBe(0);

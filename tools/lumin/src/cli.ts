@@ -1,13 +1,13 @@
 // lumin: the LuminosiTS agent CLI. Prints one JSON envelope and exits with its code.
 //   bun tools/lumin/src/cli.ts <command> [args] [--flag=value]
 // The lumin skills (.agents/skills/lumin*) wrap this with Nushell. See SKILL.md there.
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { boundaries, budgets, check, iconPacks, kinds, list, newIcon, packages, root, search, show } from "./commands.js";
-import { fail, type Envelope } from "./envelope.js";
+import { fail, ok, type Envelope } from "./envelope.js";
 
-const usage = "commands: kinds | list [--kind --package --tag --limit --newest] | search QUERY [--kind --limit] | show ID | packages | icon-packs | budgets | boundaries [--package] | check [--only a,b --keep-going] | new-icon ID --name N --tags a,b (--svg FILE | --stdin) [--dry-run] | new-object ID (--from-image IMG | --from-workspace DIR) [--name N --tags a,b --dry-run] | review-object --spec FILE --reference IMG [--out DIR --look L --yaw D --pitch D] | study VENDOR[/PATH] [--limit] | adopt VENDOR/PATH --as KIND --id ID [--name N --dry-run] | adopt-skill VENDOR/SKILL-DIR [--dry-run --force]";
+const usage = "commands: kinds | list [--kind --package --tag --limit --newest] | search QUERY [--kind --limit] | show ID | packages | icon-packs | budgets | boundaries [--package] | check [--only a,b --keep-going] | new-icon ID --name N --tags a,b (--svg FILE | --stdin) [--dry-run] | new-object ID (--from-image IMG | --from-workspace DIR) [--name N --tags a,b --dry-run] | review-object --spec FILE --reference IMG [--out DIR --look L --yaw D --pitch D] | study VENDOR[/PATH] [--limit] | adopt VENDOR/PATH --as KIND --id ID [--name N --dry-run] | adopt-skill VENDOR/SKILL-DIR [--dry-run --force] | ui-facts FILE... | ui-render --url URL [--views a,b] (for the lumin-ui skill)";
 
 async function readStdin(): Promise<string> {
   const chunks: Buffer[] = [];
@@ -46,6 +46,8 @@ async function run(argv: readonly string[]): Promise<Envelope> {
         as: { type: "string" },
         id: { type: "string" },
         force: { type: "boolean" },
+        url: { type: "string" },
+        views: { type: "string" },
       },
     });
   } catch (error: unknown) {
@@ -128,6 +130,25 @@ async function run(argv: readonly string[]): Promise<Envelope> {
         },
         { root },
       );
+    }
+    case "ui-facts": {
+      if (positionals.length === 0) return fail("ui-facts", "usage", "ui-facts needs one or more .tsx files");
+      const missing = positionals.filter((file) => !existsSync(file));
+      if (missing.length > 0) return fail("ui-facts", "not_found", `no such file: ${missing.join(", ")}`);
+      const { uiFactsFor } = await import("./uifacts.js");
+      return ok("ui-facts", uiFactsFor(positionals));
+    }
+    case "ui-render": {
+      if (values.url === undefined) return fail("ui-render", "usage", "ui-render needs --url, a running catalog (bun run --filter catalog preview)");
+      const { catalogViews, renderAudit } = await import("./uirender.js");
+      const views = csv(values.views);
+      const unknown = views.filter((view) => !catalogViews.some((known) => known === view));
+      if (unknown.length > 0) return fail("ui-render", "usage", `unknown view: ${unknown.join(", ")}; one of ${catalogViews.join(", ")}`);
+      try {
+        return ok("ui-render", await renderAudit(values.url, views.length > 0 ? views : catalogViews));
+      } catch (error: unknown) {
+        return fail("ui-render", "no_server", `could not audit ${values.url}: ${error instanceof Error ? error.message.split("\n")[0] ?? "" : String(error)}`);
+      }
     }
     case "study":
     case "adopt":
