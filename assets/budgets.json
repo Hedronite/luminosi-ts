@@ -4,7 +4,7 @@
   },
   "bundles": {
     "catalog-gallery": { "gzipBytes": 125500 },
-    "catalog-embed": { "gzipBytes": 230500 },
+    "catalog-embed": { "gzipBytes": 230700 },
     "catalog-3d": { "gzipBytes": 443000 },
     "site-island": { "gzipBytes": 330000 }
   },
@@ -13,6 +13,7 @@
     "framed-solid": { "drawCalls": 3, "triangles": 4836 },
     "instanced-lattice": { "drawCalls": 1, "triangles": 1728 },
     "dress-watch": { "drawCalls": 185, "triangles": 18428 },
+    "dress-watch-merged": { "drawCalls": 8, "triangles": 18428 },
     "your-desk-lamp": { "drawCalls": 8, "triangles": 4224 }
   }
 }
