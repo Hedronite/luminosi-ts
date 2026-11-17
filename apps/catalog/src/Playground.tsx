@@ -1,4 +1,5 @@
-import { CrystalCluster, FramedSolid, Lattice, LibraryObject, PrimitiveMesh, ScreenEffectsPass, StudioLights, WebGPUCanvas } from "@hedronite/lts-adapters";
+import { CrystalCluster, FramedSolid, Lattice, LibraryObject, PrimitiveMesh, StudioLights } from "@hedronite/lts-adapters";
+import { ScreenEffectsPass, WebGPUCanvas, WebGPUStudioEnvironment } from "@hedronite/lts-adapters/webgpu";
 import { Close } from "@hedronite/lts-icons/react";
 import { isMaterialId, materialIds, materialPreset, type MaterialId } from "@hedronite/lts-materials";
 import { screenEffectIds, screenEffectInfo, type ScreenEffectConfig } from "@hedronite/lts-postfx";
@@ -10,7 +11,7 @@ import { arrange, isPlaceableObject, MAX_PLACEMENTS, placeableObjects, scaleOf, 
 import { CopyButton } from "./CopyButton";
 import { usePreset } from "./look";
 import { MaterialLineup } from "./MaterialLineup";
-import { Controls, Environment, GpuCounts, StageClock, StageFrame, useMotion } from "./scene";
+import { Controls, GpuCounts, StageClock, StageFrame, useMotion } from "./scene";
 
 const field = "rounded-lg border border-line bg-surface px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-accent";
 
@@ -320,7 +321,7 @@ export function Playground() {
             {/* Screen effects and some shaders animate, so the scene renders every frame while any are on. */}
             {/* The WebGPU renderer (WebGL 2 where WebGPU is missing) runs surface shaders and screen effects together. */}
             <WebGPUCanvas frameloop={animated && !motion.still ? "always" : "demand"} dpr={[1, 2]} camera={{ position: [0, 2.2, 5.5], fov: 40 }}>
-              <Environment />
+              <WebGPUStudioEnvironment />
               <StudioLights intensity={composition.lightIntensity} />
               <Controls keys={host} />
               <StageClock clockRef={clock} running={animated && !motion.still} />

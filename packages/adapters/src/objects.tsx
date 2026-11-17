@@ -1,7 +1,6 @@
 import { materialPreset, type MaterialId } from "@hedronite/lts-materials";
 import { createMaterial } from "@hedronite/lts-materials/three";
 import { type EffectId } from "@hedronite/lts-shaders";
-import { createEffectMaterial } from "@hedronite/lts-shaders/three";
 import { dressWatchSpec, objectSpecById, type WatchTime } from "@hedronite/lts-objects";
 import { createFramedSolid, createObjectFromSpec } from "@hedronite/lts-objects/three";
 import { primitive, type PrimitiveId } from "@hedronite/lts-primitives";
@@ -10,6 +9,7 @@ import { neutral, type ScenePalette } from "@hedronite/lts-tokens";
 import type { ThreeElements } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
 import type { Object3D } from "three";
+import { useEffectMaterial } from "./effectMaterial.js";
 
 type GroupProps = Omit<ThreeElements["group"], "args" | "children" | "ref" | "object">;
 
@@ -17,7 +17,7 @@ export interface FramedSolidProps extends GroupProps {
   readonly primitive: PrimitiveId;
   /** The faces' material. Default "glass". */
   readonly faces?: MaterialId;
-  /** A surface shader for the faces instead of a material preset. Needs the WebGPU renderer (`WebGPUCanvas`). */
+  /** A surface shader for the faces instead of a material preset. Needs the WebGPU renderer (`WebGPUCanvas` from `@hedronite/lts-adapters/webgpu`). The shader loads on demand: nothing draws until it is ready. */
   readonly shader?: EffectId;
   /** The edges' material, tinted with the scene's accent color. Default "metal" (copper in the Hedronite look). */
   readonly edges?: MaterialId;
@@ -31,25 +31,19 @@ export function accentPalette(palette: ScenePalette, material: MaterialId): Scen
 
 /** A framed solid (faces, edge tubes, vertex beads), as on hedronite.com. Owns and frees what it builds. */
 export function FramedSolid({ primitive: id, faces = "glass", shader, edges = "metal", palette = neutral.scene, ...props }: FramedSolidProps) {
+  const effect = useEffectMaterial(shader, palette);
+  const surface = useMemo(() => (shader === undefined ? createMaterial(faces, palette) : effect), [shader, faces, palette, effect]);
   const object = useMemo(
-    () =>
-      createFramedSolid(primitive(id), {
-        faces: shader === undefined ? createMaterial(faces, palette) : createEffectMaterial(shader, palette),
-        edges: createMaterial(edges, accentPalette(palette, edges)),
-      }),
-    [id, faces, shader, edges, palette],
+    () => (surface === undefined ? undefined : createFramedSolid(primitive(id), { faces: surface, edges: createMaterial(edges, accentPalette(palette, edges)) })),
+    [id, surface, edges, palette],
   );
   useEffect(
     () => () => {
-      disposeObject(object);
+      if (object !== undefined) disposeObject(object);
     },
     [object],
   );
-  return (
-    <group {...props}>
-      <primitive object={object} dispose={null} />
-    </group>
-  );
+  return <group {...props}>{object === undefined ? null : <primitive object={object} dispose={null} />}</group>;
 }
 
 export interface LibraryObjectProps extends GroupProps {
