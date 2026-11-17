@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures.js";
 
 // The Astro dogfood page, served by `astro preview`.
 test.use({ baseURL: process.env["E2E_SITE_URL"] ?? "http://localhost:4174" });

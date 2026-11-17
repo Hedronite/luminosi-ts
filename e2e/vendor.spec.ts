@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures.js";
 
 test("Codevember's days are demos with their notes readable in place and a live link", async ({ page }) => {
   await page.goto("/?view=open-source");
