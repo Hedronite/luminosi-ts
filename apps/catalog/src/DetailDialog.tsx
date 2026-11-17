@@ -112,7 +112,7 @@ export function DetailDialog({ meta, onClose, onStep, position }: DetailDialogPr
               <>
                 <dt className="text-fg-muted">Adopted from</dt>
                 <dd>
-                  <a href={`?view=open-source&set=${encodeURIComponent(meta.origin.vendor)}`} className="text-accent underline-offset-2 hover:underline">
+                  <a href={`?view=open-source&set=${encodeURIComponent(meta.origin.vendor)}`} className="text-fg underline decoration-accent decoration-2 underline-offset-2">
                     {meta.origin.vendor}
                   </a>{" "}
                   <span className="break-all font-mono text-xs text-fg-muted">{meta.origin.path}</span>

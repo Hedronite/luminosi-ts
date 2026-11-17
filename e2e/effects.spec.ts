@@ -56,6 +56,26 @@ test("the adopted soap film and CRT tube render together on the stage", async ({
   expect(errors).toEqual([]);
 });
 
+test("under reduced motion the stage holds a still frame and still answers the pointer", async ({ page }) => {
+  const errors = errorsOn(page);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/?view=effects");
+  const stage = page.getByTestId("effects-stage");
+  await expect(stage).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 15000 });
+  // Let first-load renders settle, then nothing moves on its own.
+  await page.waitForTimeout(1000);
+  const settled = Number(await stage.getAttribute("data-frames"));
+  await page.waitForTimeout(1200);
+  expect(Number(await stage.getAttribute("data-frames"))).toBe(settled);
+  // Pointing at it renders on demand (the lens).
+  const box = await stage.boundingBox();
+  if (box === null) throw new Error("no stage");
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.move(box.x + box.width / 2 + 30, box.y + box.height / 2);
+  await expect.poll(async () => Number(await stage.getAttribute("data-frames"))).toBeGreaterThan(settled);
+  expect(errors).toEqual([]);
+});
+
 test("the lens opens where the pointer is", async ({ page }) => {
   const errors = errorsOn(page);
   await page.goto("/?view=effects");

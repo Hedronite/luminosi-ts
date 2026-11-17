@@ -102,6 +102,7 @@ describe("convertOmarchy", () => {
           expect(contrastRatio(p[text], p[bg2])).toBeGreaterThanOrEqual(4.5);
         }
         expect(contrastRatio(p.accent, p.surface)).toBeGreaterThanOrEqual(3);
+        expect(contrastRatio(p.accent, p.surfaceRaised)).toBeGreaterThanOrEqual(3);
         expect(preset.light).toEqual(preset.dark);
       }),
       { numRuns: 300 },

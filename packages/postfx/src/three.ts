@@ -74,11 +74,13 @@ export class ScreenEffects {
   /** Pixel ratios the CRT passes size their lines by. */
   private readonly dprs: readonly FloatUniform[];
   private pointer: ScreenPointer = null;
+  private readonly reduced: boolean;
 
   constructor(renderer: WebGPURenderer, scene: Scene, camera: Camera, stack: readonly ScreenEffectConfig[], options: ScreenEffectsOptions = {}) {
     this.renderer = renderer;
     const inks = inksFor(options.palette ?? neutral.scene, options);
     const reduced = options.reducedMotion === true;
+    this.reduced = reduced;
     const ordered = orderStack(stack);
     this.ids = ordered.map((effect) => effect.id);
     const smoke = ordered.find((effect) => effect.id === "smoke");
@@ -183,7 +185,9 @@ export class ScreenEffects {
     if (state.lens) {
       // Both the pointer and screenUV run from the top left.
       if (this.pointer !== null) u.mouse.value.set(this.pointer.x, this.pointer.y);
-      state.lensNow += ((this.pointer === null ? 0 : 1) - state.lensNow) * Math.min(1, step * 7);
+      const open = this.pointer === null ? 0 : 1;
+      // Reduced motion: the lens is there or not, with no ease (and no frames needed to settle).
+      state.lensNow = this.reduced ? open : state.lensNow + (open - state.lensNow) * Math.min(1, step * 7);
       u.lens.value = state.lensNow;
     }
   }

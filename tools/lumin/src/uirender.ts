@@ -71,7 +71,9 @@ async function measure(page: Page): Promise<{
       const px = Number.parseFloat(getComputedStyle(el).fontSize);
       return px < 12 ? [{ target: handle(el), px }] : [];
     });
-    const long = [...document.querySelectorAll("p, li, dd")].filter(visible).flatMap((el) => {
+    // Running text only: a list item that holds blocks (a grid of cards) is layout, not a line.
+    const holdsBlocks = (el: Element): boolean => [...el.children].some((child) => /^(block|flex|grid|table)/.test(getComputedStyle(child).display));
+    const long = [...document.querySelectorAll("p, li, dd")].filter((el) => visible(el) && !holdsBlocks(el)).flatMap((el) => {
       const s = getComputedStyle(el);
       const chars = Math.round(el.getBoundingClientRect().width / (Number.parseFloat(s.fontSize) * 0.5));
       return chars > 90 && textOf(el).length > 120 ? [{ target: handle(el), chars }] : [];

@@ -2,6 +2,9 @@ import { materialPreset, type MaterialId } from "@hedronite/lts-materials";
 import { useId } from "react";
 import { usePreset } from "./look";
 
+/** The studio light, white in every look: the highlight a smooth surface catches. */
+const LIGHT = "#ffffff";
+
 /**
  * A flat stand-in for a material: its preset color, with a highlight that tightens as roughness drops.
  * A thin film adds a band of shifting color; a sheen adds a soft light at the rim.
@@ -18,8 +21,8 @@ export function Swatch({ id, size }: { readonly id: MaterialId; readonly size: n
     <svg width={size} height={size} viewBox="0 0 2 2" aria-hidden="true">
       <defs>
         <radialGradient id={gradient} cx="0.35" cy="0.3" r={0.9 - (1 - preset.roughness) * 0.45}>
-          <stop offset="0" stopColor="#ffffff" stopOpacity={highlight} />
-          <stop offset="1" stopColor="#ffffff" stopOpacity={0} />
+          <stop offset="0" stopColor={LIGHT} stopOpacity={highlight} />
+          <stop offset="1" stopColor={LIGHT} stopOpacity={0} />
         </radialGradient>
         <linearGradient id={film} x1="0" y1="0" x2="1" y2="1">
           <stop offset="0.1" stopColor={scene.glass} />

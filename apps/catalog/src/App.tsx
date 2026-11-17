@@ -207,7 +207,7 @@ export function App() {
               />
             </search>
 
-            <label className="flex items-center gap-2 text-sm text-fg-muted">
+            <label className="flex min-h-6 items-center gap-2 text-sm text-fg-muted">
               <input
                 type="checkbox"
                 checked={newest}

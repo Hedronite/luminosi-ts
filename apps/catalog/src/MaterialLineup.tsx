@@ -118,7 +118,7 @@ export function MaterialLineup() {
             <ul aria-label="Materials in the lineup" className="pointer-events-none absolute inset-0 grid content-start" style={{ gridTemplateColumns: `repeat(${String(cols)}, minmax(0, 1fr))` }}>
               {materialIds.map((id) => (
                 <li key={id} className="flex items-end justify-center pb-2 text-center text-xs" style={{ height: cell }}>
-                  <span className="truncate rounded bg-surface/70 px-1.5 py-0.5">{materialPreset(id).name}</span>
+                  <span className="text-balance rounded bg-surface/70 px-1.5 py-0.5">{materialPreset(id).name}</span>
                 </li>
               ))}
             </ul>

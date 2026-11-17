@@ -139,9 +139,9 @@ export function IconPacks({ startPack }: { readonly startPack?: string | undefin
       </div>
 
       {info === undefined ? null : (
-        <p className="mt-3 text-sm" data-testid="pack-credit">
+        <p className="mt-3 max-w-prose text-sm" data-testid="pack-credit">
           <span className="font-medium">{info.name}</span> · {info.description} · License <span className="font-medium">{info.license}</span> · Credit: {info.credit} ·{" "}
-          <a href={info.source} className="text-accent underline underline-offset-2">
+          <a href={info.source} className="text-fg underline decoration-accent decoration-2 underline-offset-2">
             source
           </a>
         </p>
@@ -167,7 +167,7 @@ export function IconPacks({ startPack }: { readonly startPack?: string | undefin
                   className="flex h-full w-full flex-col items-center gap-2 rounded-lg border border-line px-2 py-3 text-xs hover:bg-surface-raised aria-pressed:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                 >
                   <PackIcon icon={icon} size={28} />
-                  <span className="w-full truncate text-center">{icon.name}</span>
+                  <span className="w-full truncate text-center" title={icon.name}>{icon.name}</span>
                 </button>
               </li>
             ))}

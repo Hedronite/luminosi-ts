@@ -49,8 +49,9 @@ describe.each(presets.flatMap((preset) => [[preset.id, "light", preset.light] as
       expect(contrastRatio(palette[fg], palette[bg])).toBeGreaterThanOrEqual(4.5);
     });
 
-    it("accent on surface has at least 3:1 contrast", () => {
+    it("accent on both surfaces has at least 3:1 contrast (controls and focus rings)", () => {
       expect(contrastRatio(palette.accent, palette.surface)).toBeGreaterThanOrEqual(3);
+      expect(contrastRatio(palette.accent, palette.surfaceRaised)).toBeGreaterThanOrEqual(3);
     });
   },
 );

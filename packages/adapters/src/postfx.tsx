@@ -31,7 +31,7 @@ export interface ScreenEffectsPassProps {
   readonly palette?: ScenePalette;
   /** Print in one ink only. */
   readonly monochrome?: Hex;
-  /** Skip the intro and the sweep, and open the lens at once. */
+  /** Skip the intro and the sweep, and open and close the lens at once. Pair it with frameloop="demand" for a still stage. */
   readonly reducedMotion?: boolean;
 }
 
@@ -46,6 +46,8 @@ export function ScreenEffectsPass({ effects, palette = neutral.scene, monochrome
   const scene = useThree((state) => state.scene);
   const camera = useThree((state) => state.camera);
   const size = useThree((state) => state.size);
+  // Under frameloop="demand" (a still stage for reduced motion) the pointer asks for each lens frame.
+  const invalidate = useThree((state) => state.invalidate);
   const runner = useMemo(
     () => new ScreenEffects(gl, scene, camera, effects, { palette, reducedMotion, ...(monochrome === undefined ? {} : { monochrome }) }),
     [gl, scene, camera, effects, palette, monochrome, reducedMotion],
@@ -66,9 +68,11 @@ export function ScreenEffectsPass({ effects, palette = neutral.scene, monochrome
     const move = (event: PointerEvent): void => {
       const rect = element.getBoundingClientRect();
       runner.setPointer({ x: (event.clientX - rect.left) / rect.width, y: (event.clientY - rect.top) / rect.height });
+      invalidate();
     };
     const leave = (): void => {
       runner.setPointer(null);
+      invalidate();
     };
     // Touch has no hover: a tap opens the lens where it lands, then it closes.
     const up = (event: PointerEvent): void => {
@@ -87,7 +91,7 @@ export function ScreenEffectsPass({ effects, palette = neutral.scene, monochrome
       element.removeEventListener("pointerup", up);
       element.removeEventListener("pointerleave", leave);
     };
-  }, [gl, runner]);
+  }, [gl, runner, invalidate]);
 
   // A positive priority takes over rendering from React Three Fiber.
   useFrame((_, delta) => {
