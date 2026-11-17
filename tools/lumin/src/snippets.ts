@@ -1,6 +1,6 @@
 import type { AssetMeta } from "@hedronite/lts-core";
 import { iconToSvg, type IconData } from "@hedronite/lts-icons";
-import { objectSpecById } from "@hedronite/lts-objects";
+import { objectSpecById, showcase } from "@hedronite/lts-objects";
 
 export interface Snippet {
   readonly label: string;
@@ -33,7 +33,7 @@ export function snippetsFor(meta: AssetMeta, icon: IconData | undefined): readon
     return [
       {
         label: "TypeScript",
-        code: `import { createMaterial } from "@hedronite/lts-materials/three";\nimport { crystalCluster } from "@hedronite/lts-objects";\nimport { createCrystalCluster } from "@hedronite/lts-objects/three";\nimport { disposeObject } from "@hedronite/lts-primitives/three";\n\n// Same seed, same cluster.\nconst cluster = createCrystalCluster(crystalCluster({ count: 14, spread: 0.7, seed: 11 }), createMaterial("satin"));\n// Later: disposeObject(cluster);`,
+        code: `import { createMaterial } from "@hedronite/lts-materials/three";\nimport { crystalCluster } from "@hedronite/lts-objects";\nimport { createCrystalCluster } from "@hedronite/lts-objects/three";\nimport { disposeObject } from "@hedronite/lts-primitives/three";\n\n// Same seed, same cluster.\nconst cluster = createCrystalCluster(crystalCluster({ count: ${String(showcase.cluster.count)}, spread: ${String(showcase.cluster.spread)}, seed: ${String(showcase.cluster.seed)} }), createMaterial("satin"));\n// Later: disposeObject(cluster);`,
       },
     ];
   }
@@ -49,7 +49,7 @@ export function snippetsFor(meta: AssetMeta, icon: IconData | undefined): readon
     return [
       {
         label: "TypeScript",
-        code: `import { createMaterial } from "@hedronite/lts-materials/three";\nimport { latticePoints } from "@hedronite/lts-objects";\nimport { createLattice } from "@hedronite/lts-objects/three";\n\n// 216 octahedra, one draw call.\nconst lattice = createLattice(latticePoints({ size: 6, spacing: 0.28 }), createMaterial("metal"), { scale: 0.06 });`,
+        code: `import { createMaterial } from "@hedronite/lts-materials/three";\nimport { latticePoints } from "@hedronite/lts-objects";\nimport { createLattice } from "@hedronite/lts-objects/three";\n\n// ${String(showcase.lattice.size ** 3)} octahedra, one draw call.\nconst lattice = createLattice(latticePoints({ size: ${String(showcase.lattice.size)}, spacing: ${String(showcase.lattice.spacing)} }), createMaterial("metal"), { scale: ${String(showcase.lattice.scale)} });`,
       },
     ];
   }
@@ -73,7 +73,7 @@ export function snippetsFor(meta: AssetMeta, icon: IconData | undefined): readon
     return [
       {
         label: "TypeScript",
-        code: `import { dressWatchSpec } from "@hedronite/lts-objects";\nimport { createObjectFromSpec } from "@hedronite/lts-objects/three";\nimport { hedronite } from "@hedronite/lts-tokens";\n\n// The spec is plain JSON: store it, diff it, review it. The palette picks the metal and strap.\nconst spec = dressWatchSpec({ hours: 10, minutes: 9, seconds: 36 });\nconst watch = createObjectFromSpec(spec, { palette: hedronite.scene });\n// Later: disposeObject(watch) from @hedronite/lts-primitives.`,
+        code: `import { dressWatchSpec } from "@hedronite/lts-objects";\nimport { createObjectFromSpec } from "@hedronite/lts-objects/three";\nimport { hedronite } from "@hedronite/lts-tokens";\n\n// The spec is plain JSON: store it, diff it, review it. The palette picks the metal and strap.\nconst spec = dressWatchSpec({ hours: ${String(showcase.watch.hours)}, minutes: ${String(showcase.watch.minutes)}, seconds: ${String(showcase.watch.seconds)} });\nconst watch = createObjectFromSpec(spec, { palette: hedronite.scene });\n// Later: disposeObject(watch) from @hedronite/lts-primitives.`,
       },
     ];
   }

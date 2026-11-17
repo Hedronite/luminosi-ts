@@ -11,17 +11,24 @@
   "scripts": {
     "build": "bun src/build.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "validate": "bun src/validate.ts"
+    "validate": "bun src/validate.ts",
+    "sizes": "bun src/sizes.ts",
+    "test": "vitest run"
   },
   "devDependencies": {
     "@gltf-transform/core": "catalog:",
     "@gltf-transform/extensions": "catalog:",
     "@gltf-transform/functions": "catalog:",
     "@hedronite/lts-core": "workspace:*",
+    "@hedronite/lts-materials": "workspace:*",
     "@hedronite/lts-objects": "workspace:*",
     "@hedronite/lts-primitives": "workspace:*",
+    "@hedronite/lts-tokens": "workspace:*",
+    "@types/three": "catalog:",
     "lumin": "workspace:*",
     "meshoptimizer": "catalog:",
+    "three": "catalog:",
+    "vitest": "catalog:",
     "zod": "catalog:"
   }
 }
