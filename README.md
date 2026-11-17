@@ -29,7 +29,7 @@ Monorepo managed with Bun workspaces + Turborepo. Nix flake for the reproducible
 
 | Package | Scope | Responsibility | Notes |
 |---------|-------|----------------|-------|
-| `core` | `@hedronite/lts-core` | Asset registry, typed metadata (Zod), progressive loaders, manifests, versioning, disposal, shared types | Zero runtime deps beyond Zod. Pure TS. |
+| `core` | `@hedronite/lts-core` | Asset registry, typed metadata (Zod), manifests, versioning, shared types | Zero runtime deps beyond Zod. Pure TS. |
 | `tokens` | `@hedronite/lts-tokens` | Design tokens: scales, colors and looks (presets), with the CSS they generate | Pure TS. Every text pair in every look is contrast-tested. |
 | `icons` | `@hedronite/lts-icons` | Tree-shakeable SVG data + optional React components. Categories and tags are flexible. Optional 3D extrusions. | Dual export: pure TS + `/react` TSX. React optional peer. |
 | `primitives` | `@hedronite/lts-primitives` | Three.js geometric primitives, materials, lights, helpers | Pure TS. Style-agnostic. |

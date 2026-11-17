@@ -94,7 +94,7 @@ export function snippetsFor(meta: AssetMeta, icon: IconData | undefined): readon
       },
       {
         label: "React",
-        code: `import { ScreenEffectsPass, WebGPUCanvas } from "@hedronite/lts-adapters";\n\nconst stack = [{ id: "${meta.id}" }] as const; // keep it stable: a new array rebuilds the passes\n\n// The WebGPU renderer (WebGL 2 where WebGPU is missing) runs screen effects and surface shaders together.\n<WebGPUCanvas>\n  {/* your scene */}\n  <ScreenEffectsPass effects={stack} />\n</WebGPUCanvas>`,
+        code: `import { ScreenEffectsPass, WebGPUCanvas } from "@hedronite/lts-adapters/webgpu";\n\nconst stack = [{ id: "${meta.id}" }] as const; // keep it stable: a new array rebuilds the passes\n\n// The WebGPU renderer (WebGL 2 where WebGPU is missing) runs screen effects and surface shaders together.\n<WebGPUCanvas>\n  {/* your scene */}\n  <ScreenEffectsPass effects={stack} />\n</WebGPUCanvas>`,
       },
     ];
   }

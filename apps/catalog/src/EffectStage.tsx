@@ -1,4 +1,5 @@
-import { ScreenEffectsPass, StudioEnvironment, StudioLights, WebGPUCanvas } from "@hedronite/lts-adapters";
+import { StudioLights } from "@hedronite/lts-adapters";
+import { ScreenEffectsPass, WebGPUCanvas, WebGPUStudioEnvironment } from "@hedronite/lts-adapters/webgpu";
 import type { ScreenEffectConfig } from "@hedronite/lts-postfx";
 import { disposeObject } from "@hedronite/lts-primitives/three";
 import type { Hex, ScenePalette } from "@hedronite/lts-tokens";
@@ -63,7 +64,7 @@ export function EffectStage({ effects, palette, paletteId, subject = framedDodec
   return (
     <StageFrame group={own} motion={motion} label={label} className={className} testId={host === undefined ? "viewport" : undefined}>
       <WebGPUCanvas frameloop={motion.still ? "demand" : "always"} dpr={[1, 2]} camera={{ position: [0, 0, 3.6], fov: 35 }}>
-        <StudioEnvironment />
+        <WebGPUStudioEnvironment />
         <StudioLights />
         <Controls keys={own} />
         <StageClock clockRef={clock} running={!motion.still} />

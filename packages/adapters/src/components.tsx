@@ -1,7 +1,6 @@
 import { type MaterialId } from "@hedronite/lts-materials";
 import { createMaterial } from "@hedronite/lts-materials/three";
 import { type EffectId } from "@hedronite/lts-shaders";
-import { createEffectMaterial } from "@hedronite/lts-shaders/three";
 import { crystalCluster, latticePoints, type ClusterOptions, type LatticeOptions } from "@hedronite/lts-objects";
 import { createCrystalCluster, createLattice } from "@hedronite/lts-objects/three";
 import { primitive, type PrimitiveId } from "@hedronite/lts-primitives";
@@ -9,8 +8,8 @@ import { createPolyhedronGeometry, createStudioLights, disposeObject } from "@he
 import { neutral, type ScenePalette } from "@hedronite/lts-tokens";
 import { useThree, type ThreeElements } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
-import { PMREMGenerator, type Material, type WebGLRenderer } from "three";
-import { PMREMGenerator as NodePMREMGenerator, WebGPURenderer } from "three/webgpu";
+import { useEffectMaterial } from "./effectMaterial.js";
+import { PMREMGenerator, type WebGLRenderer } from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 
 type GroupProps = Omit<ThreeElements["group"], "args" | "children" | "ref" | "object">;
@@ -19,7 +18,7 @@ export interface PrimitiveMeshProps extends Omit<ThreeElements["mesh"], "args" |
   readonly primitive: PrimitiveId;
   /** Material preset. Default "satin". */
   readonly material?: MaterialId;
-  /** A surface shader instead of a material preset. Needs the WebGPU renderer (`WebGPUCanvas`). */
+  /** A surface shader instead of a material preset. Needs the WebGPU renderer (`WebGPUCanvas` from `@hedronite/lts-adapters/webgpu`). The shader loads on demand: nothing draws until it is ready. */
   readonly shader?: EffectId;
   /** Scene colors. Default: the neutral token preset. */
   readonly palette?: ScenePalette;
@@ -28,7 +27,9 @@ export interface PrimitiveMeshProps extends Omit<ThreeElements["mesh"], "args" |
 /** A primitive with a preset material. Owns both, and frees them when they change or it unmounts. */
 export function PrimitiveMesh({ primitive: id, material = "satin", shader, palette = neutral.scene, ...props }: PrimitiveMeshProps) {
   const geometry = useMemo(() => createPolyhedronGeometry(primitive(id), id), [id]);
-  const surface = useMemo((): Material => (shader === undefined ? createMaterial(material, palette) : createEffectMaterial(shader, palette)), [material, shader, palette]);
+  const preset = useMemo(() => (shader === undefined ? createMaterial(material, palette) : undefined), [material, shader, palette]);
+  const effect = useEffectMaterial(shader, palette);
+  const surface = shader === undefined ? preset : effect;
   useEffect(
     () => () => {
       geometry.dispose();
@@ -37,17 +38,17 @@ export function PrimitiveMesh({ primitive: id, material = "satin", shader, palet
   );
   useEffect(
     () => () => {
-      surface.dispose();
+      preset?.dispose();
     },
-    [surface],
+    [preset],
   );
-  return <mesh geometry={geometry} material={surface} dispose={null} {...props} />;
+  return surface === undefined ? null : <mesh geometry={geometry} material={surface} dispose={null} {...props} />;
 }
 
-/** A prefiltered environment for either renderer: WebGL's PMREM generator, or the WebGPU renderer's own. */
-function studioTexture(gl: WebGLRenderer | WebGPURenderer) {
+/** A prefiltered studio room, from WebGL's PMREM generator. */
+function studioTexture(gl: WebGLRenderer) {
   const room = new RoomEnvironment();
-  const pmrem = gl instanceof WebGPURenderer ? new NodePMREMGenerator(gl) : new PMREMGenerator(gl);
+  const pmrem = new PMREMGenerator(gl);
   const target = pmrem.fromScene(room, 0.04);
   room.dispose();
   pmrem.dispose();
@@ -56,11 +57,13 @@ function studioTexture(gl: WebGLRenderer | WebGPURenderer) {
 
 /**
  * A procedural studio room as the scene's environment, for reflections on metal, glass and glossy
- * surfaces. Nothing is fetched. Works on the WebGL and the WebGPU renderer. Freed on unmount.
+ * surfaces. Nothing is fetched. Freed on unmount. For the WebGPU renderer (`WebGPUCanvas`) use
+ * `WebGPUStudioEnvironment` from `@hedronite/lts-adapters/webgpu`.
  */
 export function StudioEnvironment() {
-  // Inside WebGPUCanvas the renderer React Three Fiber hands over is a WebGPURenderer.
-  const gl: WebGLRenderer | WebGPURenderer = useThree((state) => state.gl);
+  const gl = useThree((state) => state.gl);
+  // A property check, not an instanceof: this entry must not import three's WebGPU build.
+  if ("isWebGPURenderer" in gl) throw new Error("StudioEnvironment runs on the WebGL renderer: inside <WebGPUCanvas> use WebGPUStudioEnvironment from @hedronite/lts-adapters/webgpu");
   const target = useMemo(() => studioTexture(gl), [gl]);
   useEffect(
     () => () => {
