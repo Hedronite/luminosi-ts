@@ -12,14 +12,23 @@ A ported asset carries `origin` (`{ vendor, path, note }`), so the catalog credi
 
 | Folder | What | Source | License | Credit | Pulled |
 |---|---|---|---|---|---|
-| [`isocons`](isocons/) | Isometric Icons: isometric SVG icons, six edge variants each, with `catalog.json` | https://www.isocons.app/ (v2.1) | CC BY 4.0 (`LICENSE`) | Isometric Icons by isocons.app (leyeConnect and meandchimso) | 2026-08-27, from the site's published bundle |
-| [`lucide`](lucide/) | Lucide icons (1,808 SVGs) | https://github.com/lucide-icons/lucide | ISC (`LICENSE`) | Lucide Icons and contributors | 2026-08 |
-| [`coreui-icons`](coreui-icons/) | CoreUI Icons Free (562 SVGs) | https://github.com/coreui/coreui-icons | Icons CC BY 4.0; fonts SIL OFL 1.1; code MIT (`LICENSE`) | CoreUI (coreui.io) | 2026-08 |
-| [`famicons`](famicons/) | Famicons (1,342 SVGs) | https://github.com/familyjs/famicons | MIT (`LICENSE`) | Family | 2026-08 |
-| [`stash-icons`](stash-icons/) | Stash icons (five styles, as TSX with inline SVG) | https://github.com/stash-ui/icons | MIT (`LICENSE`) | Pingback LLC | 2026-08 |
-| [`threeui`](threeui/) | ThreeUI Community: the open-source edition of the ThreeUI component catalog (app, components, shaders, scene assets) | https://github.com/MengTo/threeui | MIT (`LICENSE`); fonts SIL OFL 1.1 (`FONT-LICENSES.md`); see `ASSET-LICENSES.md` and `THIRD_PARTY_NOTICES.md` | Meng To / ThreeUI | 2026-08-26 |
-| [`techartist`](techartist/) | Three Three.js demos: geometry-in-flux, bioluminescence, threejs-3d-webpage | https://iamtechartist.github.io/ | MIT (a `LICENSE` beside each demo) | Techartist | 2026-08-21 |
+| [`isocons`](isocons/) | Isometric Icons: isometric SVG icons, six edge variants each, with `catalog.json` | https://www.isocons.app/ (v2.1, `sha256:d096478f`) | CC BY 4.0 (`LICENSE`) | Isometric Icons by isocons.app (leyeConnect and meandchimso) | 2026-08-27, from the site's published bundle |
+| [`lucide`](lucide/) | Lucide icons (1,808 SVGs) | https://github.com/lucide-icons/lucide (`6f56b8f1`) | ISC (`LICENSE`) | Lucide Icons and contributors | 2026-08 |
+| [`coreui-icons`](coreui-icons/) | CoreUI Icons Free (562 SVGs) | https://github.com/coreui/coreui-icons (`88d1cfc4`) | Icons CC BY 4.0; fonts SIL OFL 1.1; code MIT (`LICENSE`) | CoreUI (coreui.io) | 2026-08 |
+| [`famicons`](famicons/) | Famicons (1,342 SVGs) | https://github.com/familyjs/famicons (`e702639c`) | MIT (`LICENSE`) | Family | 2026-08 |
+| [`stash-icons`](stash-icons/) | Stash icons (five styles, as TSX with inline SVG) | https://github.com/stash-ui/icons (`44091b18`) | MIT (`LICENSE`) | Pingback LLC | 2026-08 |
+| [`threeui`](threeui/) | ThreeUI Community: the open-source edition of the ThreeUI component catalog (app, components, shaders, scene assets) | https://github.com/MengTo/threeui (`02f9835e`) | MIT (`LICENSE`); fonts SIL OFL 1.1 (`FONT-LICENSES.md`); see `ASSET-LICENSES.md` and `THIRD_PARTY_NOTICES.md` | Meng To / ThreeUI | 2026-08-26 |
+| [`techartist`](techartist/) | Three Three.js demos: geometry-in-flux, bioluminescence, threejs-3d-webpage | https://iamtechartist.github.io/ (one repository per demo: `da187f63`, `2dc70cfd`, `d827a2a4`) | MIT (a `LICENSE` beside each demo) | Techartist | 2026-08-21 |
 | [`codevember-2026`](codevember-2026/) | Codevember 2026: daily three.js / R3F experiments (days 04–09, 12, 14), source, notes, recordings | https://github.com/ttillberg/codevember-2026 (`4df8e67a`) | MIT (`LICENSE`) | Theo Tillberg | 2026-11-16, without `08/public/logos/` (third-party marks) |
 | [`threert`](threert/) | ThreeRT: hardware ray-traced three.js, Rust + wgpu engine and TypeScript packages | https://github.com/meshy-dev/ThreeRT (`8cb4e9b1`) | MIT (`LICENSE`); see `CREDIT.md` for the parts under other licenses | Meshy LLC | 2026-11-16, without `site/` (Valve map media) or the six Khronos showroom models |
 | [`ai-design-skills`](ai-design-skills/) | The landing-page-design agent skill | https://github.com/elayadesign/ai-design-skills (`456d9e0d`) | MIT (`LICENSE`) | Elaya | 2026-11-15 |
-| [`jakubkrehel-skills`](jakubkrehel-skills/) | Interface agent skills (better-ui, better-typography, better-colors, interface-review and more) | https://github.com/jakubkrehel/skills | MIT (`LICENSE`) | Jakub Krehel (jakub.kr, interfaces.dev) | 2026-08 |
+| [`jakubkrehel-skills`](jakubkrehel-skills/) | Interface agent skills (better-ui, better-typography, better-colors, interface-review and more) | https://github.com/jakubkrehel/skills (`267330e1`) | MIT (`LICENSE`) | Jakub Krehel (jakub.kr, interfaces.dev) | 2026-08 |
+
+## Pins
+
+Every `CREDIT.md` pins its folder on the `Source` line, so the folder can be reproduced and checked against upstream:
+
+- **A commit,** in backticks: 8 to 40 hex digits (`4df8e67a`). It is the commit whose files match the folder byte for byte, apart from anything `CREDIT.md` lists as left out or changed. A branch name, a bare tag or "latest" is not a pin.
+- **A version and a hash,** when upstream has no repository or publishes no archive: `v2.1, ` followed by `sha256:` and 64 hex digits, in backticks. The hash is of the folder as vendored: the sha256 of its files' `sha256  path` lines, sorted by path, with `CREDIT.md` and `.DS_Store` left out.
+
+`bun run vendor:check` fails for a folder whose source line has neither, and recomputes the hash of a version-and-hash pin. It cannot reach upstream, so a commit pin is checked for form only: to check one, clone upstream and compare each file's blob id (`git hash-object` here, `git ls-tree` there) at that commit. After a deliberate change to a pinned folder, pin it again.

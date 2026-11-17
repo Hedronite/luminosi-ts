@@ -109,7 +109,7 @@ export function MaterialLineup() {
       <div ref={box} className="relative mt-3 overflow-hidden rounded-xl border border-line bg-surface-raised" style={{ height }} data-testid="material-lineup">
         {width === 0 ? null : (
           <>
-            <div role="img" aria-label={`${String(materialIds.length)} materials on the ${shape === "sphere" ? "sphere" : primitiveInfo(shape).name} shape, in a grid.`} className="absolute inset-0">
+            <div role="group" aria-label={`${String(materialIds.length)} materials on the ${shape === "sphere" ? "sphere" : primitiveInfo(shape).name} shape, in a grid.`} className="absolute inset-0">
               <Canvas frameloop="demand" dpr={[1, 2]} orthographic camera={{ position: [0, 0, 500], zoom: 1, near: 1, far: 2000 }}>
                 <Environment />
                 <StudioLights />

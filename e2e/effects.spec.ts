@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { expect, test } from "./fixtures.js";
 
 const errorsOn = (page: Page): string[] => {
   const errors: string[] = [];
@@ -20,18 +21,18 @@ test("the Effects tab puts surface shaders and screen effects on one stage, on r
   // A surface shader from the list goes onto the stage, under the screen effects already on.
   await page.getByRole("region", { name: "Surface shaders" }).getByRole("button", { name: "Toon outline" }).click();
   await expect(page.getByRole("region", { name: "Surface shaders" }).getByRole("button", { name: "Toon outline" })).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByRole("img", { name: /in Toon outline, under Scan sweep, Lens\.$/ })).toBeVisible();
+  await expect(page.getByRole("group", { name: /in Toon outline, under Scan sweep, Lens\.$/ })).toBeVisible();
 
   // On a real object, with another shader and other screen effects.
   await page.getByLabel("Subject", { exact: true }).selectOption("object:dress-watch");
   await page.getByLabel("Surface", { exact: true }).selectOption("shader:hologram");
   await page.getByRole("checkbox", { name: "Dither" }).check();
   await page.getByRole("checkbox", { name: /^Lens/ }).uncheck();
-  await expect(page.getByRole("img", { name: "Dress watch in Hologram, under Scan sweep, Dither." })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Dress watch in Hologram, under Scan sweep, Dither." })).toBeVisible();
   await page.getByLabel("Ink", { exact: true }).selectOption("accent");
   // Back to the watch's own materials, then a solid in a material preset.
   await page.getByLabel("Surface", { exact: true }).selectOption("own");
-  await expect(page.getByRole("img", { name: /^Dress watch in its own materials/ })).toBeVisible();
+  await expect(page.getByRole("group", { name: /^Dress watch in its own materials/ })).toBeVisible();
   await page.getByLabel("Subject", { exact: true }).selectOption("solid:catalan-rhombic-triacontahedron");
   await page.getByLabel("Surface", { exact: true }).selectOption("material:metal");
   const before = Number(await stage.getAttribute("data-frames"));
@@ -50,7 +51,7 @@ test("the adopted soap film and CRT tube render together on the stage", async ({
   await page.getByRole("checkbox", { name: "CRT screen" }).check();
   await page.getByRole("checkbox", { name: "Scan sweep" }).uncheck();
   await page.getByRole("checkbox", { name: /^Lens/ }).uncheck();
-  await expect(page.getByRole("img", { name: /in Soap film, under CRT screen\.$/ })).toBeVisible();
+  await expect(page.getByRole("group", { name: /in Soap film, under CRT screen\.$/ })).toBeVisible();
   const before = Number(await stage.getAttribute("data-frames"));
   await expect.poll(async () => Number(await stage.getAttribute("data-frames"))).toBeGreaterThan(before);
   expect(errors).toEqual([]);

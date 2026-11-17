@@ -1,4 +1,4 @@
-import { AmbientLight, BufferAttribute, BufferGeometry, DirectionalLight, Group, Mesh, Texture, type Material, type Object3D } from "three";
+import { AmbientLight, BatchedMesh, BufferAttribute, BufferGeometry, DirectionalLight, Group, InstancedMesh, Line, Mesh, Points, Texture, type Material, type Object3D } from "three";
 import type { Polyhedron } from "./polyhedron.js";
 import { triangulate } from "./polyhedron.js";
 
@@ -35,14 +35,16 @@ export function createStudioLights({ intensity = 1 }: StudioLightOptions = {}): 
   return rig;
 }
 
-type AnyMesh = Mesh<BufferGeometry, Material | Material[]>;
+/** Anything that draws a geometry with a material: meshes (instanced and batched too), lines (segments and loops too) and points. */
+type Drawable = Mesh<BufferGeometry, Material | Material[]> | Line<BufferGeometry, Material | Material[]> | Points<BufferGeometry, Material | Material[]>;
 
-const isMesh = (object: Object3D): object is AnyMesh => object instanceof Mesh;
+const isDrawable = (object: Object3D): object is Drawable => object instanceof Mesh || object instanceof Line || object instanceof Points;
 
-const materialsOf = (mesh: AnyMesh): readonly Material[] => (Array.isArray(mesh.material) ? mesh.material : [mesh.material]);
+const materialsOf = (drawable: Drawable): readonly Material[] => (Array.isArray(drawable.material) ? drawable.material : [drawable.material]);
 
 /**
- * Frees every geometry and material under `root`, and every texture those materials use.
+ * Frees every geometry and material under `root`, and every texture those materials use. That covers
+ * meshes, lines and points, and the buffers an `InstancedMesh` or `BatchedMesh` holds for its instances.
  * Shared resources are freed once. Detach `root` from its parent first if it should not be rendered again.
  */
 export function disposeObject(root: Object3D): void {
@@ -53,8 +55,14 @@ export function disposeObject(root: Object3D): void {
     resource.dispose();
   };
   root.traverse((object) => {
-    if (!isMesh(object)) return;
-    free(object.geometry);
+    if (!isDrawable(object)) return;
+    // Instanced and batched meshes own instance buffers; a batched mesh frees its own geometry too.
+    const geometry: BufferGeometry = object.geometry;
+    if (object instanceof BatchedMesh) free(object);
+    else {
+      if (object instanceof InstancedMesh) free(object);
+      free(geometry);
+    }
     for (const material of materialsOf(object)) {
       for (const value of Object.values(material)) {
         if (value instanceof Texture) free(value);

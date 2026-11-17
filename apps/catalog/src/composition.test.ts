@@ -58,7 +58,8 @@ describe("export", () => {
 
   it("writes TSX that renders each placement with the adapters", () => {
     const code = toTsx(composition);
-    expect(code).toContain('import { PrimitiveMesh, StudioEnvironment, StudioLights, WebGPUCanvas } from "@hedronite/lts-adapters";');
+    expect(code).toContain('import { PrimitiveMesh, StudioLights } from "@hedronite/lts-adapters";');
+    expect(code).toContain('import { WebGPUCanvas, WebGPUStudioEnvironment } from "@hedronite/lts-adapters/webgpu";');
     expect(code).toContain("<WebGPUCanvas>");
     expect(code).toContain("<StudioLights intensity={1.2} />");
     expect(code).toContain('<PrimitiveMesh primitive="platonic-icosahedron" material="glass"');
@@ -67,7 +68,8 @@ describe("export", () => {
 
   it("writes framed solids, objects and the screen effects", () => {
     const code = toTsx(mixed);
-    expect(code).toContain('import { CrystalCluster, FramedSolid, LibraryObject, ScreenEffectsPass, StudioEnvironment, StudioLights, WebGPUCanvas } from "@hedronite/lts-adapters";');
+    expect(code).toContain('import { CrystalCluster, FramedSolid, LibraryObject, StudioLights } from "@hedronite/lts-adapters";');
+    expect(code).toContain('import { ScreenEffectsPass, WebGPUCanvas, WebGPUStudioEnvironment } from "@hedronite/lts-adapters/webgpu";');
     expect(code).toContain('<FramedSolid primitive="archimedean-truncated-icosahedron" faces="glass" edges="metal"');
     expect(code).toContain('<LibraryObject object="dress-watch"');
     expect(code).toContain('<CrystalCluster count={14} spread={0.7} seed={11} material="glass"');

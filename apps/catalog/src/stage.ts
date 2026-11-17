@@ -1,6 +1,6 @@
 import { isMaterialId, type MaterialId } from "@hedronite/lts-materials";
 import { createMaterial } from "@hedronite/lts-materials/three";
-import { crystalCluster, dressWatchSpec, latticePoints, objectSpecById } from "@hedronite/lts-objects";
+import { crystalCluster, dressWatchSpec, latticePoints, objectSpecById, showcase } from "@hedronite/lts-objects";
 import { createCrystalCluster, createFramedSolid, createLattice, createObjectFromSpec } from "@hedronite/lts-objects/three";
 import { isPrimitiveId, primitive, type PrimitiveId } from "@hedronite/lts-primitives";
 import { createPolyhedronGeometry } from "@hedronite/lts-primitives/three";
@@ -50,16 +50,14 @@ function resurface(object: Object3D, material: Material): Object3D {
   return object;
 }
 
-const tenPastTen = { hours: 10, minutes: 9, seconds: 36 } as const;
-
 function buildObject(id: PlaceableObject, palette: ScenePalette): Object3D {
   switch (id) {
     case "crystal-cluster":
-      return createCrystalCluster(crystalCluster({ count: 14, spread: 0.7, seed: 11 }), createMaterial("satin", palette));
+      return createCrystalCluster(crystalCluster(showcase.cluster), createMaterial("satin", palette));
     case "instanced-lattice":
-      return createLattice(latticePoints({ size: 6, spacing: 0.28 }), createMaterial("metal", palette), { scale: 0.06 });
+      return createLattice(latticePoints({ size: showcase.lattice.size, spacing: showcase.lattice.spacing }), createMaterial("metal", palette), { scale: showcase.lattice.scale });
     case "dress-watch":
-      return createObjectFromSpec(dressWatchSpec(tenPastTen), { palette });
+      return createObjectFromSpec(dressWatchSpec(showcase.watch), { palette });
     case "your-desk-lamp": {
       const spec = objectSpecById(id);
       if (spec === undefined) throw new Error(`no spec for ${id}`);

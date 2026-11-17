@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { expect, test } from "./fixtures.js";
 
 test.use({ permissions: ["clipboard-read", "clipboard-write"] });
 
@@ -427,6 +428,6 @@ test("the playground lines up every material on one shape", async ({ page }) => 
   // One shared shape: a single geometry however many materials.
   await expect(lineup).toHaveAttribute("data-gpu-geometries", "1");
   await page.getByLabel("Shape", { exact: true }).selectOption("platonic-icosahedron");
-  await expect(page.getByRole("img", { name: "13 materials on the Icosahedron shape, in a grid." })).toBeVisible();
+  await expect(page.getByRole("group", { name: "13 materials on the Icosahedron shape, in a grid." })).toBeVisible();
   expect(errors).toEqual([]);
 });
