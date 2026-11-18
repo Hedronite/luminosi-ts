@@ -3,8 +3,6 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
 import { assetKinds, type AssetMeta } from "@hedronite/lts-core";
-import type { IconData } from "@hedronite/lts-icons";
-import { allIcons } from "@hedronite/lts-icons/manifest";
 import { iconPacks as packList } from "@hedronite/lts-icons/packs";
 import { kindCounts, loadRegistry, rankAssets, snippetsFor, type KindFilter } from "@hedronite/lts-registry";
 import { fail, ok, type Envelope } from "./envelope.js";
@@ -13,7 +11,6 @@ import { fail, ok, type Envelope } from "./envelope.js";
 export const root = resolve(import.meta.dirname, "../../..");
 
 const registry = loadRegistry();
-const icons = new Map<string, IconData>(allIcons.map((icon) => [icon.id, icon]));
 
 const row = (asset: AssetMeta) => ({ id: asset.id, kind: asset.kind, name: asset.name, package: asset.package ?? null, tags: asset.tags, added: asset.added ?? null });
 
@@ -88,10 +85,10 @@ function closestIds(id: string, limit = 5): readonly string[] {
   return [...new Set([...near, ...ranked])].slice(0, limit);
 }
 
-export function show(id: string): Envelope {
+export async function show(id: string): Promise<Envelope> {
   const asset = registry.get(id);
   if (asset === undefined) return fail("show", "unknown_asset", `no asset "${id}"`, { matches: closestIds(id) });
-  return ok("show", { ...row(asset), version: asset.version, snippets: snippetsFor(asset, icons.get(asset.id)), catalog: `apps/catalog → ?asset=${asset.id}` });
+  return ok("show", { ...row(asset), version: asset.version, snippets: await snippetsFor(asset), catalog: `apps/catalog → ?asset=${asset.id}` });
 }
 
 const packageDirs = (): readonly string[] =>

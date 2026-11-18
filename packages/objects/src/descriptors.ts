@@ -4,10 +4,10 @@ import { neutral, type ScenePalette } from "@hedronite/lts-tokens";
 import { z } from "zod";
 import { crystalCluster, latticePoints } from "./cluster.js";
 import { libraryObjects, objectSpecById } from "./library.js";
-import { manifest } from "./manifest.js";
 import { showcase } from "./showcase.js";
 import { dressWatchSpec } from "./specs/dressWatch.js";
-import type { createCrystalCluster, createLattice, loadGltf } from "./three.js";
+import type { loadGltf } from "./gltf.js";
+import type { createCrystalCluster, createLattice } from "./meshes.js";
 
 /** What `build` makes: the object, which the caller owns and frees with `disposeObject` from `@hedronite/lts-primitives/three`. */
 export type ObjectBuilt = Awaited<ReturnType<typeof createCrystalCluster> | ReturnType<typeof createLattice> | ReturnType<typeof loadGltf>>;
@@ -17,7 +17,7 @@ const materials = () => import("@hedronite/lts-materials/three");
 
 const withPalette = (palette: ScenePalette | undefined): { readonly palette?: ScenePalette } => (palette === undefined ? {} : { palette });
 
-/** What is particular to one object: the rest of its descriptor comes from its manifest entry. */
+/** What is particular to one object: the rest of its descriptor, its metadata, comes from the ObjectInfo given beside it. */
 interface Entry<Shape extends z.ZodRawShape> {
   readonly parameters: z.ZodObject<Shape>;
   readonly hints?: ParameterHints;
@@ -26,16 +26,29 @@ interface Entry<Shape extends z.ZodRawShape> {
   readonly build: (params: z.output<z.ZodObject<Shape>>, palette: ScenePalette | undefined, options: BuildOptions) => Promise<ObjectBuilt>;
 }
 
-/** An object's descriptor, from its manifest entry (found by id) and what is particular to it. */
-function describe<Shape extends z.ZodRawShape>(id: string, entry: Entry<Shape>): AssetDescriptor<ObjectBuilt, ScenePalette> {
-  const asset = manifest.assets.find((candidate) => candidate.id === id);
-  if (asset === undefined) throw new RangeError(`${id} has a descriptor but is not in the objects manifest`);
-  return defineDescriptor({ meta: { ...asset, package: manifest.package }, ...entry });
+/** The package every object here ships in. */
+const packageName = "@hedronite/lts-objects";
+
+/** What an object says about itself: the manifest entry the registry, the CLI and the catalog list it by. */
+interface ObjectInfo {
+  readonly id: string;
+  readonly name: string;
+  readonly tags: readonly string[];
+  /** The day it joined the library (YYYY-MM-DD). */
+  readonly added: string;
+}
+
+/**
+ * An object's descriptor: its own metadata and what is particular to it. The objects manifest is derived from these,
+ * so adding an object is adding one `describe` below and nothing else.
+ */
+function describe<Shape extends z.ZodRawShape>(info: ObjectInfo, entry: Entry<Shape>): AssetDescriptor<ObjectBuilt, ScenePalette> {
+  return defineDescriptor({ meta: { ...info, kind: "object", version: "0.1.0", package: packageName }, ...entry });
 }
 
 /** An object stored as data (assets/src/objects): built from its spec, the palette picking the colors. */
-const stored = (id: string) =>
-  describe(id, {
+const stored = (info: ObjectInfo) =>
+  describe(info, {
     parameters: z.object({}),
     templates: [
       {
@@ -44,20 +57,21 @@ const stored = (id: string) =>
       },
     ],
     build: async (_params, palette) => {
-      const { createObjectFromSpec } = await import("./three.js");
-      const spec = objectSpecById(id);
-      if (spec === undefined) throw new RangeError(`${id} is listed as an object stored as data but has no spec`);
+      const { createObjectFromSpec } = await import("./fromSpec.js");
+      const spec = objectSpecById(info.id);
+      if (spec === undefined) throw new RangeError(`${info.id} is listed as an object stored as data but has no spec`);
       return createObjectFromSpec(spec, withPalette(palette));
     },
   });
 
 /**
- * One descriptor per object in the manifest: the four procedural objects and the glTF model, each with its own
- * parameters, then every object stored as data (built from its spec). Imports no three.js: `build` loads `./three`
- * when it is called. The defaults are the catalog's showcase settings.
+ * The objects defined in code: the four procedural objects and the glTF model, each with its own parameters. Imports no
+ * three.js: `build` loads the module it needs when it is called. The defaults are the catalog's showcase settings. Add an object by
+ * adding a `describe` here and running `bun run objects`, which writes the light list the manifest reads
+ * (generated/manifest.ts), so listing objects never loads their descriptors.
  */
-export const descriptors: readonly AssetDescriptor<ObjectBuilt, ScenePalette>[] = [
-  describe("crystal-cluster", {
+export const procedural: readonly AssetDescriptor<ObjectBuilt, ScenePalette>[] = [
+  describe({ id: "crystal-cluster", name: "Crystal cluster", tags: ["procedural", "crystal"], added: "2026-11-15" }, {
     parameters: z.object({
       count: z.number().int().min(1).max(64).default(showcase.cluster.count),
       spread: z.number().min(0).max(1).default(showcase.cluster.spread),
@@ -71,12 +85,12 @@ export const descriptors: readonly AssetDescriptor<ObjectBuilt, ScenePalette>[] 
       },
     ],
     build: async (params, palette) => {
-      const [{ createCrystalCluster }, { createMaterial }] = await Promise.all([import("./three.js"), materials()]);
+      const [{ createCrystalCluster }, { createMaterial }] = await Promise.all([import("./meshes.js"), materials()]);
       return createCrystalCluster(crystalCluster(params), createMaterial("satin", palette));
     },
   }),
 
-  describe("framed-solid", {
+  describe({ id: "framed-solid", name: "Framed solid", tags: ["procedural", "glass", "polyhedron"], added: "2026-11-16" }, {
     parameters: z.object({
       solid: z.enum(platonicSolids).default(showcase.framedSolid.solid),
       radius: z.number().min(0.2).max(2).default(showcase.framedSolid.radius),
@@ -89,14 +103,14 @@ export const descriptors: readonly AssetDescriptor<ObjectBuilt, ScenePalette>[] 
       },
     ],
     build: async ({ solid, radius }, palette) => {
-      const [{ createFramedSolid }, { createMaterial }] = await Promise.all([import("./three.js"), materials()]);
+      const [{ createFramedSolid }, { createMaterial }] = await Promise.all([import("./framed.js"), materials()]);
       // Glass faces with edges and beads in metal tinted by the look's accent: copper in the Hedronite look.
       const look = palette ?? neutral.scene;
       return createFramedSolid(platonic(solid, radius), { faces: createMaterial("glass", look), edges: createMaterial("metal", { ...look, metal: look.accent }) });
     },
   }),
 
-  describe("instanced-lattice", {
+  describe({ id: "instanced-lattice", name: "Instanced lattice", tags: ["procedural", "instanced"], added: "2026-11-15" }, {
     parameters: z.object({
       size: z.number().int().min(1).max(16).default(showcase.lattice.size),
       spacing: z.number().min(0.05).max(1).default(showcase.lattice.spacing),
@@ -111,12 +125,12 @@ export const descriptors: readonly AssetDescriptor<ObjectBuilt, ScenePalette>[] 
     ],
     vars: ({ size }) => ({ points: String(size ** 3) }),
     build: async ({ size, spacing, scale }, palette) => {
-      const [{ createLattice }, { createMaterial }] = await Promise.all([import("./three.js"), materials()]);
+      const [{ createLattice }, { createMaterial }] = await Promise.all([import("./meshes.js"), materials()]);
       return createLattice(latticePoints({ size, spacing }), createMaterial("metal", palette), { scale });
     },
   }),
 
-  describe("dress-watch", {
+  describe({ id: "dress-watch", name: "Your dress watch", tags: ["object-spec", "image-reconstruction", "watch"], added: "2026-11-15" }, {
     parameters: z.object({
       hours: z.number().int().min(0).max(23).default(showcase.watch.hours),
       minutes: z.number().int().min(0).max(59).default(showcase.watch.minutes),
@@ -130,12 +144,12 @@ export const descriptors: readonly AssetDescriptor<ObjectBuilt, ScenePalette>[] 
       },
     ],
     build: async (params, palette) => {
-      const { createObjectFromSpec } = await import("./three.js");
+      const { createObjectFromSpec } = await import("./fromSpec.js");
       return createObjectFromSpec(dressWatchSpec(params), withPalette(palette));
     },
   }),
 
-  describe("crystal-cluster-glb", {
+  describe({ id: "crystal-cluster-glb", name: "Crystal cluster (glTF)", tags: ["gltf", "meshopt", "pipeline"], added: "2026-11-15" }, {
     parameters: z.object({
       /** Where the .glb is served from. The catalog passes the URL its bundler gives the file. */
       url: z.string().min(1).default("/models/crystal-cluster-glb.glb"),
@@ -148,10 +162,12 @@ export const descriptors: readonly AssetDescriptor<ObjectBuilt, ScenePalette>[] 
       },
     ],
     build: async ({ url }, _palette, { signal }) => {
-      const { loadGltf } = await import("./three.js");
+      const { loadGltf } = await import("./gltf.js");
       return loadGltf(url, signal === undefined ? {} : { signal });
     },
   }),
 
-  ...libraryObjects.map(({ id }) => stored(id)),
 ];
+
+/** Every object: the ones defined in code, then each one stored as data. */
+export const descriptors: readonly AssetDescriptor<ObjectBuilt, ScenePalette>[] = [...procedural, ...libraryObjects.map(stored)];

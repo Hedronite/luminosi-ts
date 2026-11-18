@@ -1,11 +1,10 @@
 import type { AssetMeta } from "@hedronite/lts-core";
 import { ChevronLeft, ChevronRight, Close } from "@hedronite/lts-icons/react";
-import { snippetsFor } from "@hedronite/lts-registry";
-import { lazy, Suspense, useEffect, useRef } from "react";
+import { snippetsFor, type Snippet } from "@hedronite/lts-registry";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { AssetPreview } from "./AssetPreview";
 import { CopyButton } from "./CopyButton";
 import { usePreset } from "./look";
-import { iconFor } from "./registry";
 
 // three.js and React Three Fiber load only when a 3D asset is opened.
 const Viewport = lazy(() => import("./Viewport").then((module) => ({ default: module.Viewport })));
@@ -37,7 +36,19 @@ export function DetailDialog({ meta, onClose, onStep, position }: DetailDialogPr
     if (meta === undefined && element.open) element.close();
   }, [meta]);
 
-  const snippets = meta === undefined ? [] : snippetsFor(meta, iconFor(meta.id));
+  // The descriptors the snippets come from load when an asset is first opened, in a chunk of their own.
+  const [loaded, setLoaded] = useState<{ readonly id: string; readonly snippets: readonly Snippet[] } | undefined>(undefined);
+  useEffect(() => {
+    if (meta === undefined) return;
+    let current = true;
+    void snippetsFor(meta).then((found) => {
+      if (current) setLoaded({ id: meta.id, snippets: found });
+    });
+    return () => {
+      current = false;
+    };
+  }, [meta]);
+  const snippets = meta !== undefined && loaded?.id === meta.id ? loaded.snippets : [];
 
   return (
     <dialog
