@@ -18,6 +18,10 @@
       "types": "./dist/manifest.d.ts",
       "import": "./dist/manifest.js"
     },
+    "./descriptors": {
+      "types": "./dist/descriptors.d.ts",
+      "import": "./dist/descriptors.js"
+    },
     "./packs": {
       "types": "./dist/packs/index.d.ts",
       "import": "./dist/packs/index.js"
@@ -38,13 +42,16 @@
   "peerDependencies": {
     "react": "^19.0.0"
   },
+  "dependencies": {
+    "@hedronite/lts-core": "workspace:*",
+    "zod": "catalog:"
+  },
   "peerDependenciesMeta": {
     "react": {
       "optional": true
     }
   },
   "devDependencies": {
-    "@hedronite/lts-core": "workspace:*",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "react": "catalog:",

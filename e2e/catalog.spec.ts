@@ -60,6 +60,93 @@ test("an asset opens in a dialog with snippets that copy", async ({ page }) => {
   await expect(page).not.toHaveURL(/asset=/);
 });
 
+type ClipboardCase = "absent" | "rejects" | "throws";
+
+/**
+ * Breaks the async clipboard API three ways: absent (a page on plain http:// has no navigator.clipboard),
+ * or present and refusing the write, by a rejected promise (permission denied, page not focused) or a throw.
+ */
+const breakClipboard = async (page: Page, clipboard: ClipboardCase, execCommand: "works" | "refused"): Promise<void> => {
+  await page.addInitScript(
+    ({ clipboard: mode, execCommand: exec }) => {
+      const refuse = {
+        absent: undefined,
+        rejects: { writeText: () => Promise.reject(new DOMException("Write permission denied.", "NotAllowedError")) },
+        throws: {
+          writeText: (): Promise<void> => {
+            throw new TypeError("clipboard is not available");
+          },
+        },
+      };
+      Object.defineProperty(navigator, "clipboard", { value: refuse[mode], configurable: true });
+      const copied: string[] = [];
+      Object.defineProperty(window, "__copied", { value: copied });
+      // What the page asked the browser to copy: the selection of the focused textarea at the moment of the copy.
+      document.addEventListener("copy", () => {
+        const element = document.activeElement;
+        if (element instanceof HTMLTextAreaElement) copied.push(element.value.slice(element.selectionStart, element.selectionEnd));
+      });
+      if (exec === "refused") Object.defineProperty(document, "execCommand", { value: () => false });
+    },
+    { clipboard, execCommand },
+  );
+};
+
+const quietPage = (page: Page): string[] => {
+  const problems: string[] = [];
+  page.on("pageerror", (error) => problems.push(`pageerror: ${error.message}`));
+  page.on("console", (message) => {
+    if (message.type() === "error" || message.type() === "warning") problems.push(`${message.type()}: ${message.text()}`);
+  });
+  return problems;
+};
+
+const brokenClipboards: readonly (readonly [ClipboardCase, string])[] = [
+  ["absent", "there is no navigator.clipboard"],
+  ["rejects", "navigator.clipboard rejects the write"],
+  ["throws", "navigator.clipboard throws on the write"],
+];
+
+for (const [clipboard, when] of brokenClipboards) {
+  test(`when ${when}, the snippet still copies, by the older route, with a clean console`, async ({ page }) => {
+    await breakClipboard(page, clipboard, "works");
+    const problems = quietPage(page);
+    await page.goto("/?asset=arrow-right");
+    const react = page.getByRole("dialog", { name: "Arrow right" }).getByRole("region", { name: "React snippet" });
+    await react.getByRole("button", { name: "Copy: React snippet" }).click();
+    await expect(react.getByRole("button", { name: "Copied: React snippet" })).toBeVisible();
+    const copied: unknown = await page.evaluate((): unknown => Reflect.get(window, "__copied"));
+    expect(copied).toEqual([expect.stringContaining('import { ArrowRight } from "@hedronite/lts-icons/react";')]);
+    // The helper textarea is gone, and focus is back on the button that was pressed.
+    await expect(page.locator("textarea")).toHaveCount(0);
+    await expect(react.getByRole("button", { name: "Copied: React snippet" })).toBeFocused();
+    expect(problems).toEqual([]);
+  });
+
+  test(`when ${when} and the browser refuses the older route too, the text is selected for a copy by hand, with a clean console`, async ({ page }) => {
+    await breakClipboard(page, clipboard, "refused");
+    const problems = quietPage(page);
+    await page.goto("/?asset=arrow-right");
+    const react = page.getByRole("dialog", { name: "Arrow right" }).getByRole("region", { name: "React snippet" });
+    await react.getByRole("button", { name: "Copy: React snippet" }).click();
+    // The live label says what to do, and the snippet is on show, selected.
+    await expect(react.getByText("Press ⌘C / Ctrl+C to copy")).toBeVisible();
+    await expect(react.getByText("Copy failed")).toHaveCount(0);
+    const box = react.getByRole("textbox", { name: "React snippet, selected" });
+    await expect(box).toBeVisible();
+    await expect(box).toBeFocused();
+    await expect(box).toHaveValue(/import \{ ArrowRight \} from "@hedronite\/lts-icons\/react";/);
+    expect(await box.evaluate((element) => (element instanceof HTMLTextAreaElement ? element.selectionStart === 0 && element.selectionEnd === element.value.length : false))).toBe(true);
+    const results = await new AxeBuilder({ page }).analyze();
+    expect(results.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => v.id)).toEqual([]);
+    // Escape ends it and hands focus back to the button, without closing the dialog.
+    await page.keyboard.press("Escape");
+    await expect(box).toBeHidden();
+    await expect(react.getByRole("button", { name: "Copy: React snippet" })).toBeFocused();
+    expect(problems).toEqual([]);
+  });
+}
+
 test("a deep link opens its asset", async ({ page }) => {
   await page.goto("/?asset=moon");
   await expect(page.getByRole("dialog", { name: "Moon" })).toBeVisible();
