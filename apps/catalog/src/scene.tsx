@@ -118,9 +118,18 @@ export function StageClock({ clockRef, running }: { readonly clockRef: RefObject
 }
 
 /**
- * Writes the scene's rendered frame count, live GPU resource counts and camera (azimuth and polar in
- * degrees, distance from the origin), and the stage's animation clock when it has one, onto `target`,
- * for tests.
+ * Which backend drew the canvas: `webgpu` when three's renderer is running on the browser's WebGPU,
+ * `webgl` for the WebGL renderer and for the WebGPU renderer's WebGL 2 fallback.
+ */
+const backendOf = (gl: object): "webgpu" | "webgl" => {
+  const backend: unknown = "backend" in gl ? gl.backend : undefined;
+  return typeof backend === "object" && backend !== null && "isWebGPUBackend" in backend && backend.isWebGPUBackend === true ? "webgpu" : "webgl";
+};
+
+/**
+ * Writes the scene's rendered frame count, the backend that drew it, live GPU resource counts and
+ * camera (azimuth and polar in degrees, distance from the origin), and the stage's animation clock
+ * when it has one, onto `target`, for tests.
  */
 export function GpuCounts({ target, clockRef }: { readonly target: RefObject<HTMLDivElement | null>; readonly clockRef?: RefObject<number> }) {
   const gl = useThree((state) => state.gl);
@@ -137,6 +146,7 @@ export function GpuCounts({ target, clockRef }: { readonly target: RefObject<HTM
       const { x, y, z } = camera.position;
       const distance = Math.hypot(x, y, z);
       element.dataset["frames"] = String(frames.current);
+      element.dataset["backend"] = backendOf(gl);
       element.dataset["gpuGeometries"] = String(gl.info.memory.geometries);
       element.dataset["gpuTextures"] = String(gl.info.memory.textures);
       element.dataset["azimuth"] = MathUtils.radToDeg(Math.atan2(x, z)).toFixed(1);
