@@ -1,12 +1,16 @@
-# Local and tailnet hosting while LuminosiTS finds its public home.
+# Local hosting by default: both ports bind to 127.0.0.1 only.
 #   docker compose up -d --build     catalog on :4180, site on :4181
+#
+# To host on a tailnet, set LTS_BIND to this host's Tailscale IP (in the shell, or in a `.env`
+# beside this file; `.env.example` shows the form). Never set it to 0.0.0.0: that publishes both
+# ports on every interface of the host.
 services:
   web:
     build: .
     image: luminosi-ts-web:local
     ports:
-      - "4180:8080"
-      - "4181:8081"
+      - "${LTS_BIND:-127.0.0.1}:4180:8080"
+      - "${LTS_BIND:-127.0.0.1}:4181:8081"
     restart: unless-stopped
     user: "65534:65534"
     read_only: true
