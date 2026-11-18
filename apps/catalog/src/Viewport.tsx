@@ -1,4 +1,5 @@
 import type { AssetMeta } from "@hedronite/lts-core";
+import { applyPalette } from "@hedronite/lts-materials/three";
 import { createStudioLights, disposeObject } from "@hedronite/lts-primitives/three";
 import type { ScenePalette } from "@hedronite/lts-tokens";
 import { Canvas, useThree } from "@react-three/fiber";
@@ -12,14 +13,23 @@ function Lights() {
   return <primitive object={rig} />;
 }
 
-/** The asset's object, built on mount and freed on unmount. Keyed by asset and look, so a change remounts it. */
+/**
+ * The asset's object, built on mount and freed on unmount, and recolored in place when the look changes. A scene kit's lights
+ * take their colors from the look too, and only materials recolor in place, so a kit is built again for a new look.
+ */
 function Subject({ meta, palette }: { readonly meta: AssetMeta; readonly palette: ScenePalette }) {
   const invalidate = useThree((state) => state.invalidate);
   const [object, setObject] = useState<Object3D | undefined>(undefined);
+  const rebuildFor = meta.kind === "scene" ? palette : undefined;
+  // The look a build starts from is the latest one.
+  const look = useRef(palette);
+  useEffect(() => {
+    look.current = palette;
+  });
   useEffect(() => {
     const controller = new AbortController();
     let built: Object3D | undefined;
-    buildSubject(meta, palette, controller.signal).then(
+    buildSubject(meta, look.current, controller.signal).then(
       (result) => {
         if (result === undefined) return;
         if (controller.signal.aborted) {
@@ -38,13 +48,19 @@ function Subject({ meta, palette }: { readonly meta: AssetMeta; readonly palette
       controller.abort();
       if (built !== undefined) disposeObject(built);
     };
-  }, [meta, palette, invalidate]);
+    // `rebuildFor` is the look for a scene kit and nothing for the rest: only a kit is built again when it changes.
+  }, [meta, rebuildFor, invalidate]);
+  useEffect(() => {
+    if (object === undefined) return;
+    applyPalette(object, palette);
+    invalidate();
+  }, [object, palette, invalidate]);
   // Scene kits are composed upright; single assets get a three-quarter turn.
   return object === undefined ? null : <primitive object={object} rotation={meta.kind === "scene" ? [0.25, 0, 0] : [0.35, 0.6, 0]} />;
 }
 
 /** An interactive 3D view of a primitive, material or object. Renders only when something changes. */
-export function Viewport({ meta, palette, paletteId }: { readonly meta: AssetMeta; readonly palette: ScenePalette; readonly paletteId: string }) {
+export function Viewport({ meta, palette }: { readonly meta: AssetMeta; readonly palette: ScenePalette }) {
   // Renders only on change, so nothing here moves on its own.
   const group = useRef<HTMLDivElement>(null);
   const motion = useMotion(false);
@@ -54,7 +70,7 @@ export function Viewport({ meta, palette, paletteId }: { readonly meta: AssetMet
         <Environment />
         {meta.kind === "scene" ? null : <Lights />}
         <Controls keys={group} />
-        <Subject key={`${meta.id}:${paletteId}`} meta={meta} palette={palette} />
+        <Subject key={meta.id} meta={meta} palette={palette} />
         <GpuCounts target={group} />
       </Canvas>
     </StageFrame>

@@ -1,10 +1,10 @@
 import { createRegistry, registerManifest } from "@hedronite/lts-core";
-import { hedronite, neutral } from "@hedronite/lts-tokens";
-import { Color, MeshPhysicalMaterial } from "three";
+import { hedronite, neutral, presets, type ScenePalette } from "@hedronite/lts-tokens";
+import { BoxGeometry, Color, Group, Mesh, MeshPhysicalMaterial, MeshStandardMaterial } from "three";
 import { describe, expect, it, vi } from "vitest";
 import { manifest } from "./manifest.js";
 import { materialIds, materialPreset } from "./presets.js";
-import { createMaterial } from "./three.js";
+import { applyPalette, createMaterial } from "./three.js";
 
 describe("material presets", () => {
   it.each(materialIds)("%s has physical values in range", (id) => {
@@ -88,5 +88,50 @@ describe("createMaterial", () => {
     material.addEventListener("dispose", onDispose);
     material.dispose();
     expect(onDispose).toHaveBeenCalledOnce();
+  });
+});
+
+describe("applyPalette", () => {
+  const colorsOf = (material: MeshPhysicalMaterial) => [material.color, material.attenuationColor, material.emissive, material.sheenColor].map((color) => color.getHexString());
+
+  it.each(materialIds)("%s: recolored from one look to another, it equals one made in the second look", (id) => {
+    for (const from of presets) {
+      for (const to of [neutral, hedronite]) {
+        const material = createMaterial(id, from.scene);
+        applyPalette(material, to.scene);
+        expect(colorsOf(material), `${from.id} to ${to.id}`).toEqual(colorsOf(createMaterial(id, to.scene)));
+      }
+    }
+  });
+
+  it("recolors every look from every other, with the same values as making it new, and leaves what is not a color alone", () => {
+    for (const to of presets) {
+      const material = createMaterial("glass", neutral.scene);
+      const before = [material.roughness, material.transmission, material.ior, material.thickness, material.attenuationDistance];
+      applyPalette(material, to.scene);
+      expect(colorsOf(material)).toEqual(colorsOf(createMaterial("glass", to.scene)));
+      expect([material.roughness, material.transmission, material.ior, material.thickness, material.attenuationDistance]).toEqual(before);
+    }
+  });
+
+  it("keeps a derived tint: a material made off the look follows the look the same way", () => {
+    const accented = (palette: ScenePalette): ScenePalette => ({ ...palette, metal: palette.accent });
+    const material = createMaterial("metal", neutral.scene, accented);
+    expect(material.color.equals(new Color(neutral.scene.accent))).toBe(true);
+    applyPalette(material, hedronite.scene);
+    expect(material.color.equals(new Color(hedronite.scene.accent))).toBe(true);
+  });
+
+  it("recolors the materials under an object, one or many to a mesh, and no others", () => {
+    const own = createMaterial("satin", neutral.scene);
+    const pair = [createMaterial("metal", neutral.scene), createMaterial("glass", neutral.scene)];
+    const stranger = new MeshStandardMaterial({ color: "#123456" });
+    const group = new Group();
+    group.add(new Mesh(new BoxGeometry(), own), new Mesh(new BoxGeometry(), pair), new Mesh(new BoxGeometry(), stranger));
+    applyPalette(group, hedronite.scene);
+    expect(own.color.equals(new Color(hedronite.scene[materialPreset("satin").color]))).toBe(true);
+    expect(pair[0]?.color.equals(new Color(hedronite.scene[materialPreset("metal").color]))).toBe(true);
+    expect(pair[1]?.color.equals(new Color(hedronite.scene.glass))).toBe(true);
+    expect(stranger.color.getHexString()).toBe("123456");
   });
 });

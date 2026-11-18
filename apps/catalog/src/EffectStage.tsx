@@ -9,7 +9,7 @@ import { useEffect, useRef, useState, type RefObject } from "react";
 import type { Group, Object3D } from "three";
 import { Controls, GpuCounts, StageClock, StageFrame, useMotion } from "./scene";
 import { stageFrameloop, useStageShown, WakeOnShow } from "./onscreen";
-import { buildStage, type StageSubject, type StageSurface } from "./stage";
+import { buildStage, repaintStage, type StageSubject, type StageSurface } from "./stage";
 import { useShaderClock } from "./shaderClock";
 
 /** The subject in its surface, drifting slowly as on hedronite.com so the prints keep moving; still under reduced motion or when paused. */
@@ -18,9 +18,14 @@ function Subject({ subject, surface, palette, still, clock, shaderClock }: { rea
   const invalidate = useThree((state) => state.invalidate);
   // The descriptors build it, so it arrives after a moment; the last one stays on show until the next is ready.
   const [object, setObject] = useState<Object3D | undefined>(undefined);
+  // The look a build starts from is the latest one.
+  const look = useRef(palette);
+  useEffect(() => {
+    look.current = palette;
+  });
   useEffect(() => {
     let current = true;
-    buildStage(subject, surface, palette, shaderClock).then(
+    buildStage(subject, surface, look.current, shaderClock).then(
       (built) => {
         if (!current) {
           disposeObject(built);
@@ -36,13 +41,19 @@ function Subject({ subject, surface, palette, still, clock, shaderClock }: { rea
     return () => {
       current = false;
     };
-  }, [subject, surface, palette, shaderClock, invalidate]);
+  }, [subject, surface, shaderClock, invalidate]);
   useEffect(
     () => () => {
       if (object !== undefined) disposeObject(object);
     },
     [object],
   );
+  // A change of look recolors what is built, in place: the geometry and the programs stay.
+  useEffect(() => {
+    if (object === undefined) return;
+    repaintStage(object, palette);
+    invalidate();
+  }, [object, palette, invalidate]);
   useFrame((_, delta) => {
     const group = spin.current;
     if (group === null || still) return;
@@ -63,7 +74,6 @@ const framed: StageSurface = { kind: "framed" };
 export interface EffectStageProps {
   readonly effects: readonly ScreenEffectConfig[];
   readonly palette: ScenePalette;
-  readonly paletteId: string;
   readonly subject?: StageSubject;
   readonly surface?: StageSurface;
   readonly monochrome?: Hex | undefined;
@@ -79,7 +89,7 @@ export interface EffectStageProps {
  * button; paused, or under reduced motion, it holds a still frame and renders only on change, key or
  * pointer movement. Off screen, or in a hidden tab, it renders nothing.
  */
-export function EffectStage({ effects, palette, paletteId, subject = framedDodecahedron, surface = framed, monochrome, label, className = "h-72 w-full", host }: EffectStageProps) {
+export function EffectStage({ effects, palette, subject = framedDodecahedron, surface = framed, monochrome, label, className = "h-72 w-full", host }: EffectStageProps) {
   const own = useRef<HTMLDivElement>(null);
   const clock = useRef(0);
   const { clock: shaderClock, write: writeShaderTime } = useShaderClock();
@@ -95,7 +105,7 @@ export function EffectStage({ effects, palette, paletteId, subject = framedDodec
         <StudioLights />
         <Controls keys={own} />
         <StageClock clockRef={clock} running={!motion.still} writeShaderTime={writeShaderTime} />
-        <Subject key={paletteId} subject={subject} surface={surface} palette={palette} still={motion.still} clock={clock} shaderClock={shaderClock} />
+        <Subject subject={subject} surface={surface} palette={palette} still={motion.still} clock={clock} shaderClock={shaderClock} />
         {effects.length === 0 ? null : <ScreenEffectsPass effects={effects} palette={palette} {...(monochrome === undefined ? {} : { monochrome })} />}
         <GpuCounts target={target} clockRef={clock} shaderClock={shaderClock} />
       </WebGPUCanvas>

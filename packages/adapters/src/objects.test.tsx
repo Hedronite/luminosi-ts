@@ -1,4 +1,4 @@
-import { hedronite } from "@hedronite/lts-tokens";
+import { hedronite, neutral } from "@hedronite/lts-tokens";
 import ReactThreeTestRenderer from "@react-three/test-renderer";
 import { Color, InstancedMesh, Mesh, MeshPhysicalMaterial, type Object3D } from "three";
 import { describe, expect, it, vi } from "vitest";
@@ -19,6 +19,19 @@ describe("FramedSolid", () => {
     const material = edges?.material;
     expect(material instanceof MeshPhysicalMaterial && material.color.equals(new Color(hedronite.scene.accent))).toBe(true);
     expect(objects.some((o) => o instanceof Mesh && o.name === "faces")).toBe(true);
+    await renderer.unmount();
+  });
+
+  it("follows a change of look in place: the same materials and geometry, edges in the new accent", async () => {
+    const renderer = await ReactThreeTestRenderer.create(<FramedSolid primitive="platonic-cube" palette={neutral.scene} />);
+    const parts = () => all(renderer.scene.instance).filter((o): o is Mesh => o instanceof Mesh);
+    const before = parts().map((mesh) => [mesh.geometry, mesh.material]);
+    await renderer.update(<FramedSolid primitive="platonic-cube" palette={hedronite.scene} />);
+    expect(parts().map((mesh) => [mesh.geometry, mesh.material])).toEqual(before);
+    const edges = parts().find((mesh) => mesh.name === "edges");
+    expect(edges?.material instanceof MeshPhysicalMaterial && edges.material.color.equals(new Color(hedronite.scene.accent))).toBe(true);
+    const faces = parts().find((mesh) => mesh.name === "faces");
+    expect(faces?.material instanceof MeshPhysicalMaterial && faces.material.color.equals(new Color(hedronite.scene.glass))).toBe(true);
     await renderer.unmount();
   });
 
@@ -83,5 +96,28 @@ describe("LibraryObject", () => {
     };
     // Satin is the default; metal is all metal.
     expect(await metalness({ material: "metal" })).toBeGreaterThan(await metalness({}));
+  });
+});
+
+// Last: the descriptors load once, and the test above that expects nothing until they do needs them not yet loaded.
+describe("LibraryObject, on a change of look", () => {
+  it("recolors the built object in place: the same meshes and materials", async () => {
+    const renderer = await ReactThreeTestRenderer.create(<LibraryObject object="your-desk-lamp" palette={neutral.scene} />);
+    const parts = () => all(renderer.scene.instance).filter((o): o is Mesh => o instanceof Mesh);
+    await vi.waitFor(
+      () => {
+        expect(parts().length).toBeGreaterThan(0);
+      },
+      { timeout: 5000 },
+    );
+    const before = parts().map((mesh) => [mesh, mesh.material]);
+    const colors = (): string[] => parts().flatMap((mesh) => (mesh.material instanceof MeshPhysicalMaterial ? [mesh.material.color.getHexString()] : []));
+    const was = colors();
+    await renderer.update(<LibraryObject object="your-desk-lamp" palette={hedronite.scene} />);
+    await vi.waitFor(() => {
+      expect(colors()).not.toEqual(was);
+    });
+    expect(parts().map((mesh) => [mesh, mesh.material])).toEqual(before);
+    await renderer.unmount();
   });
 });

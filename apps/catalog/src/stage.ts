@@ -1,5 +1,5 @@
 import { isMaterialId, type MaterialId } from "@hedronite/lts-materials";
-import { createMaterial } from "@hedronite/lts-materials/three";
+import { applyPalette, createMaterial } from "@hedronite/lts-materials/three";
 import { createFramedSolid } from "@hedronite/lts-objects/three";
 import { isPrimitiveId, primitive, type PrimitiveId } from "@hedronite/lts-primitives";
 import { createPolyhedronGeometry } from "@hedronite/lts-primitives/three";
@@ -63,12 +63,27 @@ async function make<T>(id: string, palette: ScenePalette, accepts: (built: unkno
 const isMaterial = (built: unknown): built is Material => built instanceof Material;
 const isObject = (built: unknown): built is Object3D => built instanceof Object3D;
 
-/** The surface's material, if it has one. A shader reads its time from the stage's `shaderClock`, so a held stage holds it still. */
-async function surfaceMaterial(surface: StageSurface, palette: ScenePalette, shaderClock: EffectClock | undefined): Promise<Material | undefined> {
-  if (surface.kind === "material") return make(surface.id, palette, isMaterial);
+/** How a built stage's surface shader follows a change of look: a shader's colors are uniforms, written, not rebuilt. */
+const shaderRecolor = new WeakMap<Object3D, (palette: ScenePalette) => void>();
+
+/** The surface's material, if it has one, and how to recolor it if it is a shader. A shader reads its time from the stage's `shaderClock`, so a held stage holds it still. */
+async function surfaceMaterial(surface: StageSurface, palette: ScenePalette, shaderClock: EffectClock | undefined): Promise<{ readonly material: Material; readonly recolor?: (palette: ScenePalette) => void } | undefined> {
+  if (surface.kind === "material") return { material: await make(surface.id, palette, isMaterial) };
   if (surface.kind !== "shader") return undefined;
-  const { createEffect } = await import("@hedronite/lts-shaders/three");
-  return createEffect(surface.id, {}, palette, shaderClock === undefined ? {} : { clock: shaderClock }).material;
+  const { applyPalette: recolorEffect, createEffect } = await import("@hedronite/lts-shaders/three");
+  const effect = createEffect(surface.id, {}, palette, shaderClock === undefined ? {} : { clock: shaderClock });
+  return {
+    material: effect.material,
+    recolor: (look) => {
+      recolorEffect(effect, look);
+    },
+  };
+}
+
+/** Recolors a built stage from a look in place: its materials, and its surface shader if it has one. No geometry or program is rebuilt. */
+export function repaintStage(object: Object3D, palette: ScenePalette): void {
+  applyPalette(object, palette);
+  shaderRecolor.get(object)?.(palette);
 }
 
 /**
@@ -76,14 +91,18 @@ async function surfaceMaterial(surface: StageSurface, palette: ScenePalette, sha
  * frames them; objects can't be framed, so "framed" keeps their own. The caller frees the result with disposeObject.
  */
 export async function buildStage(subject: StageSubject, surface: StageSurface, palette: ScenePalette, shaderClock?: EffectClock): Promise<Object3D> {
-  const material = await surfaceMaterial(surface, palette, shaderClock);
-  if (subject.kind === "object") {
-    const object = await make(subject.id, palette, isObject);
-    return material === undefined ? object : resurface(object, material);
-  }
-  const shape = primitive(subject.id);
-  if (material === undefined) {
-    return createFramedSolid(shape, { faces: createMaterial("glass", palette), edges: createMaterial("metal", { ...palette, metal: palette.accent }) });
-  }
-  return new Mesh(createPolyhedronGeometry(shape, subject.id), material);
+  const own = await surfaceMaterial(surface, palette, shaderClock);
+  const built = await (async (): Promise<Object3D> => {
+    if (subject.kind === "object") {
+      const object = await make(subject.id, palette, isObject);
+      return own === undefined ? object : resurface(object, own.material);
+    }
+    const shape = primitive(subject.id);
+    if (own === undefined) {
+      return createFramedSolid(shape, { faces: createMaterial("glass", palette), edges: createMaterial("metal", palette, (look) => ({ ...look, metal: look.accent })) });
+    }
+    return new Mesh(createPolyhedronGeometry(shape, subject.id), own.material);
+  })();
+  if (own?.recolor !== undefined) shaderRecolor.set(built, own.recolor);
+  return built;
 }

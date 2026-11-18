@@ -1,12 +1,12 @@
 import { materialPreset, type MaterialId } from "@hedronite/lts-materials";
-import { createMaterial } from "@hedronite/lts-materials/three";
+import { applyPalette, createMaterial } from "@hedronite/lts-materials/three";
 import { type EffectId } from "@hedronite/lts-shaders";
 import { createFramedSolid } from "@hedronite/lts-objects/three";
 import { primitive, type PrimitiveId } from "@hedronite/lts-primitives";
 import { disposeObject } from "@hedronite/lts-primitives/three";
 import { neutral, type ScenePalette } from "@hedronite/lts-tokens";
-import type { ThreeElements } from "@react-three/fiber";
-import { useEffect, useMemo, useState } from "react";
+import { useThree, type ThreeElements } from "@react-three/fiber";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Object3D } from "three";
 import { useEffectMaterial, type ShaderParams } from "./effectMaterial.js";
 
@@ -33,11 +33,20 @@ export function accentPalette(palette: ScenePalette, material: MaterialId): Scen
 /** A framed solid (faces, edge tubes, vertex beads), as on hedronite.com. Owns and frees what it builds. */
 export function FramedSolid({ primitive: id, faces = "glass", shader, shaderParams, edges = "metal", palette = neutral.scene, ...props }: FramedSolidProps) {
   const effect = useEffectMaterial(shader, palette, shaderParams);
-  const surface = useMemo(() => (shader === undefined ? createMaterial(faces, palette) : effect), [shader, faces, palette, effect]);
+  const invalidate = useThree((state) => state.invalidate);
+  // A change of look recolors the faces, edges and beads in place (below); it builds none of them again.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the palette the faces are built in is written again by the effect below
+  const surface = useMemo(() => (shader === undefined ? createMaterial(faces, palette) : effect), [shader, faces, effect]);
   const object = useMemo(
-    () => (surface === undefined ? undefined : createFramedSolid(primitive(id), { faces: surface, edges: createMaterial(edges, accentPalette(palette, edges)) })),
-    [id, surface, edges, palette],
+    () => (surface === undefined ? undefined : createFramedSolid(primitive(id), { faces: surface, edges: createMaterial(edges, palette, (look) => accentPalette(look, edges)) })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- as above: the edges follow the look through the effect below
+    [id, surface, edges],
   );
+  useEffect(() => {
+    if (object === undefined) return;
+    applyPalette(object, palette);
+    invalidate();
+  }, [object, palette, invalidate]);
   useEffect(
     () => () => {
       if (object !== undefined) disposeObject(object);
@@ -70,10 +79,16 @@ export function LibraryObject({ object: id, params, palette = neutral.scene, ...
   const [object, setObject] = useState<Object3D | undefined>(undefined);
   // The parameters as text, so a new object literal with the same values does not rebuild.
   const key = JSON.stringify(params ?? {});
+  const invalidate = useThree((state) => state.invalidate);
+  // The look it is built in is the latest one; a change of look after that recolors the object in place (below).
+  const look = useRef(palette);
+  useEffect(() => {
+    look.current = palette;
+  });
   useEffect(() => {
     const controller = new AbortController();
     objectDescriptors()
-      .then((found) => found.get(id)?.build(JSON.parse(key), palette, { signal: controller.signal }))
+      .then((found) => found.get(id)?.build(JSON.parse(key), look.current, { signal: controller.signal }))
       .then(
         (built) => {
           if (built === undefined) return;
@@ -87,13 +102,18 @@ export function LibraryObject({ object: id, params, palette = neutral.scene, ...
     return () => {
       controller.abort();
     };
-  }, [id, key, palette]);
+  }, [id, key]);
   useEffect(
     () => () => {
       if (object !== undefined) disposeObject(object);
     },
     [object],
   );
+  useEffect(() => {
+    if (object === undefined) return;
+    applyPalette(object, palette);
+    invalidate();
+  }, [object, palette, invalidate]);
   return object === undefined ? null : (
     <group {...props}>
       <primitive object={object} dispose={null} />

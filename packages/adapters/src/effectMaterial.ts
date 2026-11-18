@@ -11,10 +11,11 @@ export type ShaderParams = EffectParams<EffectId>;
 
 interface Built {
   readonly shader: EffectId;
-  readonly palette: ScenePalette;
   readonly clock: EffectClock | undefined;
   readonly generation: number;
   readonly effect: EffectHandle;
+  /** `applyPalette` from the shader builders, which load with them. */
+  readonly recolor: (effect: EffectHandle, palette: ScenePalette) => void;
 }
 
 /**
@@ -25,6 +26,7 @@ interface Built {
  *
  * `params` moves the shader live: a change writes its uniforms in place, with no new material. Only a
  * structural parameter (a toon shader's `bands`, whether a dissolve has a fixed `progress`) builds it again.
+ * A change of `palette` recolors it in place the same way: the colors that follow the look are written.
  */
 export function useEffectMaterial(shader: EffectId | undefined, palette: ScenePalette, params?: ShaderParams): Material | undefined {
   const invalidate = useThree((state) => state.invalidate);
@@ -34,20 +36,20 @@ export function useEffectMaterial(shader: EffectId | undefined, palette: ScenePa
   const [generation, setGeneration] = useState(0);
   // The parameters as text, so a new object literal with the same values writes nothing.
   const key = JSON.stringify(params ?? {});
-  const latest = useRef(params);
-  // Declared before the effects that read it, so they see this render's parameters.
+  const latest = useRef({ params, palette });
+  // Declared before the effects that read it, so they see this render's parameters and look.
   useEffect(() => {
-    latest.current = params;
+    latest.current = { params, palette };
   });
   useEffect(() => {
     if (shader === undefined) return undefined;
     let cancelled = false;
     let made: EffectHandle | undefined;
     import("@hedronite/lts-shaders/three").then(
-      ({ createEffect }) => {
+      ({ createEffect, applyPalette }) => {
         if (cancelled) return;
-        made = createEffect(shader, latest.current ?? {}, palette, clock === undefined ? {} : { clock });
-        setBuilt({ shader, palette, clock, generation, effect: made });
+        made = createEffect(shader, latest.current.params ?? {}, latest.current.palette, clock === undefined ? {} : { clock });
+        setBuilt({ shader, clock, generation, effect: made, recolor: applyPalette });
         invalidate();
       },
       (error: unknown) => {
@@ -58,18 +60,23 @@ export function useEffectMaterial(shader: EffectId | undefined, palette: ScenePa
       cancelled = true;
       made?.dispose();
     };
-  }, [shader, palette, clock, generation, invalidate]);
-  // A material built for an earlier shader, palette or clock is never shown for the current one.
-  const current = built !== undefined && built.shader === shader && built.palette === palette && built.clock === clock && built.generation === generation ? built : undefined;
+  }, [shader, clock, generation, invalidate]);
+  // A material built for an earlier shader or clock is never shown for the current one.
+  const current = built !== undefined && built.shader === shader && built.clock === clock && built.generation === generation ? built : undefined;
   useEffect(() => {
     if (current === undefined) return;
     try {
-      if (current.effect.set(latest.current ?? {})) invalidate();
+      if (current.effect.set(latest.current.params ?? {})) invalidate();
       else setGeneration((previous) => previous + 1);
     } catch (error) {
       // A value the shader's schema refuses leaves it as it was: a bad prop does not take the scene down.
       console.error(`the ${current.shader} shader refused its parameters`, error);
     }
   }, [current, key, invalidate]);
+  useEffect(() => {
+    if (current === undefined) return;
+    current.recolor(current.effect, palette);
+    invalidate();
+  }, [current, palette, invalidate]);
   return current?.effect.material;
 }

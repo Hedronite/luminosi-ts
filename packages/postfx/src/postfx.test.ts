@@ -9,7 +9,7 @@ import { crtNode, floatUniform as uniform, grainNode, inkUniforms, printNode, sm
 import { inksFor, mixHex } from "./inks.js";
 import { manifest } from "./manifest.js";
 import { mergePrintSettings, printGroups, printSettings, resolveValues } from "./settings.js";
-import { ScreenEffects, stackStructure, stackValues } from "./three.js";
+import { applyPalette, ScreenEffects, stackStructure, stackValues, type ScreenEffectsOptions } from "./three.js";
 
 describe("inks", () => {
   it("gives the Hedronite look hedronite.com's lapis and copper", () => {
@@ -170,7 +170,7 @@ describe("screen effects", () => {
     stub.getPixelRatio = () => 2;
     return stub;
   })();
-  const build = (stack: Parameters<typeof orderStack>[0], options: { reducedMotion?: boolean } = {}) => new ScreenEffects(renderer, new Scene(), new PerspectiveCamera(), stack, options);
+  const build = (stack: Parameters<typeof orderStack>[0], options: ScreenEffectsOptions = {}) => new ScreenEffects(renderer, new Scene(), new PerspectiveCamera(), stack, options);
 
   it("runs scan, lens and crystallize as one print pass", () => {
     const stack = [{ id: "scan" }, { id: "lens" }, { id: "crystallize" }] as const;
@@ -241,6 +241,19 @@ describe("screen effects", () => {
     expect(runner["inks"].cool[1]).toBe(ink);
     expect(ink.value.equals(was)).toBe(false);
     runner.dispose();
+  });
+
+  it("recolors the inks from a look with applyPalette, to what a stack made in that look has, without rebuilding", () => {
+    const runner = build([{ id: "dither" }, { id: "scan" }]);
+    const passes = [...runner.passes];
+    const pipeline = runner.pipeline;
+    applyPalette(runner, hedronite.scene);
+    const fresh = build([{ id: "dither" }, { id: "scan" }], { palette: hedronite.scene });
+    expect(runner["inks"].cool[1].value.equals(fresh["inks"].cool[1].value)).toBe(true);
+    expect(runner["inks"].warm[1].value.equals(fresh["inks"].warm[1].value)).toBe(true);
+    expect([runner.pipeline, [...runner.passes]]).toEqual([pipeline, passes]);
+    runner.dispose();
+    fresh.dispose();
   });
 
   it("holds the CRT still under reduced motion, whatever setParams says", () => {
