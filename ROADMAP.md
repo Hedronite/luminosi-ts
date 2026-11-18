@@ -123,7 +123,7 @@ Each line is one PR. Order holds in one place: Stage 6, then 7, then 8; Stages 9
 - [x] A2 Adapter split (quick win): adapters root without `three/webgpu`, a `./webgpu` subpath; smaller site island (#39)
 - [x] A3 Budgets that bite (quick win): entry chunks, 3D chunks, site island, draw calls and triangles per object (#41)
 - [x] A4 Motion and keys (quick win): reduced motion, a pause control, keyboard orbit, a steady hologram, the hook in adapters; a paused stage draws nothing on its own (#32, #37, #44)
-- [ ] A5 WebGPU lane: an automated run on the WebGPU backend; the catalog on a secure origin (needs a decision on HTTPS)
+- [ ] A5 WebGPU lane: an automated run on the WebGPU backend; the catalog is already served on a secure origin (tailnet HTTPS), so what is left is the lane itself
 - [x] A6 Truth pass (quick win): README, STACK and skill docs match the code, with a test (#35)
 - [x] A7 Vendor pins and quarantine (quick win): every vendored source pinned; vendored agent files excluded from discovery (the policy in #30, the settings in #35)
 - [x] A8 CI split (quick win): cached parallel jobs, faster PRs (#38, #40)
@@ -132,7 +132,7 @@ Each line is one PR. Order holds in one place: Stage 6, then 7, then 8; Stages 9
 
 ### Stage 7 (B) — Live parameters
 
-- [ ] B1 Asset descriptors: one contract (metadata, parameter schema, lazy build, snippets, poster) replaces the per-id switches
+- [x] B1 Asset descriptors: one contract (metadata, parameter schema, lazy build, snippets, poster) replaces the per-id switches (#46, #49, #50, #52)
 - [ ] B2 Uniform handles: parameter edits without recompiles; an injected clock
 - [ ] B3 One print pass: cheaper, editable screen effects; `setParams` and `setInks`
 - [ ] B4 Looks without rebuilds: a look change is a uniform write
@@ -146,7 +146,7 @@ Each line is one PR. Order holds in one place: Stage 6, then 7, then 8; Stages 9
 - [ ] C1 `lts-scene` schema: one versioned format for a composition, with migrations
 - [ ] C2 Build and emit: document to pixels and to code (TSX, vanilla)
 - [ ] C3 Playground on documents: open, save, share, undo, free transforms
-- [ ] C4 `lumin scene`: validate, render, diff, patch, export for agents
+- [ ] C4 `lumin scene`: validate, render, diff, patch, export for agents, and a stdio MCP server over the same operations
 - [ ] C5 `<lts-scene>` element: poster first, lazy three, reduced-motion aware, no React needed
 - [ ] C6 Credits travel with the scene: emitted code carries its attribution
 
@@ -190,6 +190,15 @@ Each line is one PR. Order holds in one place: Stage 6, then 7, then 8; Stages 9
 - [ ] G2 Three contrasting pages from scaffolds, each in a different look
 - [ ] G3 Device and assistive pass on real phones and a screen reader
 - [ ] G4 Cost comparison against a runtime-embed tool, with published numbers
+
+### Follow-ups
+
+Small slices left open by earlier waves, each its own PR.
+
+- [ ] Descriptor presentation: optional `preview` and `thumbnail` fields on the asset descriptor, so the catalog's per-id presentation table and object shape table go away
+- [ ] Root typecheck: `e2e/` and the config files are checked by the root typecheck
+- [ ] CI shards balanced by run time, not by file count
+- [ ] Icon packs as data: each pack is a data entry the catalog and `lumin` read, not code
 
 ---
 
