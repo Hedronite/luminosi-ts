@@ -195,7 +195,7 @@ Each line is one PR. Order holds in one place: Stage 6, then 7, then 8; Stages 9
 
 Small slices left open by earlier waves, each its own PR.
 
-- [ ] Descriptor presentation: optional `preview` and `thumbnail` fields on the asset descriptor, so the catalog's per-id presentation table and object shape table go away
+- [x] Descriptor presentation: optional `preview` and `thumbnail` fields on the asset descriptor, so the catalog's per-id presentation table and object shape table go away (#56)
 - [ ] Root typecheck: `e2e/` and the config files are checked by the root typecheck
 - [ ] CI shards balanced by run time, not by file count
 - [ ] Icon packs as data: each pack is a data entry the catalog and `lumin` read, not code

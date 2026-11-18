@@ -1,15 +1,15 @@
 import type { AssetMeta } from "@hedronite/lts-core";
 import { materialIds, materialPreset } from "@hedronite/lts-materials";
-import { screenEffectIds, screenEffectInfo, type ScreenEffectConfig, type ScreenEffectId } from "@hedronite/lts-postfx";
+import { screenEffectIds, screenEffectInfo, type ScreenEffectId } from "@hedronite/lts-postfx";
 import { primitiveIds, primitiveInfo } from "@hedronite/lts-primitives";
 import { effectIds, effectInfo, isEffectId } from "@hedronite/lts-shaders";
 import type { Hex } from "@hedronite/lts-tokens";
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { AssetPreview } from "./AssetPreview";
 import { EffectStage } from "./EffectStage";
 import { usePreset } from "./look";
 import { usePlaceable, type Placeable } from "./placeable";
-import { stageEffect } from "./presentation";
+import { useStageEffects } from "./stageEffects";
 import { parseSubject, parseSurface, subjectValue, surfaceValue, type StageSubject, type StageSurface } from "./stage";
 
 const field = "rounded-lg border border-line bg-surface px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-accent";
@@ -52,8 +52,7 @@ export function Effects({ shaders }: { readonly shaders: readonly AssetMeta[] })
   const [surface, setSurface] = useState<StageSurface>({ kind: "framed" });
   const [ink, setInk] = useState<InkMode>("look");
   const host = useRef<HTMLDivElement>(null);
-  // The sweep comes round every 4 s here, not 9, so it shows up while you look.
-  const effects = useMemo((): readonly ScreenEffectConfig[] => stack.map((id) => stageEffect(id, 4)), [stack]);
+  const effects = useStageEffects(stack);
   const monochrome: Hex | undefined = ink === "look" ? undefined : preset.scene[ink];
   // Solids have no surface of their own, objects can't be framed: offer what applies.
   const plain: StageSurface = subject.kind === "solid" ? { kind: "framed" } : { kind: "own" };

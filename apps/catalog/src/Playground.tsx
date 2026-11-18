@@ -2,18 +2,18 @@ import { EffectClockProvider, FramedSolid, LibraryObject, PrimitiveMesh, StudioL
 import { ScreenEffectsPass, WebGPUCanvas, WebGPUStudioEnvironment } from "@hedronite/lts-adapters/webgpu";
 import { Close } from "@hedronite/lts-icons/react";
 import { isMaterialId, materialIds, materialPreset, type MaterialId } from "@hedronite/lts-materials";
-import { screenEffectIds, screenEffectInfo, type ScreenEffectConfig } from "@hedronite/lts-postfx";
+import { screenEffectIds, screenEffectInfo } from "@hedronite/lts-postfx";
 import { isPrimitiveId, primitiveIds, primitiveInfo, type PrimitiveId, type Vec3 } from "@hedronite/lts-primitives";
 import { effectIds, effectInfo, isEffectId, type EffectId } from "@hedronite/lts-shaders";
 import type { Hex, ScenePalette } from "@hedronite/lts-tokens";
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { arrange, MAX_PLACEMENTS, scaleOf, toJson, toTsx, type Composition, type InkMode, type Item, type Placement } from "./composition";
 import { CopyButton } from "./CopyButton";
 import { usePreset } from "./look";
 import { MaterialLineup } from "./MaterialLineup";
 import { stageFrameloop, useStageShown, WakeOnShow } from "./onscreen";
 import { usePlaceable, type Placeable } from "./placeable";
-import { stageEffect } from "./presentation";
+import { useStageEffects } from "./stageEffects";
 import { Controls, GpuCounts, StageClock, StageFrame, useMotion } from "./scene";
 import { useShaderClock } from "./shaderClock";
 
@@ -93,7 +93,7 @@ export function Playground() {
   const [object, setObject] = useState<string>("dress-watch");
   const positions = arrange(composition.placements.length);
   const full = composition.placements.length >= MAX_PLACEMENTS;
-  const effects = useMemo((): readonly ScreenEffectConfig[] => composition.effects.map((id) => stageEffect(id, 4)), [composition.effects]);
+  const effects = useStageEffects(composition.effects);
   const monochrome: Hex | undefined = composition.ink === "look" ? undefined : preset.scene[composition.ink];
   const takesShader = kind === "primitive" || kind === "framed";
   // Of the objects, the ones whose descriptor has a material take one; the rest bring their own.

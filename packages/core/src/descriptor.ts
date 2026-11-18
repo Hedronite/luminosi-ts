@@ -153,6 +153,26 @@ export function renderTemplates(templates: readonly SnippetTemplate[], vars: Rea
   }));
 }
 
+/**
+ * A stand-in shape for an asset's gallery thumbnail, for an asset that has no single shape of its own (an object).
+ * It is plain data, so the light list can carry it and the gallery draws it without loading a descriptor.
+ */
+const thumbnailSchema = z.discriminatedUnion("shape", [
+  z.object({ shape: z.literal("platonic"), solid: z.string().min(1) }),
+  z.object({ shape: z.literal("bipyramid"), sides: z.number().int().min(3), radius: z.number().positive().optional(), height: z.number().positive().optional() }),
+]);
+
+export type Thumbnail = z.output<typeof thumbnailSchema>;
+
+/** How an asset is put on show, beyond what its parameters default to. */
+export interface AssetPreviewData {
+  /**
+   * Parameters a stage sets, over the defaults, when it puts this asset on show: a screen effect that sweeps every nine
+   * seconds sweeps every few while someone looks. The values pass its schema.
+   */
+  readonly stage?: Readonly<Record<string, unknown>>;
+}
+
 /** Passed to `build` beside the parameters and palette. */
 export interface BuildOptions {
   /** Aborts work that waits on the network, such as loading a model. */
@@ -177,6 +197,13 @@ export interface AssetDescriptor<Built = unknown, Palette = unknown> {
   readonly templates: readonly SnippetTemplate[];
   /** A path (relative, forward slashes) to the still image the gallery shows before anything is built. */
   readonly poster?: string;
+  /** How the catalog's stages put the asset on show, when the defaults do not. */
+  readonly preview?: AssetPreviewData;
+  /**
+   * The stand-in shape the gallery draws for it. The light list of an asset kind carries it too, so the gallery needs no
+   * descriptor to draw it.
+   */
+  readonly thumbnail?: Thumbnail;
   /**
    * Builds the asset. Parameters are parsed with `parameters`, so a missing one takes its default and a wrong one
    * throws a ZodError. The package's three.js entry loads here and nowhere else. The caller owns the result.
@@ -197,6 +224,8 @@ export interface DescriptorInput<Shape extends z.ZodRawShape, Built, Palette> {
   /** Extra placeholder values for the templates, from the parsed parameters. Placeholders `id`, `name`, `kind`, `camel`, `pascal` and `param.<key>` are always there. */
   readonly vars?: (params: z.output<z.ZodObject<Shape>>) => Readonly<Record<string, string>>;
   readonly poster?: string;
+  readonly preview?: AssetPreviewData;
+  readonly thumbnail?: Thumbnail;
   readonly build: (params: z.output<z.ZodObject<Shape>>, palette: Palette | undefined, options: BuildOptions) => Promise<Built>;
 }
 
@@ -214,6 +243,8 @@ export function defineDescriptor<Shape extends z.ZodRawShape, Built, Palette = u
   }
 
   const parse = (params: unknown): z.output<z.ZodObject<Shape>> => parameters.parse({ ...defaults, ...(typeof params === "object" && params !== null ? params : {}) });
+  const thumbnail = input.thumbnail === undefined ? undefined : thumbnailSchema.parse(input.thumbnail);
+  if (input.preview?.stage !== undefined) parse(input.preview.stage); // the stage's parameters pass the schema, or this descriptor is wrong
   const snippets = (params?: unknown): readonly Snippet[] => {
     const parsed = parse(params);
     const vars: Record<string, string> = { id: meta.id, name: meta.name, kind: meta.kind, camel: camel(meta.id), pascal: pascal(meta.id) };
@@ -229,6 +260,8 @@ export function defineDescriptor<Shape extends z.ZodRawShape, Built, Palette = u
     defaults,
     templates: input.templates,
     ...(input.poster === undefined ? {} : { poster: input.poster }),
+    ...(input.preview === undefined ? {} : { preview: input.preview }),
+    ...(thumbnail === undefined ? {} : { thumbnail }),
     // A bad parameter rejects, like any other failure of the build, rather than throwing before a promise exists.
     build: (params?: unknown, palette?: Palette, options: BuildOptions = {}) => Promise.resolve().then(() => input.build(parse(params), palette, options)),
     snippets,

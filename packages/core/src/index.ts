@@ -19,6 +19,7 @@ export {
   parameterFields,
   renderTemplates,
   type AssetDescriptor,
+  type AssetPreviewData,
   type BuildOptions,
   type DescriptorComparison,
   type DescriptorInput,
@@ -29,6 +30,7 @@ export {
   type ParameterType,
   type Snippet,
   type SnippetTemplate,
+  type Thumbnail,
 } from "./descriptor.js";
 export { manifestSchema, registerManifest, type Manifest } from "./manifest.js";
 export { createRandom, type Random } from "./random.js";
