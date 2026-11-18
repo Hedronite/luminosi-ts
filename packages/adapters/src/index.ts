@@ -13,5 +13,5 @@ export {
 } from "./components.js";
 export { accentPalette, FramedSolid, LibraryObject, type FramedSolidProps, type LibraryObjectProps } from "./objects.js";
 export { EffectClockProvider } from "./effectClock.js";
-export type { ShaderParams } from "./effectMaterial.js";
+export { useEffectMaterial, type ShaderParams } from "./effectMaterial.js";
 export { useReducedMotion } from "./motion.js";

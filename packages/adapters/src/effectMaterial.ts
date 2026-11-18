@@ -63,8 +63,13 @@ export function useEffectMaterial(shader: EffectId | undefined, palette: ScenePa
   const current = built !== undefined && built.shader === shader && built.palette === palette && built.clock === clock && built.generation === generation ? built : undefined;
   useEffect(() => {
     if (current === undefined) return;
-    if (current.effect.set(latest.current ?? {})) invalidate();
-    else setGeneration((previous) => previous + 1);
+    try {
+      if (current.effect.set(latest.current ?? {})) invalidate();
+      else setGeneration((previous) => previous + 1);
+    } catch (error) {
+      // A value the shader's schema refuses leaves it as it was: a bad prop does not take the scene down.
+      console.error(`the ${current.shader} shader refused its parameters`, error);
+    }
   }, [current, key, invalidate]);
   return current?.effect.material;
 }

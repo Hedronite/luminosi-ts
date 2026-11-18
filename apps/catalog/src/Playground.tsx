@@ -1,4 +1,4 @@
-import { FramedSolid, LibraryObject, PrimitiveMesh, StudioLights } from "@hedronite/lts-adapters";
+import { EffectClockProvider, FramedSolid, LibraryObject, PrimitiveMesh, StudioLights } from "@hedronite/lts-adapters";
 import { ScreenEffectsPass, WebGPUCanvas, WebGPUStudioEnvironment } from "@hedronite/lts-adapters/webgpu";
 import { Close } from "@hedronite/lts-icons/react";
 import { isMaterialId, materialIds, materialPreset, type MaterialId } from "@hedronite/lts-materials";
@@ -15,6 +15,7 @@ import { stageFrameloop, useStageShown, WakeOnShow } from "./onscreen";
 import { usePlaceable, type Placeable } from "./placeable";
 import { stageEffect } from "./presentation";
 import { Controls, GpuCounts, StageClock, StageFrame, useMotion } from "./scene";
+import { useShaderClock } from "./shaderClock";
 
 const field = "rounded-lg border border-line bg-surface px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-accent";
 
@@ -102,6 +103,7 @@ export function Playground() {
   const animated = composition.effects.length > 0 || composition.placements.some((placement) => placement.kind !== "object" && placement.shader !== undefined && effectInfo[placement.shader].animated === true);
   const host = useRef<HTMLDivElement>(null);
   const clock = useRef(0);
+  const { clock: shaderClock, write: writeShaderTime } = useShaderClock();
   const motion = useMotion(animated);
   const shown = useStageShown(host);
 
@@ -328,12 +330,14 @@ export function Playground() {
               <WebGPUStudioEnvironment />
               <StudioLights intensity={composition.lightIntensity} />
               <Controls keys={host} />
-              <StageClock clockRef={clock} running={animated && !motion.still} />
-              {composition.placements.map((placement, i) => (
-                <Placed key={placement.key} placement={placement} position={positions[i] ?? [0, 0, 0]} palette={preset.scene} />
-              ))}
+              <StageClock clockRef={clock} running={animated && !motion.still} writeShaderTime={writeShaderTime} />
+              <EffectClockProvider clock={shaderClock}>
+                {composition.placements.map((placement, i) => (
+                  <Placed key={placement.key} placement={placement} position={positions[i] ?? [0, 0, 0]} palette={preset.scene} />
+                ))}
+              </EffectClockProvider>
               {effects.length === 0 ? null : <ScreenEffectsPass effects={effects} palette={preset.scene} {...(monochrome === undefined ? {} : { monochrome })} />}
-              <GpuCounts target={host} clockRef={clock} />
+              <GpuCounts target={host} clockRef={clock} shaderClock={shaderClock} />
             </WebGPUCanvas>
           </StageFrame>
           {[

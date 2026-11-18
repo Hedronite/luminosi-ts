@@ -96,10 +96,11 @@ const MAX_STEP = 0.1;
 /**
  * The stage's own animation clock, in seconds. It adds each frame's delta only while `running`, so it
  * holds still across a pause and across the frames the keys and the pointer ask for on a paused
- * stage, and resumes from the value it held. (R3F's `clock` cannot do this: it restarts at zero
+ * stage, and resumes from the value it held. `writeShaderTime`, which sets a stage's time uniform for its surface shaders, is
+ * called with it. (R3F's `clock` cannot do this: it restarts at zero
  * when the frame loop changes, and jumps by the whole pause on the next frame.)
  */
-export function StageClock({ clockRef, running }: { readonly clockRef: RefObject<number>; readonly running: boolean }) {
+export function StageClock({ clockRef, running, writeShaderTime }: { readonly clockRef: RefObject<number>; readonly running: boolean; readonly writeShaderTime?: (seconds: number) => void }) {
   const store = useStore();
   const was = useRef(running);
   useEffect(() => {
@@ -113,9 +114,21 @@ export function StageClock({ clockRef, running }: { readonly clockRef: RefObject
   }, [running, store]);
   useFrame((_, delta) => {
     if (running) clockRef.current += Math.min(delta, MAX_STEP);
+    // The surface shaders read time from this uniform, so they stop where the stage stops, whatever the frame is drawn for.
+    writeShaderTime?.(clockRef.current);
   });
   return null;
 }
+
+/** How many shader programs the renderer holds: a parameter that moves live adds none. */
+const programsOf = (gl: object): number => {
+  const info: unknown = "info" in gl ? gl.info : undefined;
+  if (typeof info !== "object" || info === null) return 0;
+  // The WebGL renderer lists its programs; the WebGPU renderer counts them in its memory report.
+  if ("programs" in info && Array.isArray(info.programs)) return info.programs.length;
+  const memory: unknown = "memory" in info ? info.memory : undefined;
+  return typeof memory === "object" && memory !== null && "programs" in memory && typeof memory.programs === "number" ? memory.programs : 0;
+};
 
 /**
  * Which backend drew the canvas: `webgpu` when three's renderer is running on the browser's WebGPU,
@@ -128,10 +141,10 @@ const backendOf = (gl: object): "webgpu" | "webgl" => {
 
 /**
  * Writes the scene's rendered frame count, the backend that drew it, live GPU resource counts and
- * camera (azimuth and polar in degrees, distance from the origin), and the stage's animation clock
- * when it has one, onto `target`, for tests.
+ * camera (azimuth and polar in degrees, distance from the origin), the number of shader programs, and the stage's animation
+ * clock when it has one (and the time its surface shaders read, when it gave them one), onto `target`, for tests.
  */
-export function GpuCounts({ target, clockRef }: { readonly target: RefObject<HTMLDivElement | null>; readonly clockRef?: RefObject<number> }) {
+export function GpuCounts({ target, clockRef, shaderClock }: { readonly target: RefObject<HTMLDivElement | null>; readonly clockRef?: RefObject<number>; readonly shaderClock?: { readonly value: number } }) {
   const gl = useThree((state) => state.gl);
   const camera = useThree((state) => state.camera);
   // useFrame runs once per scene render, so environment baking does not count.
@@ -149,15 +162,17 @@ export function GpuCounts({ target, clockRef }: { readonly target: RefObject<HTM
       element.dataset["backend"] = backendOf(gl);
       element.dataset["gpuGeometries"] = String(gl.info.memory.geometries);
       element.dataset["gpuTextures"] = String(gl.info.memory.textures);
+      element.dataset["programs"] = String(programsOf(gl));
       element.dataset["azimuth"] = MathUtils.radToDeg(Math.atan2(x, z)).toFixed(1);
       element.dataset["polar"] = MathUtils.radToDeg(Math.acos(MathUtils.clamp(y / distance, -1, 1))).toFixed(1);
       element.dataset["distance"] = distance.toFixed(2);
       if (clockRef !== undefined) element.dataset["time"] = clockRef.current.toFixed(2);
+      if (shaderClock !== undefined) element.dataset["shaderTime"] = shaderClock.value.toFixed(2);
     }, 150);
     return () => {
       clearInterval(timer);
     };
-  }, [gl, camera, target, clockRef]);
+  }, [gl, camera, target, clockRef, shaderClock]);
   return null;
 }
 
