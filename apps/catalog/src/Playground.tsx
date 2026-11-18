@@ -87,7 +87,7 @@ export function Playground() {
   const [material, setMaterial] = useState<MaterialId>("ceramic");
   // A surface shader in place of the material, for primitives and framed faces.
   const [shader, setShader] = useState<EffectId | undefined>(undefined);
-  const objects = usePlaceable();
+  const { objects, failed: objectsFailed } = usePlaceable();
   const [object, setObject] = useState<string>("dress-watch");
   const positions = arrange(composition.placements.length);
   const full = composition.placements.length >= MAX_PLACEMENTS;
@@ -159,6 +159,11 @@ export function Playground() {
                   </option>
                 ))}
               </select>
+              {objectsFailed ? (
+                <p role="alert" className="text-fg-muted">
+                  The objects could not be loaded. Reload the page to try again.
+                </p>
+              ) : null}
             </div>
           ) : (
             <div className="flex flex-col gap-1 text-sm">

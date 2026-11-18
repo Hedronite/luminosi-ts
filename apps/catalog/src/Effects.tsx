@@ -46,7 +46,7 @@ const surfaceName = (surface: StageSurface): string => {
  */
 export function Effects({ shaders }: { readonly shaders: readonly AssetMeta[] }) {
   const preset = usePreset();
-  const objects = usePlaceable();
+  const { objects, failed } = usePlaceable();
   const [stack, setStack] = useState<readonly ScreenEffectId[]>(["scan", "lens"]);
   const [subject, setSubject] = useState<StageSubject>({ kind: "solid", id: "archimedean-truncated-icosahedron" });
   const [surface, setSurface] = useState<StageSurface>({ kind: "framed" });
@@ -96,6 +96,11 @@ export function Effects({ shaders }: { readonly shaders: readonly AssetMeta[] })
                 ))}
               </optgroup>
             </select>
+            {failed ? (
+              <p role="alert" className="text-fg-muted">
+                The objects could not be loaded. Reload the page to try again.
+              </p>
+            ) : null}
           </div>
           <div className="flex flex-col gap-1 text-sm">
             <label htmlFor="effects-surface">Surface</label>

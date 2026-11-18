@@ -21,17 +21,22 @@ export async function loadPlaceable(): Promise<readonly Placeable[]> {
     .map((descriptor) => ({ id: descriptor.meta.id, name: descriptor.meta.name, takesMaterial: descriptor.fields.some((field) => field.key === "material") }));
 }
 
-/** The placeable objects, empty until their descriptors have loaded. */
-export function usePlaceable(): readonly Placeable[] {
-  const [placeable, setPlaceable] = useState<readonly Placeable[]>([]);
+/** The placeable objects, empty until their descriptors have loaded, and `failed` when they could not be. */
+export function usePlaceable(): { readonly objects: readonly Placeable[]; readonly failed: boolean } {
+  const [state, setState] = useState<{ readonly objects: readonly Placeable[]; readonly failed: boolean }>({ objects: [], failed: false });
   useEffect(() => {
     let current = true;
-    void loadPlaceable().then((found) => {
-      if (current) setPlaceable(found);
-    });
+    loadPlaceable().then(
+      (objects) => {
+        if (current) setState({ objects, failed: false });
+      },
+      () => {
+        if (current) setState({ objects: [], failed: true });
+      },
+    );
     return () => {
       current = false;
     };
   }, []);
-  return placeable;
+  return state;
 }

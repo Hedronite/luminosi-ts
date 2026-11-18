@@ -170,3 +170,12 @@ test("the playground offers a material only for the objects whose descriptor tak
   await expect(page.locator("code").filter({ hasText: '<LibraryObject object="crystal-cluster" params={{ material: "metal" }}' })).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test("when the descriptors fail to load, the playground and the Effects stage say the objects could not be loaded", async ({ page }) => {
+  await page.route(/\/assets\/descriptors-[^/]+\.js$/, (route) => route.abort());
+  await page.goto("/?view=playground");
+  await page.getByLabel("Add", { exact: true }).selectOption("object");
+  await expect(page.getByRole("alert").filter({ hasText: "The objects could not be loaded" })).toBeVisible();
+  await page.goto("/?view=effects");
+  await expect(page.getByRole("alert").filter({ hasText: "The objects could not be loaded" })).toBeVisible();
+});
