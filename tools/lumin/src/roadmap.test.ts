@@ -71,7 +71,7 @@ describe("ROADMAP.md", () => {
   it("ticks B1 with its pull requests, names the MCP server on C4 and lists the open follow-ups", () => {
     expect(text).toMatch(/- \[x\] B1 [^\n]*\(#46, #49, #50, #52\)/);
     expect(text).toMatch(/- \[ \] C4 [^\n]*stdio MCP server over the same operations/);
-    expect(text).toMatch(/- \[ \] A5 [^\n]*secure origin/);
+    expect(text).toMatch(/- \[[ x]\] A5 [^\n]*secure origin/);
     for (const follow of ["`preview` and `thumbnail` fields", "`e2e/` and the config files", "CI shards balanced by run time", "Icon packs as data"]) {
       expect(text).toMatch(new RegExp(`- \\[ \\] [^\\n]*${follow.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
     }
