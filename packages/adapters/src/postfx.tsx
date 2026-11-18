@@ -1,5 +1,5 @@
-import { type ScreenEffectConfig } from "@hedronite/lts-postfx";
-import { ScreenEffects } from "@hedronite/lts-postfx/three";
+import { inksFor, type ScreenEffectConfig } from "@hedronite/lts-postfx";
+import { ScreenEffects, stackStructure, stackValues } from "@hedronite/lts-postfx/three";
 import { neutral, type Hex, type ScenePalette } from "@hedronite/lts-tokens";
 import { Canvas, useFrame, useThree, type CanvasProps } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
@@ -27,7 +27,10 @@ export function WebGPUCanvas(props: Omit<CanvasProps, "gl">) {
 }
 
 export interface ScreenEffectsPassProps {
-  /** The stack, in any order (it runs smoke behind, prints, then grain). Memoize it: a new array rebuilds the passes. */
+  /**
+   * The stack, in any order (it runs smoke behind, prints, then grain). A new array with the same effects and
+   * ASCII ramps only writes its parameters into the running passes; add, remove or reorder an effect, or change a ramp, and the passes are rebuilt.
+   */
   readonly effects: readonly ScreenEffectConfig[];
   /** Scene colors the inks come from. Default: the neutral token preset. */
   readonly palette?: ScenePalette;
@@ -43,7 +46,7 @@ export interface ScreenEffectsPassProps {
 /**
  * Renders the canvas through screen effects (`@hedronite/lts-postfx`). Use it inside `WebGPUCanvas`:
  * the effects are TSL passes on the WebGPU renderer. It takes over rendering from React Three Fiber, follows the pointer for the lens (a tap opens it for a moment on touch), and frees
- * its passes when the stack changes or it unmounts.
+ * its passes when the stack's structure changes or it unmounts. Parameters and the look's inks move in place.
  */
 export function ScreenEffectsPass({ effects, palette = neutral.scene, monochrome, reducedMotion }: ScreenEffectsPassProps) {
   const preferred = useReducedMotion();
@@ -55,10 +58,17 @@ export function ScreenEffectsPass({ effects, palette = neutral.scene, monochrome
   const size = useThree((state) => state.size);
   // Under frameloop="demand" (a still stage for reduced motion) the pointer asks for each lens frame.
   const invalidate = useThree((state) => state.invalidate);
+  // Rebuild on structure, not on the identity of `effects`: a parameter, a palette or a monochrome ink is written below.
+  const structure = stackStructure(effects, still);
   const runner = useMemo(
     () => new ScreenEffects(gl, scene, camera, effects, { palette, reducedMotion: still, ...(monochrome === undefined ? {} : { monochrome }) }),
-    [gl, scene, camera, effects, palette, monochrome, still],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `structure` stands for `effects` (and `still`); the palette and ink are written by the effect below
+    [gl, scene, camera, structure],
   );
+  useEffect(() => {
+    runner.setParams(stackValues(effects));
+    runner.setInks(inksFor(palette, monochrome === undefined ? {} : { monochrome }));
+  }, [runner, effects, palette, monochrome]);
   useEffect(
     () => () => {
       runner.dispose();

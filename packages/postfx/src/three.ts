@@ -1,10 +1,13 @@
 import { neutral, type ScenePalette } from "@hedronite/lts-tokens";
+import type { z } from "zod";
 import { convertToTexture, pass } from "three/tsl";
 import { CanvasTexture, DataTexture, LinearFilter, MathUtils, RedFormat, RenderPipeline, Vector2, type Camera, type Node, type Scene, type Texture, type TextureNode, type WebGPURenderer } from "three/webgpu";
 import { orderStack, screenEffectSchemas, type ScreenEffectConfig, type ScreenEffectId } from "./effects.js";
-import { inksFor, type InkOptions } from "./inks.js";
-import { crtNode, floatUniform, grainNode, printNode, smokeNode, vec2Uniform, type FloatUniform, type PrintUniforms } from "./nodes.js";
-import { printSettings } from "./settings.js";
+import { inksFor, type InkOptions, type Inks } from "./inks.js";
+import { crtNode, floatUniform, grainNode, inkUniforms, printNode, smokeField, smokeNode, vec2Uniform, writeInks, type CrtUniforms, type FloatUniform, type InkUniforms, type PrintUniforms } from "./nodes.js";
+import { isPrintId, mergePrintSettings, printGroups, resolveValues, type PrintId, type PrintSettings, type ScreenEffectUpdate, type ScreenEffectValues, type StackValues } from "./settings.js";
+
+export type { ScreenEffectUpdate, ScreenEffectValues };
 
 export interface ScreenEffectsOptions extends InkOptions {
   /** Scene colors the inks come from. Default: the neutral token preset. */
@@ -15,6 +18,27 @@ export interface ScreenEffectsOptions extends InkOptions {
 
 /** A pointer over the canvas, 0 to 1 from the top left, or null when it is away. */
 export type ScreenPointer = { readonly x: number; readonly y: number } | null;
+
+/**
+ * What a stack is built from: the effects in order, and each ASCII ramp. Two stacks with the same
+ * structure differ only in values `setParams` and `setInks` write, so one `ScreenEffects` serves both.
+ * Pass the same `reducedMotion` as the options: it is structure too.
+ */
+export function stackStructure(stack: readonly ScreenEffectConfig[], reducedMotion = false): string {
+  const ordered = orderStack(stack).map((effect) => (effect.id === "ascii" ? [effect.id, screenEffectSchemas.ascii.parse(effect.params ?? {}).ramp] : [effect.id]));
+  return JSON.stringify([reducedMotion, ordered]);
+}
+
+/** Every parameter of every effect in `stack`, defaults filled in: `setParams` takes it to bring a built stack to these values. */
+export function stackValues(stack: readonly ScreenEffectConfig[]): ScreenEffectUpdate {
+  const { smoke, crystallize, dither, ascii, scan, lens, crt, grain } = resolveValues(stack);
+  return { ...(smoke === undefined ? {} : { smoke }), ...(crystallize === undefined ? {} : { crystallize }), ...(dither === undefined ? {} : { dither }), ...(ascii === undefined ? {} : { ascii }), ...(scan === undefined ? {} : { scan }), ...(lens === undefined ? {} : { lens }), ...(crt === undefined ? {} : { crt }), ...(grain === undefined ? {} : { grain }) };
+}
+
+/** `current` with `update` laid over it and checked against the effect's schema; `current` itself when there is nothing to lay over. */
+function merged<T extends object>(schema: z.ZodType<T>, current: T | undefined, update: Partial<T> | undefined): T | undefined {
+  return current === undefined || update === undefined ? current : schema.parse({ ...current, ...update });
+}
 
 /** A glyph atlas for the ASCII print: one cell per ramp character, white on black. */
 function glyphAtlas(ramp: string): Texture {
@@ -44,15 +68,28 @@ function glyphAtlas(ramp: string): Texture {
   return atlas;
 }
 
-/** A print effect's clocks, and the uniforms they drive. */
+/** One print pass's clocks, and the uniforms they drive. `members` are the effects it does the work of. */
 interface PrintState {
   readonly uniforms: PrintUniforms;
-  readonly intro?: number;
-  readonly scan?: { readonly period: number; readonly sweep: number };
-  readonly lens: boolean;
+  readonly members: readonly PrintId[];
+  intro: number | undefined;
+  scan: { readonly period: number; readonly sweep: number } | undefined;
+  lens: boolean;
   introClock: number;
   scanClock: number;
   lensNow: number;
+}
+
+/** Writes the values of a print pass that do not move with a clock. The clocks own intro, appear, scan and the lens opening. */
+function writeStatic(u: PrintUniforms, settings: PrintSettings): void {
+  const v = settings.values;
+  u.base.value = v.uBase;
+  u.scanDepth.value = v.uScanDepth;
+  u.lensRadius.value = v.uLensRadius;
+  u.lensDepth.value = v.uLensDepth;
+  u.grain.value = v.uGrain;
+  u.ditherPx.value = v.uDitherPx;
+  u.asciiPx.value = v.uAsciiPx;
 }
 
 /**
@@ -60,87 +97,173 @@ interface PrintState {
  * where WebGPU is missing), so surface shaders and screen effects share one renderer. Call
  * `render(delta)` instead of `renderer.render`, `setPointer` for the lens, and `dispose` when done. The
  * stack runs in canonical order: smoke behind, prints, the CRT tube, grain on top.
+ *
+ * The print effects (crystallize, dither, ASCII, scan, lens) share one pass, and print the highest
+ * level each pixel asks for; before, each was a pass of its own over the one before, so a lens over
+ * a scan printed a print of a print. Dither and ASCII both on the whole frame keep two passes, the
+ * ASCII reading the dithered frame. The smoke is drawn at half size and upsampled.
+ *
+ * Values move without a rebuild: `setParams` writes effect parameters and `setInks` the inks into
+ * uniforms. Only the structure (`stackStructure`: which effects, each ASCII ramp, reduced motion)
+ * needs a new `ScreenEffects`.
  */
 export class ScreenEffects {
   readonly pipeline: RenderPipeline;
   /** The effect ids in the order their passes run. */
   readonly ids: readonly ScreenEffectId[];
+  /** The full-screen passes after the scene's own, in order: "smoke", "print" (one per print pass), "crt", "grain". */
+  readonly passes: readonly string[];
   private readonly renderer: WebGPURenderer;
   private readonly prints: readonly PrintState[];
   private readonly time = floatUniform(0);
   private readonly smokeTime = floatUniform(0);
   private readonly textures: readonly Texture[];
-  private readonly smokeSpeed: number;
-  /** Pixel ratios the CRT passes size their lines by. */
-  private readonly dprs: readonly FloatUniform[];
+  /** The targets between passes, and the smoke's own, which this owns. */
+  private readonly targets: readonly TextureNode[];
+  private readonly smokeIntensity = floatUniform(1);
+  private readonly grainAmount = floatUniform(0);
+  private readonly crt: CrtUniforms = { curvature: floatUniform(1), pitch: floatUniform(2), aberration: floatUniform(1), motion: floatUniform(1) };
+  private readonly inks: InkUniforms;
+  /** The parameters now in force for each effect in the stack, complete. */
+  private values: StackValues;
+  /** The ramp the ASCII pass was built with: the one parameter that cannot change in place. */
+  private readonly ramp: string | undefined;
+  /** Pixel ratio the print and CRT passes size their cells and lines by. */
+  private readonly dpr: FloatUniform;
   private pointer: ScreenPointer = null;
   private readonly reduced: boolean;
 
   constructor(renderer: WebGPURenderer, scene: Scene, camera: Camera, stack: readonly ScreenEffectConfig[], options: ScreenEffectsOptions = {}) {
     this.renderer = renderer;
-    const inks = inksFor(options.palette ?? neutral.scene, options);
-    const reduced = options.reducedMotion === true;
-    this.reduced = reduced;
-    const ordered = orderStack(stack);
-    this.ids = ordered.map((effect) => effect.id);
-    const smoke = ordered.find((effect) => effect.id === "smoke");
-    this.smokeSpeed = smoke === undefined ? 1 : screenEffectSchemas.smoke.parse(smoke.params ?? {}).speed;
+    this.inks = inkUniforms(inksFor(options.palette ?? neutral.scene, options));
+    this.dpr = floatUniform(renderer.getPixelRatio());
+    this.reduced = options.reducedMotion === true;
+    this.values = resolveValues(stack);
+    this.ids = orderStack(stack).map((effect) => effect.id);
+    this.ramp = this.values.ascii?.ramp;
 
     const prints: PrintState[] = [];
     const textures: Texture[] = [];
-    const dprs: FloatUniform[] = [];
+    const targets: TextureNode[] = [];
+    const passes: string[] = [];
     const scenePass = pass(scene, camera);
-    // Each effect reads the one before as a texture, since prints sample their input at cell centres.
-    let input: TextureNode = scenePass.getTextureNode();
-    let output: Node = input;
-    for (const effect of ordered) {
-      if (effect !== ordered[0]) input = convertToTexture(output);
-      if (effect.id === "smoke") {
-        output = smokeNode(input, this.smokeTime, inks, screenEffectSchemas.smoke.parse(effect.params ?? {}).intensity);
-      } else if (effect.id === "grain") {
-        output = grainNode(input, this.time, screenEffectSchemas.grain.parse(effect.params ?? {}).amount);
-      } else if (effect.id === "crt") {
-        const p = screenEffectSchemas.crt.parse(effect.params ?? {});
-        const dpr = floatUniform(renderer.getPixelRatio());
-        dprs.push(dpr);
-        output = crtNode(input, this.time, dpr, inks, reduced ? { ...p, motion: 0 } : p);
+    // Each pass reads the one before as a texture, since prints sample their input at cell centres.
+    let output: Node = scenePass.getTextureNode();
+    let first = true;
+    const source = (): TextureNode => {
+      if (first) {
+        first = false;
+        return scenePass.getTextureNode();
+      }
+      const target = convertToTexture(output);
+      // Only a target this made is this's to free: a node that already was a texture comes back as it is.
+      if ("isRTTNode" in target) targets.push(target);
+      return target;
+    };
+    let printed = false;
+    for (const id of this.ids) {
+      if (isPrintId(id)) {
+        if (printed) continue;
+        printed = true;
+        for (const members of printGroups(this.ids)) {
+          const settings = mergePrintSettings(this.values, members, this.reduced);
+          const v = settings.values;
+          const uniforms: PrintUniforms = {
+            time: this.time,
+            dpr: this.dpr,
+            base: floatUniform(v.uBase),
+            intro: floatUniform(v.uIntro),
+            appear: floatUniform(v.uAppear),
+            scan: floatUniform(v.uScan),
+            scanDepth: floatUniform(v.uScanDepth),
+            lens: floatUniform(v.uLens),
+            lensRadius: floatUniform(v.uLensRadius),
+            lensDepth: floatUniform(v.uLensDepth),
+            grain: floatUniform(v.uGrain),
+            ditherPx: floatUniform(v.uDitherPx),
+            asciiPx: floatUniform(v.uAsciiPx),
+            mouse: vec2Uniform(new Vector2(-10, -10)),
+          };
+          const atlas = glyphAtlas(settings.ramp);
+          textures.push(atlas);
+          output = printNode(source(), uniforms, this.inks, atlas, settings.ramp.length);
+          passes.push("print");
+          prints.push({ uniforms, members, intro: settings.intro, scan: settings.scan, lens: settings.lens, introClock: 0, scanClock: 0, lensNow: 0 });
+        }
+      } else if (id === "smoke") {
+        // The field is its own half-size target; the scene's pixels meet it in the pass that follows.
+        const field = smokeField(this.smokeTime, this.inks, this.smokeIntensity);
+        targets.push(field);
+        output = smokeNode(source(), field);
+        passes.push("smoke");
+      } else if (id === "grain") {
+        output = grainNode(source(), this.time, this.grainAmount);
+        passes.push("grain");
       } else {
-        const settings = printSettings(effect, reduced);
-        const v = settings.values;
-        const uniforms: PrintUniforms = {
-          time: this.time,
-          dpr: floatUniform(renderer.getPixelRatio()),
-          base: floatUniform(v.uBase),
-          intro: floatUniform(v.uIntro),
-          appear: floatUniform(v.uAppear),
-          scan: floatUniform(v.uScan),
-          scanDepth: floatUniform(v.uScanDepth),
-          lens: floatUniform(v.uLens),
-          lensRadius: floatUniform(v.uLensRadius),
-          lensDepth: floatUniform(v.uLensDepth),
-          grain: floatUniform(v.uGrain),
-          ditherPx: floatUniform(v.uDitherPx),
-          asciiPx: floatUniform(v.uAsciiPx),
-          mouse: vec2Uniform(new Vector2(-10, -10)),
-        };
-        const atlas = glyphAtlas(settings.ramp);
-        textures.push(atlas);
-        output = printNode(input, uniforms, inks, atlas, settings.ramp.length);
-        prints.push({
-          uniforms,
-          ...(settings.intro === undefined ? {} : { intro: settings.intro }),
-          ...(settings.scan === undefined ? {} : { scan: settings.scan }),
-          lens: settings.lens,
-          introClock: 0,
-          scanClock: 0,
-          lensNow: 0,
-        });
+        output = crtNode(source(), this.time, this.dpr, this.inks, this.crt);
+        passes.push("crt");
       }
     }
+    this.writeValues();
     this.prints = prints;
     this.textures = textures;
-    this.dprs = dprs;
+    this.targets = targets;
+    this.passes = passes;
     this.pipeline = new RenderPipeline(renderer, output);
+  }
+
+  /** The speed the smoke's clock runs at. */
+  private get smokeSpeed(): number {
+    return this.values.smoke?.speed ?? 1;
+  }
+
+  /** Writes the effect values into the uniforms the non-print passes read. */
+  private writeValues(): void {
+    const v = this.values;
+    this.smokeIntensity.value = v.smoke?.intensity ?? 1;
+    this.grainAmount.value = v.grain?.amount ?? 0;
+    this.crt.curvature.value = v.crt?.curvature ?? 1;
+    this.crt.pitch.value = v.crt?.pitch ?? 2;
+    this.crt.aberration.value = v.crt?.aberration ?? 1;
+    // Reduced motion holds the tube still.
+    this.crt.motion.value = this.reduced ? 0 : (v.crt?.motion ?? 1);
+  }
+
+  /**
+   * Brings parameters of effects in the stack to new values without rebuilding a pass: the uniforms
+   * take them on the next frame. A parameter you leave out keeps its value, and an effect that is not in
+   * the stack is ignored. Values are checked against each effect's schema, and a bad one throws before
+   * anything changes. An ASCII `ramp` is part of the structure (see `stackStructure`): a different one
+   * throws, and wants a new `ScreenEffects`.
+   */
+  setParams(update: ScreenEffectUpdate): void {
+    const v = this.values;
+    const next: StackValues = {
+      smoke: merged(screenEffectSchemas.smoke, v.smoke, update.smoke),
+      crystallize: merged(screenEffectSchemas.crystallize, v.crystallize, update.crystallize),
+      dither: merged(screenEffectSchemas.dither, v.dither, update.dither),
+      ascii: merged(screenEffectSchemas.ascii, v.ascii, update.ascii),
+      scan: merged(screenEffectSchemas.scan, v.scan, update.scan),
+      lens: merged(screenEffectSchemas.lens, v.lens, update.lens),
+      crt: merged(screenEffectSchemas.crt, v.crt, update.crt),
+      grain: merged(screenEffectSchemas.grain, v.grain, update.grain),
+    };
+    if (next.ascii !== undefined && next.ascii.ramp !== this.ramp) throw new Error("setParams cannot change the ASCII ramp: build a new ScreenEffects");
+    this.values = next;
+    this.writeValues();
+    for (const state of this.prints) {
+      if (!state.members.some((id) => next[id] !== v[id])) continue;
+      const settings = mergePrintSettings(next, state.members, this.reduced);
+      writeStatic(state.uniforms, settings);
+      state.intro = settings.intro;
+      state.scan = settings.scan;
+      state.lens = settings.lens;
+    }
+  }
+
+  /** Recolours every pass in place, from inks made with `inksFor`. */
+  setInks(inks: Inks): void {
+    writeInks(this.inks, inks);
   }
 
   setPointer(pointer: ScreenPointer): void {
@@ -149,9 +272,7 @@ export class ScreenEffects {
 
   /** Call when the canvas or its pixel ratio changes; the pipeline itself follows the renderer's size. */
   setSize(): void {
-    const dpr = this.renderer.getPixelRatio();
-    for (const state of this.prints) state.uniforms.dpr.value = dpr;
-    for (const uniform of this.dprs) uniform.value = dpr;
+    this.dpr.value = this.renderer.getPixelRatio();
   }
 
   /** Advances the clocks by `delta` seconds and renders one frame. */
@@ -194,6 +315,7 @@ export class ScreenEffects {
 
   dispose(): void {
     for (const texture of this.textures) texture.dispose();
+    for (const target of this.targets) target.dispose();
     this.pipeline.dispose();
   }
 }
