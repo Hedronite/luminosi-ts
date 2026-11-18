@@ -7,7 +7,8 @@ export function EffectSwatch({ id, size }: { readonly id: EffectId; readonly siz
   const { scene } = usePreset();
   const paint = useId();
   // What fills the disc, and an outline when the effect has one of its own.
-  const drawings: { readonly [Id in EffectId]: () => { readonly defs: ReactNode; readonly ink?: string } } = {
+  // Not exhaustive on purpose: a shader with no drawing here shows a plain base-to-accent disc, so adding a shader takes only its own definition.
+  const drawings: { readonly [Id in EffectId]?: () => { readonly defs: ReactNode; readonly ink?: string } } = {
       "fresnel-glow": () => {
         return {
           defs: (
@@ -98,7 +99,14 @@ export function EffectSwatch({ id, size }: { readonly id: EffectId; readonly siz
         };
       },
   };
-  const { defs, ink } = drawings[id]();
+  const { defs, ink } = drawings[id]?.() ?? {
+    defs: (
+      <radialGradient id={paint} r="0.5">
+        <stop offset="0.55" stopColor={scene.base} />
+        <stop offset="1" stopColor={scene.accent} />
+      </radialGradient>
+    ),
+  };
   return (
     <svg width={size} height={size} viewBox="0 0 2 2" aria-hidden="true">
       <defs>{defs}</defs>

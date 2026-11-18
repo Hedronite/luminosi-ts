@@ -19,7 +19,8 @@ export function ScreenSwatch({ id, size }: { readonly id: ScreenEffectId; readon
         return <rect key={`${String(row)}-${String(col)}`} x={0.1 + col * 0.18} y={0.1 + row * 0.18} width={0.13} height={0.13} fill={level > 0.6 ? inks.cool[2] : inks.cool[1]} />;
       }),
     );
-  const drawings: { readonly [Id in ScreenEffectId]: () => ReactNode } = {
+  // Not exhaustive on purpose: an effect with no drawing here shows its disc alone, so adding an effect takes only its own definition.
+  const drawings: { readonly [Id in ScreenEffectId]?: () => ReactNode } = {
       dither: () => {
         return dots(0, 1);
       },
@@ -84,7 +85,7 @@ export function ScreenSwatch({ id, size }: { readonly id: ScreenEffectId; readon
         );
       },
   };
-  const content = drawings[id]();
+  const content = drawings[id]?.() ?? null;
   return (
     <svg width={size} height={size} viewBox="0 0 2 2" aria-hidden="true">
       <defs>
