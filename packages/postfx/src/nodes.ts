@@ -225,7 +225,7 @@ function smokeFieldNode(time: FloatUniform, inks: InkUniforms, intensity: FloatU
 }
 
 /** How much of the screen's width and height the smoke target takes: a quarter of the pixels. */
-export const SMOKE_SCALE = 0.5;
+const SMOKE_SCALE = 0.5;
 
 /** The smoke field in a half-size render target; sampling it upsamples with the texture's linear filter. */
 export function smokeField(time: FloatUniform, inks: InkUniforms, intensity: FloatUniform): TextureNode {
