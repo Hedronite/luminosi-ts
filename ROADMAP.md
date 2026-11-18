@@ -123,7 +123,7 @@ Each line is one PR. Order holds in one place: Stage 6, then 7, then 8; Stages 9
 - [x] A2 Adapter split (quick win): adapters root without `three/webgpu`, a `./webgpu` subpath; smaller site island (#39)
 - [x] A3 Budgets that bite (quick win): entry chunks, 3D chunks, site island, draw calls and triangles per object (#41)
 - [x] A4 Motion and keys (quick win): reduced motion, a pause control, keyboard orbit, a steady hologram, the hook in adapters; a paused stage draws nothing on its own (#32, #37, #44)
-- [ ] A5 WebGPU lane: an automated run on the WebGPU backend; the catalog is already served on a secure origin (tailnet HTTPS), so what is left is the lane itself
+- [x] A5 WebGPU lane: a script that runs the catalog's 3D stages on the WebGPU backend, on a machine with a GPU and not in CI; the catalog is served on a secure origin (tailnet HTTPS) (#55)
 - [x] A6 Truth pass (quick win): README, STACK and skill docs match the code, with a test (#35)
 - [x] A7 Vendor pins and quarantine (quick win): every vendored source pinned; vendored agent files excluded from discovery (the policy in #30, the settings in #35)
 - [x] A8 CI split (quick win): cached parallel jobs, faster PRs (#38, #40)
