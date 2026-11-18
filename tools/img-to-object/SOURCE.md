@@ -38,4 +38,4 @@ None yet. When the build stage is adapted to emit `ObjectSpec`, each edited file
 bun run forge:test   # python3 -m unittest discover -s forge/tests, inside upstream/
 ```
 
-2.0.1 on Python 3.14 (apiary): 1416 tests, 64 skipped. The skipped ones need a TypeScript showcase checkout (`IMG2THREEJS_SHOWCASE_ROOT`) or optional tools.
+2.0.1 on Python 3.14 (an Apple M-series machine): 1416 tests, 64 skipped. The skipped ones need a TypeScript showcase checkout (`IMG2THREEJS_SHOWCASE_ROOT`) or optional tools.
