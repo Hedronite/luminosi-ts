@@ -7,6 +7,7 @@ export const proceduralObjects = [
   {"id":"crystal-cluster","name":"Crystal cluster","tags":["procedural","crystal"],"added":"2026-11-15"},
   {"id":"framed-solid","name":"Framed solid","tags":["procedural","glass","polyhedron"],"added":"2026-11-16"},
   {"id":"instanced-lattice","name":"Instanced lattice","tags":["procedural","instanced"],"added":"2026-11-15"},
+  {"id":"fixture-prism","name":"Fixture prism","tags":["procedural","fixture"],"added":"2026-11-18"},
   {"id":"dress-watch","name":"Your dress watch","tags":["object-spec","image-reconstruction","watch"],"added":"2026-11-15"},
   {"id":"crystal-cluster-glb","name":"Crystal cluster (glTF)","tags":["gltf","meshopt","pipeline"],"added":"2026-11-15"},
 ] as const;
@@ -16,5 +17,6 @@ export const objectThumbnails: { readonly [Id in (typeof proceduralObjects)[numb
   "crystal-cluster": {"shape":"bipyramid","sides":6,"radius":0.4,"height":2},
   "framed-solid": {"shape":"platonic","solid":"dodecahedron"},
   "instanced-lattice": {"shape":"platonic","solid":"cube"},
+  "fixture-prism": {"shape":"bipyramid","sides":3,"radius":0.5,"height":2},
   "crystal-cluster-glb": {"shape":"bipyramid","sides":5,"radius":0.4,"height":2},
 };

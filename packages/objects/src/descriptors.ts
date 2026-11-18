@@ -136,6 +136,15 @@ export const procedural: readonly AssetDescriptor<ObjectBuilt, ScenePalette>[] =
     },
   }),
 
+  describe({ id: "fixture-prism", name: "Fixture prism", tags: ["procedural", "fixture"], added: "2026-11-18", thumbnail: { shape: "bipyramid", sides: 3, radius: 0.5, height: 2 } }, {
+    parameters: z.object({ material: z.enum(materialIds).default("satin") }),
+    templates: [{ label: "TypeScript", code: "// {{name}}: one descriptor file adds an object." }],
+    build: async ({ material }, palette) => {
+      const [{ createCrystalCluster }, { createMaterial }] = await Promise.all([import("./meshes.js"), materials()]);
+      return createCrystalCluster(crystalCluster({ count: 3, spread: 0.3, seed: 1 }), createMaterial(material, palette));
+    },
+  }),
+
   describe({ id: "dress-watch", name: "Your dress watch", tags: ["object-spec", "image-reconstruction", "watch"], added: "2026-11-15" }, {
     parameters: z.object({
       hours: z.number().int().min(0).max(23).default(showcase.watch.hours),
