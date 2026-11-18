@@ -6,9 +6,10 @@ import { effectIds, effectInfo, isEffectId } from "@hedronite/lts-shaders";
 import type { Hex } from "@hedronite/lts-tokens";
 import { useMemo, useRef, useState } from "react";
 import { AssetPreview } from "./AssetPreview";
-import { placeableObjects } from "./composition";
 import { EffectStage } from "./EffectStage";
 import { usePreset } from "./look";
+import { usePlaceable, type Placeable } from "./placeable";
+import { stageEffect } from "./presentation";
 import { parseSubject, parseSurface, subjectValue, surfaceValue, type StageSubject, type StageSurface } from "./stage";
 
 const field = "rounded-lg border border-line bg-surface px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-accent";
@@ -23,8 +24,8 @@ const inkModes = [
 type InkMode = (typeof inkModes)[number]["id"];
 const isInkMode = (value: string): value is InkMode => inkModes.some((mode) => mode.id === value);
 
-const subjectName = (subject: StageSubject): string =>
-  subject.kind === "solid" ? primitiveInfo(subject.id).name : (placeableObjects.find((object) => object.id === subject.id)?.name ?? subject.id);
+const subjectName = (subject: StageSubject, objects: readonly Placeable[]): string =>
+  subject.kind === "solid" ? primitiveInfo(subject.id).name : (objects.find((object) => object.id === subject.id)?.name ?? subject.id);
 
 const surfaceName = (surface: StageSurface): string => {
   switch (surface.kind) {
@@ -45,13 +46,14 @@ const surfaceName = (surface: StageSurface): string => {
  */
 export function Effects({ shaders }: { readonly shaders: readonly AssetMeta[] }) {
   const preset = usePreset();
+  const objects = usePlaceable();
   const [stack, setStack] = useState<readonly ScreenEffectId[]>(["scan", "lens"]);
   const [subject, setSubject] = useState<StageSubject>({ kind: "solid", id: "archimedean-truncated-icosahedron" });
   const [surface, setSurface] = useState<StageSurface>({ kind: "framed" });
   const [ink, setInk] = useState<InkMode>("look");
   const host = useRef<HTMLDivElement>(null);
   // The sweep comes round every 4 s here, not 9, so it shows up while you look.
-  const effects = useMemo((): readonly ScreenEffectConfig[] => stack.map((id) => (id === "scan" ? { id, params: { period: 4 } } : { id })), [stack]);
+  const effects = useMemo((): readonly ScreenEffectConfig[] => stack.map((id) => stageEffect(id, 4)), [stack]);
   const monochrome: Hex | undefined = ink === "look" ? undefined : preset.scene[ink];
   // Solids have no surface of their own, objects can't be framed: offer what applies.
   const plain: StageSurface = subject.kind === "solid" ? { kind: "framed" } : { kind: "own" };
@@ -75,12 +77,12 @@ export function Effects({ shaders }: { readonly shaders: readonly AssetMeta[] })
               className={field}
               value={subjectValue(subject)}
               onChange={(event) => {
-                const next = parseSubject(event.target.value);
+                const next = parseSubject(event.target.value, objects);
                 if (next !== undefined) setSubject(next);
               }}
             >
               <optgroup label="Objects">
-                {placeableObjects.map((object) => (
+                {objects.map((object) => (
                   <option key={object.id} value={subjectValue({ kind: "object", id: object.id })}>
                     {object.name}
                   </option>
@@ -172,7 +174,7 @@ export function Effects({ shaders }: { readonly shaders: readonly AssetMeta[] })
             monochrome={monochrome}
             host={host}
             className="h-[22rem] w-full sm:h-[28rem]"
-            label={`${subjectName(subject)} in ${surfaceName(shown)}, under ${stack.length === 0 ? "no screen effects" : stack.map((id) => screenEffectInfo[id].name).join(", ")}.`}
+            label={`${subjectName(subject, objects)} in ${surfaceName(shown)}, under ${stack.length === 0 ? "no screen effects" : stack.map((id) => screenEffectInfo[id].name).join(", ")}.`}
           />
         </div>
       </div>

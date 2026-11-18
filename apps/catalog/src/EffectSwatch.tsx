@@ -7,9 +7,8 @@ export function EffectSwatch({ id, size }: { readonly id: EffectId; readonly siz
   const { scene } = usePreset();
   const paint = useId();
   // What fills the disc, and an outline when the effect has one of its own.
-  const { defs, ink }: { readonly defs: ReactNode; readonly ink?: string } = (() => {
-    switch (id) {
-      case "fresnel-glow":
+  const drawings: { readonly [Id in EffectId]: () => { readonly defs: ReactNode; readonly ink?: string } } = {
+      "fresnel-glow": () => {
         return {
           defs: (
             <radialGradient id={paint} r="0.5">
@@ -18,7 +17,8 @@ export function EffectSwatch({ id, size }: { readonly id: EffectId; readonly siz
             </radialGradient>
           ),
         };
-      case "height-gradient":
+      },
+      "height-gradient": () => {
         return {
           defs: (
             <linearGradient id={paint} x1="0" y1="1" x2="0" y2="0">
@@ -27,7 +27,8 @@ export function EffectSwatch({ id, size }: { readonly id: EffectId; readonly siz
             </linearGradient>
           ),
         };
-      case "pulse":
+      },
+      "pulse": () => {
         return {
           defs: (
             <radialGradient id={paint} r="0.5">
@@ -36,7 +37,8 @@ export function EffectSwatch({ id, size }: { readonly id: EffectId; readonly siz
             </radialGradient>
           ),
         };
-      case "toon":
+      },
+      "toon": () => {
         // Hard stops: flat bands, lit from the upper right.
         return {
           defs: (
@@ -49,7 +51,8 @@ export function EffectSwatch({ id, size }: { readonly id: EffectId; readonly siz
           ),
           ink: "#000000",
         };
-      case "refraction":
+      },
+      "refraction": () => {
         return {
           defs: (
             <radialGradient id={paint} cx="0.42" cy="0.4" r="0.6">
@@ -59,7 +62,8 @@ export function EffectSwatch({ id, size }: { readonly id: EffectId; readonly siz
             </radialGradient>
           ),
         };
-      case "dissolve":
+      },
+      "dissolve": () => {
         return {
           defs: (
             <linearGradient id={paint} x1="0" y1="1" x2="0" y2="0">
@@ -69,7 +73,8 @@ export function EffectSwatch({ id, size }: { readonly id: EffectId; readonly siz
             </linearGradient>
           ),
         };
-      case "hologram":
+      },
+      "hologram": () => {
         return {
           defs: (
             <pattern id={paint} width="2" height="0.16" patternUnits="userSpaceOnUse">
@@ -77,7 +82,8 @@ export function EffectSwatch({ id, size }: { readonly id: EffectId; readonly siz
             </pattern>
           ),
         };
-      case "soap-film":
+      },
+      "soap-film": () => {
         // A thin film, pale at the middle and brightest toward the rim, in the look's own colors.
         return {
           defs: (
@@ -90,8 +96,9 @@ export function EffectSwatch({ id, size }: { readonly id: EffectId; readonly siz
             </radialGradient>
           ),
         };
-    }
-  })();
+      },
+  };
+  const { defs, ink } = drawings[id]();
   return (
     <svg width={size} height={size} viewBox="0 0 2 2" aria-hidden="true">
       <defs>{defs}</defs>

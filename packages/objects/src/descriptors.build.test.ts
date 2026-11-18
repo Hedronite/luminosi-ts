@@ -29,8 +29,9 @@ describe("object descriptors, built", () => {
   });
 
   it("take their defaults from the showcase settings", () => {
-    expect(find("crystal-cluster").defaults).toEqual(showcase.cluster);
-    expect(find("instanced-lattice").defaults).toEqual(showcase.lattice);
+    // The cluster and the lattice also take a material, in satin and metal.
+    expect(find("crystal-cluster").defaults).toEqual({ ...showcase.cluster, material: "satin" });
+    expect(find("instanced-lattice").defaults).toEqual({ ...showcase.lattice, material: "metal" });
     expect(find("dress-watch").defaults).toEqual(showcase.watch);
     expect(find("framed-solid").defaults).toEqual(showcase.framedSolid);
   });

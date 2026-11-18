@@ -1,4 +1,5 @@
 import { defineDescriptor, type AssetDescriptor, type BuildOptions, type ParameterHints, type SnippetTemplate } from "@hedronite/lts-core";
+import { materialIds } from "@hedronite/lts-materials";
 import { platonic, platonicSolids } from "@hedronite/lts-primitives";
 import { neutral, type ScenePalette } from "@hedronite/lts-tokens";
 import { z } from "zod";
@@ -76,17 +77,18 @@ export const procedural: readonly AssetDescriptor<ObjectBuilt, ScenePalette>[] =
       count: z.number().int().min(1).max(64).default(showcase.cluster.count),
       spread: z.number().min(0).max(1).default(showcase.cluster.spread),
       seed: z.number().int().default(showcase.cluster.seed),
+      material: z.enum(materialIds).default("satin"),
     }),
-    hints: { count: { label: "Crystals", group: "Shape" }, spread: { label: "Lean", group: "Shape", step: 0.05 }, seed: { label: "Seed", group: "Random" } },
+    hints: { count: { label: "Crystals", group: "Shape" }, spread: { label: "Lean", group: "Shape", step: 0.05 }, seed: { label: "Seed", group: "Random" }, material: { label: "Material", group: "Surface" } },
     templates: [
       {
         label: "TypeScript",
         code: `import { createMaterial } from "@hedronite/lts-materials/three";\nimport { crystalCluster } from "@hedronite/lts-objects";\nimport { createCrystalCluster } from "@hedronite/lts-objects/three";\nimport { disposeObject } from "@hedronite/lts-primitives/three";\n\n// Same seed, same cluster.\nconst cluster = createCrystalCluster(crystalCluster({ count: {{param.count}}, spread: {{param.spread}}, seed: {{param.seed}} }), createMaterial("satin"));\n// Later: disposeObject(cluster);`,
       },
     ],
-    build: async (params, palette) => {
+    build: async ({ material, ...shape }, palette) => {
       const [{ createCrystalCluster }, { createMaterial }] = await Promise.all([import("./meshes.js"), materials()]);
-      return createCrystalCluster(crystalCluster(params), createMaterial("satin", palette));
+      return createCrystalCluster(crystalCluster(shape), createMaterial(material, palette));
     },
   }),
 
@@ -115,8 +117,9 @@ export const procedural: readonly AssetDescriptor<ObjectBuilt, ScenePalette>[] =
       size: z.number().int().min(1).max(16).default(showcase.lattice.size),
       spacing: z.number().min(0.05).max(1).default(showcase.lattice.spacing),
       scale: z.number().min(0.01).max(0.3).default(showcase.lattice.scale),
+      material: z.enum(materialIds).default("metal"),
     }),
-    hints: { size: { label: "Points per side", group: "Shape" }, spacing: { label: "Spacing", group: "Shape", step: 0.01 }, scale: { label: "Point size", group: "Shape", step: 0.005 } },
+    hints: { size: { label: "Points per side", group: "Shape" }, spacing: { label: "Spacing", group: "Shape", step: 0.01 }, scale: { label: "Point size", group: "Shape", step: 0.005 }, material: { label: "Material", group: "Surface" } },
     templates: [
       {
         label: "TypeScript",
@@ -124,9 +127,9 @@ export const procedural: readonly AssetDescriptor<ObjectBuilt, ScenePalette>[] =
       },
     ],
     vars: ({ size }) => ({ points: String(size ** 3) }),
-    build: async ({ size, spacing, scale }, palette) => {
+    build: async ({ size, spacing, scale, material }, palette) => {
       const [{ createLattice }, { createMaterial }] = await Promise.all([import("./meshes.js"), materials()]);
-      return createLattice(latticePoints({ size, spacing }), createMaterial("metal", palette), { scale });
+      return createLattice(latticePoints({ size, spacing }), createMaterial(material, palette), { scale });
     },
   }),
 

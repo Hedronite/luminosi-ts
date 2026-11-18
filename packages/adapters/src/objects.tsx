@@ -1,13 +1,12 @@
 import { materialPreset, type MaterialId } from "@hedronite/lts-materials";
 import { createMaterial } from "@hedronite/lts-materials/three";
 import { type EffectId } from "@hedronite/lts-shaders";
-import { dressWatchSpec, objectSpecById, type WatchTime } from "@hedronite/lts-objects";
-import { createFramedSolid, createObjectFromSpec } from "@hedronite/lts-objects/three";
+import { createFramedSolid } from "@hedronite/lts-objects/three";
 import { primitive, type PrimitiveId } from "@hedronite/lts-primitives";
 import { disposeObject } from "@hedronite/lts-primitives/three";
 import { neutral, type ScenePalette } from "@hedronite/lts-tokens";
 import type { ThreeElements } from "@react-three/fiber";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Object3D } from "three";
 import { useEffectMaterial } from "./effectMaterial.js";
 
@@ -47,21 +46,46 @@ export function FramedSolid({ primitive: id, faces = "glass", shader, edges = "m
 }
 
 export interface LibraryObjectProps extends GroupProps {
-  /** "dress-watch", or the id of an object stored as data (such as "your-desk-lamp"). */
+  /** The id of an object in the library, such as "dress-watch" or "your-desk-lamp". */
   readonly object: string;
-  /** The watch's time. Default 10:09:36. */
-  readonly time?: WatchTime;
+  /** The object's parameters, as its descriptor takes them (the watch's `hours`, `minutes` and `seconds`, a cluster's `count`). A missing one takes its default. */
+  readonly params?: Readonly<Record<string, unknown>>;
   readonly palette?: ScenePalette;
 }
 
-const tenPastTen: WatchTime = { hours: 10, minutes: 9, seconds: 36 };
+/** Every object's descriptor, loaded once on first use, so a page that draws no library object never loads them. */
+let descriptors: Promise<ReadonlyMap<string, { readonly build: (params: unknown, palette: ScenePalette, options: { readonly signal: AbortSignal }) => Promise<Object3D> }>> | undefined;
+const objectDescriptors = () => {
+  descriptors ??= import("@hedronite/lts-objects/descriptors").then((module) => new Map(module.descriptors.map((descriptor) => [descriptor.meta.id, descriptor])));
+  return descriptors;
+};
 
-/** An ObjectSpec object from the library, built from its spec. Renders nothing for an unknown id. */
-export function LibraryObject({ object: id, time = tenPastTen, palette = neutral.scene, ...props }: LibraryObjectProps) {
-  const object = useMemo((): Object3D | undefined => {
-    const spec = id === "dress-watch" ? dressWatchSpec(time) : objectSpecById(id);
-    return spec === undefined ? undefined : createObjectFromSpec(spec, { palette });
-  }, [id, time, palette]);
+/**
+ * An object from the library, built by its descriptor. It draws nothing until the build lands, keeps the previous
+ * object on screen while a new one builds, and frees what it built. Renders nothing for an unknown id.
+ */
+export function LibraryObject({ object: id, params, palette = neutral.scene, ...props }: LibraryObjectProps) {
+  const [object, setObject] = useState<Object3D | undefined>(undefined);
+  // The parameters as text, so a new object literal with the same values does not rebuild.
+  const key = JSON.stringify(params ?? {});
+  useEffect(() => {
+    const controller = new AbortController();
+    objectDescriptors()
+      .then((found) => found.get(id)?.build(JSON.parse(key), palette, { signal: controller.signal }))
+      .then(
+        (built) => {
+          if (built === undefined) return;
+          if (controller.signal.aborted) disposeObject(built);
+          else setObject(built);
+        },
+        (error: unknown) => {
+          if (!controller.signal.aborted) console.error(`could not build ${id}`, error);
+        },
+      );
+    return () => {
+      controller.abort();
+    };
+  }, [id, key, palette]);
   useEffect(
     () => () => {
       if (object !== undefined) disposeObject(object);

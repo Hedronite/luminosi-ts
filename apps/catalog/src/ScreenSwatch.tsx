@@ -19,37 +19,47 @@ export function ScreenSwatch({ id, size }: { readonly id: ScreenEffectId; readon
         return <rect key={`${String(row)}-${String(col)}`} x={0.1 + col * 0.18} y={0.1 + row * 0.18} width={0.13} height={0.13} fill={level > 0.6 ? inks.cool[2] : inks.cool[1]} />;
       }),
     );
-  const content = ((): ReactNode => {
-    switch (id) {
-      case "dither":
+  const drawings: { readonly [Id in ScreenEffectId]: () => ReactNode } = {
+      dither: () => {
         return dots(0, 1);
-      case "ascii":
-      case "crystallize":
+      },
+      ascii: () => {
+        return (
+          <text x="1" y={1.2} textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="0.5" fontWeight="600" fill={inks.cool[2]}>
+            @#+:
+          </text>
+        );
+      },
+      crystallize: () => {
         return (
           <>
-            {id === "crystallize" ? dots(0.5, 1) : null}
-            <text x="1" y={id === "crystallize" ? 0.82 : 1.2} textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="0.5" fontWeight="600" fill={inks.cool[2]}>
-              {id === "crystallize" ? "@#" : "@#+:"}
+            {dots(0.5, 1)}
+            <text x="1" y={0.82} textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="0.5" fontWeight="600" fill={inks.cool[2]}>
+              @#
             </text>
           </>
         );
-      case "grain":
+      },
+      grain: () => {
         return specks.map(([x, y], i) => <rect key={i} x={0.15 + x * 1.7} y={0.15 + y * 1.7} width={0.05} height={0.05} fill={inks.hot} fillOpacity={0.8} />);
-      case "scan":
+      },
+      scan: () => {
         return (
           <>
             {dots(0.4, 0.6)}
             <line x1="0" y1="1.05" x2="2" y2="1.05" stroke={inks.rule} strokeWidth={0.05} />
           </>
         );
-      case "lens":
+      },
+      lens: () => {
         return (
           <>
             <circle cx="1.15" cy="0.9" r="0.5" fill={inks.cool[1]} fillOpacity={0.35} />
             <circle cx="1.15" cy="0.9" r="0.5" fill="none" stroke={inks.rule} strokeWidth={0.05} />
           </>
         );
-      case "crt":
+      },
+      crt: () => {
         return (
           <>
             <rect x="0.2" y="0.3" width="1.6" height="1.4" rx="0.3" fill={inks.cool[0]} fillOpacity={0.7} />
@@ -58,7 +68,8 @@ export function ScreenSwatch({ id, size }: { readonly id: ScreenEffectId; readon
             ))}
           </>
         );
-      case "smoke":
+      },
+      smoke: () => {
         return (
           <>
             <defs>
@@ -71,8 +82,9 @@ export function ScreenSwatch({ id, size }: { readonly id: ScreenEffectId; readon
             <rect width="2" height="2" fill={`url(#${smoke})`} />
           </>
         );
-    }
-  })();
+      },
+  };
+  const content = drawings[id]();
   return (
     <svg width={size} height={size} viewBox="0 0 2 2" aria-hidden="true">
       <defs>
