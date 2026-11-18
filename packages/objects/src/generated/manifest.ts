@@ -7,5 +7,4 @@ export const proceduralObjects = [
   {"id":"instanced-lattice","name":"Instanced lattice","tags":["procedural","instanced"],"added":"2026-11-15"},
   {"id":"dress-watch","name":"Your dress watch","tags":["object-spec","image-reconstruction","watch"],"added":"2026-11-15"},
   {"id":"crystal-cluster-glb","name":"Crystal cluster (glTF)","tags":["gltf","meshopt","pipeline"],"added":"2026-11-15"},
-  {"id":"fixture-orb","name":"Fixture orb","tags":["fixture","procedural"],"added":"2026-11-17"},
 ] as const;

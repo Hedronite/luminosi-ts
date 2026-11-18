@@ -167,16 +167,6 @@ export const procedural: readonly AssetDescriptor<ObjectBuilt, ScenePalette>[] =
     },
   }),
 
-
-  describe({ id: "fixture-orb", name: "Fixture orb", tags: ["fixture", "procedural"], added: "2026-11-17" }, {
-    parameters: z.object({ count: z.number().int().min(1).max(12).default(3) }),
-    hints: { count: { label: "Crystals", group: "Shape" } },
-    templates: [{ label: "TypeScript", code: `// {{name}}: {{param.count}} crystals\nconst orb = await descriptor("{{id}}").build({ count: {{param.count}} });` }],
-    build: async ({ count }, palette) => {
-      const [{ createCrystalCluster }, { createMaterial }] = await Promise.all([import("./meshes.js"), materials()]);
-      return createCrystalCluster(crystalCluster({ count, spread: 0.4, seed: 5 }), createMaterial("glass", palette));
-    },
-  }),
 ];
 
 /** Every object: the ones defined in code, then each one stored as data. */
