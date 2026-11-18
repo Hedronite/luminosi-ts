@@ -37,18 +37,23 @@ export function DetailDialog({ meta, onClose, onStep, position }: DetailDialogPr
   }, [meta]);
 
   // The descriptors the snippets come from load when an asset is first opened, in a chunk of their own.
-  const [loaded, setLoaded] = useState<{ readonly id: string; readonly snippets: readonly Snippet[] } | undefined>(undefined);
+  const [loaded, setLoaded] = useState<{ readonly id: string; readonly snippets: readonly Snippet[]; readonly failed: boolean } | undefined>(undefined);
   useEffect(() => {
     if (meta === undefined) return;
     let current = true;
-    void snippetsFor(meta).then((found) => {
-      if (current) setLoaded({ id: meta.id, snippets: found });
-    });
+    snippetsFor(meta)
+      .then((found) => {
+        if (current) setLoaded({ id: meta.id, snippets: found, failed: false });
+      })
+      .catch(() => {
+        if (current) setLoaded({ id: meta.id, snippets: [], failed: true });
+      });
     return () => {
       current = false;
     };
   }, [meta]);
   const snippets = meta !== undefined && loaded?.id === meta.id ? loaded.snippets : [];
+  const snippetsFailed = meta !== undefined && loaded?.id === meta.id && loaded.failed;
 
   return (
     <dialog
@@ -132,6 +137,12 @@ export function DetailDialog({ meta, onClose, onStep, position }: DetailDialogPr
               </>
             )}
           </dl>
+
+          {snippetsFailed ? (
+            <p role="alert" className="mt-6 text-sm text-fg-muted">
+              The usage snippets could not be loaded. Reload the page and open this asset again.
+            </p>
+          ) : null}
 
           {snippets.map((snippet) => (
             <section key={snippet.label} className="mt-6" aria-label={`${snippet.label} snippet`}>
