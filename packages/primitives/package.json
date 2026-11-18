@@ -17,6 +17,10 @@
     "./manifest": {
       "types": "./dist/manifest.d.ts",
       "import": "./dist/manifest.js"
+    },
+    "./descriptors": {
+      "types": "./dist/descriptors.d.ts",
+      "import": "./dist/descriptors.js"
     }
   },
   "files": [
@@ -30,8 +34,11 @@
   "peerDependencies": {
     "three": "^0.187.0"
   },
-  "devDependencies": {
+  "dependencies": {
     "@hedronite/lts-core": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
     "@types/three": "catalog:",
     "fast-check": "catalog:",
     "three": "catalog:",

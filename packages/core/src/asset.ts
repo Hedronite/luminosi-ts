@@ -1,15 +1,58 @@
 import { z } from "zod";
 
-/** The kinds of asset LuminosiTS ships. */
-export const assetKinds = ["icon", "primitive", "object", "scene", "material", "shader", "effect"] as const;
+/**
+ * Every kind an asset can have, by id. The seven LuminosiTS ships are listed here; a package that adds one
+ * extends this interface, so its id type-checks everywhere a kind is taken, and registers it with `registerKind`:
+ *
+ *     declare module "@hedronite/lts-core" {
+ *       interface AssetKindMap { sound: true }
+ *     }
+ *     registerKind("sound");
+ */
+export interface AssetKindMap {
+  readonly icon: true;
+  readonly primitive: true;
+  readonly object: true;
+  readonly scene: true;
+  readonly material: true;
+  readonly shader: true;
+  readonly effect: true;
+}
 
-export const assetKindSchema = z.enum(assetKinds);
+export type AssetKind = keyof AssetKindMap;
 
-export type AssetKind = z.infer<typeof assetKindSchema>;
+/** The kinds LuminosiTS ships, in the order the catalog lists them. They are registered by default. */
+export const assetKinds = ["icon", "primitive", "object", "scene", "material", "shader", "effect"] as const satisfies readonly AssetKind[];
 
 const slug = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const semver = /^\d+\.\d+\.\d+$/;
 const scopedPackage = /^@[a-z0-9-]+\/[a-z0-9-]+$/;
+
+const registered = new Set<string>(assetKinds);
+
+/**
+ * Makes `kind` a kind assets can have. The seven shipped kinds are registered already; registering one again does
+ * nothing, so a module that registers its kind can be loaded twice. The id must be declared in `AssetKindMap` first.
+ */
+export function registerKind(kind: AssetKind): void {
+  if (!slug.test(kind)) throw new RangeError(`kind "${kind}" is not a lowercase slug`);
+  registered.add(kind);
+}
+
+/** True if `value` is a registered kind. */
+export function isAssetKind(value: unknown): value is AssetKind {
+  return typeof value === "string" && registered.has(value);
+}
+
+/** Every registered kind: the shipped ones in catalog order, then any added, in the order they were registered. */
+export function registeredKinds(): readonly AssetKind[] {
+  return [...registered].filter(isAssetKind);
+}
+
+/** A registered kind. Checked when metadata is parsed, so a kind registered later is accepted from then on. */
+export const assetKindSchema = z.custom<AssetKind>(isAssetKind, {
+  error: (issue) => `Invalid kind ${JSON.stringify(issue.input)}: expected one of ${registeredKinds().join(", ")}`,
+});
 
 /**
  * Where an adopted asset came from: a folder under assets/vendor and the file (or folder) in it that the
