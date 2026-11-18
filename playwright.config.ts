@@ -3,13 +3,17 @@ import type { ConsoleOptions } from "./e2e/fixtures.js";
 
 // Browser tests run against the built catalog and site (bun run build first), served by Playwright,
 // or against running servers when E2E_CATALOG_URL and E2E_SITE_URL are set (bun run e2e:container).
-const external = process.env["E2E_CATALOG_URL"] !== undefined && process.env["E2E_SITE_URL"] !== undefined;
+// The WebGPU lane (bun run e2e:webgpu, see STACK.md) is a script for a machine with a GPU, never part of the default run or CI:
+// it exists only when LTS_WEBGPU_LANE is set, and then it is the only project.
+const webgpuLane = process.env["LTS_WEBGPU_LANE"] === "1";
+// The lane needs only the catalog, so a catalog URL alone (a tailnet HTTPS address, say) is an external run for it.
+const external = process.env["E2E_CATALOG_URL"] !== undefined && (webgpuLane || process.env["E2E_SITE_URL"] !== undefined);
 
 export default defineConfig<ConsoleOptions>({
   testDir: "e2e",
   // Against a deployed container only the served pages are under test; the image-to-object review
   // runs local tooling on the local build, so it stays with the normal run.
-  testIgnore: external ? ["**/review.spec.ts"] : [],
+  testIgnore: [...(external ? ["**/review.spec.ts"] : []), ...(webgpuLane ? [] : ["**/webgpu.spec.ts"])],
   // Tests, not files, are what workers and CI shards divide: catalog.spec.ts alone is over half the suite.
   fullyParallel: true,
   // Locally every test draws with software WebGL, and each browser's GPU process takes one to three cores, so the default
@@ -23,7 +27,7 @@ export default defineConfig<ConsoleOptions>({
   ...(process.env["CI"] === undefined ? {} : { expect: { timeout: 15_000 }, timeout: 60_000 }),
   reporter: process.env["CI"] === undefined ? "list" : [["list"], ["html", { open: "never" }]],
   use: {
-    baseURL: process.env["E2E_CATALOG_URL"] ?? "http://localhost:4173",
+    baseURL: process.env["E2E_CATALOG_URL"] ?? (webgpuLane ? "http://localhost:4175" : "http://localhost:4173"),
     // Console warnings a test may see; any other warning fails it (see e2e/fixtures.ts). Each entry is a message
     // the app does not cause: nothing in apps/ or packages/ builds a THREE.Clock or sets a shadow map type.
     consoleAllow: [
@@ -40,16 +44,33 @@ export default defineConfig<ConsoleOptions>({
       /GL Driver Message \(OpenGL, Performance, GL_CLOSE_PATH_NV, High\): Running out of reserved outsideRenderPass queueSerial/,
     ],
   },
-  projects: [
-    {
-      name: "chromium",
-      // Software WebGL, so 3D tests run the same on GPU-less CI runners.
-      use: { ...devices["Desktop Chrome"], launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] } },
-    },
-  ],
+  projects: webgpuLane
+    ? [
+        {
+          name: "webgpu",
+          testMatch: "webgpu.spec.ts",
+          // The real GPU through Metal, with WebGPU switched on: three's WebGPU renderer must find an adapter, not fall back to WebGL 2.
+          // Not the software path the default project uses: a SwiftShader adapter would pass for the wrong reason, so the spec also
+          // refuses a software adapter (SwiftShader, LLVM, or one that reports itself as a fallback).
+          use: { ...devices["Desktop Chrome"], launchOptions: { args: ["--enable-unsafe-webgpu", "--use-angle=metal"] } },
+        },
+      ]
+    : [
+        {
+          name: "chromium",
+          // Software WebGL, so 3D tests run the same on GPU-less CI runners.
+          use: { ...devices["Desktop Chrome"], launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] } },
+        },
+      ],
   webServer: external
     ? []
-    : [
+    : webgpuLane
+      ? [
+          // The built catalog on localhost, which is a secure context (navigator.gpu needs one). Its own port and never a reused
+          // server, so the lane always runs against the build it just made.
+          { command: "bunx vite preview --port 4175 --strictPort", cwd: "apps/catalog", url: "http://localhost:4175", reuseExistingServer: false },
+        ]
+      : [
     {
       command: "bunx vite preview --port 4173 --strictPort",
       cwd: "apps/catalog",
