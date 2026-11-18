@@ -1,7 +1,7 @@
 import { positionLocal, sin, time } from "three/tsl";
 import type { Node } from "three/webgpu";
 import { describe, expect, it } from "vitest";
-import { createHologramMaterial } from "./three.js";
+import { createEffectClock, createHologramEffect } from "./three.js";
 
 const nodesUnder = (root: Node): Node[] => {
   const found: Node[] = [];
@@ -15,12 +15,12 @@ const nodesUnder = (root: Node): Node[] => {
  * Oscillators that run on time alone: a sine over `time` with no position in it swings the whole
  * surface at once, which is a flicker. A sine over time and position (scan lines climbing) is not.
  */
-const flickers = (root: Node): Node[] =>
+const flickers = (root: Node, clock: Node = time): Node[] =>
   nodesUnder(root).filter((node) => {
     if (!("isMathNode" in node) || node.isMathNode !== true) return false;
     const inside = nodesUnder(node);
     const oscillates = "method" in node && (node.method === "sin" || node.method === "cos");
-    return oscillates && inside.includes(time) && !inside.includes(positionLocal);
+    return oscillates && inside.includes(clock) && !inside.includes(positionLocal);
   });
 
 describe("the flicker check", () => {
@@ -34,12 +34,22 @@ describe("the flicker check", () => {
 });
 
 describe("hologram", () => {
-  it("does not flicker: its opacity holds steady at any one point on the surface, bar the lines climbing it", () => {
-    const material = createHologramMaterial();
-    const roots = [material.opacityNode, material.colorNode];
-    for (const root of roots) {
+  it.each([
+    ["three's wall clock", undefined],
+    ["an injected clock", createEffectClock()],
+  ])("does not flicker on %s: its opacity holds steady at any one point on the surface, bar the lines climbing it", (_, clock) => {
+    const { material } = createHologramEffect({}, undefined, clock === undefined ? {} : { clock });
+    for (const root of [material.opacityNode, material.colorNode]) {
       if (root === null) throw new Error("the hologram has no node for this channel");
-      expect(flickers(root)).toEqual([]);
+      expect(flickers(root, clock)).toEqual([]);
     }
+  });
+
+  it("reads its time from the clock it is given", () => {
+    const clock = createEffectClock();
+    const { material } = createHologramEffect({}, undefined, { clock });
+    if (material.opacityNode === null) throw new Error("the hologram has no opacity node");
+    expect(nodesUnder(material.opacityNode)).toContain(clock);
+    expect(nodesUnder(material.opacityNode)).not.toContain(time);
   });
 });

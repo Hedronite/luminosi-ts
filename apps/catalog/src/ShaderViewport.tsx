@@ -1,28 +1,27 @@
 import type { AssetMeta } from "@hedronite/lts-core";
-import { StudioLights } from "@hedronite/lts-adapters";
+import { EffectClockProvider, StudioLights, useEffectMaterial } from "@hedronite/lts-adapters";
 import { effectInfo, isEffectId } from "@hedronite/lts-shaders";
-import { createEffectMaterial } from "@hedronite/lts-shaders/three";
 import type { ScenePalette } from "@hedronite/lts-tokens";
 import { Canvas } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { BoxGeometry, Color, MeshBasicMaterial, SphereGeometry, WebGPURenderer } from "three/webgpu";
 import { stageFrameloop, useStageShown, WakeOnShow } from "./onscreen";
 import { Controls, GpuCounts, StageClock, StageFrame, useMotion } from "./scene";
+import { useShaderClock } from "./shaderClock";
+import { shaderParams, useParamsQuery } from "./shaderParams";
 
 // A smooth sphere: effects that read the surface's turn (toon bands, refraction, rims) need smooth normals.
-function EffectSphere({ id, palette }: { readonly id: string; readonly palette: ScenePalette }) {
-  const resources = useMemo(
-    () => (isEffectId(id) ? { geometry: new SphereGeometry(0.95, 64, 32), material: createEffectMaterial(id, palette) } : undefined),
-    [id, palette],
-  );
+function EffectSphere({ id, palette, params }: { readonly id: string; readonly palette: ScenePalette; readonly params: Readonly<Record<string, unknown>> | undefined }) {
+  const geometry = useMemo(() => new SphereGeometry(0.95, 64, 32), []);
   useEffect(
     () => () => {
-      resources?.geometry.dispose();
-      resources?.material.dispose();
+      geometry.dispose();
     },
-    [resources],
+    [geometry],
   );
-  return resources === undefined ? null : <mesh geometry={resources.geometry} material={resources.material} dispose={null} />;
+  // The parameters move the shader live: a change writes its uniforms, and builds nothing.
+  const material = useEffectMaterial(isEffectId(id) ? id : undefined, palette, params);
+  return material === undefined ? null : <mesh geometry={geometry} material={material} dispose={null} />;
 }
 
 /** Stripes behind the sphere, for effects that show what's behind them (refraction, hologram). */
@@ -56,6 +55,10 @@ function Backdrop({ palette }: { readonly palette: ScenePalette }) {
 export function ShaderViewport({ meta, palette, paletteId }: { readonly meta: AssetMeta; readonly palette: ScenePalette; readonly paletteId: string }) {
   const group = useRef<HTMLDivElement>(null);
   const clock = useRef(0);
+  const { clock: shaderClock, write: writeShaderTime } = useShaderClock();
+  // The page's `params` value (`?params=density=80,speed=3`, or a JSON object) moves the shader's parameters live.
+  const query = useParamsQuery();
+  const params = useMemo(() => (isEffectId(meta.id) ? shaderParams(query) : undefined), [meta.id, query]);
   const motion = useMotion(isEffectId(meta.id) && effectInfo[meta.id].animated === true);
   const shown = useStageShown(group);
   return (
@@ -75,10 +78,12 @@ export function ShaderViewport({ meta, palette, paletteId }: { readonly meta: As
         <WakeOnShow shown={shown} />
         <StudioLights />
         <Controls keys={group} />
-        <StageClock clockRef={clock} running={!motion.still} />
+        <StageClock clockRef={clock} running={!motion.still} writeShaderTime={writeShaderTime} />
         {isEffectId(meta.id) && effectInfo[meta.id].seeThrough === true ? <Backdrop key={paletteId} palette={palette} /> : null}
-        <EffectSphere key={`${meta.id}:${paletteId}`} id={meta.id} palette={palette} />
-        <GpuCounts target={group} clockRef={clock} />
+        <EffectClockProvider clock={shaderClock}>
+          <EffectSphere key={`${meta.id}:${paletteId}`} id={meta.id} palette={palette} params={params} />
+        </EffectClockProvider>
+        <GpuCounts target={group} clockRef={clock} shaderClock={shaderClock} />
       </Canvas>
     </StageFrame>
   );

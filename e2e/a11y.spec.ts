@@ -207,6 +207,68 @@ test("a paused stage still orbits from the keyboard, redraws, and keeps its time
   expect(errors).toEqual([]);
 });
 
+test("a paused surface shader reads no time: its clock holds through key orbit, and resumes from where it stopped", async ({ page }) => {
+  const errors = errorsOn(page);
+  const stage = hologramStage;
+  await ready(stage, page);
+  const host = stage.host(page);
+  // The shader reads the stage's own clock, not the wall clock: the two move together.
+  await expect.poll(async () => number(host, "data-shader-time")).toBeGreaterThan(0.3);
+  await expect.poll(async () => (await host.getAttribute("data-shader-time")) === (await host.getAttribute("data-time"))).toBe(true);
+  await stage.scope(page).getByRole("button", { name: "Pause motion" }).click();
+  await expect(stage.scope(page).getByRole("button", { name: "Resume motion" })).toBeVisible();
+  const { frames: heldFrames, time: heldTime } = await heldCounters(host);
+  expect(await number(host, "data-shader-time")).toBe(heldTime);
+  const azimuth = await number(host, "data-azimuth");
+  await stage.group(page).focus();
+  await page.keyboard.press("ArrowRight");
+  await page.waitForTimeout(1500);
+  await page.keyboard.press("ArrowDown");
+  // The camera moves and the stage draws the new view, and the shader's time does not move with the wall clock.
+  await expect.poll(async () => number(host, "data-azimuth")).not.toBe(azimuth);
+  await expect.poll(async () => number(host, "data-frames")).toBeGreaterThan(heldFrames);
+  await page.waitForTimeout(1000);
+  expect(await number(host, "data-shader-time")).toBe(heldTime);
+  await stage.scope(page).getByRole("button", { name: "Resume motion" }).click();
+  await expect.poll(async () => number(host, "data-shader-time")).toBeGreaterThan(heldTime);
+  expect((await number(host, "data-shader-time")) - heldTime).toBeLessThan(2);
+  expect(errors).toEqual([]);
+});
+
+/** Puts a new `params` value in the address, the way a link or a script would, and tells the page the address changed. */
+const setParams = (page: Page, value: string): Promise<void> =>
+  page.evaluate((next) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("params", next);
+    window.history.pushState(null, "", url);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  }, value);
+
+test("a surface shader's parameters move live from the address: frames keep coming, the program count stays flat, the picture changes", async ({ page }) => {
+  const errors = errorsOn(page);
+  const stage = hologramStage;
+  await ready(stage, page);
+  const host = stage.host(page);
+  // Held, so the shader's time is fixed and only the parameters can change the picture.
+  await stage.scope(page).getByRole("button", { name: "Pause motion" }).click();
+  await heldCounters(host);
+  await expect.poll(async () => number(host, "data-programs")).toBeGreaterThan(0);
+  const programs = await number(host, "data-programs");
+  const first = await host.locator("canvas").screenshot();
+  await ["density=300", "density=300,intensity=8,speed=0", '{"density":8,"intensity":0.5}'].reduce<Promise<Buffer>>(async (before, value) => {
+    const picture = await before;
+    const frames = await number(host, "data-frames");
+    await setParams(page, value);
+    await expect.poll(async () => number(host, "data-frames")).toBeGreaterThan(frames);
+    await page.waitForTimeout(500);
+    expect(await number(host, "data-programs"), `programs after ${value}`).toBe(programs);
+    const next = await host.locator("canvas").screenshot();
+    expect(next.equals(picture), `the picture after ${value}`).toBe(false);
+    return next;
+  }, Promise.resolve(first));
+  expect(errors).toEqual([]);
+});
+
 for (const stage of stages) {
   test(`${stage.name} is a labelled group that the keyboard orbits and zooms`, async ({ page }) => {
     const errors = errorsOn(page);

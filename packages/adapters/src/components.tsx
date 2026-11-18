@@ -8,7 +8,7 @@ import { createPolyhedronGeometry, createStudioLights, disposeObject } from "@he
 import { neutral, type ScenePalette } from "@hedronite/lts-tokens";
 import { useThree, type ThreeElements } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
-import { useEffectMaterial } from "./effectMaterial.js";
+import { useEffectMaterial, type ShaderParams } from "./effectMaterial.js";
 import { PMREMGenerator, type WebGLRenderer } from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 
@@ -20,15 +20,17 @@ export interface PrimitiveMeshProps extends Omit<ThreeElements["mesh"], "args" |
   readonly material?: MaterialId;
   /** A surface shader instead of a material preset. Needs the WebGPU renderer (`WebGPUCanvas` from `@hedronite/lts-adapters/webgpu`). The shader loads on demand: nothing draws until it is ready. */
   readonly shader?: EffectId;
+  /** The shader's parameters, by name. A change moves the shader live, with no new material (a structural one, such as toon's `bands`, builds it again). Ignored without `shader`. */
+  readonly shaderParams?: ShaderParams;
   /** Scene colors. Default: the neutral token preset. */
   readonly palette?: ScenePalette;
 }
 
 /** A primitive with a preset material. Owns both, and frees them when they change or it unmounts. */
-export function PrimitiveMesh({ primitive: id, material = "satin", shader, palette = neutral.scene, ...props }: PrimitiveMeshProps) {
+export function PrimitiveMesh({ primitive: id, material = "satin", shader, shaderParams, palette = neutral.scene, ...props }: PrimitiveMeshProps) {
   const geometry = useMemo(() => createPolyhedronGeometry(primitive(id), id), [id]);
   const preset = useMemo(() => (shader === undefined ? createMaterial(material, palette) : undefined), [material, shader, palette]);
-  const effect = useEffectMaterial(shader, palette);
+  const effect = useEffectMaterial(shader, palette, shaderParams);
   const surface = shader === undefined ? preset : effect;
   useEffect(
     () => () => {

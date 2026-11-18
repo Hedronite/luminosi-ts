@@ -8,7 +8,7 @@ import { neutral, type ScenePalette } from "@hedronite/lts-tokens";
 import type { ThreeElements } from "@react-three/fiber";
 import { useEffect, useMemo, useState } from "react";
 import type { Object3D } from "three";
-import { useEffectMaterial } from "./effectMaterial.js";
+import { useEffectMaterial, type ShaderParams } from "./effectMaterial.js";
 
 type GroupProps = Omit<ThreeElements["group"], "args" | "children" | "ref" | "object">;
 
@@ -18,6 +18,8 @@ export interface FramedSolidProps extends GroupProps {
   readonly faces?: MaterialId;
   /** A surface shader for the faces instead of a material preset. Needs the WebGPU renderer (`WebGPUCanvas` from `@hedronite/lts-adapters/webgpu`). The shader loads on demand: nothing draws until it is ready. */
   readonly shader?: EffectId;
+  /** The shader's parameters, by name. A change moves the shader live, with no new material. Ignored without `shader`. */
+  readonly shaderParams?: ShaderParams;
   /** The edges' material, tinted with the scene's accent color. Default "metal" (copper in the Hedronite look). */
   readonly edges?: MaterialId;
   readonly palette?: ScenePalette;
@@ -29,8 +31,8 @@ export function accentPalette(palette: ScenePalette, material: MaterialId): Scen
 }
 
 /** A framed solid (faces, edge tubes, vertex beads), as on hedronite.com. Owns and frees what it builds. */
-export function FramedSolid({ primitive: id, faces = "glass", shader, edges = "metal", palette = neutral.scene, ...props }: FramedSolidProps) {
-  const effect = useEffectMaterial(shader, palette);
+export function FramedSolid({ primitive: id, faces = "glass", shader, shaderParams, edges = "metal", palette = neutral.scene, ...props }: FramedSolidProps) {
+  const effect = useEffectMaterial(shader, palette, shaderParams);
   const surface = useMemo(() => (shader === undefined ? createMaterial(faces, palette) : effect), [shader, faces, palette, effect]);
   const object = useMemo(
     () => (surface === undefined ? undefined : createFramedSolid(primitive(id), { faces: surface, edges: createMaterial(edges, accentPalette(palette, edges)) })),

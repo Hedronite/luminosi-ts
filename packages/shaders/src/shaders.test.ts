@@ -4,15 +4,15 @@ import { Color, NodeMaterial } from "three/webgpu";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import {
-  createDissolveMaterial,
+  createDissolveEffect,
   createEffectMaterial,
-  createFresnelGlowMaterial,
-  createHeightGradientMaterial,
-  createHologramMaterial,
-  createPulseMaterial,
-  createRefractionMaterial,
-  createSoapFilmMaterial,
-  createToonMaterial,
+  createFresnelGlowEffect,
+  createHeightGradientEffect,
+  createHologramEffect,
+  createPulseEffect,
+  createRefractionEffect,
+  createSoapFilmEffect,
+  createToonEffect,
 } from "./effects.js";
 import { effectIds, effectInfo } from "./info.js";
 import { manifest } from "./manifest.js";
@@ -33,10 +33,10 @@ describe("effects", () => {
   });
 
   it("draws see-through effects after the opaque scene", () => {
-    expect(createRefractionMaterial().transparent).toBe(true);
-    const hologram = createHologramMaterial();
+    expect(createRefractionEffect().material.transparent).toBe(true);
+    const hologram = createHologramEffect().material;
     expect([hologram.transparent, hologram.depthWrite]).toEqual([true, false]);
-    const film = createSoapFilmMaterial();
+    const film = createSoapFilmEffect().material;
     expect([film.transparent, film.depthWrite]).toEqual([true, false]);
   });
 
@@ -46,28 +46,30 @@ describe("effects", () => {
     expect(registry.get("soap-film")?.origin).toMatchObject({ vendor: "codevember-2026", path: "07/src/Balloon.tsx" });
     expect(registry.get("soap-film")?.added).toBe("2026-11-16");
     expect(registry.get("toon")?.origin).toBeUndefined();
-    expect(() => createSoapFilmMaterial({ color: 2 })).toThrow(z.ZodError);
+    expect(() => createSoapFilmEffect({ color: 2 })).toThrow(z.ZodError);
   });
 
   it("cuts dissolved surface away by alpha test, at a fixed progress when given one", () => {
-    const material = createDissolveMaterial({ progress: 0.3 });
+    const { material } = createDissolveEffect({ progress: 0.3 });
     expect(material.alphaTest).toBe(0.5);
     expect(material.opacityNode).toBeTruthy();
-    expect(() => createDissolveMaterial({ progress: 2 })).toThrow(z.ZodError);
+    expect(() => createDissolveEffect({ progress: 2 })).toThrow(z.ZodError);
   });
 
   it("validates parameters where they enter", () => {
-    expect(() => createFresnelGlowMaterial({ power: 99 })).toThrow(z.ZodError);
-    expect(() => createPulseMaterial({ color: "red" })).toThrow(z.ZodError);
-    expect(() => createHeightGradientMaterial({ minY: 1, maxY: 0 })).toThrow(RangeError);
-    expect(() => createToonMaterial({ bands: 2.5 })).toThrow(z.ZodError);
-    expect(() => createRefractionMaterial({ strength: 1 })).toThrow(z.ZodError);
-    expect(() => createHologramMaterial({ density: 1 })).toThrow(z.ZodError);
+    expect(() => createFresnelGlowEffect({ power: 99 })).toThrow(z.ZodError);
+    expect(() => createPulseEffect({ color: "red" })).toThrow(z.ZodError);
+    expect(() => createHeightGradientEffect({ minY: 1, maxY: 0 })).toThrow(RangeError);
+    expect(() => createToonEffect({ bands: 2.5 })).toThrow(z.ZodError);
+    expect(() => createRefractionEffect({ strength: 1 })).toThrow(z.ZodError);
+    expect(() => createHologramEffect({ density: 1 })).toThrow(z.ZodError);
   });
 
   it("takes default colors from the token preset", () => {
-    const material = createFresnelGlowMaterial({}, hedronite.scene);
-    expect(material.color.equals(new Color(hedronite.scene.base))).toBe(true);
+    const { uniforms } = createFresnelGlowEffect({}, hedronite.scene);
+    const base = uniforms["base"];
+    if (!(base?.value instanceof Color)) throw new Error("the base color is not a color uniform");
+    expect(base.value.equals(new Color(hedronite.scene.base))).toBe(true);
   });
 
   it("registers one shader asset per effect", () => {

@@ -4,6 +4,7 @@ import { createFramedSolid } from "@hedronite/lts-objects/three";
 import { isPrimitiveId, primitive, type PrimitiveId } from "@hedronite/lts-primitives";
 import { createPolyhedronGeometry } from "@hedronite/lts-primitives/three";
 import { isEffectId, type EffectId } from "@hedronite/lts-shaders";
+import type { EffectClock } from "@hedronite/lts-shaders/three";
 import { loadDescriptors } from "@hedronite/lts-registry";
 import type { ScenePalette } from "@hedronite/lts-tokens";
 import { Material, Mesh, Object3D } from "three";
@@ -62,12 +63,20 @@ async function make<T>(id: string, palette: ScenePalette, accepts: (built: unkno
 const isMaterial = (built: unknown): built is Material => built instanceof Material;
 const isObject = (built: unknown): built is Object3D => built instanceof Object3D;
 
+/** The surface's material, if it has one. A shader reads its time from the stage's `shaderClock`, so a held stage holds it still. */
+async function surfaceMaterial(surface: StageSurface, palette: ScenePalette, shaderClock: EffectClock | undefined): Promise<Material | undefined> {
+  if (surface.kind === "material") return make(surface.id, palette, isMaterial);
+  if (surface.kind !== "shader") return undefined;
+  const { createEffect } = await import("@hedronite/lts-shaders/three");
+  return createEffect(surface.id, {}, palette, shaderClock === undefined ? {} : { clock: shaderClock }).material;
+}
+
 /**
  * Builds the stage's subject in its surface, from the descriptors. Solids have no surface of their own, so "own"
  * frames them; objects can't be framed, so "framed" keeps their own. The caller frees the result with disposeObject.
  */
-export async function buildStage(subject: StageSubject, surface: StageSurface, palette: ScenePalette): Promise<Object3D> {
-  const material = surface.kind === "material" || surface.kind === "shader" ? await make(surface.id, palette, isMaterial) : undefined;
+export async function buildStage(subject: StageSubject, surface: StageSurface, palette: ScenePalette, shaderClock?: EffectClock): Promise<Object3D> {
+  const material = await surfaceMaterial(surface, palette, shaderClock);
   if (subject.kind === "object") {
     const object = await make(subject.id, palette, isObject);
     return material === undefined ? object : resurface(object, material);

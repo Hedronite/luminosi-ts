@@ -1,6 +1,7 @@
 import { StudioLights } from "@hedronite/lts-adapters";
 import { ScreenEffectsPass, WebGPUCanvas, WebGPUStudioEnvironment } from "@hedronite/lts-adapters/webgpu";
 import type { ScreenEffectConfig } from "@hedronite/lts-postfx";
+import type { EffectClock } from "@hedronite/lts-shaders/three";
 import { disposeObject } from "@hedronite/lts-primitives/three";
 import type { Hex, ScenePalette } from "@hedronite/lts-tokens";
 import { useFrame, useThree } from "@react-three/fiber";
@@ -9,16 +10,17 @@ import type { Group, Object3D } from "three";
 import { Controls, GpuCounts, StageClock, StageFrame, useMotion } from "./scene";
 import { stageFrameloop, useStageShown, WakeOnShow } from "./onscreen";
 import { buildStage, type StageSubject, type StageSurface } from "./stage";
+import { useShaderClock } from "./shaderClock";
 
 /** The subject in its surface, drifting slowly as on hedronite.com so the prints keep moving; still under reduced motion or when paused. */
-function Subject({ subject, surface, palette, still, clock }: { readonly subject: StageSubject; readonly surface: StageSurface; readonly palette: ScenePalette; readonly still: boolean; readonly clock: RefObject<number> }) {
+function Subject({ subject, surface, palette, still, clock, shaderClock }: { readonly subject: StageSubject; readonly surface: StageSurface; readonly palette: ScenePalette; readonly still: boolean; readonly clock: RefObject<number>; readonly shaderClock: EffectClock }) {
   const spin = useRef<Group>(null);
   const invalidate = useThree((state) => state.invalidate);
   // The descriptors build it, so it arrives after a moment; the last one stays on show until the next is ready.
   const [object, setObject] = useState<Object3D | undefined>(undefined);
   useEffect(() => {
     let current = true;
-    buildStage(subject, surface, palette).then(
+    buildStage(subject, surface, palette, shaderClock).then(
       (built) => {
         if (!current) {
           disposeObject(built);
@@ -34,7 +36,7 @@ function Subject({ subject, surface, palette, still, clock }: { readonly subject
     return () => {
       current = false;
     };
-  }, [subject, surface, palette, invalidate]);
+  }, [subject, surface, palette, shaderClock, invalidate]);
   useEffect(
     () => () => {
       if (object !== undefined) disposeObject(object);
@@ -80,6 +82,7 @@ export interface EffectStageProps {
 export function EffectStage({ effects, palette, paletteId, subject = framedDodecahedron, surface = framed, monochrome, label, className = "h-72 w-full", host }: EffectStageProps) {
   const own = useRef<HTMLDivElement>(null);
   const clock = useRef(0);
+  const { clock: shaderClock, write: writeShaderTime } = useShaderClock();
   const motion = useMotion(true);
   const shown = useStageShown(own);
   // The counts go to the page's own host when it gave one; the keys always belong to the group.
@@ -91,10 +94,10 @@ export function EffectStage({ effects, palette, paletteId, subject = framedDodec
         <WebGPUStudioEnvironment />
         <StudioLights />
         <Controls keys={own} />
-        <StageClock clockRef={clock} running={!motion.still} />
-        <Subject key={paletteId} subject={subject} surface={surface} palette={palette} still={motion.still} clock={clock} />
+        <StageClock clockRef={clock} running={!motion.still} writeShaderTime={writeShaderTime} />
+        <Subject key={paletteId} subject={subject} surface={surface} palette={palette} still={motion.still} clock={clock} shaderClock={shaderClock} />
         {effects.length === 0 ? null : <ScreenEffectsPass effects={effects} palette={palette} {...(monochrome === undefined ? {} : { monochrome })} />}
-        <GpuCounts target={target} clockRef={clock} />
+        <GpuCounts target={target} clockRef={clock} shaderClock={shaderClock} />
       </WebGPUCanvas>
     </StageFrame>
   );
