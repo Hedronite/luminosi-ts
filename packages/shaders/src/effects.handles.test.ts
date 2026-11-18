@@ -2,7 +2,8 @@ import { time } from "three/tsl";
 import { Color, MeshStandardNodeMaterial, type Node, type NodeMaterial } from "three/webgpu";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { createEffect, createEffectClock, createEffectMaterial, type EffectHandle } from "./effects.js";
+import { hedronite, neutral } from "@hedronite/lts-tokens";
+import { applyPalette, createEffect, createEffectClock, createEffectMaterial, type EffectHandle } from "./effects.js";
 import { effectIds, effectInfo, effectSchemas, type EffectId } from "./info.js";
 
 /** One value for every live parameter of every effect, none of them the default. Structural parameters are not here. */
@@ -172,5 +173,31 @@ describe("effect handles", () => {
       expect(material.name).toBe(id);
       material.dispose();
     }
+  });
+
+  describe("applyPalette", () => {
+    const colorsOf = (handle: EffectHandle) => Object.keys(handle.uniforms).map((key) => [key, value(handle, key)]);
+
+    it.each(effectIds)("%s: recolored to another look, it equals one made in that look, with nothing rebuilt", (id) => {
+      const handle = createEffect(id, {}, neutral.scene);
+      const { material } = handle;
+      const version = material.version;
+      applyPalette(handle, hedronite.scene);
+      expect(colorsOf(handle)).toEqual(colorsOf(createEffect(id, {}, hedronite.scene)));
+      expect(handle.material).toBe(material);
+      expect(material.version).toBe(version);
+    });
+
+    it.each(effectIds)("%s: a color the caller gave, or sets later, stays as it is", (id) => {
+      const [color] = Object.entries(moves[id]).find(([, next]) => typeof next === "string") ?? [];
+      if (color === undefined) throw new Error(`${id} has no color parameter`);
+      const given = createEffect(id, { [color]: "#123456" }, neutral.scene);
+      applyPalette(given, hedronite.scene);
+      expect(value(given, color)).toBe("123456");
+      const later = createEffect(id, {}, neutral.scene);
+      expect(later.set({ [color]: "#654321" })).toBe(true);
+      applyPalette(later, hedronite.scene);
+      expect(value(later, color)).toBe("654321");
+    });
   });
 });

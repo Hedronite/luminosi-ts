@@ -1,6 +1,7 @@
 import ReactThreeTestRenderer from "@react-three/test-renderer";
 import { Mesh, type Object3D } from "three";
-import { Node } from "three/webgpu";
+import { Color, Node } from "three/webgpu";
+import { hedronite, neutral } from "@hedronite/lts-tokens";
 import { describe, expect, it, vi } from "vitest";
 import { PrimitiveMesh } from "./components.js";
 import { EffectClockProvider } from "./effectClock.js";
@@ -109,6 +110,25 @@ describe("PrimitiveMesh with a surface shader", () => {
     );
     const material = await drawnMaterial(renderer.scene.instance);
     expect("emissiveNode" in material && nodesUnder(material.emissiveNode).includes(clock)).toBe(true);
+    await renderer.unmount();
+  });
+
+  it("follows a change of look in place: the same material, its color uniform written, nothing freed or rebuilt", async () => {
+    const colored = (material: object, hex: string): boolean =>
+      "colorNode" in material && nodesUnder(material.colorNode).some((node) => "isUniformNode" in node && "value" in node && node.value instanceof Color && node.value.getHexString() === new Color(hex).getHexString());
+    const renderer = await ReactThreeTestRenderer.create(<PrimitiveMesh primitive="platonic-cube" shader="fresnel-glow" palette={neutral.scene} />);
+    const material = await drawnMaterial(renderer.scene.instance);
+    expect(colored(material, neutral.scene.base)).toBe(true);
+    const freed = vi.fn();
+    material.addEventListener("dispose", freed);
+    const version = material.version;
+    await renderer.update(<PrimitiveMesh primitive="platonic-cube" shader="fresnel-glow" palette={hedronite.scene} />);
+    await vi.waitFor(() => {
+      expect(colored(material, hedronite.scene.base)).toBe(true);
+    });
+    expect(await drawnMaterial(renderer.scene.instance)).toBe(material);
+    expect(freed).not.toHaveBeenCalled();
+    expect(material.version).toBe(version);
     await renderer.unmount();
   });
 });

@@ -73,9 +73,12 @@ function bake(source: BufferGeometry, matrix: Matrix4): BufferGeometry {
 
 function buildMaterial(spec: ObjectMaterial, palette: ScenePalette): Material {
   const slot = materialPreset(spec.preset).color;
-  const base = palette[spec.color ?? slot];
-  const color = spec.shade === undefined ? base : shadeHex(base, spec.shade);
-  const material = createMaterial(spec.preset, { ...palette, [slot]: color });
+  // How the part's color comes from a look, kept with the material so a change of look can recolor it in place.
+  const derive = (look: ScenePalette): ScenePalette => {
+    const base = look[spec.color ?? slot];
+    return { ...look, [slot]: spec.shade === undefined ? base : shadeHex(base, spec.shade) };
+  };
+  const material = createMaterial(spec.preset, palette, derive);
   if (spec.roughness !== undefined) material.roughness = spec.roughness;
   if (spec.metalness !== undefined) material.metalness = spec.metalness;
   return material;

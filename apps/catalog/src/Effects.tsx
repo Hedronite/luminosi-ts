@@ -172,7 +172,6 @@ export function Effects({ shaders }: { readonly shaders: readonly AssetMeta[] })
           <EffectStage
             effects={effects}
             palette={preset.scene}
-            paletteId={preset.id}
             subject={subject}
             surface={shown}
             monochrome={monochrome}

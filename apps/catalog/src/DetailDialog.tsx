@@ -95,11 +95,11 @@ export function DetailDialog({ meta, onClose, onStep, position }: DetailDialogPr
                 }
               >
                 {meta.kind === "shader" ? (
-                  <ShaderViewport meta={meta} palette={preset.scene} paletteId={preset.id} />
+                  <ShaderViewport meta={meta} palette={preset.scene} />
                 ) : meta.kind === "effect" ? (
-                  <EffectViewport meta={meta} palette={preset.scene} paletteId={preset.id} />
+                  <EffectViewport meta={meta} palette={preset.scene} />
                 ) : (
-                  <Viewport meta={meta} palette={preset.scene} paletteId={preset.id} />
+                  <Viewport meta={meta} palette={preset.scene} />
                 )}
               </Suspense>
             ) : (

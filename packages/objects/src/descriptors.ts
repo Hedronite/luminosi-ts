@@ -111,7 +111,7 @@ export const procedural: readonly AssetDescriptor<ObjectBuilt, ScenePalette>[] =
       const [{ createFramedSolid }, { createMaterial }] = await Promise.all([import("./framed.js"), materials()]);
       // Glass faces with edges and beads in metal tinted by the look's accent: copper in the Hedronite look.
       const look = palette ?? neutral.scene;
-      return createFramedSolid(platonic(solid, radius), { faces: createMaterial("glass", look), edges: createMaterial("metal", { ...look, metal: look.accent }) });
+      return createFramedSolid(platonic(solid, radius), { faces: createMaterial("glass", look), edges: createMaterial("metal", look, (scene) => ({ ...scene, metal: scene.accent })) });
     },
   }),
 

@@ -1,5 +1,6 @@
-import { hedronite } from "@hedronite/lts-tokens";
-import { Mesh, type Object3D } from "three";
+import { applyPalette } from "@hedronite/lts-materials/three";
+import { hedronite, neutral } from "@hedronite/lts-tokens";
+import { Mesh, MeshPhysicalMaterial, type Object3D } from "three";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { descriptors } from "./descriptors.js";
@@ -64,5 +65,23 @@ describe("object descriptors, built", () => {
     expect(find("crystal-cluster").snippets({ count: 5 })[0]?.code).toContain("count: 5,");
     expect(find("instanced-lattice").snippets({ size: 4 })[0]?.code).toContain("// 64 octahedra, one draw call.");
     expect(find("your-desk-lamp").snippets()[0]?.code).toContain('objectSpecById("your-desk-lamp")');
+  });
+});
+
+/** The color of every material under an object, in traversal order, as hex digits. */
+const colorsUnder = (object: Object3D): string[] => {
+  const found: string[] = [];
+  object.traverse((node) => {
+    if (!(node instanceof Mesh)) return;
+    for (const material of [node.material].flat()) if (material instanceof MeshPhysicalMaterial) found.push(material.color.getHexString());
+  });
+  return found;
+};
+
+describe("object descriptors, recolored", () => {
+  it.each(["dress-watch", "your-desk-lamp", "framed-solid", "crystal-cluster", "instanced-lattice"])("%s: recolored to another look, it has the colors of one built in that look", async (id) => {
+    const object = await find(id).build({}, neutral.scene);
+    applyPalette(object, hedronite.scene);
+    expect(colorsUnder(object)).toEqual(colorsUnder(await find(id).build({}, hedronite.scene)));
   });
 });

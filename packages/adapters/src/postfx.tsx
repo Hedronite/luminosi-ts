@@ -1,5 +1,5 @@
-import { inksFor, type ScreenEffectConfig } from "@hedronite/lts-postfx";
-import { ScreenEffects, stackStructure, stackValues } from "@hedronite/lts-postfx/three";
+import type { ScreenEffectConfig } from "@hedronite/lts-postfx";
+import { applyPalette, ScreenEffects, stackStructure, stackValues } from "@hedronite/lts-postfx/three";
 import { neutral, type Hex, type ScenePalette } from "@hedronite/lts-tokens";
 import { Canvas, useFrame, useThree, type CanvasProps } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
@@ -67,7 +67,7 @@ export function ScreenEffectsPass({ effects, palette = neutral.scene, monochrome
   );
   useEffect(() => {
     runner.setParams(stackValues(effects));
-    runner.setInks(inksFor(palette, monochrome === undefined ? {} : { monochrome }));
+    applyPalette(runner, palette, monochrome === undefined ? {} : { monochrome });
   }, [runner, effects, palette, monochrome]);
   useEffect(
     () => () => {

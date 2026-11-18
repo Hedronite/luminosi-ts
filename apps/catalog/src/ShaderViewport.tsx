@@ -2,9 +2,9 @@ import type { AssetMeta } from "@hedronite/lts-core";
 import { EffectClockProvider, StudioLights, useEffectMaterial } from "@hedronite/lts-adapters";
 import { effectInfo, isEffectId } from "@hedronite/lts-shaders";
 import type { ScenePalette } from "@hedronite/lts-tokens";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { BoxGeometry, Color, MeshBasicMaterial, SphereGeometry, WebGPURenderer } from "three/webgpu";
+import { BoxGeometry, MeshBasicMaterial, SphereGeometry, WebGPURenderer } from "three/webgpu";
 import { stageFrameloop, useStageShown, WakeOnShow } from "./onscreen";
 import { Controls, GpuCounts, StageClock, StageFrame, useMotion } from "./scene";
 import { useShaderClock } from "./shaderClock";
@@ -26,10 +26,14 @@ function EffectSphere({ id, palette, params }: { readonly id: string; readonly p
 
 /** Stripes behind the sphere, for effects that show what's behind them (refraction, hologram). */
 function Backdrop({ palette }: { readonly palette: ScenePalette }) {
-  const resources = useMemo(
-    () => ({ geometry: new BoxGeometry(0.22, 4, 0.02), light: new MeshBasicMaterial({ color: new Color(palette.accent) }), dark: new MeshBasicMaterial({ color: new Color(palette.base) }) }),
-    [palette],
-  );
+  const invalidate = useThree((state) => state.invalidate);
+  const resources = useMemo(() => ({ geometry: new BoxGeometry(0.22, 4, 0.02), light: new MeshBasicMaterial(), dark: new MeshBasicMaterial() }), []);
+  // The stripes take the look's colors, written in place when the look changes.
+  useEffect(() => {
+    resources.light.color.set(palette.accent);
+    resources.dark.color.set(palette.base);
+    invalidate();
+  }, [resources, palette, invalidate]);
   useEffect(
     () => () => {
       resources.geometry.dispose();
@@ -52,7 +56,7 @@ function Backdrop({ palette }: { readonly palette: ScenePalette }) {
  * is missing. Renders every frame, since effects can animate; paused, or under reduced motion, only on change;
  * off screen, or in a hidden tab, not at all.
  */
-export function ShaderViewport({ meta, palette, paletteId }: { readonly meta: AssetMeta; readonly palette: ScenePalette; readonly paletteId: string }) {
+export function ShaderViewport({ meta, palette }: { readonly meta: AssetMeta; readonly palette: ScenePalette }) {
   const group = useRef<HTMLDivElement>(null);
   const clock = useRef(0);
   const { clock: shaderClock, write: writeShaderTime } = useShaderClock();
@@ -79,9 +83,9 @@ export function ShaderViewport({ meta, palette, paletteId }: { readonly meta: As
         <StudioLights />
         <Controls keys={group} />
         <StageClock clockRef={clock} running={!motion.still} writeShaderTime={writeShaderTime} />
-        {isEffectId(meta.id) && effectInfo[meta.id].seeThrough === true ? <Backdrop key={paletteId} palette={palette} /> : null}
+        {isEffectId(meta.id) && effectInfo[meta.id].seeThrough === true ? <Backdrop palette={palette} /> : null}
         <EffectClockProvider clock={shaderClock}>
-          <EffectSphere key={`${meta.id}:${paletteId}`} id={meta.id} palette={palette} params={params} />
+          <EffectSphere key={meta.id} id={meta.id} palette={palette} params={params} />
         </EffectClockProvider>
         <GpuCounts target={group} clockRef={clock} shaderClock={shaderClock} />
       </Canvas>

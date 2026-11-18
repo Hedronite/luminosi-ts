@@ -40,6 +40,14 @@ function merged<T extends object>(schema: z.ZodType<T>, current: T | undefined, 
   return current === undefined || update === undefined ? current : schema.parse({ ...current, ...update });
 }
 
+/**
+ * Recolors a running stack's inks from a look, in place: its uniforms are written and nothing is rebuilt (the same passes, the same
+ * programs). `options` are the same ink choices `inksFor` takes, such as a single `monochrome` ink. The caller asks for a new frame.
+ */
+export function applyPalette(effects: ScreenEffects, palette: ScenePalette, options: InkOptions = {}): void {
+  effects.setInks(inksFor(palette, options));
+}
+
 /** A glyph atlas for the ASCII print: one cell per ramp character, white on black. */
 function glyphAtlas(ramp: string): Texture {
   const cell = 48;

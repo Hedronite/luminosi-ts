@@ -1,6 +1,8 @@
 import ReactThreeTestRenderer from "@react-three/test-renderer";
 import { Group, InstancedMesh, Mesh, type Object3D } from "three";
 import { describe, expect, it, vi } from "vitest";
+import { hedronite, neutral } from "@hedronite/lts-tokens";
+import { Color, MeshPhysicalMaterial } from "three";
 import { CrystalCluster, Lattice, PrimitiveMesh, StudioLights } from "./components.js";
 
 const meshesIn = (root: Object3D): Mesh[] => {
@@ -61,6 +63,49 @@ describe("objects", () => {
     const meshes = meshesIn(renderer.scene.instance);
     expect(meshes).toHaveLength(1);
     expect(meshes[0]).toBeInstanceOf(InstancedMesh);
+    await renderer.unmount();
+  });
+});
+
+describe("a change of look", () => {
+  const surface = (root: Object3D): MeshPhysicalMaterial => {
+    const material = meshesIn(root)[0]?.material;
+    if (!(material instanceof MeshPhysicalMaterial)) throw new Error("expected a physical material");
+    return material;
+  };
+
+  it("recolors a primitive's material in place: the same material, the same geometry, nothing freed", async () => {
+    const renderer = await ReactThreeTestRenderer.create(<PrimitiveMesh primitive="platonic-cube" material="metal" palette={neutral.scene} />);
+    const material = surface(renderer.scene.instance);
+    const geometry = meshesIn(renderer.scene.instance)[0]?.geometry;
+    const freed = vi.fn();
+    material.addEventListener("dispose", freed);
+    geometry?.addEventListener("dispose", freed);
+    await renderer.update(<PrimitiveMesh primitive="platonic-cube" material="metal" palette={hedronite.scene} />);
+    expect(surface(renderer.scene.instance)).toBe(material);
+    expect(meshesIn(renderer.scene.instance)[0]?.geometry).toBe(geometry);
+    expect(material.color.equals(new Color(hedronite.scene.metal))).toBe(true);
+    expect(freed).not.toHaveBeenCalled();
+    await renderer.unmount();
+  });
+
+  it("recolors a cluster and a lattice in place", async () => {
+    const renderer = await ReactThreeTestRenderer.create(
+      <>
+        <CrystalCluster count={3} seed={1} material="metal" palette={neutral.scene} />
+        <Lattice size={2} material="metal" palette={neutral.scene} />
+      </>,
+    );
+    const before = meshesIn(renderer.scene.instance).map((mesh) => mesh.material);
+    await renderer.update(
+      <>
+        <CrystalCluster count={3} seed={1} material="metal" palette={hedronite.scene} />
+        <Lattice size={2} material="metal" palette={hedronite.scene} />
+      </>,
+    );
+    const after = meshesIn(renderer.scene.instance).map((mesh) => mesh.material);
+    expect(after).toEqual(before);
+    for (const material of after) expect(material instanceof MeshPhysicalMaterial && material.color.equals(new Color(hedronite.scene.metal))).toBe(true);
     await renderer.unmount();
   });
 });

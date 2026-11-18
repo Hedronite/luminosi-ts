@@ -69,14 +69,24 @@ interface Bindings {
   /** Baked in: setting one to the value it has is nothing to do, setting it to another needs a rebuild. */
   readonly fixed: Readonly<Record<string, unknown>>;
   readonly structural: readonly string[];
+  /** The colors that came from the look, not from the caller: parameter name to the scene color it follows. */
+  readonly roles?: Readonly<Record<string, keyof ScenePalette>>;
   /** Rules that span parameters, checked on what the numbers would be after the write. Throws to refuse. */
   readonly check?: (read: (key: string) => unknown) => void;
 }
 
+/** For each color the look supplies a default for: its role, kept only where the caller gave no color of their own. */
+const followsLook = (given: Readonly<Record<string, unknown>>, roles: Readonly<Record<string, keyof ScenePalette>>): Record<string, keyof ScenePalette> =>
+  Object.fromEntries(Object.entries(roles).filter(([key]) => given[key] === undefined));
+
+/** The colors of each effect that follow the look, by name: a color the caller sets leaves the list. */
+const following = new WeakMap<object, Map<string, keyof ScenePalette>>();
+
 function effectHandle<Id extends EffectId, Material extends NodeMaterial>(id: Id, material: Material, bindings: Bindings): EffectHandle<Id, Material> {
+  const roles = new Map(Object.entries(bindings.roles ?? {}));
   const shape: Readonly<Record<string, z.ZodType>> = effectSchemas[id].shape;
   const uniforms: Record<string, FloatUniform | ColorUniform> = { ...bindings.numbers, ...bindings.colors };
-  return {
+  const handle: EffectHandle<Id, Material> = {
     id,
     material,
     structural: bindings.structural,
@@ -98,7 +108,11 @@ function effectHandle<Id extends EffectId, Material extends NodeMaterial>(id: Id
         const number = bindings.numbers[key];
         const color = bindings.colors[key];
         if (number !== undefined && typeof value === "number") number.value = value;
-        else if (color !== undefined && typeof value === "string") color.value.set(value);
+        else if (color !== undefined && typeof value === "string") {
+          color.value.set(value);
+          // A color the caller sets is theirs: a change of look leaves it be.
+          roles.delete(key);
+        }
       }
       return true;
     },
@@ -106,6 +120,20 @@ function effectHandle<Id extends EffectId, Material extends NodeMaterial>(id: Id
       material.dispose();
     },
   };
+  following.set(handle, roles);
+  return handle;
+}
+
+/**
+ * Recolors an effect in place from a look: the colors that took their default from the look follow it, as if the effect
+ * had been made in it. Colors the caller gave, or has since set, stay as they are. Nothing is rebuilt, so the program
+ * is the same. The caller asks for a new frame.
+ */
+export function applyPalette(effect: EffectHandle, palette: ScenePalette): void {
+  for (const [key, role] of following.get(effect) ?? []) {
+    const color = effect.uniforms[key]?.value;
+    if (color instanceof Color) color.set(palette[role]);
+  }
 }
 
 /** Lights the rim of a surface, where it turns away from the viewer. */
@@ -119,7 +147,7 @@ export function createFresnelGlowEffect(params: EffectParams<"fresnel-glow"> = {
   material.colorNode = base;
   const facing = saturate(dot(normalView, positionViewDirection));
   material.emissiveNode = glow.mul(pow(oneMinus(facing), power)).mul(intensity);
-  return effectHandle("fresnel-glow", material, { numbers: { power, intensity }, colors: { base, glow }, fixed: {}, structural: [] });
+  return effectHandle("fresnel-glow", material, { numbers: { power, intensity }, colors: { base, glow }, roles: followsLook(p, { base: "base", glow: "emissive" }), fixed: {}, structural: [] });
 }
 
 /** Blends two colors from bottom to top in the object's own space. */
@@ -135,6 +163,7 @@ export function createHeightGradientEffect(params: EffectParams<"height-gradient
   return effectHandle("height-gradient", material, {
     numbers: { minY, maxY },
     colors: { bottom, top },
+    roles: followsLook(p, { bottom: "base", top: "accent" }),
     fixed: {},
     structural: [],
     check: (read) => {
@@ -154,7 +183,7 @@ export function createPulseEffect(params: EffectParams<"pulse"> = {}, palette: S
   const material = new MeshStandardNodeMaterial({ name: "pulse", roughness: 0.6 });
   material.colorNode = color.mul(0.3);
   material.emissiveNode = color.mul(sin(clock.mul(speed)).mul(0.5).add(0.5)).mul(intensity);
-  return effectHandle("pulse", material, { numbers: { speed, intensity }, colors: { color }, fixed: {}, structural: [] });
+  return effectHandle("pulse", material, { numbers: { speed, intensity }, colors: { color }, roles: followsLook(p, { color: "emissive" }), fixed: {}, structural: [] });
 }
 
 /**
@@ -175,7 +204,7 @@ export function createToonEffect(params: EffectParams<"toon"> = {}, palette: Sce
   const shade = mix(color.mul(0.35), color, band);
   const facing = saturate(dot(normalView, positionViewDirection));
   material.colorNode = mix(shade, ink, step(facing, outline));
-  return effectHandle("toon", material, { numbers: { outline }, colors: { color, ink }, fixed: { bands: p.bands }, structural: ["bands"] });
+  return effectHandle("toon", material, { numbers: { outline }, colors: { color, ink }, roles: followsLook(p, { color: "accent" }), fixed: { bands: p.bands }, structural: ["bands"] });
 }
 
 /**
@@ -192,7 +221,7 @@ export function createRefractionEffect(params: EffectParams<"refraction"> = {}, 
   const behind = viewportSharedTexture(screenUV.add(normalView.xy.mul(strength.negate()))).rgb;
   material.backdropNode = behind.mul(tint);
   material.backdropAlphaNode = clarity;
-  return effectHandle("refraction", material, { numbers: { strength, clarity }, colors: { tint }, fixed: {}, structural: [] });
+  return effectHandle("refraction", material, { numbers: { strength, clarity }, colors: { tint }, roles: followsLook(p, { tint: "glass" }), fixed: {}, structural: [] });
 }
 
 /**
@@ -219,6 +248,7 @@ export function createDissolveEffect(params: EffectParams<"dissolve"> = {}, pale
   return effectHandle("dissolve", material, {
     numbers: { scale, edgeWidth, speed, ...(progress === undefined ? {} : { progress }) },
     colors: { color, edge },
+    roles: followsLook(p, { color: "base", edge: "emissive" }),
     fixed: {},
     structural: ["progress"],
   });
@@ -236,7 +266,7 @@ export function createHologramEffect(params: EffectParams<"hologram"> = {}, pale
   const lines = smoothstep(0.2, 0.8, sin(positionLocal.y.mul(density).add(clock.mul(speed))).mul(0.5).add(0.5));
   material.colorNode = color.mul(intensity);
   material.opacityNode = rim.mul(0.8).add(0.15).mul(lines.mul(0.6).add(0.4));
-  return effectHandle("hologram", material, { numbers: { density, speed, intensity }, colors: { color }, fixed: {}, structural: [] });
+  return effectHandle("hologram", material, { numbers: { density, speed, intensity }, colors: { color }, roles: followsLook(p, { color: "emissive" }), fixed: {}, structural: [] });
 }
 
 /**
@@ -266,7 +296,7 @@ export function createSoapFilmEffect(params: EffectParams<"soap-film"> = {}, pal
   const glint = smoothstep(0.93, 0.99, dot(reflectView, key));
   material.colorNode = mix(film, vec3(1), glint);
   material.opacityNode = saturate(edgeOn.mul(edgeOn).mul(sheen).add(0.03).add(glint));
-  return effectHandle("soap-film", material, { numbers: { color: amount, bands, speed, sheen }, colors: { tint }, fixed: {}, structural: [] });
+  return effectHandle("soap-film", material, { numbers: { color: amount, bands, speed, sheen }, colors: { tint }, roles: followsLook(p, { tint: "glass" }), fixed: {}, structural: [] });
 }
 
 /** The effect for any id. `params` are validated against that effect's schema; missing ones take its defaults. */
