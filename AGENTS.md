@@ -26,6 +26,7 @@ bun run lint           # ESLint, type-aware, with the rules below
 bun run boundaries     # dependency-cruiser: the package boundaries below
 bun run knip           # unused files, exports and dependencies
 bun run e2e            # Playwright smoke + axe on the built catalog (after build)
+bun run e2e:webgpu     # the 3D stages on the real WebGPU backend (a machine with a GPU; never in CI; see STACK.md)
 bun run forge:test     # the vendored img-to-object forge's own tests (Python 3.10+, standard library only)
 bun run check          # all of the above, in CI order
 bun run dev            # the catalog at http://localhost:5173
