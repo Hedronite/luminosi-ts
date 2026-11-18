@@ -60,6 +60,8 @@ async function make<T>(id: string, palette: ScenePalette, accepts: (built: unkno
 }
 
 const isMaterial = (built: unknown): built is Material => built instanceof Material;
+/** A material preset builds a material; a surface shader builds a handle whose `material` is the one to draw with. */
+const isSurface = (built: unknown): built is Material | { readonly material: Material } => isMaterial(built) || (typeof built === "object" && built !== null && "material" in built && isMaterial(built.material));
 const isObject = (built: unknown): built is Object3D => built instanceof Object3D;
 
 /**
@@ -67,7 +69,8 @@ const isObject = (built: unknown): built is Object3D => built instanceof Object3
  * frames them; objects can't be framed, so "framed" keeps their own. The caller frees the result with disposeObject.
  */
 export async function buildStage(subject: StageSubject, surface: StageSurface, palette: ScenePalette): Promise<Object3D> {
-  const material = surface.kind === "material" || surface.kind === "shader" ? await make(surface.id, palette, isMaterial) : undefined;
+  const built = surface.kind === "material" || surface.kind === "shader" ? await make(surface.id, palette, isSurface) : undefined;
+  const material = built === undefined || isMaterial(built) ? built : built.material;
   if (subject.kind === "object") {
     const object = await make(subject.id, palette, isObject);
     return material === undefined ? object : resurface(object, material);

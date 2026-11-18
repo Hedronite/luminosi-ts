@@ -1,13 +1,20 @@
-import type { EffectId } from "@hedronite/lts-shaders";
+import type { EffectId, EffectParams } from "@hedronite/lts-shaders";
+import type { EffectClock, EffectHandle } from "@hedronite/lts-shaders/three";
 import type { ScenePalette } from "@hedronite/lts-tokens";
 import { useThree } from "@react-three/fiber";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import type { Material } from "three";
+import { EffectClockContext } from "./effectClock.js";
+
+/** A surface shader's parameters on a component: any parameter of the shader, by name. A missing one takes its default. */
+export type ShaderParams = EffectParams<EffectId>;
 
 interface Built {
   readonly shader: EffectId;
   readonly palette: ScenePalette;
-  readonly material: Material;
+  readonly clock: EffectClock | undefined;
+  readonly generation: number;
+  readonly effect: EffectHandle;
 }
 
 /**
@@ -15,19 +22,32 @@ interface Built {
  * unmounts. The shader code loads on demand (a dynamic import), so a page that never asks for one
  * never downloads three's WebGPU build. Undefined until it is ready, and whenever `shader` is
  * undefined.
+ *
+ * `params` moves the shader live: a change writes its uniforms in place, with no new material. Only a
+ * structural parameter (a toon shader's `bands`, whether a dissolve has a fixed `progress`) builds it again.
  */
-export function useEffectMaterial(shader: EffectId | undefined, palette: ScenePalette): Material | undefined {
+export function useEffectMaterial(shader: EffectId | undefined, palette: ScenePalette, params?: ShaderParams): Material | undefined {
   const invalidate = useThree((state) => state.invalidate);
+  const clock = useContext(EffectClockContext);
   const [built, setBuilt] = useState<Built | undefined>(undefined);
+  // Bumped when `set` says a parameter is baked in, so the shader is built again with the current ones.
+  const [generation, setGeneration] = useState(0);
+  // The parameters as text, so a new object literal with the same values writes nothing.
+  const key = JSON.stringify(params ?? {});
+  const latest = useRef(params);
+  // Declared before the effects that read it, so they see this render's parameters.
+  useEffect(() => {
+    latest.current = params;
+  });
   useEffect(() => {
     if (shader === undefined) return undefined;
     let cancelled = false;
-    let made: Material | undefined;
+    let made: EffectHandle | undefined;
     import("@hedronite/lts-shaders/three").then(
-      ({ createEffectMaterial }) => {
+      ({ createEffect }) => {
         if (cancelled) return;
-        made = createEffectMaterial(shader, palette);
-        setBuilt({ shader, palette, material: made });
+        made = createEffect(shader, latest.current ?? {}, palette, clock === undefined ? {} : { clock });
+        setBuilt({ shader, palette, clock, generation, effect: made });
         invalidate();
       },
       (error: unknown) => {
@@ -38,7 +58,13 @@ export function useEffectMaterial(shader: EffectId | undefined, palette: ScenePa
       cancelled = true;
       made?.dispose();
     };
-  }, [shader, palette, invalidate]);
-  // A material built for an earlier shader or palette is never shown for the current one.
-  return built !== undefined && built.shader === shader && built.palette === palette ? built.material : undefined;
+  }, [shader, palette, clock, generation, invalidate]);
+  // A material built for an earlier shader, palette or clock is never shown for the current one.
+  const current = built !== undefined && built.shader === shader && built.palette === palette && built.clock === clock && built.generation === generation ? built : undefined;
+  useEffect(() => {
+    if (current === undefined) return;
+    if (current.effect.set(latest.current ?? {})) invalidate();
+    else setGeneration((previous) => previous + 1);
+  }, [current, key, invalidate]);
+  return current?.effect.material;
 }
