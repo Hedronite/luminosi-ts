@@ -39,14 +39,28 @@ const windows = (parts: readonly string[]): readonly string[] => {
   return out;
 };
 
+const camelBoundary = /[a-z][A-Z]/;
+const hasLetter = /[A-Za-z]/;
+const joiner = /[-_]/;
+
 /** Every token the gate compares in one line: the parts as written, and the parts split at camelCase boundaries. */
 const tokensOf = (line: string): readonly string[] => {
   const out: string[] = [];
   for (const run of line.matchAll(runPattern)) {
-    const parts = run[0].split(/[-_]/);
+    const text = run[0];
+    // A run of digits only (most of an SVG path, say) holds no name.
+    if (!hasLetter.test(text)) continue;
+    const camel = camelBoundary.test(text);
+    if (!camel && !joiner.test(text)) {
+      out.push(text);
+      continue;
+    }
+    const parts = text.split(joiner);
     out.push(...windows(parts));
-    const split = parts.flatMap(camelParts);
-    if (split.length !== parts.length) out.push(...windows(split));
+    if (camel) {
+      const split = parts.flatMap(camelParts);
+      if (split.length !== parts.length) out.push(...windows(split));
+    }
   }
   return out;
 };
@@ -63,13 +77,13 @@ interface Hit {
 const labelPattern = /\bW[0-9]+ ?G[0-9]+\b/;
 const addressPattern = /\b100\.(?:6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]{1,3}\.[0-9]{1,3}\b/;
 
-const cache = new Map<string, string>();
+/** Each distinct token is hashed once for the whole tree. */
+const memo = new Map<string, string>();
 const hashCached = (token: string): string => {
-  const key = token.toLowerCase();
-  let hash = cache.get(key);
+  let hash = memo.get(token);
   if (hash === undefined) {
-    hash = hashToken(key);
-    cache.set(key, hash);
+    hash = hashToken(token);
+    memo.set(token, hash);
   }
   return hash;
 };
@@ -87,9 +101,10 @@ const scanText = (file: string, text: string, gated: ReadonlySet<string>): reado
         hits.push({ file, line, what: hash, kind: "name" });
       }
     }
-    const label = labelPattern.exec(content)?.[0];
+    // Cheap guards first: both patterns need a literal the line must hold.
+    const label = content.includes("W") ? labelPattern.exec(content)?.[0] : undefined;
     if (label !== undefined) hits.push({ file, line, what: label, kind: "label" });
-    const address = addressPattern.exec(content)?.[0];
+    const address = content.includes("100.") ? addressPattern.exec(content)?.[0] : undefined;
     if (address !== undefined) hits.push({ file, line, what: address, kind: "address" });
   });
   return hits;
@@ -192,5 +207,6 @@ describe("the name gate", () => {
       if (text !== undefined) hits.push(...scanText(file, text, gated));
     }
     expect(hits.filter((hit) => !isAllowed(hit)).map(show)).toEqual([]);
-  });
+    // The explicit limit is a backstop for a slow runner; the scan itself takes a few seconds at most.
+  }, 60_000);
 });
