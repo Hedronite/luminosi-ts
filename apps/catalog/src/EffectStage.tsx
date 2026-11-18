@@ -3,19 +3,40 @@ import { ScreenEffectsPass, WebGPUCanvas, WebGPUStudioEnvironment } from "@hedro
 import type { ScreenEffectConfig } from "@hedronite/lts-postfx";
 import { disposeObject } from "@hedronite/lts-primitives/three";
 import type { Hex, ScenePalette } from "@hedronite/lts-tokens";
-import { useFrame } from "@react-three/fiber";
-import { useEffect, useMemo, useRef, type RefObject } from "react";
-import type { Group } from "three";
+import { useFrame, useThree } from "@react-three/fiber";
+import { useEffect, useRef, useState, type RefObject } from "react";
+import type { Group, Object3D } from "three";
 import { Controls, GpuCounts, StageClock, StageFrame, useMotion } from "./scene";
 import { buildStage, type StageSubject, type StageSurface } from "./stage";
 
 /** The subject in its surface, drifting slowly as on hedronite.com so the prints keep moving; still under reduced motion or when paused. */
 function Subject({ subject, surface, palette, still, clock }: { readonly subject: StageSubject; readonly surface: StageSurface; readonly palette: ScenePalette; readonly still: boolean; readonly clock: RefObject<number> }) {
   const spin = useRef<Group>(null);
-  const object = useMemo(() => buildStage(subject, surface, palette), [subject, surface, palette]);
+  const invalidate = useThree((state) => state.invalidate);
+  // The descriptors build it, so it arrives after a moment; the last one stays on show until the next is ready.
+  const [object, setObject] = useState<Object3D | undefined>(undefined);
+  useEffect(() => {
+    let current = true;
+    buildStage(subject, surface, palette).then(
+      (built) => {
+        if (!current) {
+          disposeObject(built);
+          return;
+        }
+        setObject(built);
+        invalidate();
+      },
+      (error: unknown) => {
+        if (current) console.error("could not build the stage", error);
+      },
+    );
+    return () => {
+      current = false;
+    };
+  }, [subject, surface, palette, invalidate]);
   useEffect(
     () => () => {
-      disposeObject(object);
+      if (object !== undefined) disposeObject(object);
     },
     [object],
   );
@@ -28,7 +49,7 @@ function Subject({ subject, surface, palette, still, clock }: { readonly subject
   });
   return (
     <group ref={spin} rotation={[0.3, 0.6, 0]}>
-      <primitive object={object} scale={subject.kind === "solid" ? 1.15 : 1} />
+      {object === undefined ? null : <primitive object={object} scale={subject.kind === "solid" ? 1.15 : 1} dispose={null} />}
     </group>
   );
 }

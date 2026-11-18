@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { arrange, isPlaceableObject, MAX_PLACEMENTS, OBJECT_SCALE, PLACEMENT_SCALE, toJson, toTsx, type Composition } from "./composition.js";
+import { arrange, MAX_PLACEMENTS, OBJECT_SCALE, PLACEMENT_SCALE, toJson, toTsx, type Composition } from "./composition.js";
 
 const composition: Composition = {
   lightIntensity: 1.2,
@@ -17,7 +17,7 @@ const mixed: Composition = {
   ink: "accent",
   placements: [
     { key: "a", kind: "framed", primitive: "archimedean-truncated-icosahedron", faces: "glass", edges: "metal" },
-    { key: "b", kind: "object", object: "dress-watch", material: "satin" },
+    { key: "b", kind: "object", object: "dress-watch" },
     { key: "c", kind: "object", object: "crystal-cluster", material: "glass" },
   ],
 };
@@ -68,11 +68,13 @@ describe("export", () => {
 
   it("writes framed solids, objects and the screen effects", () => {
     const code = toTsx(mixed);
-    expect(code).toContain('import { CrystalCluster, FramedSolid, LibraryObject, StudioLights } from "@hedronite/lts-adapters";');
+    expect(code).toContain('import { FramedSolid, LibraryObject, StudioLights } from "@hedronite/lts-adapters";');
     expect(code).toContain('import { ScreenEffectsPass, WebGPUCanvas, WebGPUStudioEnvironment } from "@hedronite/lts-adapters/webgpu";');
     expect(code).toContain('<FramedSolid primitive="archimedean-truncated-icosahedron" faces="glass" edges="metal"');
-    expect(code).toContain('<LibraryObject object="dress-watch"');
-    expect(code).toContain('<CrystalCluster count={14} spread={0.7} seed={11} material="glass"');
+    // Every object is one component, told which object by id; a material goes in its parameters.
+    expect(code).toContain('<LibraryObject object="dress-watch" position=');
+    expect(code).toContain('<LibraryObject object="crystal-cluster" params={{ material: "glass" }} position=');
+    expect(code).not.toContain("<CrystalCluster");
     expect(code).toContain('const stack = [{ id: "smoke" }, { id: "scan" }, { id: "lens" }] as const;');
     expect(code).toContain("<ScreenEffectsPass effects={stack} monochrome={palette.accent} />");
   });
@@ -91,10 +93,5 @@ describe("export", () => {
     const code = toTsx(shaded);
     expect(code).toContain('<PrimitiveMesh primitive="platonic-cube" shader="toon"');
     expect(code).toContain('<FramedSolid primitive="platonic-icosahedron" shader="hologram" edges="metal"');
-  });
-
-  it("knows which objects it can place", () => {
-    expect(isPlaceableObject("dress-watch")).toBe(true);
-    expect(isPlaceableObject("crystal-cluster-glb")).toBe(false);
   });
 });

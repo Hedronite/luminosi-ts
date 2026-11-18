@@ -1,4 +1,4 @@
-import { CrystalCluster, FramedSolid, Lattice, LibraryObject, PrimitiveMesh, StudioLights } from "@hedronite/lts-adapters";
+import { FramedSolid, LibraryObject, PrimitiveMesh, StudioLights } from "@hedronite/lts-adapters";
 import { ScreenEffectsPass, WebGPUCanvas, WebGPUStudioEnvironment } from "@hedronite/lts-adapters/webgpu";
 import { Close } from "@hedronite/lts-icons/react";
 import { isMaterialId, materialIds, materialPreset, type MaterialId } from "@hedronite/lts-materials";
@@ -7,10 +7,12 @@ import { isPrimitiveId, primitiveIds, primitiveInfo, type PrimitiveId, type Vec3
 import { effectIds, effectInfo, isEffectId, type EffectId } from "@hedronite/lts-shaders";
 import type { Hex, ScenePalette } from "@hedronite/lts-tokens";
 import { useMemo, useRef, useState } from "react";
-import { arrange, isPlaceableObject, MAX_PLACEMENTS, placeableObjects, scaleOf, toJson, toTsx, type Composition, type InkMode, type Item, type Placement, type PlaceableObject } from "./composition";
+import { arrange, MAX_PLACEMENTS, scaleOf, toJson, toTsx, type Composition, type InkMode, type Item, type Placement } from "./composition";
 import { CopyButton } from "./CopyButton";
 import { usePreset } from "./look";
 import { MaterialLineup } from "./MaterialLineup";
+import { usePlaceable, type Placeable } from "./placeable";
+import { stageEffect } from "./presentation";
 import { Controls, GpuCounts, StageClock, StageFrame, useMotion } from "./scene";
 
 const field = "rounded-lg border border-line bg-surface px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-accent";
@@ -48,17 +50,17 @@ const starter: Composition = {
   ],
 };
 
-const objectName = (id: PlaceableObject): string => placeableObjects.find((object) => object.id === id)?.name ?? id;
+const objectName = (id: string, objects: readonly Placeable[]): string => objects.find((object) => object.id === id)?.name ?? id;
 
 /** How a placement reads in the scene list and in its remove button's name. */
-function describePlacement(item: Item): string {
+function describePlacement(item: Item, objects: readonly Placeable[]): string {
   switch (item.kind) {
     case "primitive":
       return `${primitiveInfo(item.primitive).name}, ${item.shader === undefined ? materialPreset(item.material).name : effectInfo[item.shader].name}`;
     case "framed":
       return `Framed ${primitiveInfo(item.primitive).name.toLowerCase()}${item.shader === undefined ? "" : `, ${effectInfo[item.shader].name}`}`;
     case "object":
-      return item.object === "crystal-cluster" || item.object === "instanced-lattice" ? `${objectName(item.object)}, ${materialPreset(item.material).name}` : objectName(item.object);
+      return item.material === undefined ? objectName(item.object, objects) : `${objectName(item.object, objects)}, ${materialPreset(item.material).name}`;
   }
 }
 
@@ -72,15 +74,7 @@ function Placed({ placement, position, palette }: { readonly placement: Placemen
     case "framed":
       return <FramedSolid primitive={placement.primitive} faces={placement.faces} {...(placement.shader === undefined ? {} : { shader: placement.shader })} edges={placement.edges} palette={palette} {...at} />;
     case "object":
-      switch (placement.object) {
-        case "crystal-cluster":
-          return <CrystalCluster count={14} spread={0.7} seed={11} material={placement.material} palette={palette} {...at} />;
-        case "instanced-lattice":
-          return <Lattice size={6} spacing={0.28} nodeScale={0.06} material={placement.material} palette={palette} {...at} />;
-        case "dress-watch":
-        case "your-desk-lamp":
-          return <LibraryObject object={placement.object} palette={palette} {...at} />;
-      }
+      return <LibraryObject object={placement.object} {...(placement.material === undefined ? {} : { params: { material: placement.material } })} palette={palette} {...at} />;
   }
 }
 
@@ -93,14 +87,16 @@ export function Playground() {
   const [material, setMaterial] = useState<MaterialId>("ceramic");
   // A surface shader in place of the material, for primitives and framed faces.
   const [shader, setShader] = useState<EffectId | undefined>(undefined);
-  const [object, setObject] = useState<PlaceableObject>("dress-watch");
+  const { objects, failed: objectsFailed } = usePlaceable();
+  const [object, setObject] = useState<string>("dress-watch");
   const positions = arrange(composition.placements.length);
   const full = composition.placements.length >= MAX_PLACEMENTS;
-  const effects = useMemo((): readonly ScreenEffectConfig[] => composition.effects.map((id) => (id === "scan" ? { id, params: { period: 4 } } : { id })), [composition.effects]);
+  const effects = useMemo((): readonly ScreenEffectConfig[] => composition.effects.map((id) => stageEffect(id, 4)), [composition.effects]);
   const monochrome: Hex | undefined = composition.ink === "look" ? undefined : preset.scene[composition.ink];
   const takesShader = kind === "primitive" || kind === "framed";
-  // Of the objects, the cluster and the lattice take a material; the spec objects bring their own.
-  const takesMaterial = takesShader || object === "crystal-cluster" || object === "instanced-lattice";
+  // Of the objects, the ones whose descriptor has a material take one; the rest bring their own.
+  const objectTakesMaterial = objects.find((option) => option.id === object)?.takesMaterial === true;
+  const takesMaterial = takesShader || objectTakesMaterial;
   const withShader = takesShader && shader !== undefined ? { shader } : {};
   const animated = composition.effects.length > 0 || composition.placements.some((placement) => placement.kind !== "object" && placement.shader !== undefined && effectInfo[placement.shader].animated === true);
   const host = useRef<HTMLDivElement>(null);
@@ -114,7 +110,7 @@ export function Playground() {
       case "framed":
         return { kind, primitive, faces: material, edges: "metal", ...withShader };
       case "object":
-        return { kind, object, material };
+        return { kind, object, ...(objectTakesMaterial ? { material } : {}) };
     }
   })();
 
@@ -154,15 +150,20 @@ export function Playground() {
                 className={field}
                 value={object}
                 onChange={(event) => {
-                  if (isPlaceableObject(event.target.value)) setObject(event.target.value);
+                  setObject(event.target.value);
                 }}
               >
-                {placeableObjects.map((option) => (
+                {objects.map((option) => (
                   <option key={option.id} value={option.id}>
                     {option.name}
                   </option>
                 ))}
               </select>
+              {objectsFailed ? (
+                <p role="alert" className="text-fg-muted">
+                  The objects could not be loaded. Reload the page to try again.
+                </p>
+              ) : null}
             </div>
           ) : (
             <div className="flex flex-col gap-1 text-sm">
@@ -236,7 +237,7 @@ export function Playground() {
 
           <ol aria-label="Scene" className="flex flex-col gap-1">
             {composition.placements.map((placement) => {
-              const label = describePlacement(placement);
+              const label = describePlacement(placement, objects);
               return (
                 <li key={placement.key} className="flex items-center justify-between rounded-lg border border-line px-3 py-1.5 text-sm">
                   {label}

@@ -1,17 +1,16 @@
 import { isMaterialId, type MaterialId } from "@hedronite/lts-materials";
 import { createMaterial } from "@hedronite/lts-materials/three";
-import { crystalCluster, dressWatchSpec, latticePoints, objectSpecById, showcase } from "@hedronite/lts-objects";
-import { createCrystalCluster, createFramedSolid, createLattice, createObjectFromSpec } from "@hedronite/lts-objects/three";
+import { createFramedSolid } from "@hedronite/lts-objects/three";
 import { isPrimitiveId, primitive, type PrimitiveId } from "@hedronite/lts-primitives";
 import { createPolyhedronGeometry } from "@hedronite/lts-primitives/three";
 import { isEffectId, type EffectId } from "@hedronite/lts-shaders";
-import { createEffectMaterial } from "@hedronite/lts-shaders/three";
+import { loadDescriptors } from "@hedronite/lts-registry";
 import type { ScenePalette } from "@hedronite/lts-tokens";
-import { Material, Mesh, type Object3D } from "three";
-import { isPlaceableObject, type PlaceableObject } from "./composition";
+import { Material, Mesh, Object3D } from "three";
+import type { Placeable } from "./placeable";
 
 /** What stands on the effects stage: one of the solids, or a library object. */
-export type StageSubject = { readonly kind: "solid"; readonly id: PrimitiveId } | { readonly kind: "object"; readonly id: PlaceableObject };
+export type StageSubject = { readonly kind: "solid"; readonly id: PrimitiveId } | { readonly kind: "object"; readonly id: string };
 
 /** How it is surfaced: as built, framed glass, one material preset, or one surface shader. */
 export type StageSurface =
@@ -24,10 +23,11 @@ export type StageSurface =
 export const subjectValue = (subject: StageSubject): string => `${subject.kind}:${subject.id}`;
 export const surfaceValue = (surface: StageSurface): string => (surface.kind === "own" || surface.kind === "framed" ? surface.kind : `${surface.kind}:${surface.id}`);
 
-export function parseSubject(value: string): StageSubject | undefined {
+/** A `<select>` value back to a subject. `objects` are the objects it may name. */
+export function parseSubject(value: string, objects: readonly Placeable[]): StageSubject | undefined {
   const [kind, id = ""] = value.split(/:(.*)/s);
   if (kind === "solid" && isPrimitiveId(id)) return { kind, id };
-  if (kind === "object" && isPlaceableObject(id)) return { kind, id };
+  if (kind === "object" && objects.some((object) => object.id === id)) return { kind, id };
   return undefined;
 }
 
@@ -50,30 +50,26 @@ function resurface(object: Object3D, material: Material): Object3D {
   return object;
 }
 
-function buildObject(id: PlaceableObject, palette: ScenePalette): Object3D {
-  switch (id) {
-    case "crystal-cluster":
-      return createCrystalCluster(crystalCluster(showcase.cluster), createMaterial("satin", palette));
-    case "instanced-lattice":
-      return createLattice(latticePoints({ size: showcase.lattice.size, spacing: showcase.lattice.spacing }), createMaterial("metal", palette), { scale: showcase.lattice.scale });
-    case "dress-watch":
-      return createObjectFromSpec(dressWatchSpec(showcase.watch), { palette });
-    case "your-desk-lamp": {
-      const spec = objectSpecById(id);
-      if (spec === undefined) throw new Error(`no spec for ${id}`);
-      return createObjectFromSpec(spec, { palette });
-    }
-  }
+/** What a descriptor builds, by id, when it is the kind of thing the caller needs; its parameters take their defaults. */
+async function make<T>(id: string, palette: ScenePalette, accepts: (built: unknown) => built is T): Promise<T> {
+  const descriptor = (await loadDescriptors()).get(id);
+  if (descriptor === undefined) throw new RangeError(`no descriptor for ${id}`);
+  const built = await descriptor.build(undefined, palette);
+  if (!accepts(built)) throw new TypeError(`${id} did not build what the stage needs`);
+  return built;
 }
 
+const isMaterial = (built: unknown): built is Material => built instanceof Material;
+const isObject = (built: unknown): built is Object3D => built instanceof Object3D;
+
 /**
- * Builds the stage's subject in its surface. Solids have no surface of their own, so "own" frames them;
- * objects can't be framed, so "framed" keeps their own. The caller frees the result with disposeObject.
+ * Builds the stage's subject in its surface, from the descriptors. Solids have no surface of their own, so "own"
+ * frames them; objects can't be framed, so "framed" keeps their own. The caller frees the result with disposeObject.
  */
-export function buildStage(subject: StageSubject, surface: StageSurface, palette: ScenePalette): Object3D {
-  const material = surface.kind === "material" ? createMaterial(surface.id, palette) : surface.kind === "shader" ? createEffectMaterial(surface.id, palette) : undefined;
+export async function buildStage(subject: StageSubject, surface: StageSurface, palette: ScenePalette): Promise<Object3D> {
+  const material = surface.kind === "material" || surface.kind === "shader" ? await make(surface.id, palette, isMaterial) : undefined;
   if (subject.kind === "object") {
-    const object = buildObject(subject.id, palette);
+    const object = await make(subject.id, palette, isObject);
     return material === undefined ? object : resurface(object, material);
   }
   const shape = primitive(subject.id);

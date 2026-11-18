@@ -3,17 +3,6 @@ import { orderStack, type ScreenEffectId } from "@hedronite/lts-postfx";
 import type { PrimitiveId, Vec3 } from "@hedronite/lts-primitives";
 import type { EffectId } from "@hedronite/lts-shaders";
 
-/** Objects the playground can place, beside primitives and framed solids. */
-export const placeableObjects = [
-  { id: "crystal-cluster", name: "Crystal cluster" },
-  { id: "instanced-lattice", name: "Instanced lattice" },
-  { id: "dress-watch", name: "Dress watch" },
-  { id: "your-desk-lamp", name: "Desk lamp" },
-] as const;
-export type PlaceableObject = (typeof placeableObjects)[number]["id"];
-
-export const isPlaceableObject = (id: string): id is PlaceableObject => placeableObjects.some((object) => object.id === id);
-
 /**
  * One thing in the scene: a primitive in a material or a surface shader, a framed solid (its faces in a
  * material or a shader), or a library object.
@@ -21,7 +10,7 @@ export const isPlaceableObject = (id: string): id is PlaceableObject => placeabl
 export type Item =
   | { readonly kind: "primitive"; readonly primitive: PrimitiveId; readonly material: MaterialId; readonly shader?: EffectId }
   | { readonly kind: "framed"; readonly primitive: PrimitiveId; readonly faces: MaterialId; readonly edges: MaterialId; readonly shader?: EffectId }
-  | { readonly kind: "object"; readonly object: PlaceableObject; readonly material: MaterialId };
+  | { readonly kind: "object"; readonly object: string; readonly material?: MaterialId };
 
 export type Placement = Item & { readonly key: string };
 
@@ -65,7 +54,7 @@ function plain(placement: Placement): Item {
     case "framed":
       return { kind: "framed", primitive: placement.primitive, faces: placement.faces, edges: placement.edges, ...(placement.shader === undefined ? {} : { shader: placement.shader }) };
     case "object":
-      return { kind: "object", object: placement.object, material: placement.material };
+      return { kind: "object", object: placement.object, ...(placement.material === undefined ? {} : { material: placement.material }) };
   }
 }
 
@@ -96,25 +85,11 @@ function element(item: Item, [x, y, z]: Vec3): string {
     case "framed":
       return `<FramedSolid primitive="${item.primitive}" ${item.shader === undefined ? `faces="${item.faces}"` : `shader="${item.shader}"`} edges="${item.edges}" ${at} />`;
     case "object":
-      switch (item.object) {
-        case "crystal-cluster":
-          return `<CrystalCluster count={14} spread={0.7} seed={11} material="${item.material}" ${at} />`;
-        case "instanced-lattice":
-          return `<Lattice size={6} spacing={0.28} nodeScale={0.06} material="${item.material}" ${at} />`;
-        case "dress-watch":
-        case "your-desk-lamp":
-          return `<LibraryObject object="${item.object}" ${at} />`;
-      }
+      return `<LibraryObject object="${item.object}"${item.material === undefined ? "" : ` params={{ material: "${item.material}" }}`} ${at} />`;
   }
 }
 
-const componentOf = (item: Item): string => {
-  if (item.kind === "primitive") return "PrimitiveMesh";
-  if (item.kind === "framed") return "FramedSolid";
-  if (item.object === "crystal-cluster") return "CrystalCluster";
-  if (item.object === "instanced-lattice") return "Lattice";
-  return "LibraryObject";
-};
+const componentOf = (item: Item): string => (item.kind === "primitive" ? "PrimitiveMesh" : item.kind === "framed" ? "FramedSolid" : "LibraryObject");
 
 /**
  * The composition as React Three Fiber code using @hedronite/lts-adapters, on `WebGPUCanvas`: the

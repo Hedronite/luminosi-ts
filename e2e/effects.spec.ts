@@ -28,11 +28,11 @@ test("the Effects tab puts surface shaders and screen effects on one stage, on r
   await page.getByLabel("Surface", { exact: true }).selectOption("shader:hologram");
   await page.getByRole("checkbox", { name: "Dither" }).check();
   await page.getByRole("checkbox", { name: /^Lens/ }).uncheck();
-  await expect(page.getByRole("group", { name: "Dress watch in Hologram, under Scan sweep, Dither." })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Your dress watch in Hologram, under Scan sweep, Dither." })).toBeVisible();
   await page.getByLabel("Ink", { exact: true }).selectOption("accent");
   // Back to the watch's own materials, then a solid in a material preset.
   await page.getByLabel("Surface", { exact: true }).selectOption("own");
-  await expect(page.getByRole("group", { name: /^Dress watch in its own materials/ })).toBeVisible();
+  await expect(page.getByRole("group", { name: /^Your dress watch in its own materials/ })).toBeVisible();
   await page.getByLabel("Subject", { exact: true }).selectOption("solid:catalan-rhombic-triacontahedron");
   await page.getByLabel("Surface", { exact: true }).selectOption("material:metal");
   const before = Number(await stage.getAttribute("data-frames"));
@@ -132,7 +132,7 @@ test("the playground combines framed solids, objects and screen effects, and exp
   await expect(scene).toHaveCount(before + 3);
   await expect(scene.filter({ hasText: "Icosahedron, Dissolve" })).toHaveCount(1);
   await expect(scene.filter({ hasText: "Framed rhombic triacontahedron" })).toHaveCount(1);
-  await expect(scene.filter({ hasText: "Dress watch" })).toHaveCount(1);
+  await expect(scene.filter({ hasText: "Your dress watch" })).toHaveCount(1);
 
   await page.getByRole("checkbox", { name: "Dither" }).check();
   await page.getByRole("checkbox", { name: "Smoke" }).check();
@@ -152,4 +152,30 @@ test("the playground combines framed solids, objects and screen effects, and exp
   await expect(tsx).toContainText('<PrimitiveMesh primitive="platonic-icosahedron" shader="dissolve"');
   await expect(tsx).toContainText("<WebGPUCanvas>");
   expect(errors).toEqual([]);
+});
+
+test("the playground offers a material only for the objects whose descriptor takes one, and exports it", async ({ page }) => {
+  const errors = errorsOn(page);
+  await page.goto("/?view=playground");
+  await page.getByLabel("Add", { exact: true }).selectOption("object");
+  // The glTF needs a model URL, so it is not on offer; every other object is, named by its descriptor.
+  const objects = page.getByLabel("Object", { exact: true });
+  await expect(objects.locator("option", { hasText: "Your dress watch" })).toHaveCount(1);
+  await expect(objects.locator("option", { hasText: "glTF" })).toHaveCount(0);
+  await objects.selectOption("dress-watch");
+  await expect(page.getByLabel("Surface", { exact: true })).toHaveCount(0);
+  await objects.selectOption("crystal-cluster");
+  await page.getByLabel("Surface", { exact: true }).selectOption("metal");
+  await page.getByRole("button", { name: "Add to scene" }).click();
+  await expect(page.locator("code").filter({ hasText: '<LibraryObject object="crystal-cluster" params={{ material: "metal" }}' })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test("when the descriptors fail to load, the playground and the Effects stage say the objects could not be loaded", async ({ page }) => {
+  await page.route(/\/assets\/descriptors-[^/]+\.js$/, (route) => route.abort());
+  await page.goto("/?view=playground");
+  await page.getByLabel("Add", { exact: true }).selectOption("object");
+  await expect(page.getByRole("alert").filter({ hasText: "The objects could not be loaded" })).toBeVisible();
+  await page.goto("/?view=effects");
+  await expect(page.getByRole("alert").filter({ hasText: "The objects could not be loaded" })).toBeVisible();
 });
