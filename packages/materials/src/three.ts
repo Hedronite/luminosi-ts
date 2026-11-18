@@ -1,12 +1,12 @@
 import { neutral, type ScenePalette } from "@hedronite/lts-tokens";
 import { Color, Mesh, MeshPhysicalMaterial, Object3D, type Material } from "three";
-import { isMaterialId, materialPreset, type MaterialId, type MaterialPreset } from "./presets.js";
+import { materialPreset, type MaterialId, type MaterialPreset } from "./presets.js";
 
 /** Turns a look's scene colors into the ones a material reads, for a material tinted off the look (an edge in the accent, a part shaded darker). */
 export type PaletteDerive = (palette: ScenePalette) => ScenePalette;
 
-/** How the materials made here with a `derive` get their colors from a look. A material with none follows the look as it is. */
-const derived = new WeakMap<Material, PaletteDerive>();
+/** What `applyPalette` needs to know about a material made here: its preset, and how its colors come from a look. Not its name: a part of an object may rename it. */
+const made = new WeakMap<Material, { readonly preset: MaterialPreset; readonly derive: PaletteDerive | undefined }>();
 
 /** Writes the colors a preset takes from a look into `material`, in place. The one place those colors are decided. */
 function paint(material: MeshPhysicalMaterial, preset: MaterialPreset, scene: ScenePalette): void {
@@ -50,7 +50,7 @@ export function createMaterial(id: MaterialId, palette: ScenePalette = neutral.s
   }
   if (preset.specularIntensity !== undefined) material.specularIntensity = preset.specularIntensity;
   paint(material, preset, derive === undefined ? palette : derive(palette));
-  if (derive !== undefined) derived.set(material, derive);
+  made.set(material, { preset, derive });
   return material;
 }
 
@@ -69,8 +69,8 @@ function repaint(target: unknown, palette: ScenePalette): void {
       repaint(each, palette);
     });
   } else if (target instanceof MeshPhysicalMaterial) {
-    // Made here, or not: a material is named for its preset only when `createMaterial` made it.
-    if (isMaterialId(target.name)) paint(target, materialPreset(target.name), derived.get(target)?.(palette) ?? palette);
+    const known = made.get(target);
+    if (known !== undefined) paint(target, known.preset, known.derive === undefined ? palette : known.derive(palette));
   } else if (target instanceof Object3D) {
     target.traverse((child) => {
       if (child instanceof Mesh) repaint(child.material, palette);
