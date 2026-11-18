@@ -1,4 +1,4 @@
-import { defineDescriptor, type AssetDescriptor } from "@hedronite/lts-core";
+import { defineDescriptor, type AssetDescriptor, type AssetPreviewData } from "@hedronite/lts-core";
 import type { ScenePalette } from "@hedronite/lts-tokens";
 import { z } from "zod";
 import { screenEffectSchemas } from "./effects.js";
@@ -26,12 +26,23 @@ const stackEntry = z.discriminatedUnion("id", [
   z.object({ id: z.literal("crt"), params: screenEffectSchemas.crt }),
 ]);
 
+/**
+ * How a stage puts each effect on show, where the defaults would not show it: the scan sweeps every few seconds instead
+ * of every nine, so it comes round while someone looks. Not exhaustive on purpose: an effect with no line here is shown
+ * with its defaults, so adding an effect takes only its own definition.
+ */
+const previews: { readonly [Id in keyof typeof screenEffectSchemas]?: AssetPreviewData } = {
+  scan: { stage: { period: 4 } },
+};
+
 /** One descriptor per screen effect in the manifest, with that effect's own parameters. Imports no three.js: `build` loads `./three` when it is called. */
 export const descriptors: readonly AssetDescriptor<ScreenEffectPass, ScenePalette>[] = manifest.assets.map((asset) => {
   const parameters: z.ZodObject = screenEffectSchemas[asset.id];
+  const preview = previews[asset.id];
   return defineDescriptor({
     meta: { ...asset, package: manifest.package },
     parameters,
+    ...(preview === undefined ? {} : { preview }),
     templates: [
       {
         label: "TypeScript",

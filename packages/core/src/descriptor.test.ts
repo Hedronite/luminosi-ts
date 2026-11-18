@@ -118,6 +118,18 @@ describe("defineDescriptor", () => {
     expect(() => orb({ poster: "../up.png" })).toThrow(RangeError);
   });
 
+  it("carries an optional preview and thumbnail, and rejects ones that do not fit the asset", () => {
+    const base = { meta: { id: "demo", kind: "icon", name: "Demo", tags: ["t"], version: "0.1.0", added: "2026-11-01", package: "@hedronite/lts-demo" }, parameters: z.object({ period: z.number().min(1).max(60).default(9) }), templates: [], build: () => Promise.resolve(1) };
+    const plain = defineDescriptor(base);
+    expect(plain.preview).toBeUndefined();
+    expect(plain.thumbnail).toBeUndefined();
+    const shown = defineDescriptor({ ...base, preview: { stage: { period: 4 } }, thumbnail: { shape: "bipyramid", sides: 6, radius: 0.4 } });
+    expect(shown.preview).toEqual({ stage: { period: 4 } });
+    expect(shown.thumbnail).toEqual({ shape: "bipyramid", sides: 6, radius: 0.4 });
+    expect(() => defineDescriptor({ ...base, preview: { stage: { period: 400 } } })).toThrow(z.ZodError);
+    expect(() => defineDescriptor({ ...base, thumbnail: { shape: "bipyramid", sides: 2 } })).toThrow(z.ZodError);
+  });
+
   it("does not build until asked, and builds with the defaults for what is left out", async () => {
     const build = vi.fn((params: Params) => Promise.resolve(params.size));
     const descriptor = defineDescriptor({ meta, parameters, templates: [], build });

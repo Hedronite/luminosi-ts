@@ -1,4 +1,4 @@
-import { defineDescriptor, type AssetDescriptor, type BuildOptions, type ParameterHints, type SnippetTemplate } from "@hedronite/lts-core";
+import { defineDescriptor, type AssetDescriptor, type BuildOptions, type ParameterHints, type SnippetTemplate, type Thumbnail } from "@hedronite/lts-core";
 import { materialIds } from "@hedronite/lts-materials";
 import { platonic, platonicSolids } from "@hedronite/lts-primitives";
 import { neutral, type ScenePalette } from "@hedronite/lts-tokens";
@@ -37,6 +37,8 @@ interface ObjectInfo {
   readonly tags: readonly string[];
   /** The day it joined the library (YYYY-MM-DD). */
   readonly added: string;
+  /** The stand-in shape the gallery draws for it; an object without one gets a plain solid. */
+  readonly thumbnail?: Thumbnail;
 }
 
 /**
@@ -44,7 +46,8 @@ interface ObjectInfo {
  * so adding an object is adding one `describe` below and nothing else.
  */
 function describe<Shape extends z.ZodRawShape>(info: ObjectInfo, entry: Entry<Shape>): AssetDescriptor<ObjectBuilt, ScenePalette> {
-  return defineDescriptor({ meta: { ...info, kind: "object", version: "0.1.0", package: packageName }, ...entry });
+  const { thumbnail, ...about } = info;
+  return defineDescriptor({ meta: { ...about, kind: "object", version: "0.1.0", package: packageName }, ...(thumbnail === undefined ? {} : { thumbnail }), ...entry });
 }
 
 /** An object stored as data (assets/src/objects): built from its spec, the palette picking the colors. */
@@ -72,7 +75,7 @@ const stored = (info: ObjectInfo) =>
  * (generated/manifest.ts), so listing objects never loads their descriptors.
  */
 export const procedural: readonly AssetDescriptor<ObjectBuilt, ScenePalette>[] = [
-  describe({ id: "crystal-cluster", name: "Crystal cluster", tags: ["procedural", "crystal"], added: "2026-11-15" }, {
+  describe({ id: "crystal-cluster", name: "Crystal cluster", tags: ["procedural", "crystal"], added: "2026-11-15", thumbnail: { shape: "bipyramid", sides: 6, radius: 0.4, height: 2 } }, {
     parameters: z.object({
       count: z.number().int().min(1).max(64).default(showcase.cluster.count),
       spread: z.number().min(0).max(1).default(showcase.cluster.spread),
@@ -92,7 +95,7 @@ export const procedural: readonly AssetDescriptor<ObjectBuilt, ScenePalette>[] =
     },
   }),
 
-  describe({ id: "framed-solid", name: "Framed solid", tags: ["procedural", "glass", "polyhedron"], added: "2026-11-16" }, {
+  describe({ id: "framed-solid", name: "Framed solid", tags: ["procedural", "glass", "polyhedron"], added: "2026-11-16", thumbnail: { shape: "platonic", solid: "dodecahedron" } }, {
     parameters: z.object({
       solid: z.enum(platonicSolids).default(showcase.framedSolid.solid),
       radius: z.number().min(0.2).max(2).default(showcase.framedSolid.radius),
@@ -112,7 +115,7 @@ export const procedural: readonly AssetDescriptor<ObjectBuilt, ScenePalette>[] =
     },
   }),
 
-  describe({ id: "instanced-lattice", name: "Instanced lattice", tags: ["procedural", "instanced"], added: "2026-11-15" }, {
+  describe({ id: "instanced-lattice", name: "Instanced lattice", tags: ["procedural", "instanced"], added: "2026-11-15", thumbnail: { shape: "platonic", solid: "cube" } }, {
     parameters: z.object({
       size: z.number().int().min(1).max(16).default(showcase.lattice.size),
       spacing: z.number().min(0.05).max(1).default(showcase.lattice.spacing),
@@ -152,7 +155,7 @@ export const procedural: readonly AssetDescriptor<ObjectBuilt, ScenePalette>[] =
     },
   }),
 
-  describe({ id: "crystal-cluster-glb", name: "Crystal cluster (glTF)", tags: ["gltf", "meshopt", "pipeline"], added: "2026-11-15" }, {
+  describe({ id: "crystal-cluster-glb", name: "Crystal cluster (glTF)", tags: ["gltf", "meshopt", "pipeline"], added: "2026-11-15", thumbnail: { shape: "bipyramid", sides: 5, radius: 0.4, height: 2 } }, {
     parameters: z.object({
       /** Where the .glb is served from. The catalog passes the URL its bundler gives the file. */
       url: z.string().min(1).default("/models/crystal-cluster-glb.glb"),
