@@ -25,16 +25,16 @@ describe("read commands", () => {
     expect(JSON.stringify(data(result))).toContain('"id":"crystal-cluster"');
   });
 
-  it("shows an asset with its package and snippets", () => {
-    const result = show("platonic-icosahedron");
+  it("shows an asset with its package and snippets", async () => {
+    const result = await show("platonic-icosahedron");
     expect(result.ok).toBe(true);
     const text = JSON.stringify(data(result));
     expect(text).toContain('"package":"@hedronite/lts-primitives"');
     expect(text).toContain('primitive(\\"platonic-icosahedron\\")');
   });
 
-  it("answers an unknown id with the closest matches", () => {
-    const result = show("platonic-icosahedrn");
+  it("answers an unknown id with the closest matches", async () => {
+    const result = await show("platonic-icosahedrn");
     expect(result).toMatchObject({ ok: false, kind: "unknown_asset", exit: 1 });
     expect(JSON.stringify(result)).toMatch(/"matches":\[[^\]]*"platonic-icosahedron"/);
   });

@@ -1,11 +1,10 @@
 import type { AssetMeta } from "@hedronite/lts-core";
 import { ChevronLeft, ChevronRight, Close } from "@hedronite/lts-icons/react";
-import { snippetsFor } from "@hedronite/lts-registry";
-import { lazy, Suspense, useEffect, useRef } from "react";
+import { snippetsFor, type Snippet } from "@hedronite/lts-registry";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { AssetPreview } from "./AssetPreview";
 import { CopyButton } from "./CopyButton";
 import { usePreset } from "./look";
-import { iconFor } from "./registry";
 
 // three.js and React Three Fiber load only when a 3D asset is opened.
 const Viewport = lazy(() => import("./Viewport").then((module) => ({ default: module.Viewport })));
@@ -37,7 +36,24 @@ export function DetailDialog({ meta, onClose, onStep, position }: DetailDialogPr
     if (meta === undefined && element.open) element.close();
   }, [meta]);
 
-  const snippets = meta === undefined ? [] : snippetsFor(meta, iconFor(meta.id));
+  // The descriptors the snippets come from load when an asset is first opened, in a chunk of their own.
+  const [loaded, setLoaded] = useState<{ readonly id: string; readonly snippets: readonly Snippet[]; readonly failed: boolean } | undefined>(undefined);
+  useEffect(() => {
+    if (meta === undefined) return;
+    let current = true;
+    snippetsFor(meta)
+      .then((found) => {
+        if (current) setLoaded({ id: meta.id, snippets: found, failed: false });
+      })
+      .catch(() => {
+        if (current) setLoaded({ id: meta.id, snippets: [], failed: true });
+      });
+    return () => {
+      current = false;
+    };
+  }, [meta]);
+  const snippets = meta !== undefined && loaded?.id === meta.id ? loaded.snippets : [];
+  const snippetsFailed = meta !== undefined && loaded?.id === meta.id && loaded.failed;
 
   return (
     <dialog
@@ -121,6 +137,12 @@ export function DetailDialog({ meta, onClose, onStep, position }: DetailDialogPr
               </>
             )}
           </dl>
+
+          {snippetsFailed ? (
+            <p role="alert" className="mt-6 text-sm text-fg-muted">
+              The usage snippets could not be loaded. Reload the page and open this asset again.
+            </p>
+          ) : null}
 
           {snippets.map((snippet) => (
             <section key={snippet.label} className="mt-6" aria-label={`${snippet.label} snippet`}>

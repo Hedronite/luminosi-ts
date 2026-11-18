@@ -33,7 +33,7 @@ async function measure(page: Page): Promise<{
   return page.evaluate(() => {
     const textOf = (el: Element): string => (el instanceof HTMLElement ? el.innerText : el.textContent);
     const handle = (el: Element): string => {
-      const id = el.id === "" ? "" : `#${el.id}`;
+      const id = el.id.length === 0 ? "" : `#${el.id}`;
       const cls = typeof el.className === "string" && el.className !== "" ? `.${el.className.trim().split(/\s+/).slice(0, 2).join(".")}` : "";
       const name = (el.getAttribute("aria-label") ?? textOf(el)).trim().replace(/\s+/g, " ").slice(0, 40);
       return `${el.tagName.toLowerCase()}${id}${cls}${name === "" ? "" : ` "${name}"`}`;

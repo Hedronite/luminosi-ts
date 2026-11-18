@@ -11,10 +11,12 @@ import { describe, expect, it } from "vitest";
 const packages = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
 
+// The clause before `from` cannot contain a quote or a semicolon, so a match cannot run from an `export` into a snippet's
+// template string and read the `from "…"` written inside it.
 function staticSpecifiers(source: string): string[] {
   const found: string[] = [];
-  for (const match of source.matchAll(/^\s*(?:import|export)\s+(type\s+)?[^;]*?\bfrom\s+["']([^"']+)["']|^\s*import\s+["']([^"']+)["']/gm)) {
-    if (match[1] === undefined) found.push(match[2] ?? match[3] ?? "");
+  for (const match of source.matchAll(/^\s*(?:import|export)\s+(type\s+)?(?:[^"'`;]*?\bfrom\s+)?["']([^"']+)["']/gm)) {
+    if (match[1] === undefined) found.push(match[2] ?? "");
   }
   return found;
 }
@@ -31,7 +33,7 @@ function builtEntry(specifier: string): string {
   return resolve(dir, target);
 }
 
-function walk(entry: string): { readonly modules: number; readonly three: readonly string[] } {
+function walk(entry: string): { readonly modules: number; readonly three: readonly string[]; readonly files: readonly string[] } {
   const seen = new Set<string>();
   const three: string[] = [];
   const visit = (file: string): void => {
@@ -44,15 +46,27 @@ function walk(entry: string): { readonly modules: number; readonly three: readon
     }
   };
   visit(entry);
-  return { modules: seen.size, three };
+  return { modules: seen.size, three, files: [...seen] };
 }
 
 describe("the registry's imports", () => {
-  it("reach no three.js, in this package or in any package it builds on", () => {
-    const { modules, three } = walk(resolve(packages, "registry/src/index.ts"));
+  it("reach no three.js, in this package or in any package it builds on, and none of it is descriptors", () => {
+    const { modules, three, files } = walk(resolve(packages, "registry/src/index.ts"));
     expect(three).toEqual([]);
     // It did walk across packages: the manifests and the data they read, not just this package's few files.
-    expect(modules).toBeGreaterThan(40);
+    expect(modules).toBeGreaterThan(30);
+    // The asset list and the search read light data: no descriptor module is in what they import statically.
+    expect(files.filter((file) => /descriptors/.test(relative(packages, file)))).toEqual([]);
+  });
+
+  it("reach no three.js through the descriptors either, which load lazily", () => {
+    const { three, files } = walk(resolve(packages, "registry/src/descriptors.ts"));
+    expect(three).toEqual([]);
+    expect(files.filter((file) => /descriptors/.test(relative(packages, file))).length).toBeGreaterThan(7);
+  });
+
+  it("does not read an import written inside a snippet's template string", () => {
+    expect(staticSpecifiers('export const a = {\n  code: `import { b } from "three";\\nimport "three/webgpu";`,\n};\nexport { c } from "./c.js";\nimport type { D } from "three";\nimport "side-effect";\n')).toEqual(["./c.js", "side-effect"]);
   });
 
   it("would notice one: the same walk from a package's three.js entry finds it", () => {
