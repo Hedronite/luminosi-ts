@@ -3,9 +3,11 @@
 //
 //   entry sets   the JavaScript a page loads at once: its module script, its modulepreloads, an Astro island's component and
 //                renderer, and everything those import statically, gzip -9 each (the same file set a browser fetches at page load)
-//   3D chunks    the files the catalog pages can reach, by static or dynamic import from their HTML entries, that carry three.js
-//                (found by three's own markers). Files in dist that nothing reaches are ignored: a Turborepo cache restore can
-//                leave chunks of an older build behind, and they ship to nobody.
+//   3D set       every file the catalog's 3D entries reach, by static or dynamic import. An entry is a lazily imported chunk, or a
+//                script of a page, whose own reach includes three.js (found by three's own markers). The markers only pick the
+//                entries; every file they reach is counted, so code moved to a chunk without a marker (a loader, an environment
+//                map, a descriptor chunk) is still counted. Files in dist that nothing reaches are ignored: a Turborepo cache
+//                restore can leave chunks of an older build behind, and they ship to nobody.
 //   objects      draw calls and triangles per object (objects.ts)
 //
 // Writes tools/assets/sizes.json for `lumin budgets` (not under dist/, which Turborepo restores from its cache on a build hit). Exits 1 when anything is over, unbudgeted, or budgeted but not measured.
@@ -43,7 +45,7 @@ export interface Row {
 interface Bundle {
   readonly dist: string;
   readonly pages: readonly string[];
-  /** Without it, the static closure of the pages (what loads at once); with it, everything reachable that carries one of these markers. */
+  /** Without it, the static closure of the pages (what loads at once). With it, the 3D set: everything reached from the entries whose reach carries one of these markers. */
   readonly carries?: readonly string[];
 }
 
@@ -60,9 +62,9 @@ const gzipBytes = (files: readonly string[]): number => files.reduce((sum, file)
 const staticImport = /(?:\bfrom|\bimport)\s*["'](\.{1,2}\/[^"']+\.js)["']/g;
 const dynamicImport = /\bimport\(\s*["'`](\.{1,2}\/[^"'`]+\.js)["'`]\s*\)/g;
 
-/** The files the pages' HTML pulls in as scripts, with every file those import statically, and dynamically too when `lazy`. */
-function reach(dist: string, pages: readonly string[], lazy: boolean): string[] {
-  const references = pages.flatMap((page) => {
+/** The scripts a page's HTML loads: its module script, its modulepreloads, an Astro island's component and renderer. */
+function pageScripts(dist: string, pages: readonly string[]): string[] {
+  return pages.flatMap((page) => {
     const html = readFileSync(join(dist, page), "utf8");
     return [
       ...html.matchAll(/<script\b[^>]*\btype="module"[^>]*\bsrc="([^"]+)"/g),
@@ -70,15 +72,40 @@ function reach(dist: string, pages: readonly string[], lazy: boolean): string[] 
       ...html.matchAll(/\b(?:component-url|renderer-url|before-hydration-url)="([^"]+)"/g),
     ].map((match) => resolve(dist, (match[1] ?? "").replace(/^\//, "")));
   });
+}
+
+/** `starts` and every file they import statically, and dynamically too when `lazy`. Files in `skip` are neither counted nor followed. */
+function closure(starts: readonly string[], lazy: boolean, skip: ReadonlySet<string> = new Set()): Set<string> {
   const seen = new Set<string>();
   const visit = (file: string): void => {
-    if (seen.has(file)) return;
+    if (seen.has(file) || skip.has(file)) return;
     seen.add(file);
     const source = readFileSync(file, "utf8");
     for (const pattern of lazy ? [staticImport, dynamicImport] : [staticImport]) for (const match of source.matchAll(pattern)) visit(resolve(dirname(file), match[1] ?? ""));
   };
-  references.forEach(visit);
-  return [...seen].sort();
+  starts.forEach(visit);
+  return seen;
+}
+
+/** The files the pages' HTML pulls in as scripts, with every file those import statically. */
+const reach = (dist: string, pages: readonly string[]): string[] => [...closure(pageScripts(dist, pages), false)].sort();
+
+/**
+ * The 3D set. The shell is what the pages load without any 3D (the gallery's own scripts and what they import statically):
+ * it is the gallery's budget, and its lazy imports (the icon packs, the other views) are not on a 3D route, so it is
+ * neither followed nor counted here. The entries are the page scripts whose static reach carries a marker (the embed
+ * page) and every chunk the shell imports lazily whose reach carries one (the views, and the descriptors, which load the
+ * builders). The set is everything the entries reach past the shell, so a chunk the markers do not see (a loader, an
+ * environment map, a descriptor chunk) is still counted.
+ */
+function reachThreeD(dist: string, pages: readonly string[], markers: readonly string[]): string[] {
+  const carries = (files: Iterable<string>): boolean => [...files].some((file) => markers.some((marker) => readFileSync(file, "utf8").includes(marker)));
+  const scripts = pageScripts(dist, pages);
+  const shell = closure(scripts.filter((script) => !carries(closure([script], false))), false);
+  const lazyTargets = new Set<string>();
+  for (const file of shell) for (const match of readFileSync(file, "utf8").matchAll(dynamicImport)) lazyTargets.add(resolve(dirname(file), match[1] ?? ""));
+  const entries = [...scripts.filter((script) => !shell.has(script)), ...[...lazyTargets].filter((target) => carries(closure([target], true, shell)))];
+  return [...closure(entries, true, shell)].sort();
 }
 
 export function measureBundles(root: string): Readonly<Record<string, BundleSize>> {
@@ -87,8 +114,7 @@ export function measureBundles(root: string): Readonly<Record<string, BundleSize
       const dist = join(root, bundle.dist);
       if (!existsSync(dist)) throw new Error(`${id}: no build output at ${bundle.dist}; run \`bun run build\``);
       const { carries } = bundle;
-      const files =
-        carries === undefined ? reach(dist, bundle.pages, false) : reach(dist, bundle.pages, true).filter((file) => carries.some((marker) => readFileSync(file, "utf8").includes(marker)));
+      const files = carries === undefined ? reach(dist, bundle.pages) : reachThreeD(dist, bundle.pages, carries);
       return [id, { gzipBytes: gzipBytes(files), files: files.map((file) => file.slice(root.length + 1)) }];
     }),
   );
