@@ -2,15 +2,64 @@
 // Ported from hedronite.com's GLSL (CrystalFx and NoiseField): the same print levels, inks, Bayer
 // matrix, glyph ramp, sweep, loupe and smoke, written as nodes so surface shaders (TSL materials) and
 // screen effects can share one renderer.
-import { abs, clamp, cos, distance, dot, exp, float, floor, fract, length, max, min, mix, pow, screenSize, screenUV, select, sin, smoothstep, step, texture, uniform, vec2, vec3, vec4 } from "three/tsl";
+import { abs, clamp, convertToTexture, cos, distance, dot, exp, float, floor, fract, length, max, min, mix, pow, screenSize, screenUV, select, sin, smoothstep, step, texture, uniform, vec2, vec3, vec4 } from "three/tsl";
 import { Color, Vector3, type Node, type Texture, type TextureNode, type Vector2 } from "three/webgpu";
 import type { Inks } from "./inks.js";
 
 const floatUniform = (value: number) => uniform(value);
 const vec2Uniform = (value: Vector2) => uniform(value);
+const vec3Uniform = (value: Vector3) => uniform(value);
 export type FloatUniform = ReturnType<typeof floatUniform>;
 type Vec2Uniform = ReturnType<typeof vec2Uniform>;
+type Vec3Uniform = ReturnType<typeof vec3Uniform>;
 export { floatUniform, vec2Uniform };
+
+/**
+ * The inks as uniforms, shared by every pass of one stack. A pass reads them, so writing a new set
+ * (`writeInks`) recolours the next frame without rebuilding any pass.
+ */
+export interface InkUniforms {
+  readonly cool: readonly [Vec3Uniform, Vec3Uniform, Vec3Uniform];
+  readonly warm: readonly [Vec3Uniform, Vec3Uniform, Vec3Uniform];
+  readonly hot: Vec3Uniform;
+  readonly rule: Vec3Uniform;
+  readonly chroma: FloatUniform;
+}
+
+/** An ink as a linear-RGB vec3 uniform (Color converts from sRGB hex). */
+const ink = (hex: string): Vec3Uniform => {
+  const c = new Color(hex);
+  return vec3Uniform(new Vector3(c.r, c.g, c.b));
+};
+const setInk = (target: Vec3Uniform, hex: string): void => {
+  const c = new Color(hex);
+  target.value.set(c.r, c.g, c.b);
+};
+
+export function inkUniforms(inks: Inks): InkUniforms {
+  return {
+    cool: [ink(inks.cool[0]), ink(inks.cool[1]), ink(inks.cool[2])],
+    warm: [ink(inks.warm[0]), ink(inks.warm[1]), ink(inks.warm[2])],
+    hot: ink(inks.hot),
+    rule: ink(inks.rule),
+    chroma: floatUniform(inks.chroma),
+  };
+}
+
+const setRamp = (target: InkUniforms["cool"], hex: Inks["cool"]): void => {
+  setInk(target[0], hex[0]);
+  setInk(target[1], hex[1]);
+  setInk(target[2], hex[2]);
+};
+
+/** Writes a new set of inks into the uniforms the passes read. */
+export function writeInks(target: InkUniforms, inks: Inks): void {
+  setRamp(target.cool, inks.cool);
+  setRamp(target.warm, inks.warm);
+  setInk(target.hot, inks.hot);
+  setInk(target.rule, inks.rule);
+  target.chroma.value = inks.chroma;
+}
 
 /** The uniforms an effect's clocks and the pointer drive each frame. */
 export interface PrintUniforms {
@@ -37,12 +86,6 @@ type Vec3Node = Node<"vec3">;
 /** `then` where `condition` holds, else `otherwise`, for vec3s (TSL's select is typed for floats and vec4s). */
 const pick3 = (condition: Node<"bool">, then: Vec3Node, otherwise: Vec3Node): Vec3Node => mix(otherwise, then, select(condition, 1, 0));
 
-/** An ink as a linear-RGB vec3 uniform (Color converts from sRGB hex). */
-const color = (hex: string) => {
-  const c = new Color(hex);
-  return uniform(new Vector3(c.r, c.g, c.b));
-};
-
 /** Sine-free hash (Dave Hoskins, hash12): stays finite where mediump is fp16. */
 function hash(p: Vec2Node): FloatNode {
   const p3 = fract(vec3(p.x, p.y, p.x).mul(0.1031));
@@ -66,19 +109,14 @@ const tone = (rgb: Vec3Node): FloatNode => float(1).sub(exp(dot(rgb, vec3(0.2126
  * raises s everywhere (base), during the intro, in the scan band or inside the lens, and levels
  * dissolve cell by cell.
  */
-export function printNode(input: TextureNode, u: PrintUniforms, inks: Inks, atlas: Texture, glyphs: number) {
+export function printNode(input: TextureNode, u: PrintUniforms, inks: InkUniforms, atlas: Texture, glyphs: number) {
   const res = screenSize;
   const uv = screenUV;
   const px = uv.mul(res);
   const here = input.sample(uv);
-  const cool = inks.cool.map(color);
-  const warm = inks.warm.map(color);
-  const [c0, c1, c2] = [cool[0], cool[1], cool[2]];
-  const [w0, w1, w2] = [warm[0], warm[1], warm[2]];
-  if (c0 === undefined || c1 === undefined || c2 === undefined || w0 === undefined || w1 === undefined || w2 === undefined) throw new Error("an ink ramp needs three tones");
-  const hot = color(inks.hot);
-  const rule = color(inks.rule);
-  const chroma = float(inks.chroma);
+  const [c0, c1, c2] = inks.cool;
+  const [w0, w1, w2] = inks.warm;
+  const { hot, rule, chroma } = inks;
 
   // Dither: an 8×8 Bayer dot matrix in two ink ramps, square dots with a gutter.
   const dPx = u.ditherPx.mul(u.dpr);
@@ -141,16 +179,19 @@ export function printNode(input: TextureNode, u: PrintUniforms, inks: Inks, atla
 }
 
 /** Film grain over the whole frame: over what's drawn, and faint light specks where nothing is. Premultiplied. */
-export function grainNode(input: TextureNode, time: FloatUniform, amount: number) {
+export function grainNode(input: TextureNode, time: FloatUniform, amount: FloatUniform) {
   const c = input.sample(screenUV);
   const n = hash(screenUV.mul(screenSize).add(fract(time).mul(91))).sub(0.5);
   const speck = max(n, 0).mul(amount);
   return vec4(c.rgb.add(n.mul(amount).mul(c.a)).add(speck.mul(float(1).sub(c.a))), c.a.add(speck.mul(float(1).sub(c.a))));
 }
 
-/** The smoke field behind what the scene drew: domain-warped fBm in the cool ink with warm embers. Premultiplied. */
-export function smokeNode(input: TextureNode, time: FloatUniform, inks: Inks, intensity: number) {
-  const scene = input.sample(screenUV);
+/**
+ * The smoke field on its own: domain-warped fBm in the cool ink with warm embers, premultiplied, from the
+ * screen position alone (it does not read the scene). `smokeField` draws it into a half-size target, since
+ * soft smoke hides the upsample and the fBm is the costliest fragment work in the stack.
+ */
+function smokeFieldNode(time: FloatUniform, inks: InkUniforms, intensity: FloatUniform) {
   const noise = (p: Vec2Node): FloatNode => {
     const i = floor(p);
     const f = fract(p);
@@ -177,19 +218,34 @@ export function smokeNode(input: TextureNode, time: FloatUniform, inks: Inks, in
   const filament = pow(smoothstep(0.62, 0.86, f).mul(float(1).sub(smoothstep(0.86, 1, f))), 1.6);
   // Copper gathers toward the lower right; screenUV.y grows downward.
   const warmth = smoothstep(0.35, 1.05, screenUV.x.mul(0.7).add(screenUV.y.mul(0.55)).add(r.x.sub(0.5).mul(0.6)));
-  const smoke = mix(color(inks.cool[1]), color(inks.warm[1]), warmth.mul(0.7));
+  const smoke = mix(inks.cool[1], inks.warm[1], warmth.mul(0.7));
   // hedronite.com's blend, which it also drew at 90% opacity.
-  const a = clamp(body.mul(0.2).add(filament.mul(0.42)).mul(0.9 * intensity), 0, 1);
-  const behind = float(1).sub(scene.a);
-  return vec4(scene.rgb.mul(scene.a).add(smoke.mul(a).mul(behind)), scene.a.add(a.mul(behind)));
+  const a = clamp(body.mul(0.2).add(filament.mul(0.42)).mul(intensity.mul(0.9)), 0, 1);
+  return vec4(smoke.mul(a), a);
 }
 
-/** The CRT tube's settings, as parsed from its schema. */
-export interface CrtParams {
-  readonly curvature: number;
-  readonly pitch: number;
-  readonly aberration: number;
-  readonly motion: number;
+/** How much of the screen's width and height the smoke target takes: a quarter of the pixels. */
+const SMOKE_SCALE = 0.5;
+
+/** The smoke field in a half-size render target; sampling it upsamples with the texture's linear filter. */
+export function smokeField(time: FloatUniform, inks: InkUniforms, intensity: FloatUniform): TextureNode {
+  return convertToTexture(smokeFieldNode(time, inks, intensity), null, null, { resolutionScale: SMOKE_SCALE });
+}
+
+/** The smoke behind what the scene drew: the (upsampled) `field` under the scene's own pixels. Premultiplied. */
+export function smokeNode(input: TextureNode, field: TextureNode) {
+  const scene = input.sample(screenUV);
+  const smoke = field.sample(screenUV);
+  const behind = float(1).sub(scene.a);
+  return vec4(scene.rgb.mul(scene.a).add(smoke.rgb.mul(behind)), scene.a.add(smoke.a.mul(behind)));
+}
+
+/** The CRT tube's settings, as uniforms. */
+export interface CrtUniforms {
+  readonly curvature: FloatUniform;
+  readonly pitch: FloatUniform;
+  readonly aberration: FloatUniform;
+  readonly motion: FloatUniform;
 }
 
 /** 1 below `from`, 0 above `to` (from < to): smoothstep run backwards, which WGSL leaves undefined. */
@@ -204,35 +260,35 @@ const fall = (from: number, to: number, x: FloatNode): FloatNode => float(1).sub
  * Ported from GLSL to TSL over any scene's frame instead of its own typed-text canvas; the line and
  * triad sizes are in CSS pixels, and the colors come from the inks rather than the original's green.
  */
-export function crtNode(input: TextureNode, time: FloatUniform, dpr: FloatUniform, inks: Inks, p: CrtParams) {
+export function crtNode(input: TextureNode, time: FloatUniform, dpr: FloatUniform, inks: InkUniforms, p: CrtUniforms) {
   // Push each point out by the square of the other axis: the bulge of the glass.
   const c = screenUV.mul(2).sub(1);
-  const uv = c.add(c.mul(c.yx.mul(c.yx)).mul(vec2(0.115 * p.curvature, 0.165 * p.curvature))).mul(0.5).add(0.5);
+  const uv = c.add(c.mul(c.yx.mul(c.yx)).mul(vec2(p.curvature.mul(0.115), p.curvature.mul(0.165)))).mul(0.5).add(0.5);
   const within = step(vec2(0), uv).mul(step(uv, vec2(1)));
   const edge = min(uv, vec2(1).sub(uv));
   const inside = within.x.mul(within.y).mul(smoothstep(0, 0.02, min(edge.x, edge.y)));
   const dir = uv.sub(0.5);
   const split = dir.mul(dot(dir, dir).mul(0.012).add(0.0016).mul(p.aberration));
   // The scene over the tube's dark phosphor; the input is premultiplied.
-  const phosphor = color(inks.cool[0]).mul(0.02);
+  const phosphor = inks.cool[0].mul(0.02);
   const at = (q: Vec2Node): Vec3Node => {
     const s = input.sample(q);
     return s.rgb.add(phosphor.mul(float(1).sub(s.a)));
   };
   let col: Vec3Node = vec3(at(uv.add(split)).x, at(uv).y, at(uv.sub(split)).z);
-  const lines = sin(uv.y.mul(Math.PI).mul(screenSize.y.div(dpr).div(p.pitch)).add(time.mul(4 * p.motion)));
+  const lines = sin(uv.y.mul(Math.PI).mul(screenSize.y.div(dpr).div(p.pitch)).add(time.mul(p.motion.mul(4))));
   col = col.mul(mix(float(0.7), float(1), lines.mul(lines)));
-  const triad = screenUV.x.mul(screenSize.x).div(dpr).mul((Math.PI * 2) / (2.75 * p.pitch));
+  const triad = screenUV.x.mul(screenSize.x).div(dpr).mul(float((Math.PI * 2) / 2.75).div(p.pitch));
   col = col.mul(cos(vec3(triad).add(vec3(0, 2.094, 4.188))).mul(0.34).add(0.66)).mul(1.34);
   // The original's y ran from the bottom, screenUV's from the top: the bar still rolls upward.
-  const roll = fract(float(1).sub(uv.y).mul(0.5).sub(time.mul(0.07 * p.motion)));
-  col = col.add(smoothstep(0, 0.05, roll).mul(fall(0.05, 0.18, roll)).mul(0.045 * p.motion));
+  const roll = fract(float(1).sub(uv.y).mul(0.5).sub(time.mul(p.motion.mul(0.07))));
+  col = col.add(smoothstep(0, 0.05, roll).mul(fall(0.05, 0.18, roll)).mul(p.motion.mul(0.045)));
   const sheen = fall(0, 0.55, distance(uv, vec2(0.5, 0.85)));
-  col = col.add(mix(vec3(1), color(inks.cool[2]), 0.45).mul(sheen.mul(0.03)));
+  col = col.add(mix(vec3(1), inks.cool[2], 0.45).mul(sheen.mul(0.03)));
   col = col.mul(mix(float(0.42), float(1), fall(0.3, 0.98, length(dir.mul(vec2(1.05, 1))))));
-  col = col.mul(float(1).sub(sin(time.mul(8)).mul(0.028 * p.motion)));
+  col = col.mul(float(1).sub(sin(time.mul(8)).mul(p.motion.mul(0.028))));
   col = col.add(hash(screenUV.mul(screenSize).add(fract(time.mul(0.37)).mul(91))).sub(0.5).mul(0.022));
   const spill = fall(0.18, 0.85, length(screenUV.sub(0.5))).mul(0.05);
-  const room = color(inks.cool[0]).mul(0.03).add(color(inks.cool[1]).mul(spill.mul(0.5)));
+  const room = inks.cool[0].mul(0.03).add(inks.cool[1].mul(spill.mul(0.5)));
   return vec4(max(mix(room, col, inside), vec3(0.004)), 1);
 }

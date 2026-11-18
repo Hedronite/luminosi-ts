@@ -7,6 +7,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef, useState, type RefObject } from "react";
 import type { Group, Object3D } from "three";
 import { Controls, GpuCounts, StageClock, StageFrame, useMotion } from "./scene";
+import { stageFrameloop, useStageShown, WakeOnShow } from "./onscreen";
 import { buildStage, type StageSubject, type StageSurface } from "./stage";
 
 /** The subject in its surface, drifting slowly as on hedronite.com so the prints keep moving; still under reduced motion or when paused. */
@@ -74,17 +75,19 @@ export interface EffectStageProps {
  * A subject under a stack of screen effects, on the WebGPU renderer, so surface shaders and screen
  * effects meet in one scene. Renders every frame, since effects and shaders animate, with a pause
  * button; paused, or under reduced motion, it holds a still frame and renders only on change, key or
- * pointer movement.
+ * pointer movement. Off screen, or in a hidden tab, it renders nothing.
  */
 export function EffectStage({ effects, palette, paletteId, subject = framedDodecahedron, surface = framed, monochrome, label, className = "h-72 w-full", host }: EffectStageProps) {
   const own = useRef<HTMLDivElement>(null);
   const clock = useRef(0);
   const motion = useMotion(true);
+  const shown = useStageShown(own);
   // The counts go to the page's own host when it gave one; the keys always belong to the group.
   const target = host ?? own;
   return (
     <StageFrame group={own} motion={motion} label={label} className={className} testId={host === undefined ? "viewport" : undefined}>
-      <WebGPUCanvas frameloop={motion.still ? "demand" : "always"} dpr={[1, 2]} camera={{ position: [0, 0, 3.6], fov: 35 }}>
+      <WebGPUCanvas frameloop={stageFrameloop(shown, motion.still)} dpr={[1, 2]} camera={{ position: [0, 0, 3.6], fov: 35 }}>
+        <WakeOnShow shown={shown} />
         <WebGPUStudioEnvironment />
         <StudioLights />
         <Controls keys={own} />

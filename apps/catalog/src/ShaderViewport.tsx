@@ -6,6 +6,7 @@ import type { ScenePalette } from "@hedronite/lts-tokens";
 import { Canvas } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { BoxGeometry, Color, MeshBasicMaterial, SphereGeometry, WebGPURenderer } from "three/webgpu";
+import { stageFrameloop, useStageShown, WakeOnShow } from "./onscreen";
 import { Controls, GpuCounts, StageClock, StageFrame, useMotion } from "./scene";
 
 // A smooth sphere: effects that read the surface's turn (toon bands, refraction, rims) need smooth normals.
@@ -49,16 +50,18 @@ function Backdrop({ palette }: { readonly palette: ScenePalette }) {
 
 /**
  * A 3D view for TSL shaders. TSL needs three's WebGPURenderer, which falls back to WebGL 2 where WebGPU
- * is missing. Renders every frame, since effects can animate; paused, or under reduced motion, only on change.
+ * is missing. Renders every frame, since effects can animate; paused, or under reduced motion, only on change;
+ * off screen, or in a hidden tab, not at all.
  */
 export function ShaderViewport({ meta, palette, paletteId }: { readonly meta: AssetMeta; readonly palette: ScenePalette; readonly paletteId: string }) {
   const group = useRef<HTMLDivElement>(null);
   const clock = useRef(0);
   const motion = useMotion(isEffectId(meta.id) && effectInfo[meta.id].animated === true);
+  const shown = useStageShown(group);
   return (
     <StageFrame group={group} motion={motion} label={`${meta.name}, a shader on a sphere.`} className="h-72 w-full" testId="viewport">
       <Canvas
-        frameloop={motion.still ? "demand" : "always"}
+        frameloop={stageFrameloop(shown, motion.still)}
         dpr={[1, 2]}
         camera={{ position: [0, 0, 3.4], fov: 35 }}
         gl={async ({ canvas }) => {
@@ -69,6 +72,7 @@ export function ShaderViewport({ meta, palette, paletteId }: { readonly meta: As
           return renderer;
         }}
       >
+        <WakeOnShow shown={shown} />
         <StudioLights />
         <Controls keys={group} />
         <StageClock clockRef={clock} running={!motion.still} />
