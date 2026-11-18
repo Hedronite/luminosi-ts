@@ -14,7 +14,8 @@ import { allowed, hashes, salt } from "./namegate.hashes.js";
  * parts, and every run of one to four consecutive parts is tried too (`a-b-c` yields `a`, `b`, `c`,
  * `a-b`, `b-c`, `a-b-c`), so a hyphenated name is found and so is a name inside a longer slug.
  * Parts are also split where a lower-case letter meets an upper-case one (`fooBar` yields `foo` and
- * `bar`), so a name inside an identifier is found too.
+ * `bar`) and where letters meet digits (`foo2` and `2foo` both yield `foo`), so a name inside an
+ * identifier, a numbered host or a versioned slug is found too.
  * Common words that are also gated names are not hashed at all: they stay under review of public
  * text, because a word-wide allow-list would hide real hits.
  */
@@ -27,8 +28,11 @@ const hashToken = (token: string): string => createHash("sha256").update(salt + 
 const runPattern = /[A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*/g;
 const maxParts = 4;
 
-/** Split a part where a lower-case letter is followed by an upper-case one (`fooBar` gives `foo`, `Bar`). */
-const camelParts = (part: string): readonly string[] => part.split(/(?<=[a-z])(?=[A-Z])/);
+/**
+ * Split a part where a lower-case letter is followed by an upper-case one (`fooBar` gives `foo`,
+ * `Bar`) and wherever a letter meets a digit, in either order (`foo2` gives `foo`, `2`; `2foo` gives `2`, `foo`).
+ */
+const boundaryParts = (part: string): readonly string[] => part.split(/(?<=[a-z])(?=[A-Z])|(?<=[A-Za-z])(?=[0-9])|(?<=[0-9])(?=[A-Za-z])/);
 
 /** Every run of one to `maxParts` consecutive parts, joined with a hyphen. */
 const windows = (parts: readonly string[]): readonly string[] => {
@@ -39,27 +43,28 @@ const windows = (parts: readonly string[]): readonly string[] => {
   return out;
 };
 
-const camelBoundary = /[a-z][A-Z]/;
+const partBoundary = /[a-z][A-Z]|[A-Za-z][0-9]|[0-9][A-Za-z]/;
 const hasLetter = /[A-Za-z]/;
 const joiner = /[-_]/;
 
-/** Every token the gate compares in one line: the parts as written, and the parts split at camelCase boundaries. */
+/** Every token the gate compares in one line: the parts as written, and the parts split at camelCase and letter-digit boundaries. */
 const tokensOf = (line: string): readonly string[] => {
   const out: string[] = [];
   for (const run of line.matchAll(runPattern)) {
     const text = run[0];
     // A run of digits only (most of an SVG path, say) holds no name.
     if (!hasLetter.test(text)) continue;
-    const camel = camelBoundary.test(text);
-    if (!camel && !joiner.test(text)) {
+    const bounded = partBoundary.test(text);
+    if (!bounded && !joiner.test(text)) {
       out.push(text);
       continue;
     }
     const parts = text.split(joiner);
     out.push(...windows(parts));
-    if (camel) {
-      const split = parts.flatMap(camelParts);
-      if (split.length !== parts.length) out.push(...windows(split));
+    if (bounded) {
+      const split = parts.flatMap(boundaryParts);
+      // A window of digits alone holds no name, and a long hash or checksum would otherwise add many of them.
+      if (split.length !== parts.length) out.push(...windows(split).filter((window) => hasLetter.test(window)));
     }
   }
   return out;
@@ -146,6 +151,17 @@ describe("the name gate", () => {
     expect(scanText("a.ts", "const hostzzplanted = 1; const myZzplantedsHost = 2;", fake)).toEqual([]);
     const pair = new Set([hashToken("zz-planted")]);
     expect(scanText("a.ts", "const myZzPlantedHost = 1;", pair)).toHaveLength(1);
+  });
+
+  it("finds a name that has digits after it or before it, and not one inside a longer word", () => {
+    expect(scanText("a.md", "ssh zzplanted2", fake)).toHaveLength(1);
+    expect(scanText("a.md", "ssh 2zzplanted", fake)).toHaveLength(1);
+    expect(scanText("a.md", "ssh zzplanted22 and ZZPLANTED7x", fake)).toHaveLength(1);
+    expect(scanText("a.ts", "const zzplanted2Host = 1; const host2Zzplanted = 2;", fake)).toHaveLength(1);
+    expect(scanText("a.md", "ssh zzplanted-2 or zzplanted_2", fake)).toHaveLength(1);
+    expect(scanText("a.md", "ssh azzplanted2 or 2zzplanteds or 2azzplanted", fake)).toEqual([]);
+    // A gated name that itself holds a digit is still found as written.
+    expect(scanText("a.md", "run on zz9planted", new Set([hashToken("zz9planted")]))).toHaveLength(1);
   });
 
   it("finds a hyphenated name, a name in a slug and a name after an underscore", () => {

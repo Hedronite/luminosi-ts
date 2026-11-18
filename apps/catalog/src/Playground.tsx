@@ -11,6 +11,7 @@ import { arrange, MAX_PLACEMENTS, scaleOf, toJson, toTsx, type Composition, type
 import { CopyButton } from "./CopyButton";
 import { usePreset } from "./look";
 import { MaterialLineup } from "./MaterialLineup";
+import { stageFrameloop, useStageShown, WakeOnShow } from "./onscreen";
 import { usePlaceable, type Placeable } from "./placeable";
 import { stageEffect } from "./presentation";
 import { Controls, GpuCounts, StageClock, StageFrame, useMotion } from "./scene";
@@ -102,6 +103,7 @@ export function Playground() {
   const host = useRef<HTMLDivElement>(null);
   const clock = useRef(0);
   const motion = useMotion(animated);
+  const shown = useStageShown(host);
 
   const item = ((): Item => {
     switch (kind) {
@@ -321,7 +323,8 @@ export function Playground() {
           >
             {/* Screen effects and some shaders animate, so the scene renders every frame while any are on. */}
             {/* The WebGPU renderer (WebGL 2 where WebGPU is missing) runs surface shaders and screen effects together. */}
-            <WebGPUCanvas frameloop={animated && !motion.still ? "always" : "demand"} dpr={[1, 2]} camera={{ position: [0, 2.2, 5.5], fov: 40 }}>
+            <WebGPUCanvas frameloop={stageFrameloop(shown, !animated || motion.still)} dpr={[1, 2]} camera={{ position: [0, 2.2, 5.5], fov: 40 }}>
+              <WakeOnShow shown={shown} />
               <WebGPUStudioEnvironment />
               <StudioLights intensity={composition.lightIntensity} />
               <Controls keys={host} />
