@@ -6,9 +6,6 @@
   "type": "module",
   "description": "The LuminosiTS agent CLI and the shared registry, search and snippet logic behind the lumin skills, the catalog and validate.",
   "exports": {
-    "./registry": "./src/registry.ts",
-    "./search": "./src/search.ts",
-    "./snippets": "./src/snippets.ts",
     "./study": "./src/study.ts"
   },
   "scripts": {
@@ -18,12 +15,8 @@
   "dependencies": {
     "@hedronite/lts-core": "workspace:*",
     "@hedronite/lts-icons": "workspace:*",
-    "@hedronite/lts-materials": "workspace:*",
     "@hedronite/lts-objects": "workspace:*",
-    "@hedronite/lts-postfx": "workspace:*",
-    "@hedronite/lts-primitives": "workspace:*",
-    "@hedronite/lts-scenes": "workspace:*",
-    "@hedronite/lts-shaders": "workspace:*",
+    "@hedronite/lts-registry": "workspace:*",
     "img-to-object": "workspace:*",
     "tool-vendor": "workspace:*",
     "typescript": "6.0.3"

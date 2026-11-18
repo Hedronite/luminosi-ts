@@ -7,7 +7,7 @@
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import type { AssetKind } from "@hedronite/lts-core";
-import { buildRegistry } from "lumin/registry";
+import { buildRegistry } from "@hedronite/lts-registry";
 import { loadBudgets } from "./budgets.js";
 import { checkSizes } from "./sizes.js";
 

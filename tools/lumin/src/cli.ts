@@ -159,7 +159,7 @@ async function run(argv: readonly string[]): Promise<Envelope> {
       const vendorDir = join(root, "assets/vendor");
       if (command === "adopt-skill") return adoptSkill(target, { dryRun: values["dry-run"] === true, force: values.force === true }, { root, vendorDir });
       if (command === "study") return study(target, limit === undefined ? {} : { limit }, { vendorDir });
-      const { loadRegistry } = await import("./registry.js");
+      const { loadRegistry } = await import("@hedronite/lts-registry");
       return adopt(
         target,
         { ...(values.as === undefined ? {} : { as: values.as }), ...(values.id === undefined ? {} : { id: values.id }), ...(values.name === undefined ? {} : { name: values.name }), dryRun: values["dry-run"] === true },

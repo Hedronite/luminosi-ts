@@ -1,7 +1,7 @@
 import type { IconData } from "@hedronite/lts-icons";
 import { allIcons } from "@hedronite/lts-icons/manifest";
 import { bipyramid, isPrimitiveId, platonic, primitive, type Polyhedron } from "@hedronite/lts-primitives";
-import { loadRegistry } from "lumin/registry";
+import { loadRegistry } from "@hedronite/lts-registry";
 
 /** Every asset the catalog shows: the same registry the lumin CLI and validate use. */
 export const registry = loadRegistry();

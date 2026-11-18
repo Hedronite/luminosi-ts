@@ -1,11 +1,11 @@
 import type { AssetMeta } from "@hedronite/lts-core";
 import { ChevronLeft, ChevronRight, Close } from "@hedronite/lts-icons/react";
+import { snippetsFor } from "@hedronite/lts-registry";
 import { lazy, Suspense, useEffect, useRef } from "react";
 import { AssetPreview } from "./AssetPreview";
 import { CopyButton } from "./CopyButton";
 import { usePreset } from "./look";
 import { iconFor } from "./registry";
-import { snippetsFor } from "lumin/snippets";
 
 // three.js and React Three Fiber load only when a 3D asset is opened.
 const Viewport = lazy(() => import("./Viewport").then((module) => ({ default: module.Viewport })));

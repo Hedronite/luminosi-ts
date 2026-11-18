@@ -34,11 +34,11 @@
         "@hedronite/lts-objects": "workspace:*",
         "@hedronite/lts-postfx": "workspace:*",
         "@hedronite/lts-primitives": "workspace:*",
+        "@hedronite/lts-registry": "workspace:*",
         "@hedronite/lts-scenes": "workspace:*",
         "@hedronite/lts-shaders": "workspace:*",
         "@hedronite/lts-tokens": "workspace:*",
         "@react-three/fiber": "catalog:",
-        "lumin": "workspace:*",
         "react": "catalog:",
         "react-dom": "catalog:",
         "react-markdown": "catalog:",
@@ -218,6 +218,23 @@
         "three": "^0.187.0",
       },
     },
+    "packages/registry": {
+      "name": "@hedronite/lts-registry",
+      "version": "0.0.0",
+      "dependencies": {
+        "@hedronite/lts-core": "workspace:*",
+        "@hedronite/lts-icons": "workspace:*",
+        "@hedronite/lts-materials": "workspace:*",
+        "@hedronite/lts-objects": "workspace:*",
+        "@hedronite/lts-postfx": "workspace:*",
+        "@hedronite/lts-primitives": "workspace:*",
+        "@hedronite/lts-scenes": "workspace:*",
+        "@hedronite/lts-shaders": "workspace:*",
+      },
+      "devDependencies": {
+        "vitest": "catalog:",
+      },
+    },
     "packages/scenes": {
       "name": "@hedronite/lts-scenes",
       "version": "0.0.0",
@@ -273,9 +290,9 @@
         "@hedronite/lts-materials": "workspace:*",
         "@hedronite/lts-objects": "workspace:*",
         "@hedronite/lts-primitives": "workspace:*",
+        "@hedronite/lts-registry": "workspace:*",
         "@hedronite/lts-tokens": "workspace:*",
         "@types/three": "catalog:",
-        "lumin": "workspace:*",
         "meshoptimizer": "catalog:",
         "three": "catalog:",
         "vitest": "catalog:",
@@ -325,12 +342,8 @@
       "dependencies": {
         "@hedronite/lts-core": "workspace:*",
         "@hedronite/lts-icons": "workspace:*",
-        "@hedronite/lts-materials": "workspace:*",
         "@hedronite/lts-objects": "workspace:*",
-        "@hedronite/lts-postfx": "workspace:*",
-        "@hedronite/lts-primitives": "workspace:*",
-        "@hedronite/lts-scenes": "workspace:*",
-        "@hedronite/lts-shaders": "workspace:*",
+        "@hedronite/lts-registry": "workspace:*",
         "img-to-object": "workspace:*",
         "tool-vendor": "workspace:*",
         "typescript": "6.0.3",
@@ -562,6 +575,8 @@
     "@hedronite/lts-postfx": ["@hedronite/lts-postfx@workspace:packages/postfx"],
 
     "@hedronite/lts-primitives": ["@hedronite/lts-primitives@workspace:packages/primitives"],
+
+    "@hedronite/lts-registry": ["@hedronite/lts-registry@workspace:packages/registry"],
 
     "@hedronite/lts-scenes": ["@hedronite/lts-scenes@workspace:packages/scenes"],
 
