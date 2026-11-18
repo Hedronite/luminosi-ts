@@ -47,13 +47,15 @@ interface Bundle {
   readonly pages: readonly string[];
   /** Without it, the static closure of the pages (what loads at once). With it, the 3D set: everything reached from the entries whose reach carries one of these markers. */
   readonly carries?: readonly string[];
+  /** For the 3D set: the page whose scripts are the shell, what the gallery loads without any 3D. */
+  readonly shell?: string;
 }
 
 /** What each bundle budget measures. */
 const bundles: Readonly<Record<string, Bundle>> = {
   "catalog-gallery": { dist: "apps/catalog/dist", pages: ["index.html"] },
   "catalog-embed": { dist: "apps/catalog/dist", pages: ["embed.html"] },
-  "catalog-3d": { dist: "apps/catalog/dist", pages: ["index.html", "embed.html"], carries: ["isObject3D", "isWebGPURenderer"] },
+  "catalog-3d": { dist: "apps/catalog/dist", pages: ["index.html", "embed.html"], carries: ["isObject3D", "isWebGPURenderer"], shell: "index.html" },
   "site-island": { dist: "apps/site/dist", pages: ["index.html"] },
 };
 
@@ -91,20 +93,21 @@ function closure(starts: readonly string[], lazy: boolean, skip: ReadonlySet<str
 const reach = (dist: string, pages: readonly string[]): string[] => [...closure(pageScripts(dist, pages), false)].sort();
 
 /**
- * The 3D set. The shell is what the pages load without any 3D (the gallery's own scripts and what they import statically):
+ * The 3D set. The shell is what the gallery page loads without any 3D (its own scripts and what they import statically; the
+ * embed page's preloads are not part of it, so a chunk only the embed page preloads is counted when a 3D route reaches it):
  * it is the gallery's budget, and its lazy imports (the icon packs, the other views) are not on a 3D route, so it is
  * neither followed nor counted here. The entries are the page scripts whose static reach carries a marker (the embed
  * page) and every chunk the shell imports lazily whose reach carries one (the views, and the descriptors, which load the
  * builders). The set is everything the entries reach past the shell, so a chunk the markers do not see (a loader, an
  * environment map, a descriptor chunk) is still counted.
  */
-function reachThreeD(dist: string, pages: readonly string[], markers: readonly string[]): string[] {
+function reachThreeD(dist: string, pages: readonly string[], markers: readonly string[], shellPage: string): string[] {
   const carries = (files: Iterable<string>): boolean => [...files].some((file) => markers.some((marker) => readFileSync(file, "utf8").includes(marker)));
   const scripts = pageScripts(dist, pages);
-  const shell = closure(scripts.filter((script) => !carries(closure([script], false))), false);
+  const shell = closure(pageScripts(dist, [shellPage]).filter((script) => !carries(closure([script], false))), false);
   const lazyTargets = new Set<string>();
   for (const file of shell) for (const match of readFileSync(file, "utf8").matchAll(dynamicImport)) lazyTargets.add(resolve(dirname(file), match[1] ?? ""));
-  const entries = [...scripts.filter((script) => !shell.has(script)), ...[...lazyTargets].filter((target) => carries(closure([target], true, shell)))];
+  const entries = [...scripts.filter((script) => !shell.has(script) && carries(closure([script], false))), ...[...lazyTargets].filter((target) => carries(closure([target], true, shell)))];
   return [...closure(entries, true, shell)].sort();
 }
 
@@ -113,8 +116,8 @@ export function measureBundles(root: string): Readonly<Record<string, BundleSize
     Object.entries(bundles).map(([id, bundle]): readonly [string, BundleSize] => {
       const dist = join(root, bundle.dist);
       if (!existsSync(dist)) throw new Error(`${id}: no build output at ${bundle.dist}; run \`bun run build\``);
-      const { carries } = bundle;
-      const files = carries === undefined ? reach(dist, bundle.pages) : reachThreeD(dist, bundle.pages, carries);
+      const { carries, shell } = bundle;
+      const files = carries === undefined || shell === undefined ? reach(dist, bundle.pages) : reachThreeD(dist, bundle.pages, carries, shell);
       return [id, { gzipBytes: gzipBytes(files), files: files.map((file) => file.slice(root.length + 1)) }];
     }),
   );
