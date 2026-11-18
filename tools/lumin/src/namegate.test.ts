@@ -13,6 +13,8 @@ import { allowed, hashes, salt } from "./namegate.hashes.js";
  * Tokens are runs of letters and digits, compared case-insensitively. A hyphen or underscore joins
  * parts, and every run of one to four consecutive parts is tried too (`a-b-c` yields `a`, `b`, `c`,
  * `a-b`, `b-c`, `a-b-c`), so a hyphenated name is found and so is a name inside a longer slug.
+ * Parts are also split where a lower-case letter meets an upper-case one (`fooBar` yields `foo` and
+ * `bar`), so a name inside an identifier is found too.
  * Common words that are also gated names are not hashed at all: they stay under review of public
  * text, because a word-wide allow-list would hide real hits.
  */
@@ -25,14 +27,26 @@ const hashToken = (token: string): string => createHash("sha256").update(salt + 
 const runPattern = /[A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*/g;
 const maxParts = 4;
 
-/** Every token the gate compares in one line. */
+/** Split a part where a lower-case letter is followed by an upper-case one (`fooBar` gives `foo`, `Bar`). */
+const camelParts = (part: string): readonly string[] => part.split(/(?<=[a-z])(?=[A-Z])/);
+
+/** Every run of one to `maxParts` consecutive parts, joined with a hyphen. */
+const windows = (parts: readonly string[]): readonly string[] => {
+  const out: string[] = [];
+  for (let from = 0; from < parts.length; from += 1) {
+    for (let to = from + 1; to <= Math.min(parts.length, from + maxParts); to += 1) out.push(parts.slice(from, to).join("-"));
+  }
+  return out;
+};
+
+/** Every token the gate compares in one line: the parts as written, and the parts split at camelCase boundaries. */
 const tokensOf = (line: string): readonly string[] => {
   const out: string[] = [];
   for (const run of line.matchAll(runPattern)) {
     const parts = run[0].split(/[-_]/);
-    for (let from = 0; from < parts.length; from += 1) {
-      for (let to = from + 1; to <= Math.min(parts.length, from + maxParts); to += 1) out.push(parts.slice(from, to).join("-"));
-    }
+    out.push(...windows(parts));
+    const split = parts.flatMap(camelParts);
+    if (split.length !== parts.length) out.push(...windows(split));
   }
   return out;
 };
@@ -108,6 +122,15 @@ describe("the name gate", () => {
     expect(scanText("a.md", "the ZzPlanted host", fake)).toHaveLength(1);
     expect(scanText("a.md", "the zzplanteds host and azzplanted", fake)).toEqual([]);
     expect(scanText("a.md", "zzplanted.example, `zzplanted`, (zzplanted)", fake)).toHaveLength(1);
+  });
+
+  it("finds a name inside a camelCase identifier, and not inside a longer lower-case word", () => {
+    expect(scanText("a.ts", "const myZzplantedHost = 1;", fake)).toHaveLength(1);
+    expect(scanText("a.ts", "const zzplantedHost = 1;", fake)).toHaveLength(1);
+    expect(scanText("a.ts", "const hostZzplanted = 1;", fake)).toHaveLength(1);
+    expect(scanText("a.ts", "const hostzzplanted = 1; const myZzplantedsHost = 2;", fake)).toEqual([]);
+    const pair = new Set([hashToken("zz-planted")]);
+    expect(scanText("a.ts", "const myZzPlantedHost = 1;", pair)).toHaveLength(1);
   });
 
   it("finds a hyphenated name, a name in a slug and a name after an underscore", () => {
