@@ -17,6 +17,10 @@
     "./manifest": {
       "types": "./dist/manifest.d.ts",
       "import": "./dist/manifest.js"
+    },
+    "./descriptors": {
+      "types": "./dist/descriptors.d.ts",
+      "import": "./dist/descriptors.js"
     }
   },
   "files": [
@@ -31,12 +35,13 @@
     "three": "^0.187.0"
   },
   "dependencies": {
+    "@hedronite/lts-core": "workspace:*",
     "@hedronite/lts-materials": "workspace:*",
     "@hedronite/lts-primitives": "workspace:*",
-    "@hedronite/lts-tokens": "workspace:*"
+    "@hedronite/lts-tokens": "workspace:*",
+    "zod": "catalog:"
   },
   "devDependencies": {
-    "@hedronite/lts-core": "workspace:*",
     "@types/three": "catalog:",
     "three": "catalog:",
     "vitest": "catalog:"

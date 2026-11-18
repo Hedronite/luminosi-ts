@@ -126,8 +126,11 @@
     "packages/icons": {
       "name": "@hedronite/lts-icons",
       "version": "0.0.0",
-      "devDependencies": {
+      "dependencies": {
         "@hedronite/lts-core": "workspace:*",
+        "zod": "catalog:",
+      },
+      "devDependencies": {
         "@types/react": "catalog:",
         "@types/react-dom": "catalog:",
         "react": "catalog:",
@@ -145,10 +148,11 @@
       "name": "@hedronite/lts-materials",
       "version": "0.0.0",
       "dependencies": {
+        "@hedronite/lts-core": "workspace:*",
         "@hedronite/lts-tokens": "workspace:*",
+        "zod": "catalog:",
       },
       "devDependencies": {
-        "@hedronite/lts-core": "workspace:*",
         "@types/three": "catalog:",
         "three": "catalog:",
         "vitest": "catalog:",
@@ -184,11 +188,11 @@
       "name": "@hedronite/lts-postfx",
       "version": "0.0.0",
       "dependencies": {
+        "@hedronite/lts-core": "workspace:*",
         "@hedronite/lts-tokens": "workspace:*",
         "zod": "catalog:",
       },
       "devDependencies": {
-        "@hedronite/lts-core": "workspace:*",
         "@types/three": "catalog:",
         "three": "catalog:",
         "vitest": "catalog:",
@@ -200,8 +204,11 @@
     "packages/primitives": {
       "name": "@hedronite/lts-primitives",
       "version": "0.0.0",
-      "devDependencies": {
+      "dependencies": {
         "@hedronite/lts-core": "workspace:*",
+        "zod": "catalog:",
+      },
+      "devDependencies": {
         "@types/three": "catalog:",
         "fast-check": "catalog:",
         "three": "catalog:",
@@ -215,12 +222,13 @@
       "name": "@hedronite/lts-scenes",
       "version": "0.0.0",
       "dependencies": {
+        "@hedronite/lts-core": "workspace:*",
         "@hedronite/lts-materials": "workspace:*",
         "@hedronite/lts-primitives": "workspace:*",
         "@hedronite/lts-tokens": "workspace:*",
+        "zod": "catalog:",
       },
       "devDependencies": {
-        "@hedronite/lts-core": "workspace:*",
         "@types/three": "catalog:",
         "three": "catalog:",
         "vitest": "catalog:",
@@ -233,11 +241,11 @@
       "name": "@hedronite/lts-shaders",
       "version": "0.0.0",
       "dependencies": {
+        "@hedronite/lts-core": "workspace:*",
         "@hedronite/lts-tokens": "workspace:*",
         "zod": "catalog:",
       },
       "devDependencies": {
-        "@hedronite/lts-core": "workspace:*",
         "@types/three": "catalog:",
         "three": "catalog:",
         "vitest": "catalog:",
