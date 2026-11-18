@@ -6,10 +6,8 @@ import { assetKinds, type AssetMeta } from "@hedronite/lts-core";
 import type { IconData } from "@hedronite/lts-icons";
 import { allIcons } from "@hedronite/lts-icons/manifest";
 import { iconPacks as packList } from "@hedronite/lts-icons/packs";
+import { kindCounts, loadRegistry, rankAssets, snippetsFor, type KindFilter } from "@hedronite/lts-registry";
 import { fail, ok, type Envelope } from "./envelope.js";
-import { loadRegistry } from "./registry.js";
-import { kindCounts, rankAssets, type KindFilter } from "./search.js";
-import { snippetsFor } from "./snippets.js";
 
 /** The repository root: tools/lumin/src → three levels up. */
 export const root = resolve(import.meta.dirname, "../../..");

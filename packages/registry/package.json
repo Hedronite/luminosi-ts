@@ -1,0 +1,36 @@
+{
+  "name": "@hedronite/lts-registry",
+  "version": "0.0.0",
+  "license": "MIT OR Apache-2.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "description": "Every asset the LuminosiTS packages ship, registered together, with search and copy-ready snippets. Data only: it imports no three.js.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@hedronite/lts-core": "workspace:*",
+    "@hedronite/lts-icons": "workspace:*",
+    "@hedronite/lts-materials": "workspace:*",
+    "@hedronite/lts-objects": "workspace:*",
+    "@hedronite/lts-postfx": "workspace:*",
+    "@hedronite/lts-primitives": "workspace:*",
+    "@hedronite/lts-scenes": "workspace:*",
+    "@hedronite/lts-shaders": "workspace:*"
+  },
+  "devDependencies": {
+    "vitest": "catalog:"
+  }
+}

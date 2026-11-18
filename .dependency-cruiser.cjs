@@ -47,7 +47,7 @@ module.exports = {
       name: "pure-typescript-core",
       comment: "No React or React Three Fiber outside icons/react, adapters and the apps.",
       severity: "error",
-      from: { path: ["^packages/(core|tokens|primitives|objects|scenes|materials|shaders|postfx)/", "^packages/icons/src/(?!react/)"] },
+      from: { path: ["^packages/(core|tokens|primitives|objects|scenes|materials|shaders|postfx|registry)/", "^packages/icons/src/(?!react/)"] },
       to: { path: react },
     },
     {
@@ -56,6 +56,22 @@ module.exports = {
       severity: "error",
       from: { path: "^(packages|apps)/([^/]+)/" },
       to: { path: "^packages/([^/]+)/src/", pathNot: "^packages/$2/" },
+    },
+    {
+      name: "products-never-import-tools",
+      comment:
+        "packages and apps never import tools/: code both need lives in a package. Matches the resolved path and the unresolved workspace name. " +
+        "The one exception is a .glb model the asset pipeline builds, which the catalog serves as a file and does not run.",
+      severity: "error",
+      from: { path: "^(packages|apps)/" },
+      to: { path: ["^tools/", "^(lumin|tool-[a-z]+|img-to-object)(/|$)"], pathNot: ["^tools/assets/dist/models/[^/]+\\.glb$", "^tool-assets/models/[^/]+\\.glb$"] },
+    },
+    {
+      name: "registry-is-data-only",
+      comment: "The registry lists assets for apps that must not load three.js to do it; it imports manifests and data, never a ./three entry.",
+      severity: "error",
+      from: { path: "^packages/registry/" },
+      to: { path: ["^three(/|$)", "(^|/)node_modules/three(/|$)"] },
     },
     {
       name: "apps-are-leaves",

@@ -11,9 +11,9 @@ import { spawnSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { extname, join, relative, resolve } from "node:path";
 import { parseObjectSpec } from "@hedronite/lts-objects";
+import { loadRegistry } from "@hedronite/lts-registry";
 import { reviewObject } from "img-to-object/review";
 import { fail, ok, type Envelope } from "./envelope.js";
-import { loadRegistry } from "./registry.js";
 
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const IMAGE = new Set([".png", ".jpg", ".jpeg"]);

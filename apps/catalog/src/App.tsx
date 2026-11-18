@@ -1,5 +1,6 @@
 import { assetKinds, type AssetMeta } from "@hedronite/lts-core";
 import { Search } from "@hedronite/lts-icons/react";
+import { filterAssets, kindCounts, type KindFilter } from "@hedronite/lts-registry";
 import { presets, presetsByCategory } from "@hedronite/lts-tokens";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { AssetPreview } from "./AssetPreview";
@@ -8,7 +9,6 @@ import { Growth } from "./Growth";
 import { byNewest } from "./growthDays";
 import { PresetContext, usePresetState } from "./look";
 import { registry } from "./registry";
-import { filterAssets, kindCounts, type KindFilter } from "lumin/search";
 
 // The playground loads three.js and React Three Fiber only when opened; the other views load on demand too.
 const Playground = lazy(() => import("./Playground").then((module) => ({ default: module.Playground })));

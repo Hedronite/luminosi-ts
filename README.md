@@ -38,6 +38,7 @@ Monorepo managed with Bun workspaces + Turborepo. Nix flake for the reproducible
 | `materials` | `@hedronite/lts-materials` | PBR material presets, texture packs, shared palettes | Pure TS. Presets are examples, not constraints. |
 | `shaders` | `@hedronite/lts-shaders` | Custom GLSL / TSL shaders | Pure TS. Effects are tools, not a fixed look. |
 | `postfx` | `@hedronite/lts-postfx` | Screen effects: passes over the rendered frame (dither, ASCII, grain, scan, lens, smoke) | Pure TS. Three.js WebGPU (peer). |
+| `registry` | `@hedronite/lts-registry` | Every package's assets registered together, with search and copy-ready snippets | Data only: manifests and root entries, never a `./three` entry. |
 | `adapters` | `@hedronite/lts-adapters` | R3F components, vanilla helpers, future framework targets | TSX. React + R3F optional peers. |
 
 **Apps (not published):**

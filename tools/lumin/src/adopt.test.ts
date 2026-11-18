@@ -1,10 +1,10 @@
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { loadRegistry } from "@hedronite/lts-registry";
 import { describe, expect, it } from "vitest";
 import { adopt, adoptSkill, licenseFor, portingSteps, study, upstreamSkillFiles } from "./adopt.js";
 import { root } from "./commands.js";
-import { loadRegistry } from "./registry.js";
 
 const vendorDir = join(root, "assets/vendor");
 const registry = loadRegistry();
