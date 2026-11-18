@@ -20,7 +20,6 @@ const hideTab = (page: Page, hidden: boolean): Promise<void> =>
   }, hidden);
 
 test("an animated stage draws no frames while it is scrolled out of view, and resumes when it returns", async ({ page }) => {
-  await page.setViewportSize({ width: 1000, height: 600 });
   await page.goto("/?view=effects");
   const stage = page.getByTestId("effects-stage");
   await expect(stage).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 15000 });
