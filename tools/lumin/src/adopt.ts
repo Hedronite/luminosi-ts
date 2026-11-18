@@ -119,7 +119,7 @@ export function portingSteps(kind: AdoptKind, found: readonly Technique[]): read
       : []),
     ...(has("raw-webgl") ? ["Leave the context, program, buffer and resize code behind: the renderer and RenderPipeline own them."] : []),
     ...(kind === "effect" ? ["As a screen effect: a node over the previous pass's texture in nodes.ts, a schema and info in effects.ts, and a case in three.ts. Output premultiplied alpha."] : []),
-    ...(kind === "shader" ? ["As a surface shader: a schema and info in effects.ts and a create function returning a NodeMaterial, added to createEffectMaterial."] : []),
+    ...(kind === "shader" ? ["As a surface shader: a schema and info in effects.ts, a create function returning an effect handle ({ material, set, dispose }) with every numeric and color parameter a uniform() and time read from the injected clock, and a case in createEffect."] : []),
     ...(has("canvas-2d") ? ["Canvas-drawn textures are built in the package (as postfx's glyph atlas is), with a blank fallback when there is no document."] : []),
     ...(has("r3f") || has("react") ? ["The library packages are pure TypeScript: React and R3F stay in @hedronite/lts-adapters."] : []),
     ...(has("animation") ? ["Time comes from TSL's time node or the effect's own clock; mark the asset animated."] : []),
