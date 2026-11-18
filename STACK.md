@@ -142,6 +142,19 @@ React appears only where it is the natural interface: `icons/react`, `adapters`,
 | **ESLint, dependency-cruiser, knip** | Lint, package boundaries, unused code (all three run in `bun run check`) |
 | **[Web-TOPS](https://github.com/Hedronite/web-tops)** | The quality protocol that will gate this repo: types, tests, mutation, and checks on built pages |
 
+### The WebGPU lane
+
+The default `bun run e2e` and CI draw with software WebGL (SwiftShader), so they run on any machine and never reach WebGPU: three's WebGPU renderer finds no adapter there and falls back to WebGL 2. The WebGPU lane runs the same stages on the real thing.
+
+```bash
+bun run e2e:webgpu
+```
+
+- **Where.** On a machine with a GPU: Apple silicon through Metal is what it was written on. A machine without one fails the first check, with the reason (`navigator.gpu is missing`, `requestAdapter() returned null` or `a software adapter (…)`), instead of passing on a fallback.
+- **What it does.** Builds the catalog, serves it on `localhost` (a secure context, which `navigator.gpu` needs) and runs one Playwright project, `webgpu`, in Chromium started with `--enable-unsafe-webgpu --use-angle=metal`. On the shader viewport, the Effects stage and the playground it asserts `data-backend="webgpu"`, a drawn frame (`data-frames` above zero, and growing on the two stages that animate) and a canvas that holds a picture. Every 3D canvas writes `data-backend` (`webgpu` or `webgl`) beside `data-frames`, so a test can tell which renderer drew it.
+- **Another origin.** Set `E2E_CATALOG_URL` to a catalog served over HTTPS and it runs against that instead of starting a server.
+- **Why it is not in CI.** Hosted runners have no GPU. Their only WebGPU adapter is a software one (SwiftShader), which the lane refuses, which would prove nothing about the GPU path and cost minutes on every pull request. The `webgpu` project exists only when `LTS_WEBGPU_LANE=1` (the script sets it), so `playwright test` and the CI workflow never see it. Nothing schedules it either: run it by hand before a change to the renderer, the shaders or the screen effects merges.
+
 ---
 
 ## 6. Choosing between them
