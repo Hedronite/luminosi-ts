@@ -134,7 +134,7 @@ Each line is one PR. Order holds in one place: Stage 6, then 7, then 8; Stages 9
 
 - [ ] B1 Asset descriptors: one contract (metadata, parameter schema, lazy build, snippets, poster) replaces the per-id switches
 - [ ] B2 Uniform handles: parameter edits without recompiles; an injected clock
-- [ ] B3 One print pass: cheaper, editable screen effects; `setParams` and `setInks`
+- [x] B3 One print pass: cheaper, editable screen effects; `setParams` and `setInks`; the smoke at half size; no frames off screen (#56)
 - [ ] B4 Looks without rebuilds: a look change is a uniform write
 - [x] B5 Merged objects (quick win): the dress watch in 8 draw calls (#42)
 - [ ] B6 Posters: real thumbnails for every 3D asset
