@@ -158,8 +158,8 @@ export function renderTemplates(templates: readonly SnippetTemplate[], vars: Rea
  * It is plain data, so the light list can carry it and the gallery draws it without loading a descriptor.
  */
 const thumbnailSchema = z.discriminatedUnion("shape", [
-  z.object({ shape: z.literal("platonic"), solid: z.string().min(1) }).strict(),
-  z.object({ shape: z.literal("bipyramid"), sides: z.number().int().min(3).max(64), radius: z.number().positive().optional(), height: z.number().positive().optional() }).strict(),
+  z.object({ shape: z.literal("platonic"), solid: z.string().min(1) }),
+  z.object({ shape: z.literal("bipyramid"), sides: z.number().int().min(3), radius: z.number().positive().optional(), height: z.number().positive().optional() }),
 ]);
 
 export type Thumbnail = z.output<typeof thumbnailSchema>;
@@ -168,7 +168,7 @@ export type Thumbnail = z.output<typeof thumbnailSchema>;
 export interface AssetPreviewData {
   /**
    * Parameters a stage sets, over the defaults, when it puts this asset on show: a screen effect that sweeps every nine
-   * seconds sweeps every few while someone looks. Every key is one of the asset's parameters and the values pass its schema.
+   * seconds sweeps every few while someone looks. The values pass its schema.
    */
   readonly stage?: Readonly<Record<string, unknown>>;
 }
@@ -244,13 +244,7 @@ export function defineDescriptor<Shape extends z.ZodRawShape, Built, Palette = u
 
   const parse = (params: unknown): z.output<z.ZodObject<Shape>> => parameters.parse({ ...defaults, ...(typeof params === "object" && params !== null ? params : {}) });
   const thumbnail = input.thumbnail === undefined ? undefined : thumbnailSchema.parse(input.thumbnail);
-  const stage = input.preview?.stage;
-  if (stage !== undefined) {
-    for (const key of Object.keys(stage)) {
-      if (!fields.some((field) => field.key === key)) throw new RangeError(`preview.stage names "${key}", which is not a parameter`);
-    }
-    parse(stage); // the stage's parameters pass the schema, or this descriptor is wrong
-  }
+  if (input.preview?.stage !== undefined) parse(input.preview.stage); // the stage's parameters pass the schema, or this descriptor is wrong
   const snippets = (params?: unknown): readonly Snippet[] => {
     const parsed = parse(params);
     const vars: Record<string, string> = { id: meta.id, name: meta.name, kind: meta.kind, camel: camel(meta.id), pascal: pascal(meta.id) };

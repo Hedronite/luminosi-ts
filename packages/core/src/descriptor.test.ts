@@ -126,7 +126,6 @@ describe("defineDescriptor", () => {
     const shown = defineDescriptor({ ...base, preview: { stage: { period: 4 } }, thumbnail: { shape: "bipyramid", sides: 6, radius: 0.4 } });
     expect(shown.preview).toEqual({ stage: { period: 4 } });
     expect(shown.thumbnail).toEqual({ shape: "bipyramid", sides: 6, radius: 0.4 });
-    expect(() => defineDescriptor({ ...base, preview: { stage: { cadence: 4 } } })).toThrow(/not a parameter/);
     expect(() => defineDescriptor({ ...base, preview: { stage: { period: 400 } } })).toThrow(z.ZodError);
     expect(() => defineDescriptor({ ...base, thumbnail: { shape: "bipyramid", sides: 2 } })).toThrow(z.ZodError);
   });
