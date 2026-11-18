@@ -73,7 +73,7 @@ describe("ROADMAP.md", () => {
     expect(text).toMatch(/- \[ \] C4 [^\n]*stdio MCP server over the same operations/);
     expect(text).toMatch(/- \[ \] A5 [^\n]*secure origin/);
     for (const follow of ["`preview` and `thumbnail` fields", "`e2e/` and the config files", "CI shards balanced by run time", "Icon packs as data"]) {
-      expect(text).toMatch(new RegExp(`- \\[ \\] [^\\n]*${follow.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
+      expect(text).toMatch(new RegExp(`- \\[[ x]\\] [^\\n]*${follow.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
     }
   });
 
