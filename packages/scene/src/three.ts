@@ -47,7 +47,8 @@ export interface SceneHandle {
   /**
    * Changes a node's parameters. A parameter of the node's surface shader is written into its uniform, with no new material, and
    * the promise resolves true. A parameter the shader builds in (toon's `bands`) or of the asset builds the node again, and it
-   * resolves false once the new one is in place. A key both have goes to the shader.
+   * resolves false once the new one is in place. A key both have goes to the shader, never the asset (dissolve has a `scale`, and so
+   * does a primitive): to change the asset's, give `update` a document with it.
    */
   set(nodeId: string, params: NodeParams): Promise<boolean>;
   /** Recolours what is built, in place: no node and no program is built again. Draw a new frame after it. */
@@ -221,7 +222,12 @@ async function buildNode(node: SceneNode, palette: ScenePalette, registry: Descr
   }
 }
 
-/** Creates the scene a document describes. See `SceneHandle`. */
+/**
+ * Creates the scene a document describes. See `SceneHandle`.
+ *
+ * The document's `seed` is reserved: nothing here draws at random, and an object that takes a `seed` parameter takes it from
+ * its own `params` (or its default), so a migrated document (seed 0) draws what the playground drew.
+ */
 export function createScene(initial: SceneDocument, options: SceneOptions = {}): SceneHandle {
   const { renderer, clock, reducedMotion = false } = options;
   let doc = initial;

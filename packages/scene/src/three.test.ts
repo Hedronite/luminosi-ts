@@ -1,8 +1,11 @@
+/// <reference types="node" />
+import { readdirSync, readFileSync } from "node:fs";
 import { materialPreset } from "@hedronite/lts-materials";
-import { hedronite, neutral, type ScenePalette } from "@hedronite/lts-tokens";
+import { loadDescriptors } from "@hedronite/lts-registry";
+import { hedronite, neutral, presets, type ScenePalette } from "@hedronite/lts-tokens";
 import { Color, InstancedMesh, Mesh, MeshPhysicalMaterial, Texture, type BufferGeometry, type Material, type Object3D } from "three";
 import { describe, expect, it, vi } from "vitest";
-import type { Scene as SceneDocument, SceneNode } from "./index.js";
+import { checkRefs, parseScene, type Scene as SceneDocument, type SceneNode } from "./index.js";
 import { createScene } from "./three.js";
 
 const node = (id: string, over: Partial<SceneNode> = {}): SceneNode => ({
@@ -345,6 +348,33 @@ describe("update", () => {
     await pending;
     expect(meshesOf(built.root)[0]).not.toBe(first);
     expect(meshesOf(built.root)).toHaveLength(1);
+    built.dispose();
+  });
+});
+
+describe("the fixtures", () => {
+  // Every document of the current version the package ships, held to the real registry (the schema tests use a small stand-in catalog).
+  const names = readdirSync(new URL("../fixtures/", import.meta.url))
+    .filter((file) => file.endsWith(".json") && file !== "v0.json")
+    .map((file) => file.replace(/\.json$/, ""));
+
+  it("are there", () => {
+    expect(names.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it.each(names)("%s names real assets with parameters they take, and builds", async (name) => {
+    const parsed = parseScene(readFileSync(new URL(`../fixtures/${name}.json`, import.meta.url), "utf8"));
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.issues));
+    const registry = await loadDescriptors();
+    const issues = checkRefs(parsed.scene, (kind, id) => {
+      if (kind === "look") return presets.some((preset) => preset.id === id) ? {} : undefined;
+      const found = registry.get(id);
+      return found?.meta.kind === kind ? { parameters: found.parameters } : undefined;
+    });
+    expect(issues).toEqual([]);
+    const built = createScene(parsed.scene, { palette: neutral.scene });
+    await built.ready;
+    expect(meshesOf(built.root).length).toBeGreaterThanOrEqual(parsed.scene.nodes.length);
     built.dispose();
   });
 });
