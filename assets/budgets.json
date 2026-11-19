@@ -4,10 +4,11 @@
   },
   "bundles": {
     "catalog-gallery": { "gzipBytes": 125700 },
-    "catalog-embed": { "gzipBytes": 234800 },
-    "catalog-3d": { "gzipBytes": 484400 },
+    "catalog-embed": { "gzipBytes": 234900 },
+    "catalog-3d": { "gzipBytes": 484900 },
     "site-island": { "gzipBytes": 330000 }
   },
+  "posters": { "perPosterBytes": 4096, "totalBytes": 80000 },
   "objects": {
     "crystal-cluster": { "drawCalls": 14, "triangles": 174 },
     "framed-solid": { "drawCalls": 3, "triangles": 4836 },
