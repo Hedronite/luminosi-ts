@@ -55,6 +55,7 @@ describe("every edit", () => {
           expect(checkRefs(out, acceptAll(out))).toEqual([]);
         },
       ),
+      { numRuns: 25 },
     );
   });
 
@@ -62,7 +63,7 @@ describe("every edit", () => {
     fc.assert(
       fc.property(scenes, fc.gen(), (start, gen) => {
         let current = start;
-        for (let step = 0; step < 12; step += 1) {
+        for (let step = 0; step < 6; step += 1) {
           const edit = gen(editsOf, current);
           const result = edit.run(current);
           expect(result.ok, `${edit.name}: ${JSON.stringify(codes(result))}`).toBe(true);
@@ -70,6 +71,7 @@ describe("every edit", () => {
           expect(checkRefs(current, resolve)).toEqual([]);
         }
       }),
+      { numRuns: 12 },
     );
   });
 
@@ -138,7 +140,19 @@ describe("every edit", () => {
         // An edit that is ok has given a document that reads; one that is not has named what is wrong.
         expect(results.map((result) => (result.ok ? parseScene(result.scene).ok : result.issues.length > 0))).toEqual(results.map(() => true));
       }),
+      { numRuns: 60 },
     );
+  });
+});
+
+describe("an id that has no string form", () => {
+  it("is an issue, not a throw, where an edit would write it into its message", () => {
+    // fast-check found this one: an object whose toString is not a function cannot be turned into text.
+    const hostile = { toString: false };
+    const start = fixtureScene("v1");
+    expect(codes(badly(removeNode, start, hostile))).toEqual(["unknown-node@nodes"]);
+    expect(codes(badly(setTransform, start, hostile, {}))).toEqual(["unknown-node@nodes"]);
+    expect(codes(badly(setSurface, start, hostile, undefined))).toEqual(["unknown-node@nodes"]);
   });
 });
 

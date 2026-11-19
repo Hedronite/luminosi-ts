@@ -26,7 +26,11 @@ function read(candidate: unknown): SceneResult {
   return issues.length === 0 ? parsed : { ok: false, issues };
 }
 
-const unknownNode = (id: string): SceneResult => ({ ok: false, issues: [{ path: ["nodes"], code: "unknown-node", message: `no node has the id "${id}"` }] });
+/** An id that is no node's: named in the message when it is text, and said to be text when it is not (an object with no string form cannot be written into a message). */
+const unknownNode = (id: string): SceneResult => ({
+  ok: false,
+  issues: [{ path: ["nodes"], code: "unknown-node", message: typeof id === "string" ? `no node has the id "${id}"` : "a node id is text" }],
+});
 
 /** The same document with the node of this id changed by `change`, or an `unknown-node` issue. */
 function changing(scene: Scene, id: string, change: (node: SceneNode) => unknown): SceneResult {

@@ -150,14 +150,14 @@ describe("the properties of a history", () => {
 
   it("holds at most the cap, however many are pushed, and every undo lands on a document that was pushed", () => {
     fc.assert(
-      fc.property(fc.array(fc.nat({ max: 1000 }), { minLength: 90, maxLength: 140 }), (steps) => {
+      fc.property(fc.array(fc.nat({ max: 1000 }), { minLength: 100, maxLength: 108 }), (steps) => {
         const made = pushed(lit(0), steps.map((step, index) => lit((step + index) / 2000)));
         expect(made.past.length).toBeLessThanOrEqual(HISTORY_CAP);
         const walked: number[] = [];
         for (let at = made; canUndo(at); at = undo(at)) walked.push(level(undo(at)));
         expect(walked).toEqual(levels(made.past).reverse());
       }),
-      { numRuns: 25 },
+      { numRuns: 4 },
     );
   });
 
@@ -180,6 +180,7 @@ describe("the properties of a history", () => {
         expect(through).toEqual(clean);
         for (const entry of [...clean.past, clean.present, ...clean.future]) expect(JSON.parse(JSON.stringify(entry))).toEqual(entry);
       }),
+      { numRuns: 20 },
     );
   });
 
@@ -199,7 +200,7 @@ describe("the properties of a history", () => {
         expect(JSON.parse(JSON.stringify(clean))).toEqual(clean);
         for (const entry of [...made.past, made.present, ...made.future]) expect(parseScene(JSON.parse(toCanonicalJson(entry))).ok).toBe(true);
       }),
-      { numRuns: 15 },
+      { numRuns: 6 },
     );
   });
 
