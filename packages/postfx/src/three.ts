@@ -78,10 +78,9 @@ function glyphAtlas(ramp: string): Texture {
 
 /** The `uuid` of each texture of the render target a pass or a texture node owns; none for a node that owns no target. */
 function textureIds(owner: object): string[] {
-  const target: unknown = "renderTarget" in owner ? owner.renderTarget : undefined;
-  if (typeof target !== "object" || target === null || !("textures" in target) || !Array.isArray(target.textures)) return [];
-  const held: readonly unknown[] = target.textures;
-  return held.flatMap((texture) => (typeof texture === "object" && texture !== null && "uuid" in texture && typeof texture.uuid === "string" ? [texture.uuid] : []));
+  const target: unknown = Reflect.get(owner, "renderTarget");
+  const held: unknown = typeof target === "object" && target !== null ? Reflect.get(target, "textures") : undefined;
+  return Array.isArray(held) ? held.flatMap((texture: unknown) => (typeof texture === "object" && texture !== null && "uuid" in texture && typeof texture.uuid === "string" ? [texture.uuid] : [])) : [];
 }
 
 /** One print pass's clocks, and the uniforms they drive. `members` are the effects it does the work of. */

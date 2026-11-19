@@ -190,11 +190,9 @@ export function GpuCounts({
       const distance = Math.hypot(x, y, z);
       element.dataset["frames"] = String(frames.current);
       element.dataset["backend"] = backendOf(gl);
-      element.dataset["gpuGeometries"] = String(gl.info.memory.geometries);
-      element.dataset["gpuTextures"] = String(gl.info.memory.textures);
       const memory = memoryOf(gl);
-      element.dataset["geometries"] = String(memory.geometries);
-      element.dataset["textures"] = String(memory.textures);
+      element.dataset["gpuGeometries"] = element.dataset["geometries"] = String(memory.geometries);
+      element.dataset["gpuTextures"] = element.dataset["textures"] = String(memory.textures);
       // The renderer's own figure: the WebGPU renderer counts its render targets, and the WebGL renderer counts none, so it reads 0 there.
       element.dataset["targets"] = String(memory.targets);
       if (screenEffects) element.dataset["effectBuilds"] = String(effectBuildsOf(element).size);

@@ -55,10 +55,10 @@ export const effectBuildsOf = family();
  * all three; the WebGL renderer counts no render targets, so those read 0 there.
  */
 export function memoryOf(gl: object): { readonly geometries: number; readonly textures: number; readonly targets: number } {
-  const info: unknown = "info" in gl ? gl.info : undefined;
-  const memory: unknown = typeof info === "object" && info !== null && "memory" in info ? info.memory : undefined;
+  const read = (from: unknown, key: string): unknown => (typeof from === "object" && from !== null ? Reflect.get(from, key) : undefined);
+  const memory = read(read(gl, "info"), "memory");
   const count = (key: string): number => {
-    const value: unknown = typeof memory === "object" && memory !== null && key in memory ? Reflect.get(memory, key) : undefined;
+    const value = read(memory, key);
     return typeof value === "number" ? value : 0;
   };
   return { geometries: count("geometries"), textures: count("textures"), targets: count("renderTargets") };
