@@ -370,7 +370,6 @@
       "name": "tool-stills",
       "version": "0.0.0",
       "devDependencies": {
-        "@hedronite/lts-core": "workspace:*",
         "@hedronite/lts-registry": "workspace:*",
         "@playwright/test": "catalog:",
         "vitest": "catalog:",

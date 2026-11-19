@@ -7,11 +7,10 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   build: {
     rolldownOptions: {
-      // The catalog, the chrome-less embed page the image-to-object review renders with, and the still-frame rig (bun run stills).
+      // The catalog, and the chrome-less embed page the image-to-object review renders with.
       input: {
         main: fileURLToPath(new URL("index.html", import.meta.url)),
         embed: fileURLToPath(new URL("embed.html", import.meta.url)),
-        still: fileURLToPath(new URL("still.html", import.meta.url)),
       },
     },
   },

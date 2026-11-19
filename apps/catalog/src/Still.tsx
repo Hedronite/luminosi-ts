@@ -298,7 +298,7 @@ function Stage({ meta, rig, finish }: { readonly meta: AssetMeta; readonly rig: 
 }
 
 /** The page's one stage. */
-export function Still({ id }: { readonly id: string }) {
+function Still({ id }: { readonly id: string }) {
   const meta = registry.get(id);
   const [outcome, setOutcome] = useState<Outcome | undefined>(undefined);
   const kind = meta?.kind;
