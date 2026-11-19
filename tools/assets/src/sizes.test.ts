@@ -3,26 +3,32 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import type { Budgets } from "./budgets.js";
-import { checkAgainst, measureBundles, type Measured } from "./sizes.js";
+import { checkAgainst, measureBundles, measureGoldens, type Measured } from "./sizes.js";
 
 const budgets: Budgets = {
   models: {},
   bundles: { entry: { gzipBytes: 1000 } },
   objects: { cube: { drawCalls: 2, triangles: 12 } },
+  goldens: { images: { bytes: 5000, perImageBytes: 800 } },
 };
-const measured: Measured = { bundles: { entry: { gzipBytes: 900, files: [] } }, objects: { cube: { drawCalls: 2, triangles: 12 } } };
+const measured: Measured = { bundles: { entry: { gzipBytes: 900, files: [] } }, objects: { cube: { drawCalls: 2, triangles: 12 } }, goldens: { images: { bytes: 5000, perImageBytes: 800 } } };
 
 describe("checkAgainst", () => {
   it("passes what is within its budget, to the byte", () => {
     const { rows, problems } = checkAgainst(budgets, { ...measured, bundles: { entry: { gzipBytes: 1000, files: [] } } });
     expect(problems).toEqual([]);
-    expect(rows.map((row) => [row.id, row.ok])).toEqual([["entry", true], ["cube", true]]);
+    expect(rows.map((row) => [row.id, row.ok])).toEqual([["entry", true], ["cube", true], ["images", true]]);
   });
 
   it("names a number over its budget", () => {
     const { rows, problems } = checkAgainst(budgets, { ...measured, bundles: { entry: { gzipBytes: 1001, files: [] } }, objects: { cube: { drawCalls: 3, triangles: 12 } } });
     expect(problems).toEqual(["entry: gzipBytes 1001 > budget 1000", "cube: drawCalls 3 > budget 2"]);
-    expect(rows.map((row) => row.ok)).toEqual([false, false]);
+    expect(rows.map((row) => row.ok)).toEqual([false, false, true]);
+  });
+
+  it("names golden images over their budget, in total or one by one", () => {
+    const { problems } = checkAgainst(budgets, { ...measured, goldens: { images: { bytes: 5001, perImageBytes: 801 } } });
+    expect(problems).toEqual(["images: bytes 5001 > budget 5000", "images: perImageBytes 801 > budget 800"]);
   });
 
   it("flags something measured that has no budget", () => {
@@ -31,8 +37,27 @@ describe("checkAgainst", () => {
   });
 
   it("flags a budget with nothing measured", () => {
-    const { problems } = checkAgainst(budgets, { bundles: {}, objects: measured.objects });
+    const { problems } = checkAgainst(budgets, { ...measured, bundles: {} });
     expect(problems).toEqual(["entry: budgeted under bundles but not measured"]);
+  });
+});
+
+describe("measureGoldens", () => {
+  const root = mkdtempSync(join(tmpdir(), "lts-goldens-"));
+  afterAll(() => {
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it("adds up the PNGs of e2e/golden and finds the largest", () => {
+    mkdirSync(join(root, "e2e/golden"), { recursive: true });
+    writeFileSync(join(root, "e2e/golden/a.png"), "12345");
+    writeFileSync(join(root, "e2e/golden/b.png"), "1234567");
+    writeFileSync(join(root, "e2e/golden/metrics.ts"), "not an image, not counted");
+    expect(measureGoldens(root)).toEqual({ "e2e-golden": { bytes: 12, perImageBytes: 7 } });
+  });
+
+  it("measures nothing for a tree with no golden folder", () => {
+    expect(measureGoldens(join(root, "nowhere"))).toEqual({ "e2e-golden": { bytes: 0, perImageBytes: 0 } });
   });
 });
 

@@ -138,7 +138,7 @@ Each line is one PR. Order holds in one place: Stage 6, then 7, then 8; Stages 9
 - [x] B4 Looks without rebuilds: a look change is a uniform write (#58)
 - [x] B5 Merged objects (quick win): the dress watch in 8 draw calls (#42)
 - [x] B6 Posters: real thumbnails for every 3D asset (#63)
-- [ ] B7 Golden images: appearance under test
+- [x] B7 Golden images: appearance under test (#64)
 - [x] B8 Parameter panel: a schema-driven panel in the detail view (#62)
 
 ### Stage 8 (C) — The scene document
