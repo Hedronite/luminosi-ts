@@ -15,5 +15,8 @@
     "dress-watch": { "drawCalls": 185, "triangles": 18428 },
     "dress-watch-merged": { "drawCalls": 8, "triangles": 18428 },
     "your-desk-lamp": { "drawCalls": 8, "triangles": 4224 }
+  },
+  "goldens": {
+    "e2e-golden": { "bytes": 4600000, "perImageBytes": 560000 }
   }
 }

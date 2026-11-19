@@ -9,9 +9,10 @@
 //                map, a descriptor chunk) is still counted. Files in dist that nothing reaches are ignored: a Turborepo cache
 //                restore can leave chunks of an older build behind, and they ship to nobody.
 //   objects      draw calls and triangles per object (objects.ts)
+//   goldens      the bytes of the golden images in e2e/golden: all together, and the largest
 //
 // Writes tools/assets/sizes.json for `lumin budgets` (not under dist/, which Turborepo restores from its cache on a build hit). Exits 1 when anything is over, unbudgeted, or budgeted but not measured.
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { gzipSync } from "node:zlib";
@@ -23,9 +24,15 @@ export interface BundleSize {
   readonly files: readonly string[];
 }
 
+export interface GoldenSize {
+  readonly bytes: number;
+  readonly perImageBytes: number;
+}
+
 export interface Measured {
   readonly bundles: Readonly<Record<string, BundleSize>>;
   readonly objects: Readonly<Record<string, Counts>>;
+  readonly goldens: Readonly<Record<string, GoldenSize>>;
 }
 
 export interface Check {
@@ -36,7 +43,7 @@ export interface Check {
 }
 
 export interface Row {
-  readonly family: "bundle" | "object";
+  readonly family: "bundle" | "object" | "golden";
   readonly id: string;
   readonly ok: boolean;
   readonly checks: readonly Check[];
@@ -123,12 +130,19 @@ export function measureBundles(root: string): Readonly<Record<string, BundleSize
   );
 }
 
+/** The golden images (written by `bun run goldens`), measured as the one budget line "e2e-golden". */
+export function measureGoldens(root: string): Readonly<Record<string, GoldenSize>> {
+  const directory = join(root, "e2e/golden");
+  const sizes = existsSync(directory) ? readdirSync(directory).filter((name) => name.endsWith(".png")).map((name) => statSync(join(directory, name)).size) : [];
+  return { "e2e-golden": { bytes: sizes.reduce((sum, size) => sum + size, 0), perImageBytes: Math.max(0, ...sizes) } };
+}
+
 /** Measured against budgeted, both ways: a number over its budget, one with no budget, and a budget with nothing measured, are all problems. */
 export function checkAgainst(budgets: Budgets, measured: Measured): { readonly rows: readonly Row[]; readonly problems: readonly string[] } {
   const problems: string[] = [];
   const rows: Row[] = [];
   type Numbers = Readonly<Record<string, number>>;
-  const family = (name: "bundle" | "object", limits: Readonly<Record<string, Numbers>>, actuals: Readonly<Record<string, Numbers>>): void => {
+  const family = (name: "bundle" | "object" | "golden", limits: Readonly<Record<string, Numbers>>, actuals: Readonly<Record<string, Numbers>>): void => {
     for (const id of Object.keys(limits)) if (!Object.hasOwn(actuals, id)) problems.push(`${id}: budgeted under ${name}s but not measured`);
     for (const [id, actual] of Object.entries(actuals)) {
       const limit = limits[id];
@@ -143,12 +157,13 @@ export function checkAgainst(budgets: Budgets, measured: Measured): { readonly r
   };
   family("bundle", budgets.bundles, Object.fromEntries(Object.entries(measured.bundles).map(([id, size]) => [id, { gzipBytes: size.gzipBytes }])));
   family("object", budgets.objects, Object.fromEntries(Object.entries(measured.objects).map(([id, counts]) => [id, { drawCalls: counts.drawCalls, triangles: counts.triangles }])));
+  family("golden", budgets.goldens, Object.fromEntries(Object.entries(measured.goldens).map(([id, size]) => [id, { bytes: size.bytes, perImageBytes: size.perImageBytes }])));
   return { rows, problems };
 }
 
 /** Measures, writes tools/assets/sizes.json, and returns what is wrong. */
 export async function checkSizes(root: string): Promise<{ readonly rows: readonly Row[]; readonly problems: readonly string[] }> {
-  const measured: Measured = { bundles: measureBundles(root), objects: measureObjects() };
+  const measured: Measured = { bundles: measureBundles(root), objects: measureObjects(), goldens: measureGoldens(root) };
   await writeFile(join(root, "tools/assets/sizes.json"), `${JSON.stringify(measured, null, 2)}\n`);
   return checkAgainst(await loadBudgets(root), measured);
 }
