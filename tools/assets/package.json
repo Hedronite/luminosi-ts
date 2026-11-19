@@ -12,6 +12,7 @@
     "build": "bun src/build.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "validate": "bun src/validate.ts",
+    "posters": "bun src/posterize.ts",
     "sizes": "bun src/sizes.ts",
     "test": "vitest run"
   },
@@ -27,6 +28,7 @@
     "@hedronite/lts-tokens": "workspace:*",
     "@types/three": "catalog:",
     "meshoptimizer": "catalog:",
+    "sharp": "0.35.5",
     "three": "catalog:",
     "vitest": "catalog:",
     "zod": "catalog:"

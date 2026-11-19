@@ -295,6 +295,7 @@
         "@hedronite/lts-tokens": "workspace:*",
         "@types/three": "catalog:",
         "meshoptimizer": "catalog:",
+        "sharp": "0.35.5",
         "three": "catalog:",
         "vitest": "catalog:",
         "zod": "catalog:",
@@ -365,6 +366,10 @@
     "tools/solids": {
       "name": "tool-solids",
       "version": "0.0.0",
+    },
+    "tools/stills": {
+      "name": "scratch-rig",
+      "version": "0.0.1-scratch",
     },
     "tools/vendor": {
       "name": "tool-vendor",
@@ -1724,6 +1729,8 @@
     "sax": ["sax@1.6.1", "", {}, "sha512-42tBVwLWnaQvW5zc4HbZrTuWccECCZfBi92FDuwtqxasH+JbPB3/FOKb1m222K42R4WxuxzzMsTswfzgtSu64Q=="],
 
     "scheduler": ["scheduler@0.28.0", "", {}, "sha512-juorfCmIkIw8tT+p5BXSm6PJjQF/ycEYmKyzURCIt/RaZIhL+PulbQ9Yu2z1HdOJDdqDTlxA1+xKBmHXJsczAw=="],
+
+    "scratch-rig": ["scratch-rig@workspace:tools/stills"],
 
     "semver": ["semver@7.8.6", "", { "bin": { "semver": "bin/semver.js" } }, "sha512-9lpSSU4Mly3mrtruwLs1eLK6+gzbzqeBFwRNjIjE+9LuDpWdYctrQlQ3ej1Ilgi7gknpsTRnPoLP8DpCHqHIJw=="],
 

@@ -12,6 +12,12 @@
       "outputs": ["dist/**"],
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/assets/src/models/**", "$TURBO_ROOT$/assets/budgets.json"]
     },
+    // The catalog build copies the posters from assets/posters, which sit outside its package.
+    "catalog#build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/assets/posters/**"]
+    },
     "typecheck": { "dependsOn": ["^build"] },
     // Never cached. The tests read the repository at large (the README, STACK.md, the skill copies and the harness
     // folders, assets/vendor, the fixtures under tools/, nu and python on the PATH), a set no inputs list can keep
