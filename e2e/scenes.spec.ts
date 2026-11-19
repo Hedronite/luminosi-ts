@@ -48,19 +48,22 @@ async function draw(page: Page, name: Fixture, via: "doc" | "code", plantName?: 
   return picture;
 }
 
+/** The renderer's counts of what it holds (geometries, textures, render targets, programs, buffers), not the sizes in bytes it reports beside them. */
+const counts = (key: string): boolean => key !== "total" && !/size$/i.test(key);
+
 /**
  * What the renderer may hold once a scene is freed, against what it held having drawn only an empty scene: the same counts, and for
  * textures up to two more, the library's fixed leftovers (the environment bake keeps one, transmission glass keeps one). Nothing grows with a build.
  */
 function expectEmpty(label: string, reading: Memory, baseline: Memory): void {
-  for (const [key, base] of Object.entries(baseline)) {
+  for (const [key, base] of Object.entries(baseline).filter(([key]) => counts(key))) {
     const allowed = key === "textures" ? base + 2 : base;
     expect(reading[key] ?? 0, `${label}: ${key} is ${String(reading[key])}, a renderer that drew an empty scene holds ${String(base)} (and may keep ${String(allowed - base)} more)`).toBeLessThanOrEqual(allowed);
   }
 }
 
 /** Frees the scene on the page, then builds and frees it five times more: every reading is the empty scene's plus the leftovers, and the five are the same. */
-async function expectFlat(page: Page, label: string): Promise<void> {
+async function expectFlat(page: Page, label: string): Promise<{ readonly baseline: Memory; readonly freed: Memory; readonly cycles: readonly Memory[] }> {
   const baseline = await page.evaluate<Memory>(() => {
     if (window.stillScene === undefined) throw new Error("the page has no stillScene");
     return window.stillScene.baseline;
@@ -74,8 +77,9 @@ async function expectFlat(page: Page, label: string): Promise<void> {
     expectEmpty(`${label} cycle ${String(cycle)}`, reading, baseline);
     cycles.push(reading);
   }
-  const [first, ...rest] = cycles;
+  const [first, ...rest] = cycles.map((reading) => Object.fromEntries(Object.entries(reading).filter(([key]) => counts(key))));
   for (const reading of rest) expect(reading, `${label}: the readings over five build-and-free cycles are not flat`).toEqual(first);
+  return { baseline, freed, cycles };
 }
 
 for (const name of roundTrip) {
@@ -96,12 +100,12 @@ for (const name of roundTrip) {
 
     if (strict) {
       expect(strictDistance(doc, golden), `${name}: the doc frame is not its golden`).toMatchObject({ changedPixels: 0 });
-      await expectFlat(page, `${name} (doc)`);
+      const docMemory = await expectFlat(page, `${name} (doc)`);
       const code = await draw(page, name, "code");
       expect(strictDistance(code, doc), `${name}: the emitted module draws a different frame from the document`).toMatchObject({ changedPixels: 0 });
       expect(strictDistance(code, golden), `${name}: the code frame is not its golden`).toMatchObject({ changedPixels: 0 });
-      await expectFlat(page, `${name} (code)`);
-      const results: Record<string, unknown> = { fixture: name, mode: "strict", memoryFlat: true };
+      const codeMemory = await expectFlat(page, `${name} (code)`);
+      const results: Record<string, unknown> = { fixture: name, mode: "strict", memory: { doc: docMemory, code: codeMemory } };
       const missed: string[] = [];
       for (const kind of plantNames) {
         if (planted(fixture(name), kind) === undefined) continue;

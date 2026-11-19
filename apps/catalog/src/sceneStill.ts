@@ -1,10 +1,9 @@
 import { createRandom } from "@hedronite/lts-core";
 import { parseScene, type Scene } from "@hedronite/lts-scene";
 import { createScene } from "@hedronite/lts-scene/three";
-import type { EffectClock } from "@hedronite/lts-shaders/three";
+import { createEffectClock, type EffectClock } from "@hedronite/lts-shaders/three";
 import { neutral } from "@hedronite/lts-tokens";
 import { PerspectiveCamera, Scene as ThreeScene, WebGPURenderer } from "three/webgpu";
-import { uniform } from "three/tsl";
 import { FRAMES, SEED, SIZE, STEP } from "./Still";
 
 /**
@@ -17,6 +16,14 @@ import { FRAMES, SEED, SIZE, STEP } from "./Still";
  * `window.stillScene` is what the specs read afterwards: `memory()` (the renderer's counts now), `dispose()` (frees the scene,
  * draws an empty frame and returns the counts) and `cycle()` (builds the scene again, draws it, frees it, and returns the counts).
  */
+
+/**
+ * What both ways of making a scene are given, so nothing but the scene differs between them: the same paused clock (surface shaders read
+ * it at time zero; it is never written), the same reduced-motion setting, and the same pixel ratio, which is set before either build
+ * because `ScreenEffects` reads it when it is built.
+ */
+const REDUCED_MOTION = false;
+const PIXEL_RATIO = 1;
 
 /** What a generated module offers: a scene built on a renderer, the way `createScene` builds one, in plain three.js. */
 interface Emitted {
@@ -82,7 +89,7 @@ async function run(stage: HTMLElement, name: string, via: string, plant: string 
   const canvas = document.createElement("canvas");
   stage.append(canvas);
   const renderer = new WebGPURenderer({ canvas, antialias: true, alpha: true });
-  renderer.setPixelRatio(1);
+  renderer.setPixelRatio(PIXEL_RATIO);
   renderer.setSize(SIZE, SIZE);
   await renderer.init();
 
@@ -96,12 +103,12 @@ async function run(stage: HTMLElement, name: string, via: string, plant: string 
   await drawEmpty();
   const baseline = readMemory(renderer);
 
-  const clock = uniform(0);
-  const options: Options = { clock, reducedMotion: false };
+  const clock = createEffectClock(0);
+  const options: Options = { clock, reducedMotion: REDUCED_MOTION };
 
   async function make(): Promise<Drawn> {
     if (via === "doc") {
-      const handle = createScene(fixtureScene(name), { renderer, clock, reducedMotion: false });
+      const handle = createScene(fixtureScene(name), { renderer, clock, reducedMotion: REDUCED_MOTION });
       await handle.ready;
       const { render } = handle;
       if (render === undefined) throw new Error("createScene with a renderer gave no render");
@@ -116,7 +123,6 @@ async function run(stage: HTMLElement, name: string, via: string, plant: string 
 
   const drawn = await make();
   for (let frame = 1; frame <= FRAMES; frame += 1) {
-    clock.value = frame * STEP;
     drawn.render(STEP);
     // eslint-disable-next-line no-await-in-loop -- the frames are stepped in order, each given a browser frame to reach the screen
     await nextAnimationFrame();
@@ -136,7 +142,6 @@ async function run(stage: HTMLElement, name: string, via: string, plant: string 
     cycle: async () => {
       const again = await make();
       for (let frame = 1; frame <= 3; frame += 1) {
-        clock.value = frame * STEP;
         again.render(STEP);
         // eslint-disable-next-line no-await-in-loop -- one browser frame between each, as the stepped frames above have
         await nextAnimationFrame();
