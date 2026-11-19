@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Locator, Page } from "@playwright/test";
-import { expect, test } from "./fixtures.js";
+import { builds, expect, settledBuilds, test } from "./fixtures.js";
 
 // What every 3D stage owes a viewer who cannot drag or who wants less motion:
 //
@@ -31,7 +31,7 @@ const number = async (host: Locator, attribute: string): Promise<number> => Numb
  * loaded runner (software WebGL) that takes longer than any fixed wait; so wait until the frame counter has held
  * steady across two samples in a row, then read what it held.
  */
-async function heldCounters(host: Locator): Promise<{ readonly frames: number; readonly time: number }> {
+async function heldCounters(host: Locator, steadySamples = 2): Promise<{ readonly frames: number; readonly time: number }> {
   let last = await number(host, "data-frames");
   let steady = 0;
   await expect
@@ -45,7 +45,7 @@ async function heldCounters(host: Locator): Promise<{ readonly frames: number; r
       },
       { message: "the frame counter settles after a pause", timeout: 15_000 },
     )
-    .toBeGreaterThanOrEqual(2);
+    .toBeGreaterThanOrEqual(steadySamples);
   return { frames: last, time: await number(host, "data-time") };
 }
 
@@ -254,6 +254,7 @@ test("a surface shader's parameters move live from the address: frames keep comi
   await heldCounters(host);
   await expect.poll(async () => number(host, "data-programs")).toBeGreaterThan(0);
   const programs = await number(host, "data-programs");
+  const built = await settledBuilds(host);
   const first = await host.locator("canvas").screenshot();
   await ["density=300", "density=300,intensity=8,speed=0", '{"density":8,"intensity":0.5}'].reduce<Promise<Buffer>>(async (before, value) => {
     const picture = await before;
@@ -261,6 +262,7 @@ test("a surface shader's parameters move live from the address: frames keep comi
     await setParams(page, value);
     await expect.poll(async () => number(host, "data-frames")).toBeGreaterThan(frames);
     await page.waitForTimeout(500);
+    expect(await builds(host), `builds after ${value}`).toBe(built);
     expect(await number(host, "data-programs"), `programs after ${value}`).toBe(programs);
     const next = await host.locator("canvas").screenshot();
     expect(next.equals(picture), `the picture after ${value}`).toBe(false);
@@ -383,9 +385,8 @@ test.describe("under reduced motion", () => {
       const host = stage.host(page);
       // Nothing moves, so there is nothing to pause.
       await expect(stage.scope(page).getByRole("button", { name: /^(Pause|Resume) motion$/ })).toHaveCount(0);
-      await page.waitForTimeout(1000);
-      const settledFrames = await number(host, "data-frames");
-      const settledTime = await number(host, "data-time");
+      // A stage that builds its scene asynchronously (its environment and effects load on demand) draws once more when each build lands, so wait for the counter to hold for three seconds, not for a fixed time.
+      const { frames: settledFrames, time: settledTime } = await heldCounters(host, 6);
       await page.waitForTimeout(1500);
       expect(await number(host, "data-frames")).toBe(settledFrames);
       expect(await number(host, "data-time")).toBe(settledTime);

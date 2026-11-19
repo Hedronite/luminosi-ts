@@ -33,6 +33,23 @@
       "project": [
         "src/**/*.ts"
       ]
+    },
+    "tools/scene-emit": {
+      "entry": [
+        "test/*.test.ts"
+      ],
+      "project": [
+        "test/**/*.ts"
+      ],
+      "ignoreDependencies": [
+        "@hedronite/lts-adapters",
+        "@hedronite/lts-materials",
+        "@hedronite/lts-objects",
+        "@hedronite/lts-postfx",
+        "@hedronite/lts-primitives",
+        "@hedronite/lts-shaders",
+        "@hedronite/lts-tokens"
+      ]
     }
   },
   "ignoreBinaries": [

@@ -12,6 +12,10 @@ import { usePlaceable, type Placeable } from "./placeable";
 import { useStageEffects } from "./stageEffects";
 import { parseSubject, parseSurface, subjectValue, surfaceValue, type StageSubject, type StageSurface } from "./stage";
 
+/** Held at module level: the stage builds again when its surface is a new object, so one made on each render rebuilt the stage on every look change. */
+const framedSurface: StageSurface = { kind: "framed" };
+const ownSurface: StageSurface = { kind: "own" };
+
 const field = "rounded-lg border border-line bg-surface px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-accent";
 
 /** One-ink prints, from the look's own colors. */
@@ -55,7 +59,7 @@ export function Effects({ shaders }: { readonly shaders: readonly AssetMeta[] })
   const effects = useStageEffects(stack);
   const monochrome: Hex | undefined = ink === "look" ? undefined : preset.scene[ink];
   // Solids have no surface of their own, objects can't be framed: offer what applies.
-  const plain: StageSurface = subject.kind === "solid" ? { kind: "framed" } : { kind: "own" };
+  const plain = subject.kind === "solid" ? framedSurface : ownSurface;
   const shown = surface.kind === "own" || surface.kind === "framed" ? plain : surface;
 
   return (

@@ -38,6 +38,7 @@
         "@hedronite/lts-postfx": "workspace:*",
         "@hedronite/lts-primitives": "workspace:*",
         "@hedronite/lts-registry": "workspace:*",
+        "@hedronite/lts-scene": "workspace:*",
         "@hedronite/lts-scenes": "workspace:*",
         "@hedronite/lts-shaders": "workspace:*",
         "@hedronite/lts-tokens": "workspace:*",
@@ -388,6 +389,27 @@
       "dependencies": {
         "@hedronite/lts-objects": "workspace:*",
         "zod": "catalog:",
+      },
+    },
+    "tools/scene-emit": {
+      "name": "tool-scene-emit",
+      "version": "0.0.0",
+      "devDependencies": {
+        "@hedronite/lts-adapters": "workspace:*",
+        "@hedronite/lts-materials": "workspace:*",
+        "@hedronite/lts-objects": "workspace:*",
+        "@hedronite/lts-postfx": "workspace:*",
+        "@hedronite/lts-primitives": "workspace:*",
+        "@hedronite/lts-scene": "workspace:*",
+        "@hedronite/lts-shaders": "workspace:*",
+        "@hedronite/lts-tokens": "workspace:*",
+        "@react-three/fiber": "catalog:",
+        "@react-three/test-renderer": "catalog:",
+        "@types/react": "catalog:",
+        "@types/three": "catalog:",
+        "react": "catalog:",
+        "three": "catalog:",
+        "vitest": "catalog:",
       },
     },
     "tools/solids": {
@@ -1855,6 +1877,8 @@
     "tool-looks": ["tool-looks@workspace:tools/looks"],
 
     "tool-objects": ["tool-objects@workspace:tools/objects"],
+
+    "tool-scene-emit": ["tool-scene-emit@workspace:tools/scene-emit"],
 
     "tool-solids": ["tool-solids@workspace:tools/solids"],
 

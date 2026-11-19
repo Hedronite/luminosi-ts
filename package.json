@@ -44,7 +44,7 @@
     "typecheck": "turbo run typecheck && tsc -p tsconfig.json --noEmit",
     "test": "turbo run test",
     "dev": "turbo run dev --filter=catalog",
-    "lint": "eslint .",
+    "lint": "NODE_OPTIONS=--max-old-space-size=8192 eslint .",
     "boundaries": "depcruise packages apps tools --config .dependency-cruiser.cjs",
     "knip": "knip",
     "e2e": "playwright test",
