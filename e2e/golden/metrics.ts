@@ -14,14 +14,14 @@ import type { Picture } from "../../tools/stills/src/png.js";
  * The strict check counts a pixel changed when any channel differs at all (the rig's `difference`, a per-pixel threshold of zero) and
  * fails when any pixel did: two runs of the rig on one machine never differ by a pixel (STACK.md, "Still frames"), so the bar is the noise, which is none.
  */
-export const STRICT_CHANGED_PIXELS = 0;
+const STRICT_CHANGED_PIXELS = 0;
 
 /** What the stage's background is, so the rig's subject can be told from it: the neutral look's raised surface, #f5f5f5. */
 const BACKGROUND = 245;
 /** A pixel belongs to the subject when a channel is this far from the background. */
 const COVERAGE_STEP = 16;
 /** The picture is compared in this many blocks a side (32 pixels of the rig's 512). */
-export const BLOCKS = 16;
+const BLOCKS = 16;
 
 /**
  * The loose bars: a frame fails above any of them. Each is the largest distance any asset's SwiftShader frame measured from its golden
@@ -29,7 +29,7 @@ export const BLOCKS = 16;
  * times a margin of about 1.5, so a different machine's software renderer can differ by half as much again and still pass. Every plant
  * (blank, recoloured, missing part, moved camera) measured at least 2.1 times those maxima on one of the three, for every asset.
  */
-export const LOOSE_BAR = { tone: 0.28, local: 3.9, coverage: 0.005 } as const;
+const LOOSE_BAR = { tone: 0.28, local: 3.9, coverage: 0.005 } as const;
 
 export const strictDistance = difference;
 
