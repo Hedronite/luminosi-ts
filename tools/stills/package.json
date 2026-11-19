@@ -1,0 +1,17 @@
+{
+  "name": "tool-stills",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT OR Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "compare": "bun src/compare.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --exclude '**/*.spec.ts' --exclude '**/node_modules/**'"
+  },
+  "devDependencies": {
+    "@hedronite/lts-registry": "workspace:*",
+    "@playwright/test": "catalog:",
+    "vitest": "catalog:"
+  }
+}
