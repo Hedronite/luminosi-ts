@@ -41,6 +41,7 @@
     "@hedronite/lts-objects": "workspace:*",
     "@hedronite/lts-postfx": "workspace:*",
     "@hedronite/lts-primitives": "workspace:*",
+    "@hedronite/lts-scene": "workspace:*",
     "@hedronite/lts-shaders": "workspace:*",
     "@hedronite/lts-tokens": "workspace:*"
   },
