@@ -6,8 +6,10 @@ import type { ConsoleOptions } from "./e2e/fixtures.js";
 // The WebGPU lane (bun run e2e:webgpu, see STACK.md) is a script for a machine with a GPU, never part of the default run or CI:
 // it exists only when LTS_WEBGPU_LANE is set, and then it is the only project.
 const webgpuLane = process.env["LTS_WEBGPU_LANE"] === "1";
-// The lane needs only the catalog, so a catalog URL alone (a tailnet HTTPS address, say) is an external run for it.
-const external = process.env["E2E_CATALOG_URL"] !== undefined && (webgpuLane || process.env["E2E_SITE_URL"] !== undefined);
+// The still-frame rig (bun run stills, see STACK.md) is the same kind of lane: a GPU machine, never CI, only when LTS_STILLS is set, and then the only project.
+const stillsLane = process.env["LTS_STILLS"] === "1";
+// The lanes need only the catalog, so a catalog URL alone (a tailnet HTTPS address, say) is an external run for them.
+const external = process.env["E2E_CATALOG_URL"] !== undefined && (webgpuLane || stillsLane || process.env["E2E_SITE_URL"] !== undefined);
 
 export default defineConfig<ConsoleOptions>({
   testDir: "e2e",
@@ -20,6 +22,8 @@ export default defineConfig<ConsoleOptions>({
   // (half the cores) overloads a machine shared with other work and first-frame tests miss the 5 s expect timeout.
   // CI keeps the default: one shard per runner, with the longer timeouts below.
   ...(process.env["CI"] === undefined ? { workers: 2 } : {}),
+  // One worker for the still-frame rig: its frames are compared byte for byte, and two browsers sharing one GPU is a variable it need not carry.
+  ...(stillsLane ? { workers: 1 } : {}),
   forbidOnly: process.env["CI"] !== undefined,
   // On CI the 3D tests draw with software WebGL on shared runners: the first frame of a viewport
   // (three.js loaded, the studio environment baked) can take longer than the 5 s default, and did,
@@ -27,7 +31,7 @@ export default defineConfig<ConsoleOptions>({
   ...(process.env["CI"] === undefined ? {} : { expect: { timeout: 15_000 }, timeout: 60_000 }),
   reporter: process.env["CI"] === undefined ? "list" : [["list"], ["html", { open: "never" }]],
   use: {
-    baseURL: process.env["E2E_CATALOG_URL"] ?? (webgpuLane ? "http://localhost:4175" : "http://localhost:4173"),
+    baseURL: process.env["E2E_CATALOG_URL"] ?? (stillsLane ? "http://localhost:4176" : webgpuLane ? "http://localhost:4175" : "http://localhost:4173"),
     // Console warnings a test may see; any other warning fails it (see e2e/fixtures.ts). Each entry is a message
     // the app does not cause: nothing in apps/ or packages/ builds a THREE.Clock or sets a shadow map type.
     consoleAllow: [
@@ -44,7 +48,18 @@ export default defineConfig<ConsoleOptions>({
       /GL Driver Message \(OpenGL, Performance, GL_CLOSE_PATH_NV, High\): Running out of reserved outsideRenderPass queueSerial/,
     ],
   },
-  projects: webgpuLane
+  projects: stillsLane
+    ? [
+        {
+          name: "stills",
+          // The rig's capture lives with its tool, not under e2e/, so the default run and CI never see it.
+          testDir: "tools/stills/src",
+          testMatch: "stills.spec.ts",
+          // The real GPU through Metal, as the WebGPU lane has it. A fixed viewport and device pixel ratio 1: the rig's stage is a fixed square at the top left of the page.
+          use: { ...devices["Desktop Chrome"], viewport: { width: 640, height: 640 }, deviceScaleFactor: 1, launchOptions: { args: ["--enable-unsafe-webgpu", "--use-angle=metal"] } },
+        },
+      ]
+    : webgpuLane
     ? [
         {
           name: "webgpu",
@@ -64,6 +79,11 @@ export default defineConfig<ConsoleOptions>({
       ],
   webServer: external
     ? []
+    : stillsLane
+      ? [
+          // The built catalog on its own port, never a reused server: the frames must come from the build the lane just made.
+          { command: "bunx vite preview --port 4176 --strictPort", cwd: "apps/catalog", url: "http://localhost:4176", reuseExistingServer: false },
+        ]
     : webgpuLane
       ? [
           // The built catalog on localhost, which is a secure context (navigator.gpu needs one). Its own port and never a reused
