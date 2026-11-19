@@ -7,6 +7,7 @@ import type { Hex, ScenePalette } from "@hedronite/lts-tokens";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef, useState, type RefObject } from "react";
 import type { Group, Object3D } from "three";
+import { effectBuildsOf } from "./builds";
 import { Controls, GpuCounts, StageClock, StageFrame, useMotion } from "./scene";
 import { stageFrameloop, useStageShown, WakeOnShow } from "./onscreen";
 import { buildStage, repaintStage, type StageSubject, type StageSurface } from "./stage";
@@ -97,6 +98,13 @@ export function EffectStage({ effects, palette, subject = framedDodecahedron, su
   const shown = useStageShown(own);
   // The counts go to the page's own host when it gave one; the keys always belong to the group.
   const target = host ?? own;
+  // Every pipeline the pass builds hands over its render-target textures; the set keeps them all, so only a build raises the count.
+  const noteTargets = (ids: readonly string[]): void => {
+    const element = target.current;
+    if (element === null) return;
+    const seen = effectBuildsOf(element);
+    for (const id of ids) seen.add(id);
+  };
   return (
     <StageFrame group={own} motion={motion} label={label} className={className} testId={host === undefined ? "viewport" : undefined}>
       <WebGPUCanvas frameloop={stageFrameloop(shown, motion.still)} dpr={[1, 2]} camera={{ position: [0, 0, 3.6], fov: 35 }}>
@@ -106,8 +114,8 @@ export function EffectStage({ effects, palette, subject = framedDodecahedron, su
         <Controls keys={own} />
         <StageClock clockRef={clock} running={!motion.still} writeShaderTime={writeShaderTime} />
         <Subject subject={subject} surface={surface} palette={palette} still={motion.still} clock={clock} shaderClock={shaderClock} />
-        {effects.length === 0 ? null : <ScreenEffectsPass effects={effects} palette={palette} {...(monochrome === undefined ? {} : { monochrome })} />}
-        <GpuCounts target={target} clockRef={clock} shaderClock={shaderClock} />
+        {effects.length === 0 ? null : <ScreenEffectsPass effects={effects} palette={palette} onPipeline={noteTargets} {...(monochrome === undefined ? {} : { monochrome })} />}
+        <GpuCounts target={target} clockRef={clock} shaderClock={shaderClock} screenEffects />
       </WebGPUCanvas>
     </StageFrame>
   );

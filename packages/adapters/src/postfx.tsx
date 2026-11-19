@@ -2,7 +2,7 @@ import type { ScreenEffectConfig } from "@hedronite/lts-postfx";
 import { applyPalette, ScreenEffects, stackStructure, stackValues } from "@hedronite/lts-postfx/three";
 import { neutral, type Hex, type ScenePalette } from "@hedronite/lts-tokens";
 import { Canvas, useFrame, useThree, type CanvasProps } from "@react-three/fiber";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useReducedMotion } from "./motion.js";
 import { WebGPURenderer } from "three/webgpu";
 
@@ -41,6 +41,11 @@ export interface ScreenEffectsPassProps {
    * Default: the viewer's reduced-motion setting (`useReducedMotion`).
    */
   readonly reducedMotion?: boolean;
+  /**
+   * Called each time a pipeline is built (when the pass mounts, and when a change of structure builds another), with the `uuid` of every
+   * render-target texture that pipeline holds. A counter that keeps what it is given counts builds. Read-only: it changes nothing.
+   */
+  readonly onPipeline?: (targets: readonly string[]) => void;
 }
 
 /**
@@ -48,7 +53,7 @@ export interface ScreenEffectsPassProps {
  * the effects are TSL passes on the WebGPU renderer. It takes over rendering from React Three Fiber, follows the pointer for the lens (a tap opens it for a moment on touch), and frees
  * its passes when the stack's structure changes or it unmounts. Parameters and the look's inks move in place.
  */
-export function ScreenEffectsPass({ effects, palette = neutral.scene, monochrome, reducedMotion }: ScreenEffectsPassProps) {
+export function ScreenEffectsPass({ effects, palette = neutral.scene, monochrome, reducedMotion, onPipeline }: ScreenEffectsPassProps) {
   const preferred = useReducedMotion();
   const still = reducedMotion ?? preferred;
   const gl: unknown = useThree((state) => state.gl);
@@ -69,6 +74,14 @@ export function ScreenEffectsPass({ effects, palette = neutral.scene, monochrome
     runner.setParams(stackValues(effects));
     applyPalette(runner, palette, monochrome === undefined ? {} : { monochrome });
   }, [runner, effects, palette, monochrome]);
+  // The latest callback, so a new function on each render does not report the same pipeline again.
+  const report = useRef(onPipeline);
+  useEffect(() => {
+    report.current = onPipeline;
+  });
+  useEffect(() => {
+    report.current?.(runner.targetIds);
+  }, [runner]);
   useEffect(
     () => () => {
       runner.dispose();
