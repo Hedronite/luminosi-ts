@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Locator, Page } from "@playwright/test";
-import { expect, test } from "./fixtures.js";
+import { builds, expect, settledBuilds, test } from "./fixtures.js";
 
 // The parameter panel in the detail view: controls made from each asset's schema, edits that move the asset live (a flat
 // program count), a parameter baked into the asset that rebuilds it and says so, and an address (`?params=`) that follows every
@@ -84,6 +84,7 @@ test("a shader's panel: typed, labelled controls; live edits keep the program co
   const panel = dialog.getByRole("region", { name: "Parameters", exact: true });
   const host = dialog.getByTestId("viewport");
   const programs = await drawn(host);
+  const built = await settledBuilds(host);
 
   // Controls from the schema: a slider and a number input for each number (with the schema's bounds), a color input for the color.
   const density = panel.getByRole("spinbutton", { name: "Density", exact: true });
@@ -108,6 +109,7 @@ test("a shader's panel: typed, labelled controls; live edits keep the program co
   await expect.poll(() => paramsOf(page)).toBe("density=300,intensity=10");
   await expect.poll(async () => number(host, "data-frames")).toBeGreaterThan(frames);
   await page.waitForTimeout(500);
+  expect(await builds(host), "builds after two live edits").toBe(built);
   expect(await number(host, "data-programs")).toBe(programs);
   expect((await host.locator("canvas").screenshot()).equals(before)).toBe(false);
 
@@ -125,6 +127,7 @@ test("a shader's panel: typed, labelled controls; live edits keep the program co
   await expect(density).toHaveValue("40");
   await expect(dialog.getByRole("region", { name: "Changed parameters snippet" })).toHaveCount(0);
   await page.waitForTimeout(500);
+  expect(await builds(host), "builds after reset").toBe(built);
   expect(await number(host, "data-programs")).toBe(programs);
   expect(errors).toEqual([]);
 });
@@ -136,6 +139,7 @@ test("a parameter baked into the shader rebuilds it, and the panel says so", asy
   const panel = dialog.getByRole("region", { name: "Parameters", exact: true });
   const host = dialog.getByTestId("viewport");
   await drawn(host);
+  const built = await settledBuilds(host);
   await expect(panel.getByText("Rebuilds the asset")).toHaveCount(1);
   const before = await host.locator("canvas").screenshot();
   await drawsAfter(host, async () => {
@@ -144,10 +148,15 @@ test("a parameter baked into the shader rebuilds it, and the panel says so", asy
   await expect(panel.getByRole("status")).toHaveText("Bands is built into the shader, so changing it rebuilds the shader.");
   await expect.poll(() => paramsOf(page)).toBe("bands=5");
   await expect.poll(async () => (await host.locator("canvas").screenshot()).equals(before)).toBe(false);
+  // The counter's positive control: a rebuilt shader is a new material, so the builds rise; then a live edit leaves them where they stand.
+  await expect.poll(() => builds(host), { message: "builds after a baked edit" }).toBeGreaterThan(built);
+  const rebuilt = await settledBuilds(host);
   // A live parameter right after it clears the notice.
   await panel.getByRole("spinbutton", { name: "Outline", exact: true }).fill("0.1");
   await expect(panel.getByRole("status")).toHaveText("");
   await expect.poll(() => paramsOf(page)).toBe("bands=5,outline=0.1");
+  await page.waitForTimeout(500);
+  expect(await builds(host), "builds after a live edit following a rebuild").toBe(rebuilt);
   expect(errors).toEqual([]);
 });
 
@@ -218,6 +227,7 @@ test("a screen effect's panel moves it live; the ASCII ramp, which is baked in, 
   const panel = dialog.getByRole("region", { name: "Parameters", exact: true });
   const host = dialog.getByTestId("viewport");
   const programs = await drawn(host);
+  const built = await settledBuilds(host);
   const cell = panel.getByRole("spinbutton", { name: "Cell", exact: true });
   const first = await host.locator("canvas").screenshot();
   await drawsAfter(host, async () => {
@@ -225,6 +235,7 @@ test("a screen effect's panel moves it live; the ASCII ramp, which is baked in, 
   });
   await expect.poll(() => paramsOf(page)).toBe("cell=9");
   await page.waitForTimeout(500);
+  expect(await builds(host), "builds after a live edit").toBe(built);
   expect(await number(host, "data-programs")).toBe(programs);
   expect((await host.locator("canvas").screenshot()).equals(first)).toBe(false);
 
