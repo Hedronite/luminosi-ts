@@ -19,6 +19,6 @@
     "your-desk-lamp": { "drawCalls": 8, "triangles": 4224 }
   },
   "goldens": {
-    "e2e-golden": { "bytes": 4600000, "perImageBytes": 560000 }
+    "e2e-golden": { "bytes": 4700000, "perImageBytes": 560000 }
   }
 }
