@@ -3,8 +3,7 @@
   "workspaces": {
     ".": {
       "entry": [
-        "e2e/**/*.spec.ts",
-        "e2e/scenes/generate.ts"
+        "e2e/**/*.spec.ts"
       ]
     },
     "packages/*": {
@@ -40,6 +39,7 @@
     "nu"
   ],
   "ignore": [
-    "assets/vendor/**"
+    "assets/vendor/**",
+    "e2e/scenes/generated/**"
   ]
 }
