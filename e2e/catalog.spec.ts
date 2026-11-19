@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
-import { expect, test } from "./fixtures.js";
+import { builds, expect, settledBuilds, test } from "./fixtures.js";
 
 test.use({ permissions: ["clipboard-read", "clipboard-write"] });
 
@@ -284,14 +284,20 @@ test("the playground composes primitives and exports the scene", async ({ page }
   await expect(page.getByRole("heading", { name: "Playground" })).toBeVisible();
   const scene = page.getByRole("list", { name: "Scene" }).getByRole("listitem");
   const before = await scene.count();
+  const viewport = page.getByTestId("playground-viewport");
+  await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 15_000 });
+  const built = await settledBuilds(viewport);
 
   await page.getByLabel("Primitive", { exact: true }).selectOption("hexagonal-bipyramid");
   await page.getByLabel("Surface", { exact: true }).selectOption("glass");
   await page.getByRole("button", { name: "Add to scene" }).click();
   await expect(scene).toHaveCount(before + 1);
 
-  await expect(page.getByRole("region", { name: "JSON export" }).locator("code")).toContainText('"primitive": "hexagonal-bipyramid"');
+  // The counter's positive control in the playground: an added node is a new build.
+  await expect.poll(() => builds(viewport), { message: "builds after an add" }).toBeGreaterThan(built);
+  await expect(page.getByRole("region", { name: "JSON export" }).locator("code")).toContainText('"kind": "primitive", "id": "hexagonal-bipyramid"');
   await expect(page.getByRole("region", { name: "React export" }).locator("code")).toContainText('<PrimitiveMesh primitive="hexagonal-bipyramid" material="glass"');
+  await expect(page.getByRole("region", { name: "Vanilla export" }).locator("code")).toContainText('createPolyhedronGeometry(primitive("hexagonal-bipyramid")');
   await expect(page.getByTestId("playground-viewport")).toHaveAttribute("data-frames", /^[1-9]\d*$/);
 
   await page.getByRole("button", { name: "Remove Hexagonal bipyramid, Glass" }).click();

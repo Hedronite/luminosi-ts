@@ -36,7 +36,7 @@ function lines(entries: readonly Entry[], at: number, depth: number): readonly s
   const grown = assetScale(node);
   if (entry.children.length === 0) {
     const scale = grown === undefined ? node.scale : node.scale.map((axis) => axis * grown);
-    return [`${pad}<${tagOf(node)} ${[name, ...assetAttributes(node), ...placement(node, scale)].join(" ")} />`];
+    return [`${pad}<${tagOf(node)} ${[...assetAttributes(node), ...placement(node, scale), name].join(" ")} />`];
   }
   return [
     `${pad}<group ${[name, ...placement(node, node.scale)].join(" ")}>`,

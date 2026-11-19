@@ -96,6 +96,18 @@ describe("Scene", () => {
     expect(meshesOf(root)).toHaveLength(0);
   });
 
+  it("tells onRoot the root it built, and undefined when it frees it", async () => {
+    const roots: (Object3D | undefined)[] = [];
+    const renderer = await ReactThreeTestRenderer.create(<Scene doc={doc} palette={neutral.scene} onRoot={(root) => roots.push(root)} />);
+    await built(renderer.scene.instance, 2);
+    expect(roots).toHaveLength(1);
+    expect(roots[0]).toBeDefined();
+    expect(meshesOf(roots[0] ?? renderer.scene.instance)).toHaveLength(2);
+    await renderer.unmount();
+    expect(roots).toHaveLength(2);
+    expect(roots[1]).toBeUndefined();
+  });
+
   it("builds nothing for a new document object with equal content", async () => {
     const renderer = await ReactThreeTestRenderer.create(<Scene doc={doc} palette={neutral.scene} />);
     const root = renderer.scene.instance;

@@ -144,13 +144,14 @@ test("the playground combines framed solids, objects and screen effects, and exp
   await expect.poll(async () => Number(await viewport.getAttribute("data-frames")), { timeout: 15000 }).toBeGreaterThan(frames + 5);
 
   const json = page.getByRole("region", { name: "JSON export" }).locator("code");
-  await expect(json).toContainText('"effects": [\n    "smoke",\n    "dither"\n  ]');
-  await expect(json).toContainText('"object": "dress-watch"');
+  // The document keeps its effects in the order they were added; the effect library decides the order they run in.
+  await expect(json).toContainText('"effects": [ { "id": "dither" }, { "id": "smoke" } ]');
+  await expect(json).toContainText('"kind": "object", "id": "dress-watch"');
   const tsx = page.getByRole("region", { name: "React export" }).locator("code");
   await expect(tsx).toContainText('<FramedSolid primitive="catalan-rhombic-triacontahedron"');
-  await expect(tsx).toContainText("<ScreenEffectsPass effects={stack} monochrome={palette.glass} />");
+  await expect(tsx).toContainText("<ScreenEffectsPass effects={effects} palette={palette} reducedMotion={reducedMotion} monochrome={palette.glass} />");
   await expect(tsx).toContainText('<PrimitiveMesh primitive="platonic-icosahedron" shader="dissolve"');
-  await expect(tsx).toContainText("<WebGPUCanvas>");
+  await expect(tsx).toContainText("<WebGPUCanvas camera=");
   expect(errors).toEqual([]);
 });
 
