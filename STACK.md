@@ -155,6 +155,22 @@ bun run e2e:webgpu
 - **Another origin.** Set `E2E_CATALOG_URL` to a catalog served over HTTPS and it runs against that instead of starting a server.
 - **Why it is not in CI.** Hosted runners have no GPU. Their only WebGPU adapter is a software one (SwiftShader), which the lane refuses, which would prove nothing about the GPU path and cost minutes on every pull request. The `webgpu` project exists only when `LTS_WEBGPU_LANE=1` (the script sets it), so `playwright test` and the CI workflow never see it. Nothing schedules it either: run it by hand before a change to the renderer, the shaders or the screen effects merges.
 
+### Still frames
+
+The still-frame rig draws one 3D asset the same way every time, so a picture of it can be compared, committed and trusted. The posters and the golden images are made from it.
+
+```bash
+bun run stills                                      # builds the catalog, writes one PNG per 3D asset to test-results/stills
+STILLS_OUT=/some/dir bun run stills                 # the same, into a directory of your choosing
+bun run --filter tool-stills compare <dir> <dir>    # two runs, asset by asset: identical, or by how much not
+```
+
+- **What a frame is.** `still.html?still=<asset id>` is a page of its own (source: `apps/catalog/src/Still.tsx`) that the catalog's build makes with a second Vite run (`apps/catalog/vite.still.config.ts`) into the same `dist`. Nothing of it is in the chunks the catalog's visitors load or in any bundle `assets/budgets.json` counts: an entry added to the catalog's own build shares modules with the 3D views, the bundler then moves them into shared chunks, and the budgeted bundles change for a page nobody visits (it did, by 800 bytes). It draws the asset on a fixed 512 by 512 stage at device pixel ratio 1, from a fixed camera per kind (the one its detail view starts from), lit as that view lights it, in the neutral look, with the asset's default parameters. Frames are stepped by hand: 60 frames of 1/30 s, so the stage clock stands at 2.00 s and no wall-clock time reaches the picture (a surface shader reads its time from a clock the rig writes, not from three's). The lens screen effect has its pointer held at the middle of the stage. Generators that take a seed get theirs from the asset's parameters; `Math.random` is lent a seeded sequence besides. The stage says `data-still="ready"` (with `data-frames="60"` and `data-time="2.00"`) only after the asset has loaded and the last frame is drawn, and `data-still="error"` with the reason when it cannot be. `data-rig` carries the rig's version, which a poster's input hash will include: bump `RIG_VERSION` in `Still.tsx` when the rig's picture changes for a reason other than an asset.
+- **Which assets.** Every asset in the registry but the icons: the list comes from `loadRegistry()` when the capture starts, so a new asset is captured with no edit anywhere. A kind with no camera in `Still.tsx` fails its test instead of being skipped.
+- **Where.** On a machine with a GPU, as the WebGPU lane is: Apple silicon through Metal, Chromium started with `--enable-unsafe-webgpu --use-angle=metal`, one worker. The `stills` Playwright project (testDir `tools/stills/src`) exists only when `LTS_STILLS=1`, and then it is the only project. Each asset is a test that waits for `data-still="ready"`, screenshots the stage element and writes `<id>.png`; it fails on any console error or a picture that is not 512 by 512.
+- **Determinism.** Two runs on the same tree on the same machine give byte-identical PNGs (`compare` exits 1 and prints, for each picture that differs, the pixels changed and the largest and mean channel step, so a noise ceiling can be ruled from numbers). A different machine, GPU or browser build can differ: regenerate goldens and posters where they are checked.
+- **Why it is not in CI.** Hosted runners have no GPU, and a software adapter draws a different picture from Metal's. The default `bun run e2e` and the CI workflow never see the project.
+
 ---
 
 ## 6. Choosing between them
