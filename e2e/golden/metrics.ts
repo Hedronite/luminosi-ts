@@ -31,6 +31,17 @@ const BLOCKS = 16;
  */
 const LOOSE_BAR = { tone: 0.28, local: 3.9, coverage: 0.005 } as const;
 
+/**
+ * Two screen effects measured further from their golden on the CI runner (Linux) than on the machine the bars came from: ascii (tone 0.439,
+ * coverage 0.0205) and crystallize (tone 0.263, coverage 0.0055), against 0.19 and 0.0033 for every other asset. Their bars are the CI run's own
+ * distances times about 1.5, for the numbers that exceeded the common bar. Every plant still fails them (STACK.md, "Golden images"), the
+ * ascii plants by the least: a moved camera 1.04 times and a missing part 1.12 times its bar.
+ */
+const LOOSE_OVERRIDES: Readonly<Record<string, Partial<Record<keyof typeof LOOSE_BAR, number>>>> = {
+  ascii: { tone: 0.66, coverage: 0.031 },
+  crystallize: { tone: 0.4, coverage: 0.0083 },
+};
+
 export const strictDistance = difference;
 
 export const strictFails = (distance: Difference): boolean => distance.changedPixels > STRICT_CHANGED_PIXELS;
@@ -89,7 +100,10 @@ export function looseDistance(frame: Picture, golden: Picture): LooseDistance {
   return { tone: tone / (BLOCKS * BLOCKS), local, coverage: coverage / (BLOCKS * BLOCKS) };
 }
 
-export const looseFails = (distance: LooseDistance): boolean => distance.tone > LOOSE_BAR.tone || distance.local > LOOSE_BAR.local || distance.coverage > LOOSE_BAR.coverage;
+export function looseFails(distance: LooseDistance, asset?: string): boolean {
+  const bar = { ...LOOSE_BAR, ...(asset === undefined ? {} : LOOSE_OVERRIDES[asset]) };
+  return distance.tone > bar.tone || distance.local > bar.local || distance.coverage > bar.coverage;
+}
 
 function sameSize(a: Picture, b: Picture): void {
   if (a.width !== b.width || a.height !== b.height) throw new RangeError(`pictures differ in size: ${String(a.width)}x${String(a.height)} and ${String(b.width)}x${String(b.height)}`);

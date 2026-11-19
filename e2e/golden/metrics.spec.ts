@@ -43,6 +43,19 @@ test("the loose check ignores a one-pixel edge and fails a blank, a recolour, a 
   expect(looseFails(looseDistance(picture({ ...subject, x: 176, y: 170 }), golden)), "moved").toBe(true);
 });
 
+test("a named asset has its own loose bar, and the common bar holds for every other", () => {
+  const golden = picture(subject);
+  // Every other pixel one step lighter: a tone distance of 0.5, past the common bar (0.28) and inside ascii's.
+  const grainy = picture(subject);
+  for (let pixel = 0; pixel < SIZE * SIZE; pixel += 2) for (let channel = 0; channel < 3; channel += 1) grainy.rgba[pixel * 4 + channel] = (grainy.rgba[pixel * 4 + channel] ?? 0) + 1;
+  const grain = looseDistance(grainy, golden);
+  expect(grain.tone).toBeCloseTo(0.5, 5);
+  expect(looseFails(grain, "any other asset")).toBe(true);
+  expect(looseFails(grain, "ascii")).toBe(false);
+  // The named asset's bar is no escape from a blank canvas.
+  expect(looseFails(looseDistance(picture(), golden), "ascii")).toBe(true);
+});
+
 test("pictures of different sizes are an error, not a distance", () => {
   const small: Picture = { width: 1, height: 1, rgba: new Uint8Array(4) };
   expect(() => looseDistance(small, picture())).toThrow("differ in size");

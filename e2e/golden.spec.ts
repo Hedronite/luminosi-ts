@@ -58,6 +58,8 @@ test("every golden image belongs to an asset", () => {
 
 for (const asset of assets) {
   test(`${asset.id} (${asset.kind}) matches its golden and fails its plants`, async ({ page }, testInfo) => {
+    // Software WebGL draws the effects at about 0.7 s a frame on a runner: a test takes up to a minute, so it gets more than the runner default.
+    test.setTimeout(150_000);
     const strict = testInfo.project.name === "golden";
     const file = join(goldens, `${asset.id}.png`);
     expect(existsSync(file), `no golden for ${asset.id}: bun run goldens writes it`).toBe(true);
@@ -77,7 +79,7 @@ for (const asset of assets) {
     await expect(stage).toHaveAttribute("data-still", "ready");
     expect(problems).toEqual([]);
 
-    const fails = (distance: ReturnType<typeof strictDistance> | ReturnType<typeof looseDistance>): boolean => ("changedPixels" in distance ? strictFails(distance) : looseFails(distance));
+    const fails = (distance: ReturnType<typeof strictDistance> | ReturnType<typeof looseDistance>): boolean => ("changedPixels" in distance ? strictFails(distance) : looseFails(distance, asset.id));
     const measure = (frame: ReturnType<typeof decodePng>): ReturnType<typeof strictDistance> | ReturnType<typeof looseDistance> => (strict ? strictDistance(frame, golden) : looseDistance(frame, golden));
     const shoot = async (name: string): Promise<ReturnType<typeof decodePng>> => {
       const png = await stage.screenshot({ animations: "disabled" });
