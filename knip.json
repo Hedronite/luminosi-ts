@@ -3,7 +3,8 @@
   "workspaces": {
     ".": {
       "entry": [
-        "e2e/**/*.spec.ts"
+        "e2e/**/*.spec.ts",
+        "e2e/scenes/generate.ts"
       ]
     },
     "packages/*": {

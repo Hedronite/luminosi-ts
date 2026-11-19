@@ -16,5 +16,9 @@
     "eslint.config.js",
     "playwright.config.ts",
     "e2e"
+  ],
+  "exclude": [
+    "e2e/scenes/generated",
+    "e2e/scenes/plants"
   ]
 }

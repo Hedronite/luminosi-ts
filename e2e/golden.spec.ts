@@ -8,9 +8,10 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { loadRegistry } from "@hedronite/lts-registry";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { decodePng } from "../tools/stills/src/png.js";
 import { looseDistance, looseRatio, MARGIN, strictDistance, strictFails } from "./golden/metrics.js";
+import { plant, plants } from "./golden/plants.js";
 
 const goldens = resolve(import.meta.dirname, "golden");
 const measuring = process.env["GOLDEN_MEASURE"] === "1";
@@ -21,34 +22,6 @@ const frames = process.env["GOLDEN_FRAMES"];
 const assets = loadRegistry()
   .list()
   .filter((meta) => meta.kind !== "icon");
-
-const plants = ["blank canvas", "recoloured subject", "missing part", "moved camera"] as const;
-type Plant = (typeof plants)[number];
-
-/** Alters the page the rig drew, the way a regression would alter the picture. `clear` undoes it. */
-async function plant(page: Page, what: Plant | "clear"): Promise<void> {
-  await page.evaluate((change) => {
-    const stage = document.querySelector<HTMLElement>('[data-testid="still"]');
-    if (stage === null) throw new Error("the page has no still stage");
-    const canvas = stage.querySelector("canvas");
-    if (canvas === null) throw new Error("the still stage has no canvas");
-    document.getElementById("plant")?.remove();
-    canvas.style.visibility = "";
-    canvas.style.filter = "";
-    canvas.style.transform = "";
-    if (change === "blank canvas") canvas.style.visibility = "hidden";
-    if (change === "recoloured subject") canvas.style.filter = "sepia(1) hue-rotate(140deg) saturate(1.5)";
-    // The camera a few degrees along: the picture shifted and a little larger.
-    if (change === "moved camera") canvas.style.transform = "translate(16px, 10px) scale(1.04)";
-    if (change === "missing part") {
-      // A block of the middle of the stage painted over with the stage's own background.
-      const block = document.createElement("div");
-      block.id = "plant";
-      block.style.cssText = "position:absolute;left:176px;top:176px;width:160px;height:160px;background:#f5f5f5";
-      stage.append(block);
-    }
-  }, what);
-}
 
 test("every golden image belongs to an asset", () => {
   const known = new Set(assets.map((meta) => `${meta.id}.png`));

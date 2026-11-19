@@ -30,12 +30,12 @@ import { buildSubject } from "./subjects";
 /** Bump when the rig's picture changes for a reason other than an asset (size, cameras, lights, the look, the time): a poster's input hash carries it. */
 const RIG_VERSION = 1;
 /** The canvas, in CSS pixels. Device pixel ratio is 1, so a capture is this many pixels square. */
-const SIZE = 512;
+export const SIZE = 512;
 /** The frames stepped before the stage is ready, and the time each one adds: the stage clock ends at FRAMES * STEP seconds (2 s). */
-const FRAMES = 60;
-const STEP = 1 / 30;
+export const FRAMES = 60;
+export const STEP = 1 / 30;
 /** The seed every generator that draws without being given one is lent. The library's generators take their own seeds from their parameters. */
-const SEED = 1;
+export const SEED = 1;
 
 const look = neutral;
 

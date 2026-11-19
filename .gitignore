@@ -34,3 +34,6 @@ test-results/
 
 # Adoption workspaces (lumin adopt): upstream files copied for porting, scratch
 .adopt/
+
+# The planted modules the strict scene spec draws (bun run scenes:plants), made on each run
+e2e/scenes/plants/
