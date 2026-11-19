@@ -365,6 +365,16 @@
       "name": "tool-solids",
       "version": "0.0.0",
     },
+    "tools/stills": {
+      "name": "tool-stills",
+      "version": "0.0.0",
+      "devDependencies": {
+        "@hedronite/lts-core": "workspace:*",
+        "@hedronite/lts-registry": "workspace:*",
+        "@playwright/test": "catalog:",
+        "vitest": "catalog:",
+      },
+    },
     "tools/vendor": {
       "name": "tool-vendor",
       "version": "0.0.0",
@@ -1815,6 +1825,8 @@
     "tool-objects": ["tool-objects@workspace:tools/objects"],
 
     "tool-solids": ["tool-solids@workspace:tools/solids"],
+
+    "tool-stills": ["tool-stills@workspace:tools/stills"],
 
     "tool-vendor": ["tool-vendor@workspace:tools/vendor"],
 
