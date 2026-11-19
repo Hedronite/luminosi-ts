@@ -13,14 +13,10 @@ function Lights() {
   return <primitive object={rig} />;
 }
 
-/**
- * The asset's object, built on mount and freed on unmount, and recolored in place when the look changes. A scene kit's lights
- * take their colors from the look too, and only materials recolor in place, so a kit is built again for a new look.
- */
+/** The asset's object, built on mount and freed on unmount, and recolored in place when the look changes: a kit's lights and materials too. */
 function Subject({ meta, palette }: { readonly meta: AssetMeta; readonly palette: ScenePalette }) {
   const invalidate = useThree((state) => state.invalidate);
   const [object, setObject] = useState<Object3D | undefined>(undefined);
-  const rebuildFor = meta.kind === "scene" ? palette : undefined;
   // The look a build starts from is the latest one.
   const look = useRef(palette);
   useEffect(() => {
@@ -48,13 +44,26 @@ function Subject({ meta, palette }: { readonly meta: AssetMeta; readonly palette
       controller.abort();
       if (built !== undefined) disposeObject(built);
     };
-    // `rebuildFor` is the look for a scene kit and nothing for the rest: only a kit is built again when it changes.
-  }, [meta, rebuildFor, invalidate]);
+  }, [meta, invalidate]);
+  const isKit = meta.kind === "scene";
   useEffect(() => {
-    if (object === undefined) return;
-    applyPalette(object, palette);
-    invalidate();
-  }, [object, palette, invalidate]);
+    if (object === undefined) return undefined;
+    if (!isKit) {
+      applyPalette(object, palette);
+      invalidate();
+      return undefined;
+    }
+    // A kit recolors its lights as well as its materials. Its builder has loaded this module already.
+    let current = true;
+    void import("@hedronite/lts-scenes/three").then(({ applyPalette: applyKitPalette }) => {
+      if (!current) return;
+      applyKitPalette(object, palette);
+      invalidate();
+    });
+    return () => {
+      current = false;
+    };
+  }, [object, isKit, palette, invalidate]);
   // Scene kits are composed upright; single assets get a three-quarter turn.
   return object === undefined ? null : <primitive object={object} rotation={meta.kind === "scene" ? [0.25, 0, 0] : [0.35, 0.6, 0]} />;
 }

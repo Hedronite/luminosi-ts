@@ -88,6 +88,18 @@ test("a material's detail view recolors in place", async ({ page }) => {
   await expectLooksInPlace(page, page.getByRole("dialog", { name: "Metal" }).getByTestId("viewport"), looks);
 });
 
+test("a scene kit's detail view recolors in place, its lights and materials with no rebuild", async ({ page }) => {
+  await page.goto("/?asset=scene-dusk");
+  await expectLooksInPlace(page, page.getByRole("dialog", { name: "Dusk" }).getByTestId("viewport"), looks);
+});
+
+test("the material lineup recolors in place: the same geometry and programs, a new picture", async ({ page }) => {
+  await page.goto("/?view=playground");
+  const lineup = page.getByTestId("material-lineup");
+  await lineup.scrollIntoViewIfNeeded();
+  await expectLooksInPlace(page, lineup, looks);
+});
+
 test("the Effects stage recolors its subject and prints in place", async ({ page }) => {
   await page.goto("/?view=effects");
   await expectLooksInPlace(page, page.getByTestId("effects-stage"), looks);
