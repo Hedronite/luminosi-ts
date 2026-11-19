@@ -1,0 +1,372 @@
+{
+  "archimedean-cuboctahedron": {
+    "path": "assets/posters/archimedean-cuboctahedron.webp",
+    "size": 112,
+    "hash": "8c4e8016e2224005"
+  },
+  "archimedean-icosidodecahedron": {
+    "path": "assets/posters/archimedean-icosidodecahedron.webp",
+    "size": 112,
+    "hash": "e9eca23e9ce3b57a"
+  },
+  "archimedean-rhombicosidodecahedron": {
+    "path": "assets/posters/archimedean-rhombicosidodecahedron.webp",
+    "size": 112,
+    "hash": "23b2c36eac4e31a6"
+  },
+  "archimedean-rhombicuboctahedron": {
+    "path": "assets/posters/archimedean-rhombicuboctahedron.webp",
+    "size": 112,
+    "hash": "ea4048c1a1175699"
+  },
+  "archimedean-snub-cube": {
+    "path": "assets/posters/archimedean-snub-cube.webp",
+    "size": 112,
+    "hash": "ef5c16b9c4bc5c86"
+  },
+  "archimedean-snub-dodecahedron": {
+    "path": "assets/posters/archimedean-snub-dodecahedron.webp",
+    "size": 112,
+    "hash": "6d02113836d51033"
+  },
+  "archimedean-truncated-cube": {
+    "path": "assets/posters/archimedean-truncated-cube.webp",
+    "size": 112,
+    "hash": "2cc3a567278830c9"
+  },
+  "archimedean-truncated-cuboctahedron": {
+    "path": "assets/posters/archimedean-truncated-cuboctahedron.webp",
+    "size": 112,
+    "hash": "fe354355400a6c59"
+  },
+  "archimedean-truncated-dodecahedron": {
+    "path": "assets/posters/archimedean-truncated-dodecahedron.webp",
+    "size": 112,
+    "hash": "fcf4acff57601962"
+  },
+  "archimedean-truncated-icosahedron": {
+    "path": "assets/posters/archimedean-truncated-icosahedron.webp",
+    "size": 112,
+    "hash": "5ed2fb3385bedf65"
+  },
+  "archimedean-truncated-icosidodecahedron": {
+    "path": "assets/posters/archimedean-truncated-icosidodecahedron.webp",
+    "size": 112,
+    "hash": "643a115da8a8b0ae"
+  },
+  "archimedean-truncated-octahedron": {
+    "path": "assets/posters/archimedean-truncated-octahedron.webp",
+    "size": 112,
+    "hash": "63d5459bb74d3bcf"
+  },
+  "archimedean-truncated-tetrahedron": {
+    "path": "assets/posters/archimedean-truncated-tetrahedron.webp",
+    "size": 112,
+    "hash": "7a22e90d84ee47a4"
+  },
+  "ascii": {
+    "path": "assets/posters/ascii.webp",
+    "size": 112,
+    "hash": "22b9ec0e9f1df1b0"
+  },
+  "catalan-deltoidal-hexecontahedron": {
+    "path": "assets/posters/catalan-deltoidal-hexecontahedron.webp",
+    "size": 112,
+    "hash": "1c47860ee3ff1898"
+  },
+  "catalan-deltoidal-icositetrahedron": {
+    "path": "assets/posters/catalan-deltoidal-icositetrahedron.webp",
+    "size": 112,
+    "hash": "dd51df338c4ceb8b"
+  },
+  "catalan-disdyakis-dodecahedron": {
+    "path": "assets/posters/catalan-disdyakis-dodecahedron.webp",
+    "size": 112,
+    "hash": "1666cf2701780df6"
+  },
+  "catalan-disdyakis-triacontahedron": {
+    "path": "assets/posters/catalan-disdyakis-triacontahedron.webp",
+    "size": 112,
+    "hash": "66064d8c21e77ecc"
+  },
+  "catalan-pentagonal-hexecontahedron": {
+    "path": "assets/posters/catalan-pentagonal-hexecontahedron.webp",
+    "size": 112,
+    "hash": "2dc3dcdcf34a4c5b"
+  },
+  "catalan-pentagonal-icositetrahedron": {
+    "path": "assets/posters/catalan-pentagonal-icositetrahedron.webp",
+    "size": 112,
+    "hash": "716059d6fa4e5b2f"
+  },
+  "catalan-pentakis-dodecahedron": {
+    "path": "assets/posters/catalan-pentakis-dodecahedron.webp",
+    "size": 112,
+    "hash": "3d6ae43f79294a72"
+  },
+  "catalan-rhombic-dodecahedron": {
+    "path": "assets/posters/catalan-rhombic-dodecahedron.webp",
+    "size": 112,
+    "hash": "cb6c3699e15b6a1c"
+  },
+  "catalan-rhombic-triacontahedron": {
+    "path": "assets/posters/catalan-rhombic-triacontahedron.webp",
+    "size": 112,
+    "hash": "cad1b2a32be03294"
+  },
+  "catalan-tetrakis-hexahedron": {
+    "path": "assets/posters/catalan-tetrakis-hexahedron.webp",
+    "size": 112,
+    "hash": "e815c682eceba207"
+  },
+  "catalan-triakis-icosahedron": {
+    "path": "assets/posters/catalan-triakis-icosahedron.webp",
+    "size": 112,
+    "hash": "a3583c496cada6b8"
+  },
+  "catalan-triakis-octahedron": {
+    "path": "assets/posters/catalan-triakis-octahedron.webp",
+    "size": 112,
+    "hash": "e0ef188447119d8f"
+  },
+  "catalan-triakis-tetrahedron": {
+    "path": "assets/posters/catalan-triakis-tetrahedron.webp",
+    "size": 112,
+    "hash": "6fd9c235fbee24e7"
+  },
+  "ceramic": {
+    "path": "assets/posters/ceramic.webp",
+    "size": 112,
+    "hash": "82a688639e193396"
+  },
+  "clearcoat": {
+    "path": "assets/posters/clearcoat.webp",
+    "size": 112,
+    "hash": "6beeb9a092d92323"
+  },
+  "crt": {
+    "path": "assets/posters/crt.webp",
+    "size": 112,
+    "hash": "d8cedca1b177226d"
+  },
+  "crystal-cluster": {
+    "path": "assets/posters/crystal-cluster.webp",
+    "size": 112,
+    "hash": "c0179897b4522a39"
+  },
+  "crystal-cluster-glb": {
+    "path": "assets/posters/crystal-cluster-glb.webp",
+    "size": 112,
+    "hash": "cc9ce78bb181dc00"
+  },
+  "crystallize": {
+    "path": "assets/posters/crystallize.webp",
+    "size": 112,
+    "hash": "9a9201dac9f6f1da"
+  },
+  "dissolve": {
+    "path": "assets/posters/dissolve.webp",
+    "size": 112,
+    "hash": "999875cfba6d177e"
+  },
+  "dither": {
+    "path": "assets/posters/dither.webp",
+    "size": 112,
+    "hash": "2948aac7ccfb760e"
+  },
+  "dress-watch": {
+    "path": "assets/posters/dress-watch.webp",
+    "size": 112,
+    "hash": "d325a539915b9f4d"
+  },
+  "emissive": {
+    "path": "assets/posters/emissive.webp",
+    "size": 112,
+    "hash": "52543f6fc4dc391a"
+  },
+  "fabric": {
+    "path": "assets/posters/fabric.webp",
+    "size": 112,
+    "hash": "4dc392cb127b64d1"
+  },
+  "framed-solid": {
+    "path": "assets/posters/framed-solid.webp",
+    "size": 112,
+    "hash": "8bb4df1aba2ba82e"
+  },
+  "fresnel-glow": {
+    "path": "assets/posters/fresnel-glow.webp",
+    "size": 112,
+    "hash": "7e96ca75c5b30469"
+  },
+  "geodesic-sphere": {
+    "path": "assets/posters/geodesic-sphere.webp",
+    "size": 112,
+    "hash": "071185ed7efce136"
+  },
+  "glass": {
+    "path": "assets/posters/glass.webp",
+    "size": 112,
+    "hash": "4afea7d4ea6d2ba4"
+  },
+  "glass-frosted": {
+    "path": "assets/posters/glass-frosted.webp",
+    "size": 112,
+    "hash": "0122bfa9fc1162af"
+  },
+  "grain": {
+    "path": "assets/posters/grain.webp",
+    "size": 112,
+    "hash": "474cc9673f38b613"
+  },
+  "height-gradient": {
+    "path": "assets/posters/height-gradient.webp",
+    "size": 112,
+    "hash": "6892d51fac71fe32"
+  },
+  "hexagonal-bipyramid": {
+    "path": "assets/posters/hexagonal-bipyramid.webp",
+    "size": 112,
+    "hash": "e595d1f9578ad805"
+  },
+  "hexagonal-prism": {
+    "path": "assets/posters/hexagonal-prism.webp",
+    "size": 112,
+    "hash": "491d1276f38dccd7"
+  },
+  "hologram": {
+    "path": "assets/posters/hologram.webp",
+    "size": 112,
+    "hash": "3514302f8f4cad15"
+  },
+  "instanced-lattice": {
+    "path": "assets/posters/instanced-lattice.webp",
+    "size": 112,
+    "hash": "dc88def22e0cec78"
+  },
+  "iridescent": {
+    "path": "assets/posters/iridescent.webp",
+    "size": 112,
+    "hash": "0468cd69eb064349"
+  },
+  "lens": {
+    "path": "assets/posters/lens.webp",
+    "size": 112,
+    "hash": "23020e40fc9693b9"
+  },
+  "matte": {
+    "path": "assets/posters/matte.webp",
+    "size": 112,
+    "hash": "5a2d2a1e234ad957"
+  },
+  "metal": {
+    "path": "assets/posters/metal.webp",
+    "size": 112,
+    "hash": "24a50eb844f03267"
+  },
+  "metal-anodized": {
+    "path": "assets/posters/metal-anodized.webp",
+    "size": 112,
+    "hash": "eb4792832579e9f3"
+  },
+  "metal-brushed": {
+    "path": "assets/posters/metal-brushed.webp",
+    "size": 112,
+    "hash": "a2fe2394ac6722ab"
+  },
+  "pentagonal-antiprism": {
+    "path": "assets/posters/pentagonal-antiprism.webp",
+    "size": 112,
+    "hash": "4f8613f5fc9a9850"
+  },
+  "platonic-cube": {
+    "path": "assets/posters/platonic-cube.webp",
+    "size": 112,
+    "hash": "a6886dfed11293e0"
+  },
+  "platonic-dodecahedron": {
+    "path": "assets/posters/platonic-dodecahedron.webp",
+    "size": 112,
+    "hash": "0f0c3300696bd721"
+  },
+  "platonic-icosahedron": {
+    "path": "assets/posters/platonic-icosahedron.webp",
+    "size": 112,
+    "hash": "d7be777af96ad56a"
+  },
+  "platonic-octahedron": {
+    "path": "assets/posters/platonic-octahedron.webp",
+    "size": 112,
+    "hash": "fb3ed51e362e0a68"
+  },
+  "platonic-tetrahedron": {
+    "path": "assets/posters/platonic-tetrahedron.webp",
+    "size": 112,
+    "hash": "e701a8a68fb9f99f"
+  },
+  "pulse": {
+    "path": "assets/posters/pulse.webp",
+    "size": 112,
+    "hash": "5722a311060f3ac8"
+  },
+  "refraction": {
+    "path": "assets/posters/refraction.webp",
+    "size": 112,
+    "hash": "e1f6cf0eb3fe4b11"
+  },
+  "rubber": {
+    "path": "assets/posters/rubber.webp",
+    "size": 112,
+    "hash": "b5a4b67ffb6c9d77"
+  },
+  "satin": {
+    "path": "assets/posters/satin.webp",
+    "size": 112,
+    "hash": "140f1a6cdde688bb"
+  },
+  "scan": {
+    "path": "assets/posters/scan.webp",
+    "size": 112,
+    "hash": "cc255ad1dabcb82b"
+  },
+  "scene-dusk": {
+    "path": "assets/posters/scene-dusk.webp",
+    "size": 112,
+    "hash": "52058fc7f9830da4"
+  },
+  "scene-gallery": {
+    "path": "assets/posters/scene-gallery.webp",
+    "size": 112,
+    "hash": "00ee1b81a2dc82b9"
+  },
+  "scene-noir": {
+    "path": "assets/posters/scene-noir.webp",
+    "size": 112,
+    "hash": "fe2b5b994f28a008"
+  },
+  "scene-studio": {
+    "path": "assets/posters/scene-studio.webp",
+    "size": 112,
+    "hash": "8c47bc93238332d2"
+  },
+  "smoke": {
+    "path": "assets/posters/smoke.webp",
+    "size": 112,
+    "hash": "4f32c29925efe35f"
+  },
+  "soap-film": {
+    "path": "assets/posters/soap-film.webp",
+    "size": 112,
+    "hash": "c06bd3be05c94002"
+  },
+  "toon": {
+    "path": "assets/posters/toon.webp",
+    "size": 112,
+    "hash": "662f5feccce37059"
+  },
+  "your-desk-lamp": {
+    "path": "assets/posters/your-desk-lamp.webp",
+    "size": 112,
+    "hash": "36870461d407c7ea"
+  }
+}

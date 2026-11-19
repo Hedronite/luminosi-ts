@@ -137,7 +137,7 @@ Each line is one PR. Order holds in one place: Stage 6, then 7, then 8; Stages 9
 - [x] B3 One print pass: cheaper, editable screen effects; `setParams` and `setInks`; the smoke at half size; no frames off screen (#54)
 - [x] B4 Looks without rebuilds: a look change is a uniform write (#58)
 - [x] B5 Merged objects (quick win): the dress watch in 8 draw calls (#42)
-- [ ] B6 Posters: real thumbnails for every 3D asset
+- [x] B6 Posters: real thumbnails for every 3D asset (#63)
 - [ ] B7 Golden images: appearance under test
 - [x] B8 Parameter panel: a schema-driven panel in the detail view (#62)
 
@@ -198,6 +198,7 @@ Small slices left open by earlier waves, each its own PR.
 - [x] Descriptor presentation: optional `preview` and `thumbnail` fields on the asset descriptor, so the catalog's per-id presentation table and object shape table go away (#56)
 - [x] Scene-kit lights recolor in place: `applyPalette` covers the lights and materials a kit builds, and the catalog no longer builds a kit again on a look change (#60)
 - [x] Material lineup recolors in place: the materials are made once and a look change writes their colors, with no per-look key (#60)
+- [x] Swatches gone: the gallery shows each screen effect and shader by its poster, and the swatch drawing code is deleted (#63)
 - [x] Root typecheck: `e2e/` and the config files are checked by the root typecheck (#59)
 - [ ] CI shards balanced by run time, not by file count
 - [ ] Icon packs as data: each pack is a data entry the catalog and `lumin` read, not code
