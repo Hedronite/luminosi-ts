@@ -111,13 +111,19 @@ for (const [id, name] of [
   });
 }
 
-test("the effect pipeline is built once: a pause, a look and an ink leave its targets alone; an effect added or removed, and a remount, build new ones", async ({ page }) => {
-  const errors = errorsOn(page);
+// Each test below is one short page: a runner that draws in software takes most of a minute for a long one.
+
+/** The Effects tab, drawn, with its pipeline built: the stage and what its pipeline holds. */
+async function effectsStage(page: Page) {
   await page.goto("/?view=effects");
   const stage = page.getByTestId("effects-stage");
   await expect(stage).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 15000 });
-  const built = await settledBuilds(stage, "data-effect-builds");
+  return { stage, built: await settledBuilds(stage, "data-effect-builds") };
+}
 
+test("a pause, a look and an ink leave the effect pipeline's targets alone", async ({ page }) => {
+  const errors = errorsOn(page);
+  const { stage, built } = await effectsStage(page);
   // Held, recolored and re-inked: new values written into the passes that are there.
   await page.getByRole("button", { name: "Pause motion" }).click();
   await expect(page.getByRole("button", { name: "Resume motion" })).toBeVisible();
@@ -129,24 +135,33 @@ test("the effect pipeline is built once: a pause, a look and an ink leave its ta
   await expect.poll(() => counted(stage, "data-frames"), { message: "a frame after the look and the ink" }).toBeGreaterThan(frames);
   await page.waitForTimeout(600);
   expect(await effectBuilds(stage), "effect builds after a pause, a look and an ink").toBe(built);
-
-  // The positive controls: a stack with another effect is a new pipeline, and so is the one after it comes off.
-  await page.getByRole("checkbox", { name: "Dither" }).check();
-  await expect.poll(() => effectBuilds(stage), { message: "effect builds after an effect is added" }).toBeGreaterThan(built);
-  const added = await settledBuilds(stage, "data-effect-builds");
-  await page.getByRole("checkbox", { name: "Dither" }).uncheck();
-  await expect.poll(() => effectBuilds(stage), { message: "effect builds after an effect is removed" }).toBeGreaterThan(added);
-  const removed = await settledBuilds(stage, "data-effect-builds");
-
-  // A forced remount: the view goes away and comes back, and the stage builds its pipeline again.
-  await page.getByRole("navigation", { name: "Views" }).getByRole("button", { name: "Playground" }).click();
-  await expect(stage).toHaveCount(0);
-  await page.getByRole("navigation", { name: "Views" }).getByRole("button", { name: "Effects", exact: true }).click();
-  await expect.poll(() => effectBuilds(page.getByTestId("effects-stage")), { message: "effect builds after a remount" }).toBeGreaterThan(removed);
   expect(errors).toEqual([]);
 });
 
-test("a screen effect's parameter edit moves it in place; a new ASCII ramp, which is built in, makes a new pipeline", async ({ page }) => {
+test("an effect added to the stack, and one taken off, each build a new pipeline", async ({ page }) => {
+  const errors = errorsOn(page);
+  const { stage, built } = await effectsStage(page);
+  await page.getByRole("checkbox", { name: "Dither" }).check();
+  await expect.poll(() => effectBuilds(stage), { message: "effect builds after an effect is added", timeout: 30_000 }).toBeGreaterThan(built);
+  const added = await settledBuilds(stage, "data-effect-builds");
+  await page.getByRole("checkbox", { name: "Dither" }).uncheck();
+  await expect.poll(() => effectBuilds(stage), { message: "effect builds after an effect is removed", timeout: 30_000 }).toBeGreaterThan(added);
+  expect(errors).toEqual([]);
+});
+
+test("a forced remount builds the effect pipeline again", async ({ page }) => {
+  const errors = errorsOn(page);
+  const { stage, built } = await effectsStage(page);
+  // The view goes away and comes back, and the stage builds its pipeline again: the count keeps what it held, and adds the new targets.
+  const views = page.getByRole("navigation", { name: "Views" });
+  await views.getByRole("button", { name: "Playground" }).click();
+  await expect(stage).toHaveCount(0);
+  await views.getByRole("button", { name: "Effects", exact: true }).click();
+  await expect.poll(() => effectBuilds(page.getByTestId("effects-stage")), { message: "effect builds after a remount", timeout: 30_000 }).toBeGreaterThan(built);
+  expect(errors).toEqual([]);
+});
+
+test("a screen effect's parameter edit moves it in place", async ({ page }) => {
   const errors = errorsOn(page);
   await page.goto("/?asset=dither");
   const dialog = page.getByRole("dialog", { name: "Dither" });
@@ -163,16 +178,20 @@ test("a screen effect's parameter edit moves it in place; a new ASCII ramp, whic
   };
   await setCell("9");
   await setCell("5");
+  expect(errors).toEqual([]);
+});
 
+test("a new ASCII ramp, which is built into the effect, makes a new pipeline", async ({ page }) => {
+  const errors = errorsOn(page);
   await page.goto("/?asset=ascii");
   const ascii = page.getByRole("dialog", { name: "ASCII" });
-  const asciiHost = ascii.getByTestId("viewport");
-  await expect(asciiHost).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 15000 });
-  const asciiBuilt = await settledBuilds(asciiHost, "data-effect-builds");
+  const host = ascii.getByTestId("viewport");
+  await expect(host).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 15000 });
+  const built = await settledBuilds(host, "data-effect-builds");
   const ramp = ascii.getByRole("region", { name: "Parameters", exact: true }).getByRole("textbox", { name: "Ramp", exact: true });
   await ramp.fill(" .:#");
   await ramp.press("Enter");
-  await expect.poll(() => effectBuilds(asciiHost), { message: "effect builds after a new ramp" }).toBeGreaterThan(asciiBuilt);
+  await expect.poll(() => effectBuilds(host), { message: "effect builds after a new ramp", timeout: 30_000 }).toBeGreaterThan(built);
   expect(errors).toEqual([]);
 });
 
