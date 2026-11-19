@@ -26,6 +26,8 @@ type Path = readonly (string | number)[];
  *   an id that `resolve` does not know as that kind;
  * - `unknown-param`: a parameter the asset's schema does not have;
  * - `invalid-param`: a value outside the asset's schema;
+ * - `surface-on-object`: a surface on an object node (an object has none; its material is a parameter of the object);
+ * - `duplicate-effect`: an effect id twice in the stack (reported at the second);
  * - `duplicate-id`: two nodes with one id (reported at the second);
  * - `missing-parent`: a parent that is no node's id;
  * - `cycle`: a node that is its own ancestor (reported at the first node of each cycle).
@@ -67,7 +69,9 @@ export function checkRefs(scene: Scene, resolve: Resolve): readonly SceneIssue[]
     checkParams(known(kind, asset.id, [...at, "asset", "id"]), asset.params, [...at, "asset", "params"]);
     if (asset.kind === "framed") known("material", asset.edges.material, [...at, "asset", "edges", "material"]);
 
-    if (surface !== undefined) {
+    if (surface !== undefined && asset.kind === "object") {
+      add([...at, "surface"], "surface-on-object", "an object has no surface: it brings its own, and its material is one of its parameters");
+    } else if (surface !== undefined) {
       const [which, id] = "material" in surface ? (["material", surface.material] as const) : (["shader", surface.shader] as const);
       checkParams(known(which, id, [...at, "surface", which]), surface.params, [...at, "surface", "params"]);
     }
@@ -94,7 +98,10 @@ export function checkRefs(scene: Scene, resolve: Resolve): readonly SceneIssue[]
     add(["nodes", index, "parent"], "cycle", `"${node.id}" is its own ancestor`);
   });
 
+  const seen = new Set<string>();
   scene.effects.forEach((effect, index) => {
+    if (seen.has(effect.id)) add(["effects", index, "id"], "duplicate-effect", `"${effect.id}" is already in the stack`);
+    seen.add(effect.id);
     checkParams(known("effect", effect.id, ["effects", index, "id"]), effect.params, ["effects", index, "params"]);
   });
 

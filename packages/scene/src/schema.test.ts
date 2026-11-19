@@ -57,6 +57,37 @@ describe("parseScene", () => {
     expect(parseScene(asOf({ kind: "object", id: "framed-solid", params: { solid: "dodecahedron" } })).ok).toBe(true);
   });
 
+  it("rejects anything but a number where a number goes, and a parameter that is not JSON", () => {
+    const doc = fixtureScene("transform-hierarchy");
+    const node = doc.nodes[1] ?? doc.nodes[0];
+    if (node === undefined) throw new Error("fixture has no node");
+    const notNumbers = fc.oneof(fc.string(), fc.boolean(), fc.constant(null), fc.constant(Number.NaN), fc.constant(Number.POSITIVE_INFINITY), fc.constant(Number.NEGATIVE_INFINITY), fc.array(fc.nat(), { maxLength: 2 }), fc.record({ a: fc.nat() }));
+    fc.assert(
+      fc.property(notNumbers, fc.constantFrom("position", "rotation", "scale"), fc.nat(2), (value, field, at) => {
+        const part: unknown[] = [...node[field]];
+        part[at] = value;
+        const result = parseScene({ ...doc, nodes: [{ ...node, [field]: part }] });
+        expect(result.ok).toBe(false);
+        expect(!result.ok && result.issues.some((issue) => issue.path.join(".").startsWith(`nodes.0.${field}`))).toBe(true);
+      }),
+    );
+    expect(parseScene({ ...doc, camera: { ...doc.camera, fov: Number.NaN } }).ok).toBe(false);
+    expect(parseScene({ ...doc, nodes: [{ ...node, asset: { kind: "primitive", id: "platonic-cube", params: { scale: Number.NaN } } }] }).ok).toBe(false);
+    expect(parseScene({ ...doc, nodes: [{ ...node, asset: { kind: "primitive", id: "platonic-cube", params: { scale: undefined } } }] }).ok).toBe(false);
+  });
+
+  it("names every issue in this package's words, never the schema library's", () => {
+    fc.assert(
+      fc.property(fc.oneof(fc.anything(), fc.jsonValue()), (input) => {
+        const result = parseScene(input);
+        expect(result.ok || result.issues.every((issue) => /^[a-z]+(-[a-z]+)*$/.test(issue.code))).toBe(true);
+      }),
+    );
+    const doc = fixtureScene("v1");
+    const result = parseScene({ ...doc, seed: "zero", ink: "neon", camera: { ...doc.camera, fov: 500 }, nodes: [{ id: "a" }] });
+    expect(result.ok ? [] : result.issues.map((issue) => `${issue.code}@${issue.path.join(".")}`)).toEqual(expect.arrayContaining(["wrong-type@seed", "wrong-value@ink", "out-of-range@camera.fov", "missing-field@nodes.0.parent"]));
+  });
+
   it("rejects a color that is not #rrggbb, and a surface with both a material and a shader", () => {
     const doc = fixtureScene("v1");
     expect(parseScene({ ...doc, look: { base: "#fff", accent: "#000000", metal: "#000000", glass: "#000000", emissive: "#000000" } }).ok).toBe(false);

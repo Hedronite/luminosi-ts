@@ -1,0 +1,78 @@
+{
+  "format": "lts-scene",
+  "version": 1,
+  "look": "neutral",
+  "seed": 0,
+  "nodes": [
+    {
+      "id": "node-1",
+      "parent": null,
+      "position": [0, 0, 0],
+      "rotation": [0.3, 0.5, 0.2],
+      "scale": [1.6, 0.8, 1.1],
+      "asset": {
+        "kind": "primitive",
+        "id": "platonic-icosahedron"
+      },
+      "surface": {
+        "material": "metal"
+      }
+    },
+    {
+      "id": "node-2",
+      "parent": "node-1",
+      "position": [1.4, 0.6, 0],
+      "rotation": [0.2, 0.6, 0.1],
+      "scale": [0.4, 0.4, 0.4],
+      "asset": {
+        "kind": "primitive",
+        "id": "platonic-cube"
+      },
+      "surface": {
+        "material": "glass"
+      }
+    },
+    {
+      "id": "node-3",
+      "parent": "node-4",
+      "position": [0, 0.9, 0],
+      "rotation": [0, 0, 0.5],
+      "scale": [0.5, 0.5, 0.5],
+      "asset": {
+        "kind": "primitive",
+        "id": "platonic-octahedron"
+      },
+      "surface": {
+        "material": "ceramic"
+      }
+    },
+    {
+      "id": "node-4",
+      "parent": null,
+      "position": [-1.2, -0.4, 0],
+      "rotation": [0.4, -0.3, 0.2],
+      "scale": [0.8, 0.4, 0.6],
+      "asset": {
+        "kind": "primitive",
+        "id": "platonic-dodecahedron"
+      },
+      "surface": {
+        "material": "satin"
+      }
+    }
+  ],
+  "lights": {
+    "rig": "studio",
+    "intensity": 1
+  },
+  "environment": {
+    "kind": "studio"
+  },
+  "camera": {
+    "position": [0, 2.2, 5.5],
+    "target": [0, 0, 0],
+    "fov": 40
+  },
+  "effects": [],
+  "ink": "look"
+}
