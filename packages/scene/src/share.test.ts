@@ -37,6 +37,11 @@ function isWellFormed(result: SceneResult): boolean {
   return result.issues.length > 0 && result.issues.every((issue) => issue.code.length > 0 && Array.isArray(issue.path) && issue.message.length > 0);
 }
 
+/** The promise of `decodeScene` resolves to a well-formed result, whatever the text: a rejection fails the property that awaits it. */
+async function resolvesToResult(text: string): Promise<void> {
+  await expect(decodeScene(text)).resolves.toSatisfy(isWellFormed);
+}
+
 describe("a link", () => {
   it("is s1. and then base64url of deflated canonical JSON, in the form the platform reads", async () => {
     const link = await encodeScene(fixtureScene("v1"));
@@ -149,7 +154,7 @@ describe("decodeScene never throws", () => {
   it("returns a result for any string at all", async () => {
     await fc.assert(
       fc.asyncProperty(fc.oneof(fc.string(), fc.string({ unit: "binary" }), fc.string({ unit: "grapheme" }), fc.constant("")), async (text) => {
-        expect(isWellFormed(await decodeScene(text))).toBe(true);
+        await resolvesToResult(text);
       }),
       { numRuns: 300 },
     );
@@ -164,7 +169,7 @@ describe("decodeScene never throws", () => {
           fc.uint8Array({ maxLength: 300 }).map((bytes) => `s1.${base64Url(bytes)}`),
         ),
         async (text) => {
-          expect(isWellFormed(await decodeScene(text))).toBe(true);
+          await resolvesToResult(text);
         },
       ),
       { numRuns: 300 },
@@ -177,7 +182,7 @@ describe("decodeScene never throws", () => {
       fc.asyncProperty(fc.nat(link.length), fc.constantFrom("A", "-", "_", "=", "+", "!", "é"), fc.uint8Array({ maxLength: 40 }), async (at, character, extra) => {
         for (const text of [link.slice(0, at), `${link.slice(0, at)}${character}${link.slice(at + 1)}`, `${link}${base64Url(extra)}`]) {
           // eslint-disable-next-line no-await-in-loop -- three texts, one after another
-          expect(isWellFormed(await decodeScene(text))).toBe(true);
+          await resolvesToResult(text);
         }
       }),
       { numRuns: 100 },
@@ -186,9 +191,9 @@ describe("decodeScene never throws", () => {
 
   it("returns a result for a value that is not a string", async () => {
     for (const value of [undefined, null, 0, {}, [], Symbol("x")]) {
+      const promise: Promise<unknown> = Reflect.apply(decodeScene, undefined, [value]);
       // eslint-disable-next-line no-await-in-loop -- one value after another
-      const result: unknown = await Reflect.apply(decodeScene, undefined, [value]);
-      expect(isResult(result) && isWellFormed(result)).toBe(true);
+      await expect(promise).resolves.toSatisfy((result: unknown) => isResult(result) && isWellFormed(result));
     }
   });
 });
