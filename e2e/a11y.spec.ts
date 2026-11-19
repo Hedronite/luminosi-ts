@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Locator, Page } from "@playwright/test";
-import { expect, test } from "./fixtures.js";
+import { builds, expect, settledBuilds, test } from "./fixtures.js";
 
 // What every 3D stage owes a viewer who cannot drag or who wants less motion:
 //
@@ -254,6 +254,7 @@ test("a surface shader's parameters move live from the address: frames keep comi
   await heldCounters(host);
   await expect.poll(async () => number(host, "data-programs")).toBeGreaterThan(0);
   const programs = await number(host, "data-programs");
+  const built = await settledBuilds(host);
   const first = await host.locator("canvas").screenshot();
   await ["density=300", "density=300,intensity=8,speed=0", '{"density":8,"intensity":0.5}'].reduce<Promise<Buffer>>(async (before, value) => {
     const picture = await before;
@@ -261,6 +262,7 @@ test("a surface shader's parameters move live from the address: frames keep comi
     await setParams(page, value);
     await expect.poll(async () => number(host, "data-frames")).toBeGreaterThan(frames);
     await page.waitForTimeout(500);
+    expect(await builds(host), `builds after ${value}`).toBe(built);
     expect(await number(host, "data-programs"), `programs after ${value}`).toBe(programs);
     const next = await host.locator("canvas").screenshot();
     expect(next.equals(picture), `the picture after ${value}`).toBe(false);

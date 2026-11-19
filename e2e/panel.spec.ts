@@ -139,6 +139,7 @@ test("a parameter baked into the shader rebuilds it, and the panel says so", asy
   const panel = dialog.getByRole("region", { name: "Parameters", exact: true });
   const host = dialog.getByTestId("viewport");
   await drawn(host);
+  const built = await settledBuilds(host);
   await expect(panel.getByText("Rebuilds the asset")).toHaveCount(1);
   const before = await host.locator("canvas").screenshot();
   await drawsAfter(host, async () => {
@@ -147,10 +148,15 @@ test("a parameter baked into the shader rebuilds it, and the panel says so", asy
   await expect(panel.getByRole("status")).toHaveText("Bands is built into the shader, so changing it rebuilds the shader.");
   await expect.poll(() => paramsOf(page)).toBe("bands=5");
   await expect.poll(async () => (await host.locator("canvas").screenshot()).equals(before)).toBe(false);
+  // The counter's positive control: a rebuilt shader is a new material, so the builds rise; then a live edit leaves them where they stand.
+  await expect.poll(() => builds(host), { message: "builds after a baked edit" }).toBeGreaterThan(built);
+  const rebuilt = await settledBuilds(host);
   // A live parameter right after it clears the notice.
   await panel.getByRole("spinbutton", { name: "Outline", exact: true }).fill("0.1");
   await expect(panel.getByRole("status")).toHaveText("");
   await expect.poll(() => paramsOf(page)).toBe("bands=5,outline=0.1");
+  await page.waitForTimeout(500);
+  expect(await builds(host), "builds after a live edit following a rebuild").toBe(rebuilt);
   expect(errors).toEqual([]);
 });
 
