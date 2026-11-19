@@ -200,6 +200,7 @@ Small slices left open by earlier waves, each its own PR.
 - [x] Material lineup recolors in place: the materials are made once and a look change writes their colors, with no per-look key (#60)
 - [x] Swatches gone: the gallery shows each screen effect and shader by its poster, and the swatch drawing code is deleted (#63)
 - [x] Root typecheck: `e2e/` and the config files are checked by the root typecheck (#59)
+- [x] Identity counter: every 3D stage publishes `data-builds`, the distinct meshes and materials it has ever attached, and the panel and looks specs assert it flat, so a remount that keeps the program count fails them (#65)
 - [ ] CI shards balanced by run time, not by file count
 - [ ] Icon packs as data: each pack is a data entry the catalog and `lumin` read, not code
 
