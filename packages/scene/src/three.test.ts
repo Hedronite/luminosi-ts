@@ -4,8 +4,9 @@ import { materialPreset } from "@hedronite/lts-materials";
 import { loadDescriptors } from "@hedronite/lts-registry";
 import { hedronite, neutral, presets, type ScenePalette } from "@hedronite/lts-tokens";
 import { Color, Euler, InstancedMesh, Matrix4, Quaternion, Vector3, Mesh, MeshPhysicalMaterial, Texture, type BufferGeometry, type Material, type Object3D } from "three";
+import fc from "fast-check";
 import { describe, expect, it, vi } from "vitest";
-import { checkRefs, parseScene, type Scene as SceneDocument, type SceneNode } from "./index.js";
+import { checkRefs, parseScene, setTransform, type Scene as SceneDocument, type SceneNode } from "./index.js";
 import { createScene } from "./three.js";
 
 const node = (id: string, over: Partial<SceneNode> = {}): SceneNode => ({
@@ -400,6 +401,93 @@ describe("the fixtures", () => {
         expect(value).toBeCloseTo(world(node).elements[i] ?? Number.NaN, 9);
       });
     }
+    built.dispose();
+  });
+});
+
+describe("a transform-only update", () => {
+  const family = scene([
+    node("p", { position: [1, 0, 0], rotation: [0.2, 0.4, 0.1], scale: [1, 2, 1] }),
+    node("s", { parent: "p", position: [0, 1, 0], asset: { kind: "primitive", id: "platonic-octahedron" }, surface: { shader: "toon", params: { bands: 3 } } }),
+    node("f", { position: [-2, 0, 0], asset: { kind: "framed", id: "platonic-dodecahedron", edges: { material: "metal" } }, surface: { shader: "hologram" } }),
+    node("o", { position: [3, 0, 0], asset: { kind: "object", id: "crystal-cluster" } }),
+  ]);
+  const ids = ["p", "s", "f", "o"] as const;
+  const number = fc.double({ min: -20, max: 20, noNaN: true });
+  const vec = fc.tuple(number, number, number);
+  const changes = fc.record({ position: vec, rotation: vec, scale: vec }, { requiredKeys: [] });
+
+  const same = (now: Set<unknown>, then: Set<unknown>): boolean => now.size === then.size && [...now].every((each) => then.has(each));
+  const closeTo = (a: number, b: number): boolean => Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b));
+
+  /** What the document says a node's own matrix is: position, Euler x, y, z, scale. */
+  const local = (each: SceneNode): Matrix4 => new Matrix4().compose(new Vector3(...each.position), new Quaternion().setFromEuler(new Euler(...each.rotation, "XYZ")), new Vector3(...each.scale));
+
+  it("moves, turns and scales any node over and over, and back, and builds and frees nothing: the same objects, geometries and materials throughout", async () => {
+    const built = createScene(family, { palette: neutral.scene });
+    await built.ready;
+    const before = resourcesOf(built.root);
+    const identity = identities(built.root);
+    const spies = watch(before);
+    let current = family;
+    await fc.assert(
+      fc.asyncProperty(fc.constantFrom(...ids), changes, async (id, change) => {
+        const edited = setTransform(current, id, change);
+        if (!edited.ok) throw new Error(JSON.stringify(edited.issues));
+        current = edited.scene;
+        await built.update(current);
+        expect(identities(built.root)).toEqual(identity);
+        expect(same(resourcesOf(built.root), before)).toBe(true);
+        const target = current.nodes.find((each) => each.id === id);
+        const object = built.root.getObjectByName(id);
+        expect(object?.position.toArray()).toEqual(target?.position);
+        expect(object?.rotation.toArray().slice(0, 3)).toEqual(target?.rotation);
+        expect(object?.scale.toArray()).toEqual(target?.scale);
+      }),
+      { numRuns: 40 },
+    );
+    // Back to where it began, as an undo does: still nothing built, and nothing freed.
+    await built.update(family);
+    expect(identities(built.root)).toEqual(identity);
+    expect(same(resourcesOf(built.root), before)).toBe(true);
+    for (const spy of spies.values()) expect(spy).not.toHaveBeenCalled();
+    built.dispose();
+  });
+
+  it("puts a nested node where its parent's transform and its own put it, after any edit of either", async () => {
+    const built = createScene(family, { palette: neutral.scene });
+    await built.ready;
+    let current = family;
+    await fc.assert(
+      fc.asyncProperty(fc.constantFrom("p", "s"), changes, async (id, change) => {
+        const edited = setTransform(current, id, change);
+        if (!edited.ok) throw new Error(JSON.stringify(edited.issues));
+        current = edited.scene;
+        await built.update(current);
+        built.root.updateMatrixWorld(true);
+        const [parent, child] = [current.nodes.find((each) => each.id === "p"), current.nodes.find((each) => each.id === "s")];
+        if (parent === undefined || child === undefined) throw new Error("the family lost a node");
+        const expected = local(parent).multiply(local(child)).toArray();
+        const actual = built.root.getObjectByName("s")?.matrixWorld.toArray() ?? [];
+        expect(actual).toHaveLength(16);
+        expect(actual.every((value, at) => closeTo(value, expected[at] ?? Number.NaN))).toBe(true);
+      }),
+      { numRuns: 40 },
+    );
+    built.dispose();
+  });
+
+  it("leaves a shader's parameters and the look alone while a node moves", async () => {
+    const built = createScene(family, { palette: neutral.scene });
+    await built.ready;
+    const colours = meshesOf(built.root).map((mesh) => (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).map((material) => (material instanceof MeshPhysicalMaterial ? material.color.getHexString() : "")));
+    for (let step = 1; step <= 5; step += 1) {
+      const edited = setTransform(family, "s", { position: [step, 0, 0], scale: [step, step, step] });
+      if (!edited.ok) throw new Error(JSON.stringify(edited.issues));
+      // eslint-disable-next-line no-await-in-loop -- the updates are one gesture after another
+      await built.update(edited.scene);
+    }
+    expect(meshesOf(built.root).map((mesh) => (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).map((material) => (material instanceof MeshPhysicalMaterial ? material.color.getHexString() : "")))).toEqual(colours);
     built.dispose();
   });
 });
