@@ -25,18 +25,31 @@ export const test = base.extend<ConsoleOptions>({
  */
 export const builds = async (host: Locator): Promise<number> => Number(await host.getAttribute("data-builds"));
 
-/** Waits until the stage has attached everything it will (the count is positive and holds across two samples), and returns it: the baseline for a flat check. */
-export async function settledBuilds(host: Locator): Promise<number> {
+/**
+ * An effects stage's `data-effect-builds`: how many distinct render-target textures its screen-effect pipeline has ever held, by
+ * `uuid`. It never goes down either: a new pipeline (an effect added or removed, a new ramp, a remount) raises it, and a
+ * parameter, a look, an ink and a pause leave it flat.
+ */
+export const effectBuilds = async (host: Locator): Promise<number> => Number(await host.getAttribute("data-effect-builds"));
+
+/** A count the page publishes onto `host`, as a number (0 until it is there). */
+export const counted = async (host: Locator, attribute: string): Promise<number> => Number(await host.getAttribute(attribute));
+
+/**
+ * Waits until the stage has attached everything it will (`attribute`, `data-builds` unless said, is positive and holds across two samples),
+ * and returns it: the baseline for a flat check.
+ */
+export async function settledBuilds(host: Locator, attribute = "data-builds"): Promise<number> {
   let last = -1;
   await expect
     .poll(
       async () => {
         const before = last;
         await host.page().waitForTimeout(400);
-        last = await builds(host);
+        last = await counted(host, attribute);
         return last > 0 && last === before;
       },
-      { message: "the build count settles", timeout: 20_000 },
+      { message: `${attribute} settles`, timeout: 20_000 },
     )
     .toBe(true);
   return last;
