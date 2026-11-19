@@ -17,3 +17,6 @@ export {
   type SceneResult,
   type SceneSurface,
 } from "./schema.js";
+export { addNode, removeNode, setEffects, setInk, setLights, setLook, setSurface, setTransform, type LightsChange, type TransformChange } from "./edit.js";
+export { canRedo, canUndo, createHistory, endGesture, HISTORY_CAP, push, redo, undo, type SceneHistory } from "./history.js";
+export { decodeScene, encodeScene, SHARE_LIMITS, SHARE_PREFIX } from "./share.js";
