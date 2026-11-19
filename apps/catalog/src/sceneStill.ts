@@ -28,6 +28,8 @@ const PIXEL_RATIO = 1;
 /** What a generated module offers: a scene built on a renderer, the way `createScene` builds one, in plain three.js. */
 interface Emitted {
   readonly camera: PerspectiveCamera;
+  /** Settles when every object has built. */
+  readonly ready: Promise<void>;
   readonly render: (delta: number) => void;
   readonly dispose: () => void;
 }
@@ -47,7 +49,7 @@ interface Drawn {
 export type Memory = Readonly<Record<string, number>>;
 
 const documents = import.meta.glob<string>("../../../packages/scene/fixtures/*.json", { query: "?raw", import: "default", eager: true });
-const modules = import.meta.glob<{ readonly build: (renderer: WebGPURenderer, options: Options) => Promise<Emitted> }>("../../../e2e/scenes/{generated,plants}/*.ts");
+const modules = import.meta.glob<{ readonly build: (renderer: WebGPURenderer, options: Options) => Emitted }>("../../../e2e/scenes/{generated,plants}/*.ts");
 
 const fixtureText = (name: string): string | undefined => documents[`../../../packages/scene/fixtures/${name}.json`];
 
@@ -117,7 +119,8 @@ async function run(stage: HTMLElement, name: string, via: string, plant: string 
     const path = plant === null ? `../../../e2e/scenes/generated/${name}.ts` : `../../../e2e/scenes/plants/${name}.${plant}.ts`;
     const load = modules[path];
     if (load === undefined) throw new RangeError(`there is no module at ${path}`);
-    const built = await (await load()).build(renderer, options);
+    const built = (await load()).build(renderer, options);
+    await built.ready;
     return { render: built.render, dispose: built.dispose };
   }
 
