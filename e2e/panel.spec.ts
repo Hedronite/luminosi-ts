@@ -19,11 +19,27 @@ const number = async (host: Locator, attribute: string): Promise<number> => Numb
 const dialogOf = (page: Page, name: string): Locator => page.getByRole("dialog", { name });
 const paramsOf = (page: Page): string => new URL(page.url()).searchParams.get("params") ?? "";
 
-/** Waits until the stage has drawn, then until it is built (a program is on the GPU). */
+/**
+ * Waits until the stage has drawn and its program count has settled: the shader's programs compile over the first frames (a loaded
+ * runner shows four, then seven), so the first positive count is no baseline. Settled is the count holding for eight samples in a row.
+ */
 async function drawn(host: Locator): Promise<number> {
   await expect(host).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 20_000 });
-  await expect.poll(async () => number(host, "data-programs")).toBeGreaterThan(0);
-  return number(host, "data-programs");
+  let last = -1;
+  let steady = 0;
+  await expect
+    .poll(
+      async () => {
+        await host.page().waitForTimeout(300);
+        const now = await number(host, "data-programs");
+        steady = now === last && now > 0 ? steady + 1 : 0;
+        last = now;
+        return steady;
+      },
+      { message: "the program count settles", timeout: 30_000 },
+    )
+    .toBeGreaterThanOrEqual(8);
+  return last;
 }
 
 /** The frame counter moves on after `act`: the stage keeps drawing. */
