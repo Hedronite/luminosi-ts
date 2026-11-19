@@ -98,11 +98,6 @@ describe.each([
     expect(code).not.toContain('"b"');
     expect(code).toContain('"c"');
   });
-
-  it("scales a primitive by its scale parameter, uniformly, on the asset", () => {
-    const code = emit(sceneOf([cube("a", null, { asset: { kind: "primitive", id: "platonic-cube", params: { scale: 2 } } })]));
-    expect(code).toMatch(/\b1(?:\.0)?, 1(?:\.0)?, 1(?:\.0)?|setScalar\(2\)/);
-  });
 });
 
 describe("toTsx", () => {
@@ -131,5 +126,34 @@ describe("toVanilla", () => {
     const code = toVanilla(sceneOf([cube("a", null, { asset: { kind: "framed", id: "archimedean-cuboctahedron", edges: { material: "metal" } } })]));
     expect(code).toContain("createFramedSolid");
     expect(code).toContain("look.accent");
+  });
+
+  it("draws as createScene does: a camera of near 0.1 and far 100, and an aspect read from the renderer at each render", () => {
+    const code = toVanilla(sceneOf([cube("a")]));
+    expect(code).toContain("new PerspectiveCamera(40, 1, 0.1, 100)");
+    expect(code).toMatch(/render: \(delta\) => \{\n\s+renderer\.getSize\(size\);/);
+    expect(code).toContain("camera.aspect = size.x / size.y;");
+    expect(code).toContain("pmrem.fromScene(room, 0.04)");
+    expect(code).toContain("createStudioLights({ intensity: 1.25 })");
+  });
+
+  it("scales a primitive's geometry by its scale parameter and a framed solid whole, both uniformly", () => {
+    const primitive = toVanilla(sceneOf([cube("a", null, { asset: { kind: "primitive", id: "platonic-cube", params: { scale: 2 } } })]));
+    expect(primitive).toContain("geometry0.scale(2, 2, 2);");
+    const framed = toVanilla(sceneOf([cube("a", null, { asset: { kind: "framed", id: "platonic-cube", edges: { material: "metal" }, params: { scale: 1.5 } } })]));
+    expect(framed).toContain("object0.scale.setScalar(1.5);");
+  });
+
+  it("fills each effect's parameters from its own schema, and passes no monochrome for the look's own inks", () => {
+    const code = toVanilla(sceneOf([cube("a")], { effects: [{ id: "dither", params: { cell: 4 } }, { id: "grain" }], ink: "look" }));
+    expect(code).toContain('screenEffectSchemas["dither"].parse({ cell: 4 })');
+    expect(code).toContain('screenEffectSchemas["grain"].parse({})');
+    expect(code).not.toContain("monochrome");
+  });
+
+  it("reads time from the clock it is given, and from three's own when it is given none", () => {
+    const code = toVanilla(sceneOf([cube("a", null, { surface: { shader: "toon", params: { bands: 4 } } })]));
+    expect(code).toContain("options.clock === undefined ? {} : { clock: options.clock }");
+    expect(code).not.toContain("uniform(");
   });
 });
