@@ -1,0 +1,48 @@
+{
+  "format": "lts-scene",
+  "version": 1,
+  "look": "neutral",
+  "seed": 0,
+  "nodes": [
+    {
+      "id": "node-1",
+      "parent": null,
+      "position": [0, 0, 0],
+      "rotation": [0, 0, 0],
+      "scale": [0.6, 0.6, 0.6],
+      "asset": {
+        "kind": "object",
+        "id": "dress-watch",
+        "params": {
+          "hours": 10,
+          "minutes": 10,
+          "seconds": 30
+        }
+      }
+    }
+  ],
+  "lights": {
+    "rig": "studio",
+    "intensity": 1
+  },
+  "environment": {
+    "kind": "studio"
+  },
+  "camera": {
+    "position": [0, 2.2, 5.5],
+    "target": [0, 0, 0],
+    "fov": 40
+  },
+  "effects": [
+    {
+      "id": "dither",
+      "params": {
+        "cell": 4
+      }
+    },
+    {
+      "id": "grain"
+    }
+  ],
+  "ink": "accent"
+}

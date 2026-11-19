@@ -1,0 +1,12 @@
+{
+  "lightIntensity": 1.2,
+  "placements": [
+    { "kind": "primitive", "primitive": "platonic-cube", "material": "metal" },
+    { "kind": "primitive", "primitive": "platonic-octahedron", "material": "glass", "shader": "toon" },
+    { "kind": "framed", "primitive": "archimedean-cuboctahedron", "faces": "glass", "edges": "metal" },
+    { "kind": "object", "object": "crystal-cluster", "material": "glass" },
+    { "kind": "object", "object": "your-desk-lamp" }
+  ],
+  "effects": ["dither", "grain"],
+  "ink": "accent"
+}
