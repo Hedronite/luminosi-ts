@@ -16,6 +16,25 @@
         "src/**/*.{ts,tsx}"
       ]
     },
+    "packages/scene": {
+      "project": [
+        "src/**/*.{ts,tsx}"
+      ],
+      "ignoreDependencies": [
+        "@hedronite/lts-adapters",
+        "@hedronite/lts-materials",
+        "@hedronite/lts-objects",
+        "@hedronite/lts-postfx",
+        "@hedronite/lts-primitives",
+        "@hedronite/lts-shaders",
+        "@hedronite/lts-tokens",
+        "@react-three/fiber",
+        "@types/react",
+        "@types/three",
+        "react",
+        "three"
+      ]
+    },
     "apps/catalog": {
       "project": [
         "src/**/*.{ts,tsx}"
