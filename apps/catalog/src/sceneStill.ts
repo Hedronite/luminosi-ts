@@ -178,7 +178,7 @@ export function mountSceneStill(root: HTMLElement, name: string, via: string, pl
       stage.dataset["still"] = "ready";
     },
     (error: unknown) => {
-      stage.dataset["error"] = error instanceof Error ? error.message : String(error);
+      stage.dataset["error"] = error instanceof Error ? `${error.message}\n${error.stack ?? ""}` : String(error);
       stage.dataset["still"] = "error";
     },
   );
