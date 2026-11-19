@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { Picture } from "../../tools/stills/src/png.js";
-import { looseDistance, looseFails, strictDistance, strictFails } from "./metrics.js";
+import { looseDistance, looseFails, looseRatio, MARGIN, strictDistance, strictFails } from "./metrics.js";
 
 // A node-only spec (no page): the golden check's measures on pictures made up here.
 const SIZE = 512;
@@ -52,6 +52,8 @@ test("a named asset has its own loose bar, and the common bar holds for every ot
   expect(grain.tone).toBeCloseTo(0.5, 5);
   expect(looseFails(grain, "any other asset")).toBe(true);
   expect(looseFails(grain, "ascii")).toBe(false);
+  expect(looseRatio(grain, "ascii")).toBeCloseTo(0.5 / 0.55, 5);
+  expect(looseRatio(grain)).toBeGreaterThan(MARGIN);
   // The named asset's bar is no escape from a blank canvas.
   expect(looseFails(looseDistance(picture(), golden), "ascii")).toBe(true);
 });

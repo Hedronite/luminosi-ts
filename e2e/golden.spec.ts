@@ -10,7 +10,7 @@ import { join, resolve } from "node:path";
 import { loadRegistry } from "@hedronite/lts-registry";
 import { expect, test, type Page } from "@playwright/test";
 import { decodePng } from "../tools/stills/src/png.js";
-import { looseDistance, looseFails, strictDistance, strictFails } from "./golden/metrics.js";
+import { looseDistance, looseRatio, MARGIN, strictDistance, strictFails } from "./golden/metrics.js";
 
 const goldens = resolve(import.meta.dirname, "golden");
 const measuring = process.env["GOLDEN_MEASURE"] === "1";
@@ -79,7 +79,9 @@ for (const asset of assets) {
     await expect(stage).toHaveAttribute("data-still", "ready");
     expect(problems).toEqual([]);
 
-    const fails = (distance: ReturnType<typeof strictDistance> | ReturnType<typeof looseDistance>): boolean => ("changedPixels" in distance ? strictFails(distance) : looseFails(distance, asset.id));
+    // The strict check fails a plant at any pixel. The loose one asks more: a plant must reach MARGIN times its bar, and a clean frame must stay a MARGIN under it.
+    const fails = (distance: ReturnType<typeof strictDistance> | ReturnType<typeof looseDistance>): boolean => ("changedPixels" in distance ? strictFails(distance) : looseRatio(distance, asset.id) >= MARGIN);
+    const matches = (distance: ReturnType<typeof strictDistance> | ReturnType<typeof looseDistance>): boolean => ("changedPixels" in distance ? !strictFails(distance) : looseRatio(distance, asset.id) <= 1 / MARGIN);
     const measure = (frame: ReturnType<typeof decodePng>): ReturnType<typeof strictDistance> | ReturnType<typeof looseDistance> => (strict ? strictDistance(frame, golden) : looseDistance(frame, golden));
     const shoot = async (name: string): Promise<ReturnType<typeof decodePng>> => {
       const png = await stage.screenshot({ animations: "disabled" });
@@ -108,7 +110,7 @@ for (const asset of assets) {
     writeFileSync(join(out, `${asset.id}.json`), `${JSON.stringify(results)}\n`);
 
     if (measuring) return;
-    expect(fails(clean), `${asset.id} no longer matches its golden: ${JSON.stringify(clean)}. If the change is intended, regenerate with bun run goldens and list this id in the PR`).toBe(false);
+    expect(matches(clean), `${asset.id} no longer matches its golden: ${JSON.stringify(clean)}. If the change is intended, regenerate with bun run goldens and list this id in the PR`).toBe(true);
     expect(missed, `${asset.id}: the check passed these plants, which it must fail`).toEqual([]);
   });
 }

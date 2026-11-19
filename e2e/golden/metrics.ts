@@ -31,14 +31,17 @@ const BLOCKS = 16;
  */
 const LOOSE_BAR = { tone: 0.28, local: 3.9, coverage: 0.005 } as const;
 
+/** How far a bar must sit from the distances on both sides: a clean frame at most its bar over this, every plant at least this times its bar. */
+export const MARGIN = 1.2;
+
 /**
- * Two screen effects measured further from their golden on the CI runner (Linux) than on the machine the bars came from: ascii (tone 0.439,
- * coverage 0.0205) and crystallize (tone 0.263, coverage 0.0055), against 0.19 and 0.0033 for every other asset. Their bars are the CI run's own
- * distances times about 1.5, for the numbers that exceeded the common bar. Every plant still fails them (STACK.md, "Golden images"), the
- * ascii plants by the least: a moved camera 1.04 times and a missing part 1.12 times its bar.
+ * Two screen effects measured further from their golden on the CI runner (Linux) than on the machine the common bars came from: ascii (tone 0.439,
+ * coverage 0.0205) and crystallize (tone 0.263, coverage 0.0055), against 0.191 and 0.0033 for every other asset. Their bars are set from the CI
+ * distances, the same on every CI run so far (STACK.md, "Golden images"): the least that keeps a clean frame MARGIN under the bar (ascii's tone
+ * 0.439 gives 0.527 or more) and the most that keeps every plant MARGIN over it (ascii's moved camera, 0.6835 in tone, gives 0.569 or less).
  */
 const LOOSE_OVERRIDES: Readonly<Record<string, Partial<Record<keyof typeof LOOSE_BAR, number>>>> = {
-  ascii: { tone: 0.66, coverage: 0.031 },
+  ascii: { tone: 0.55, coverage: 0.026 },
   crystallize: { tone: 0.4, coverage: 0.0083 },
 };
 
@@ -100,10 +103,13 @@ export function looseDistance(frame: Picture, golden: Picture): LooseDistance {
   return { tone: tone / (BLOCKS * BLOCKS), local, coverage: coverage / (BLOCKS * BLOCKS) };
 }
 
-export function looseFails(distance: LooseDistance, asset?: string): boolean {
+/** The largest ratio of a distance to its bar: above 1 the frame fails the check, and a frame MARGIN or more over it fails it clearly. */
+export function looseRatio(distance: LooseDistance, asset?: string): number {
   const bar = { ...LOOSE_BAR, ...(asset === undefined ? {} : LOOSE_OVERRIDES[asset]) };
-  return distance.tone > bar.tone || distance.local > bar.local || distance.coverage > bar.coverage;
+  return Math.max(distance.tone / bar.tone, distance.local / bar.local, distance.coverage / bar.coverage);
 }
+
+export const looseFails = (distance: LooseDistance, asset?: string): boolean => looseRatio(distance, asset) > 1;
 
 function sameSize(a: Picture, b: Picture): void {
   if (a.width !== b.width || a.height !== b.height) throw new RangeError(`pictures differ in size: ${String(a.width)}x${String(a.height)} and ${String(b.width)}x${String(b.height)}`);
