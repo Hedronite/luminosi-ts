@@ -91,7 +91,7 @@ const nodes = fc.array(fc.record({ asset, surface, position: vec3, rotation: vec
     rotation,
     scale,
     asset: drafted,
-    ...(surfaced === undefined ? {} : { surface: surfaced }),
+    ...(surfaced === undefined || drafted.kind === "object" ? {} : { surface: surfaced }),
   })),
 );
 

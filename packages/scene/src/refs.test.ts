@@ -9,7 +9,12 @@ const codes = (scene: Scene): string[] => checkRefs(scene, resolve).map((issue) 
 const withNodes = (nodes: readonly SceneNode[]): Scene => ({ ...base, nodes: [...nodes] });
 /** The first node of the fixture, as a starting point. */
 const first: SceneNode = fixtureScene("primitives-in-materials").nodes[0] ?? (() => { throw new Error("fixture has no node"); })();
-const node = (id: string, parent: string | null, extra: Partial<SceneNode> = {}): SceneNode => ({ ...first, id, parent, asset: { kind: "primitive", id: "platonic-cube" }, surface: { material: "metal" }, ...extra });
+/** A node of the fixture's transform. It has a metal surface unless it is an object (which has none) or `extra` gives another. */
+const node = (id: string, parent: string | null, extra: Partial<SceneNode> = {}): SceneNode => {
+  const asset = extra.asset ?? { kind: "primitive", id: "platonic-cube" };
+  const surface = extra.surface ?? (asset.kind === "object" ? undefined : { material: "metal" });
+  return { id, parent, position: first.position, rotation: first.rotation, scale: first.scale, asset, ...(surface === undefined ? {} : { surface }) };
+};
 
 describe("checkRefs", () => {
   it("finds nothing wrong with any valid document", () => {
@@ -30,8 +35,9 @@ describe("checkRefs", () => {
       look: "nowhere",
       nodes: [
         node("a", null, { asset: { kind: "primitive", id: "no-such" } }),
-        node("b", null, { asset: { kind: "object", id: "no-such" }, surface: { shader: "no-such" } }),
+        node("b", null, { asset: { kind: "object", id: "no-such" } }),
         node("c", null, { asset: { kind: "framed", id: "platonic-cube", edges: { material: "no-such" } }, surface: { material: "no-such" } }),
+        node("d", null, { surface: { shader: "no-such" } }),
       ],
       effects: [{ id: "no-such" }],
     };
@@ -39,9 +45,9 @@ describe("checkRefs", () => {
       "unknown-look@look",
       "unknown-primitive@nodes.0.asset.id",
       "unknown-object@nodes.1.asset.id",
-      "unknown-shader@nodes.1.surface.shader",
       "unknown-material@nodes.2.asset.edges.material",
       "unknown-material@nodes.2.surface.material",
+      "unknown-shader@nodes.3.surface.shader",
       "unknown-effect@effects.0.id",
     ]);
   });
@@ -51,8 +57,9 @@ describe("checkRefs", () => {
       ...base,
       nodes: [
         node("a", null, { asset: { kind: "primitive", id: "platonic-cube", params: { scale: 99 } } }),
-        node("b", null, { asset: { kind: "object", id: "dress-watch", params: { hours: 1.5, colour: "red" } }, surface: { shader: "toon", params: { bands: 1 } } }),
+        node("b", null, { asset: { kind: "object", id: "dress-watch", params: { hours: 1.5, colour: "red" } } }),
         node("c", null, { surface: { material: "metal", params: { shine: 1 } } }),
+        node("d", null, { surface: { shader: "toon", params: { bands: 1 } } }),
       ],
       effects: [{ id: "dither", params: { cell: "big" } }],
     };
@@ -60,10 +67,18 @@ describe("checkRefs", () => {
       "invalid-param@nodes.0.asset.params.scale",
       "unknown-param@nodes.1.asset.params.colour",
       "invalid-param@nodes.1.asset.params.hours",
-      "invalid-param@nodes.1.surface.params.bands",
       "unknown-param@nodes.2.surface.params.shine",
+      "invalid-param@nodes.3.surface.params.bands",
       "invalid-param@effects.0.params.cell",
     ]);
+  });
+
+  it("names a surface on an object, and accepts the object's material as its parameter", () => {
+    const withoutSurface = (id: string, asset: SceneNode["asset"]): SceneNode => ({ id, parent: null, position: first.position, rotation: first.rotation, scale: first.scale, asset });
+    const watch: SceneNode["asset"] = { kind: "object", id: "dress-watch" };
+    expect(codes(withNodes([node("a", null, { asset: watch, surface: { material: "metal" } })]))).toEqual(["surface-on-object@nodes.0.surface"]);
+    expect(codes(withNodes([node("a", null, { asset: watch, surface: { shader: "toon" } })]))).toEqual(["surface-on-object@nodes.0.surface"]);
+    expect(codes(withNodes([withoutSurface("a", watch), withoutSurface("b", { kind: "object", id: "crystal-cluster", params: { material: "metal" } })]))).toEqual([]);
   });
 
   it("names a duplicate id, a missing parent and a cycle", () => {
@@ -78,7 +93,7 @@ describe("checkRefs", () => {
   it("finds any one fault injected into a valid document", () => {
     const mutations: readonly ((scene: Scene, at: number) => { readonly scene: Scene; readonly expected: string })[] = [
       (scene, at) => ({ scene: { ...scene, nodes: scene.nodes.map((n, i) => (i === at ? { ...n, asset: { kind: "primitive", id: "gone" } } : n)) }, expected: `unknown-primitive@nodes.${String(at)}.asset.id` }),
-      (scene, at) => ({ scene: { ...scene, nodes: scene.nodes.map((n, i) => (i === at ? { ...n, surface: { material: "gone" } } : n)) }, expected: `unknown-material@nodes.${String(at)}.surface.material` }),
+      (scene, at) => ({ scene: { ...scene, nodes: scene.nodes.map((n, i) => (i === at ? { ...n, asset: { kind: "primitive", id: "platonic-cube" }, surface: { material: "gone" } } : n)) }, expected: `unknown-material@nodes.${String(at)}.surface.material` }),
       (scene, at) => ({ scene: { ...scene, nodes: scene.nodes.map((n, i) => (i === at ? { ...n, asset: { kind: "primitive", id: "platonic-cube", params: { nope: 1 } } } : n)) }, expected: `unknown-param@nodes.${String(at)}.asset.params.nope` }),
       (scene, at) => ({ scene: { ...scene, nodes: scene.nodes.map((n, i) => (i === at ? { ...n, asset: { kind: "primitive", id: "platonic-cube", params: { scale: 50 } } } : n)) }, expected: `invalid-param@nodes.${String(at)}.asset.params.scale` }),
       (scene, at) => ({ scene: { ...scene, nodes: scene.nodes.map((n, i) => (i === at ? { ...n, parent: "ghost" } : n)) }, expected: `missing-parent@nodes.${String(at)}.parent` }),
