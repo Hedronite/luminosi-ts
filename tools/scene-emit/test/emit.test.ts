@@ -5,17 +5,16 @@ import { createRequire } from "node:module";
 import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
-import { toTsx, toVanilla } from "../../src/emit/index.js";
-import { migrate } from "../../src/migrate.js";
-import { sceneSchema } from "../../src/schema.js";
+import { migrate, sceneSchema } from "@hedronite/lts-scene";
+import { toTsx, toVanilla } from "@hedronite/lts-scene/emit";
 
 // The emitted code, for every fixture document, is type-checked against the real packages (their built types). A planted
 // id the packages do not have must fail it, so a pass means something.
 
 const here = fileURLToPath(new URL(".", import.meta.url));
-const fixtures = join(here, "..", "..", "fixtures");
-const good = join(here, "out");
-const bad = join(here, "out-bad");
+const fixtures = join(here, "..", "..", "..", "packages", "scene", "fixtures");
+const good = join(here, "..", "out");
+const bad = join(here, "..", "out-bad");
 const tsc = createRequire(import.meta.url).resolve("typescript/bin/tsc");
 
 afterAll(() => {

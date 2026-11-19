@@ -28,19 +28,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@hedronite/lts-adapters": "workspace:*",
-    "@hedronite/lts-materials": "workspace:*",
-    "@hedronite/lts-objects": "workspace:*",
-    "@hedronite/lts-postfx": "workspace:*",
-    "@hedronite/lts-primitives": "workspace:*",
-    "@hedronite/lts-shaders": "workspace:*",
-    "@hedronite/lts-tokens": "workspace:*",
-    "@react-three/fiber": "catalog:",
-    "@types/react": "catalog:",
-    "@types/three": "catalog:",
     "fast-check": "catalog:",
-    "react": "catalog:",
-    "three": "catalog:",
     "vitest": "catalog:"
   }
 }
