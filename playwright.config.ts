@@ -8,22 +8,28 @@ import type { ConsoleOptions } from "./e2e/fixtures.js";
 const webgpuLane = process.env["LTS_WEBGPU_LANE"] === "1";
 // The still-frame rig (bun run stills, see STACK.md) is the same kind of lane: a GPU machine, never CI, only when LTS_STILLS is set, and then the only project.
 const stillsLane = process.env["LTS_STILLS"] === "1";
+// The golden images (see STACK.md) have two checks of one spec, e2e/golden.spec.ts. The strict one (bun run e2e:golden) draws on the real GPU
+// and is a lane like the two above: never CI, only when LTS_GOLDEN is set, and then the only project. The loose one (bun run e2e:golden:loose)
+// draws with software WebGL and is what CI runs, in a job of its own; it exists only when LTS_GOLDEN_LOOSE is set, and no run has both.
+const goldenLane = process.env["LTS_GOLDEN"] === "1";
+const goldenLoose = process.env["LTS_GOLDEN_LOOSE"] === "1";
+const goldenAny = goldenLane || goldenLoose;
 // The lanes need only the catalog, so a catalog URL alone (a tailnet HTTPS address, say) is an external run for them.
-const external = process.env["E2E_CATALOG_URL"] !== undefined && (webgpuLane || stillsLane || process.env["E2E_SITE_URL"] !== undefined);
+const external = process.env["E2E_CATALOG_URL"] !== undefined && (webgpuLane || stillsLane || goldenAny || process.env["E2E_SITE_URL"] !== undefined);
 
 export default defineConfig<ConsoleOptions>({
   testDir: "e2e",
   // Against a deployed container only the served pages are under test; the image-to-object review
   // runs local tooling on the local build, so it stays with the normal run.
-  testIgnore: [...(external ? ["**/review.spec.ts"] : []), ...(webgpuLane ? [] : ["**/webgpu.spec.ts"])],
+  testIgnore: [...(external ? ["**/review.spec.ts"] : []), ...(webgpuLane ? [] : ["**/webgpu.spec.ts"]), ...(goldenAny ? [] : ["**/golden.spec.ts"])],
   // Tests, not files, are what workers and CI shards divide: catalog.spec.ts alone is over half the suite.
   fullyParallel: true,
   // Locally every test draws with software WebGL, and each browser's GPU process takes one to three cores, so the default
   // (half the cores) overloads a machine shared with other work and first-frame tests miss the 5 s expect timeout.
   // CI keeps the default: one shard per runner, with the longer timeouts below.
   ...(process.env["CI"] === undefined ? { workers: 2 } : {}),
-  // One worker for the still-frame rig: its frames are compared byte for byte, and two browsers sharing one GPU is a variable it need not carry.
-  ...(stillsLane ? { workers: 1 } : {}),
+  // One worker for the still-frame rig and the strict golden check: their frames are compared byte for byte, and two browsers sharing one GPU is a variable they need not carry.
+  ...(stillsLane || goldenLane ? { workers: 1 } : {}),
   forbidOnly: process.env["CI"] !== undefined,
   // On CI the 3D tests draw with software WebGL on shared runners: the first frame of a viewport
   // (three.js loaded, the studio environment baked) can take longer than the 5 s default, and did,
@@ -31,7 +37,7 @@ export default defineConfig<ConsoleOptions>({
   ...(process.env["CI"] === undefined ? {} : { expect: { timeout: 15_000 }, timeout: 60_000 }),
   reporter: process.env["CI"] === undefined ? "list" : [["list"], ["html", { open: "never" }]],
   use: {
-    baseURL: process.env["E2E_CATALOG_URL"] ?? (stillsLane ? "http://localhost:4176" : webgpuLane ? "http://localhost:4175" : "http://localhost:4173"),
+    baseURL: process.env["E2E_CATALOG_URL"] ?? (stillsLane ? "http://localhost:4176" : goldenAny ? "http://localhost:4177" : webgpuLane ? "http://localhost:4175" : "http://localhost:4173"),
     // Console warnings a test may see; any other warning fails it (see e2e/fixtures.ts). Each entry is a message
     // the app does not cause: nothing in apps/ or packages/ builds a THREE.Clock or sets a shadow map type.
     consoleAllow: [
@@ -48,7 +54,25 @@ export default defineConfig<ConsoleOptions>({
       /GL Driver Message \(OpenGL, Performance, GL_CLOSE_PATH_NV, High\): Running out of reserved outsideRenderPass queueSerial/,
     ],
   },
-  projects: stillsLane
+  projects: goldenLane
+    ? [
+        {
+          name: "golden",
+          testMatch: "golden.spec.ts",
+          // The real GPU through Metal, as the rig that made the goldens drew them, in the same fixed viewport at device pixel ratio 1.
+          use: { ...devices["Desktop Chrome"], viewport: { width: 640, height: 640 }, deviceScaleFactor: 1, launchOptions: { args: ["--enable-unsafe-webgpu", "--use-angle=metal"] } },
+        },
+      ]
+    : goldenLoose
+    ? [
+        {
+          name: "golden-loose",
+          testMatch: "golden.spec.ts",
+          // Software WebGL, as CI draws everything: no GPU, so a coarse comparison against goldens a GPU made.
+          use: { ...devices["Desktop Chrome"], viewport: { width: 640, height: 640 }, deviceScaleFactor: 1, launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] } },
+        },
+      ]
+    : stillsLane
     ? [
         {
           name: "stills",
@@ -79,6 +103,11 @@ export default defineConfig<ConsoleOptions>({
       ],
   webServer: external
     ? []
+    : goldenAny
+      ? [
+          // The built catalog on its own port, never a reused server: the frames must come from the build the run just made.
+          { command: "bunx vite preview --port 4177 --strictPort", cwd: "apps/catalog", url: "http://localhost:4177", reuseExistingServer: false },
+        ]
     : stillsLane
       ? [
           // The built catalog on its own port, never a reused server: the frames must come from the build the lane just made.
