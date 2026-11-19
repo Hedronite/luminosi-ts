@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { packIconToSvg, paintAttributes } from "./pack.js";
 import { iconPacks, loadIconPack } from "./packs/index.js";
 
@@ -17,29 +17,38 @@ describe("icon packs", () => {
     }
   });
 
-  it.each(iconPacks.map((p) => [p.id]))("%s: every icon has a valid grid, path data and paint, and ids and names are unique", async (id) => {
-    const load = loadIconPack[id];
-    if (load === undefined) throw new Error(`no loader for ${id}`);
-    const { pack, icons } = await load();
-    expect(icons).toHaveLength(pack.count);
-    expect(new Set(icons.map((i) => i.id)).size).toBe(icons.length);
-    expect(new Set(icons.map((i) => i.importName)).size).toBe(icons.length);
-    // A pack holds thousands of icons and each has a handful of checks, so the checks are plain tests and one `expect` reads what they found:
-    // an `expect` call per check costs more than the check, and put the biggest packs near the test's time limit on a CI runner. A failure
-    // still names the icon and what is wrong with it.
-    const problems: string[] = [];
-    for (const icon of icons) {
-      if (!viewBox.test(icon.viewBox)) problems.push(`${icon.id}: viewBox "${icon.viewBox}"`);
-      if (icon.paths.length === 0) problems.push(`${icon.id}: no paths`);
-      for (const paint of [icon.paint, ...icon.paths]) {
-        for (const key of ["fill", "stroke"] as const) {
-          const value = paint[key];
-          if (value !== undefined && !colors.test(value)) problems.push(`${icon.id}: ${key}=${value}`);
+  // A pack is a module of megabytes of data, and loading it (reading and transforming the file) takes longer on a CI runner than checking it.
+  // Each pack is loaded before its test, so the test is the check.
+  describe.each(iconPacks.map((p) => [p.id]))("%s", (id) => {
+    let loaded: Awaited<ReturnType<NonNullable<(typeof loadIconPack)[string]>>> | undefined;
+    beforeAll(async () => {
+      const load = loadIconPack[id];
+      if (load === undefined) throw new Error(`no loader for ${id}`);
+      loaded = await load();
+    });
+
+    it("has every icon with a valid grid, path data and paint, and ids and names that are unique", () => {
+      if (loaded === undefined) throw new Error(`${id} was not loaded`);
+      const { pack, icons } = loaded;
+      expect(icons).toHaveLength(pack.count);
+      expect(new Set(icons.map((i) => i.id)).size).toBe(icons.length);
+      expect(new Set(icons.map((i) => i.importName)).size).toBe(icons.length);
+      // A pack holds thousands of icons and each has a handful of checks, so the checks are plain tests and one `expect` reads what they found:
+      // an `expect` call per check costs more than the check. A failure still names the icon and what is wrong with it.
+      const problems: string[] = [];
+      for (const icon of icons) {
+        if (!viewBox.test(icon.viewBox)) problems.push(`${icon.id}: viewBox "${icon.viewBox}"`);
+        if (icon.paths.length === 0) problems.push(`${icon.id}: no paths`);
+        for (const paint of [icon.paint, ...icon.paths]) {
+          for (const key of ["fill", "stroke"] as const) {
+            const value = paint[key];
+            if (value !== undefined && !colors.test(value)) problems.push(`${icon.id}: ${key}=${value}`);
+          }
         }
+        for (const path of icon.paths) if (!pathData.test(path.d)) problems.push(`${icon.id}: path data "${path.d.slice(0, 40)}"`);
       }
-      for (const path of icon.paths) if (!pathData.test(path.d)) problems.push(`${icon.id}: path data "${path.d.slice(0, 40)}"`);
-    }
-    expect(problems).toEqual([]);
+      expect(problems).toEqual([]);
+    });
   });
 });
 

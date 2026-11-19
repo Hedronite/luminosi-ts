@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
-import { expect, test } from "./fixtures.js";
+import { builds, expect, test } from "./fixtures.js";
 
 test.use({ permissions: ["clipboard-read", "clipboard-write"] });
 
@@ -236,18 +236,18 @@ test("stepping through 3D assets frees each geometry it replaces", async ({ page
   await expect(viewport).toHaveAttribute("data-gpu-geometries", /^[1-9]\d*$/);
   const baseline = await viewport.getAttribute("data-gpu-geometries");
 
-  const frames = async (): Promise<number> => Number(await viewport.getAttribute("data-frames"));
   const next = page.getByRole("button", { name: "Next asset" });
   for (let i = 0; i < total; i++) {
+    // The stage's build count is every mesh, geometry and material it has ever attached, and never goes down, so it rises by what each step attaches.
     // eslint-disable-next-line no-await-in-loop -- each step must render before the next, to load and free one geometry at a time
-    const drawn = await frames();
+    const attached = await builds(viewport);
     // eslint-disable-next-line no-await-in-loop -- as above
     await next.click();
-    // The step has rendered when the dialog names the next asset and the stage has drawn a frame since the click.
+    // The step has rendered when the dialog names the next asset and the stage has attached it.
     // eslint-disable-next-line no-await-in-loop -- as above
     await expect(page.getByRole("dialog")).toContainText(position(((i + 1) % total) + 1, total));
     // eslint-disable-next-line no-await-in-loop -- as above
-    await expect.poll(frames, { message: `a frame after step ${String(i + 1)}`, timeout: STAGE_WAIT }).toBeGreaterThan(drawn);
+    await expect.poll(() => builds(viewport), { message: `the stage attaches the asset of step ${String(i + 1)}`, timeout: STAGE_WAIT }).toBeGreaterThan(attached);
   }
   await expect(page.getByRole("dialog")).toContainText(position(1, total));
   await expect.poll(() => viewport.getAttribute("data-gpu-geometries"), { message: "the geometry count is back at the first asset's", timeout: STAGE_WAIT }).toBe(baseline);
