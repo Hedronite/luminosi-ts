@@ -4,7 +4,7 @@ import { join } from "node:path";
 import type { AssetMeta } from "@hedronite/lts-core";
 import sharp from "sharp";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { checkPosters, hasPoster, manifestSource, posterEdge, posterInputHash, webpSize, type PosterAsset, type PosterManifest } from "./posters.js";
+import { checkPosters, hasPoster, loadPosterManifest, manifestSource, posterEdge, posterInputHash, webpSize, type PosterAsset, type PosterManifest } from "./posters.js";
 
 const meta = (id: string, kind: AssetMeta["kind"]): AssetMeta => ({ id, kind, name: id, tags: [], version: "0.0.0", package: "@hedronite/lts-materials", added: "2026-11-18" });
 const assets: readonly PosterAsset[] = [
@@ -104,15 +104,20 @@ describe("checkPosters", () => {
 
   it("fails a poster left for an asset that is gone, and a missing manifest, budget or rig", () => {
     expect(check({ ...good, gone: { path: "assets/posters/matte.webp", size: posterEdge, hash: "0" } }).problems).toEqual(["gone: a poster in the manifest for an asset that has none"]);
-    expect(checkPosters(root, assets, undefined, undefined, undefined).problems).toEqual(["posters: no budget in assets/budgets.json", "posters: no rig version (tools/stills/package.json)", "posters: no manifest (apps/catalog/src/generated/posters.ts); run `bun run --filter tool-assets posters`"]);
+    expect(checkPosters(root, assets, undefined, undefined, undefined).problems).toEqual(["posters: no budget in assets/budgets.json", "posters: no rig version (tools/stills/package.json)", "posters: no manifest (assets/posters/manifest.json); run `bun run --filter tool-assets posters`"]);
   });
 });
 
 describe("manifestSource", () => {
-  it("lists the posters by id, in order, as a module the catalog and validate read", () => {
+  it("lists the posters by id, in order, as JSON the validate step reads back", () => {
     const text = manifestSource({ b: { path: "assets/posters/b.webp", size: 112, hash: "bb" }, a: { path: "assets/posters/a.webp", size: 112, hash: "aa" } });
-    expect(text.indexOf('"a":')).toBeLessThan(text.indexOf('"b":'));
-    expect(text).toContain('"a": { path: "assets/posters/a.webp", size: 112, hash: "aa" },');
-    expect(text).toContain("Do not edit by hand");
+    expect(text.indexOf('"a"')).toBeLessThan(text.indexOf('"b"'));
+    expect(text.endsWith("\n")).toBe(true);
+    const dir = mkdtempSync(join(tmpdir(), "manifest-"));
+    mkdirSync(join(dir, "assets/posters"), { recursive: true });
+    writeFileSync(join(dir, "assets/posters/manifest.json"), text);
+    expect(loadPosterManifest(dir)).toEqual({ a: { path: "assets/posters/a.webp", size: 112, hash: "aa" }, b: { path: "assets/posters/b.webp", size: 112, hash: "bb" } });
+    expect(loadPosterManifest(join(dir, "nowhere"))).toBeUndefined();
+    rmSync(dir, { recursive: true, force: true });
   });
 });

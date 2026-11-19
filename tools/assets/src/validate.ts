@@ -36,7 +36,7 @@ const posters = checkPosters(
     const descriptor = descriptors.get(meta.id);
     return descriptor === undefined ? [] : [{ meta, defaults: descriptor.defaults }];
   }),
-  await loadPosterManifest(root),
+  loadPosterManifest(root),
   budgets.posters,
   rigVersion(root),
 );
