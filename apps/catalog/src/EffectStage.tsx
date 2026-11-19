@@ -7,7 +7,7 @@ import type { Hex, ScenePalette } from "@hedronite/lts-tokens";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef, useState, type RefObject } from "react";
 import type { Group, Object3D } from "three";
-import { effectBuildsOf } from "./builds";
+import { noteEffectTargets } from "./builds";
 import { Controls, GpuCounts, StageClock, StageFrame, useMotion } from "./scene";
 import { stageFrameloop, useStageShown, WakeOnShow } from "./onscreen";
 import { buildStage, repaintStage, type StageSubject, type StageSurface } from "./stage";
@@ -100,10 +100,7 @@ export function EffectStage({ effects, palette, subject = framedDodecahedron, su
   const target = host ?? own;
   // Every pipeline the pass builds hands over its render-target textures; the set keeps them all, so only a build raises the count.
   const noteTargets = (ids: readonly string[]): void => {
-    const element = target.current;
-    if (element === null) return;
-    const seen = effectBuildsOf(element);
-    for (const id of ids) seen.add(id);
+    noteEffectTargets(target.current, ids);
   };
   return (
     <StageFrame group={own} motion={motion} label={label} className={className} testId={host === undefined ? "viewport" : undefined}>
