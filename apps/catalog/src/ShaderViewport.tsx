@@ -8,7 +8,6 @@ import { BoxGeometry, MeshBasicMaterial, SphereGeometry, WebGPURenderer } from "
 import { stageFrameloop, useStageShown, WakeOnShow } from "./onscreen";
 import { Controls, GpuCounts, StageClock, StageFrame, useMotion } from "./scene";
 import { useShaderClock } from "./shaderClock";
-import { shaderParams, useParamsQuery } from "./shaderParams";
 
 // A smooth sphere: effects that read the surface's turn (toon bands, refraction, rims) need smooth normals.
 function EffectSphere({ id, palette, params }: { readonly id: string; readonly palette: ScenePalette; readonly params: Readonly<Record<string, unknown>> | undefined }) {
@@ -54,15 +53,13 @@ function Backdrop({ palette }: { readonly palette: ScenePalette }) {
 /**
  * A 3D view for TSL shaders. TSL needs three's WebGPURenderer, which falls back to WebGL 2 where WebGPU
  * is missing. Renders every frame, since effects can animate; paused, or under reduced motion, only on change;
- * off screen, or in a hidden tab, not at all.
+ * off screen, or in a hidden tab, not at all. `params` is every parameter in force (the panel's edits and the address's `?params=` over the defaults):
+ * a change of it moves the shader live. `epoch` counts the times a parameter with no default was cleared, which only a new build can undo.
  */
-export function ShaderViewport({ meta, palette }: { readonly meta: AssetMeta; readonly palette: ScenePalette }) {
+export function ShaderViewport({ meta, palette, params, epoch }: { readonly meta: AssetMeta; readonly palette: ScenePalette; readonly params: Readonly<Record<string, unknown>>; readonly epoch: number }) {
   const group = useRef<HTMLDivElement>(null);
   const clock = useRef(0);
   const { clock: shaderClock, write: writeShaderTime } = useShaderClock();
-  // The page's `params` value (`?params=density=80,speed=3`, or a JSON object) moves the shader's parameters live.
-  const query = useParamsQuery();
-  const params = useMemo(() => (isEffectId(meta.id) ? shaderParams(query) : undefined), [meta.id, query]);
   const motion = useMotion(isEffectId(meta.id) && effectInfo[meta.id].animated === true);
   const shown = useStageShown(group);
   return (
@@ -85,7 +82,7 @@ export function ShaderViewport({ meta, palette }: { readonly meta: AssetMeta; re
         <StageClock clockRef={clock} running={!motion.still} writeShaderTime={writeShaderTime} />
         {isEffectId(meta.id) && effectInfo[meta.id].seeThrough === true ? <Backdrop palette={palette} /> : null}
         <EffectClockProvider clock={shaderClock}>
-          <EffectSphere key={meta.id} id={meta.id} palette={palette} params={params} />
+          <EffectSphere key={`${meta.id}:${String(epoch)}`} id={meta.id} palette={palette} params={params} />
         </EffectClockProvider>
         <GpuCounts target={group} clockRef={clock} shaderClock={shaderClock} />
       </Canvas>

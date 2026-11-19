@@ -13,26 +13,30 @@ function Lights() {
   return <primitive object={rig} />;
 }
 
-/** The asset's object, built on mount and freed on unmount, and recolored in place when the look changes: a kit's lights and materials too. */
-function Subject({ meta, palette }: { readonly meta: AssetMeta; readonly palette: ScenePalette }) {
+/**
+ * The asset's object, built on mount and freed on unmount, and built again when its parameters change (the old one stays on
+ * show until the new one is ready, then is freed). Recolored in place when the look changes: a kit's lights and materials too.
+ */
+function Subject({ meta, palette, params }: { readonly meta: AssetMeta; readonly palette: ScenePalette; readonly params: Readonly<Record<string, unknown>> }) {
   const invalidate = useThree((state) => state.invalidate);
   const [object, setObject] = useState<Object3D | undefined>(undefined);
-  // The look a build starts from is the latest one.
+  // The look a build starts from is the latest one, and so are the parameters (the build below is keyed by their text).
   const look = useRef(palette);
+  const latest = useRef(params);
   useEffect(() => {
     look.current = palette;
+    latest.current = params;
   });
+  const key = JSON.stringify(params);
   useEffect(() => {
     const controller = new AbortController();
-    let built: Object3D | undefined;
-    buildSubject(meta, look.current, controller.signal).then(
+    buildSubject(meta, look.current, controller.signal, latest.current).then(
       (result) => {
         if (result === undefined) return;
         if (controller.signal.aborted) {
           disposeObject(result);
           return;
         }
-        built = result;
         setObject(result);
         invalidate();
       },
@@ -42,9 +46,16 @@ function Subject({ meta, palette }: { readonly meta: AssetMeta; readonly palette
     );
     return () => {
       controller.abort();
-      if (built !== undefined) disposeObject(built);
     };
-  }, [meta, invalidate]);
+    // `key` stands for `params`: a new object with the same values builds nothing.
+  }, [meta, key, invalidate]);
+  // An object is freed once the next one has replaced it (or the view closes).
+  useEffect(
+    () => () => {
+      if (object !== undefined) disposeObject(object);
+    },
+    [object],
+  );
   const isKit = meta.kind === "scene";
   useEffect(() => {
     if (object === undefined) return undefined;
@@ -68,8 +79,8 @@ function Subject({ meta, palette }: { readonly meta: AssetMeta; readonly palette
   return object === undefined ? null : <primitive object={object} rotation={meta.kind === "scene" ? [0.25, 0, 0] : [0.35, 0.6, 0]} />;
 }
 
-/** An interactive 3D view of a primitive, material or object. Renders only when something changes. */
-export function Viewport({ meta, palette }: { readonly meta: AssetMeta; readonly palette: ScenePalette }) {
+/** An interactive 3D view of a primitive, material, object or kit, built with `params` (every parameter in force). Renders only when something changes. */
+export function Viewport({ meta, palette, params }: { readonly meta: AssetMeta; readonly palette: ScenePalette; readonly params: Readonly<Record<string, unknown>> }) {
   // Renders only on change, so nothing here moves on its own.
   const group = useRef<HTMLDivElement>(null);
   const motion = useMotion(false);
@@ -79,7 +90,7 @@ export function Viewport({ meta, palette }: { readonly meta: AssetMeta; readonly
         <Environment />
         {meta.kind === "scene" ? null : <Lights />}
         <Controls keys={group} />
-        <Subject key={meta.id} meta={meta} palette={palette} />
+        <Subject key={meta.id} meta={meta} palette={palette} params={params} />
         <GpuCounts target={group} />
       </Canvas>
     </StageFrame>
