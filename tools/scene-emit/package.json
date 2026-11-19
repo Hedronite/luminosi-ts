@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "nice -n 19 vitest run"
   },
   "devDependencies": {
     "@hedronite/lts-adapters": "workspace:*",
