@@ -3,6 +3,7 @@ import { useFrame, useStore, useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode, type RefObject } from "react";
 import { MathUtils, Spherical, Vector3 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { buildsOf, noteBuilds } from "./builds";
 
 /** The studio environment comes from the adapters, so the catalog uses what consumers use. */
 export { StudioEnvironment as Environment } from "@hedronite/lts-adapters";
@@ -141,21 +142,29 @@ const backendOf = (gl: object): "webgpu" | "webgl" => {
 
 /**
  * Writes the scene's rendered frame count, the backend that drew it, live GPU resource counts and
- * camera (azimuth and polar in degrees, distance from the origin), the number of shader programs, and the stage's animation
+ * camera (azimuth and polar in degrees, distance from the origin), the number of shader programs, the builds (how many distinct meshes,
+ * geometries and materials the stage has ever attached, by `uuid`, never counting one twice and never going down: a remount raises it,
+ * a recolor or a uniform edit leaves it; see `builds.ts`, where the count lives outside React so a remount of the Canvas cannot reset it), and the stage's animation
  * clock when it has one (and the time its surface shaders read, when it gave them one), onto `target`, for tests.
  */
 export function GpuCounts({ target, clockRef, shaderClock }: { readonly target: RefObject<HTMLDivElement | null>; readonly clockRef?: RefObject<number>; readonly shaderClock?: { readonly value: number } }) {
   const gl = useThree((state) => state.gl);
   const camera = useThree((state) => state.camera);
+  const scene = useThree((state) => state.scene);
   // useFrame runs once per scene render, so environment baking does not count.
   const frames = useRef(0);
   useFrame(() => {
     frames.current += 1;
+    // A frame follows every commit that attaches something, so an object that lives for one commit is still seen.
+    const host = target.current;
+    if (host !== null) noteBuilds(scene, buildsOf(host));
   });
   useEffect(() => {
     const timer = setInterval(() => {
       const element = target.current;
       if (element === null) return;
+      const seen = buildsOf(element);
+      noteBuilds(scene, seen);
       const { x, y, z } = camera.position;
       const distance = Math.hypot(x, y, z);
       element.dataset["frames"] = String(frames.current);
@@ -163,6 +172,7 @@ export function GpuCounts({ target, clockRef, shaderClock }: { readonly target: 
       element.dataset["gpuGeometries"] = String(gl.info.memory.geometries);
       element.dataset["gpuTextures"] = String(gl.info.memory.textures);
       element.dataset["programs"] = String(programsOf(gl));
+      element.dataset["builds"] = String(seen.size);
       element.dataset["azimuth"] = MathUtils.radToDeg(Math.atan2(x, z)).toFixed(1);
       element.dataset["polar"] = MathUtils.radToDeg(Math.acos(MathUtils.clamp(y / distance, -1, 1))).toFixed(1);
       element.dataset["distance"] = distance.toFixed(2);
@@ -172,7 +182,7 @@ export function GpuCounts({ target, clockRef, shaderClock }: { readonly target: 
     return () => {
       clearInterval(timer);
     };
-  }, [gl, camera, target, clockRef, shaderClock]);
+  }, [gl, camera, scene, target, clockRef, shaderClock]);
   return null;
 }
 

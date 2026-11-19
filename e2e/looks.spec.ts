@@ -1,5 +1,5 @@
 import type { Locator, Page } from "@playwright/test";
-import { expect, test } from "./fixtures.js";
+import { builds, expect, settledBuilds, test } from "./fixtures.js";
 
 // A change of look is a write to colors and uniforms: nothing on the GPU is rebuilt. Each stage below holds the same
 // geometries and the same shader programs across three looks, keeps drawing, and shows a different picture.
@@ -27,16 +27,18 @@ async function settled(host: Locator): Promise<void> {
     .toBeGreaterThanOrEqual(2);
 }
 
-/** Switches the look through each of `looks` in turn, and checks the GPU holds the same geometries and programs, and draws a new picture, after every one. */
+/** Switches the look through each of `looks` in turn, and checks the GPU holds the same geometries, programs and builds, and draws a new picture, after every one. */
 async function expectLooksInPlace(page: Page, host: Locator, looks: readonly string[]): Promise<void> {
   await expect(host).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 15_000 });
   await settled(host);
+  const built = await settledBuilds(host);
   // An animated stage is held, so only the look can change the picture.
   const pause = page.getByRole("button", { name: "Pause motion" });
   if (await pause.isVisible()) {
     await pause.click();
     await expect(page.getByRole("button", { name: "Resume motion" })).toBeVisible();
     await page.waitForTimeout(1500);
+    expect(await builds(host), "builds after a pause").toBe(built);
   }
   const geometries = await number(host, "data-gpu-geometries");
   const programs = await number(host, "data-programs");
@@ -51,6 +53,7 @@ async function expectLooksInPlace(page: Page, host: Locator, looks: readonly str
     await page.waitForTimeout(600);
     expect(await number(host, "data-gpu-geometries"), `geometries after ${look}`).toBe(geometries);
     expect(await number(host, "data-programs"), `programs after ${look}`).toBe(programs);
+    expect(await builds(host), `builds after ${look}`).toBe(built);
     const now = await picture(host);
     expect(now.equals(was), `the picture after ${look}`).toBe(false);
     return now;
