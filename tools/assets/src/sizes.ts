@@ -8,13 +8,15 @@
 //                entries; every file they reach is counted, so code moved to a chunk without a marker (a loader, an environment
 //                map, a descriptor chunk) is still counted. Files in dist that nothing reaches are ignored: a Turborepo cache
 //                restore can leave chunks of an older build behind, and they ship to nobody.
+//   chunk set    one lazily imported chunk, found by name: that chunk and what it imports statically, past the gallery's shell (the
+//                parameter panel, which loads when the detail view of an asset with parameters opens)
 //   objects      draw calls and triangles per object (objects.ts)
 //   goldens      the bytes of the golden images in e2e/golden: all together, and the largest
 //
 // Writes tools/assets/sizes.json for `lumin budgets` (not under dist/, which Turborepo restores from its cache on a build hit). Exits 1 when anything is over, unbudgeted, or budgeted but not measured.
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { gzipSync } from "node:zlib";
 import { loadBudgets, type Budgets } from "./budgets.js";
 import { measureObjects, type Counts } from "./objects.js";
@@ -56,6 +58,8 @@ interface Bundle {
   readonly carries?: readonly string[];
   /** For the 3D set: the page whose scripts are the shell, what the gallery loads without any 3D. */
   readonly shell?: string;
+  /** For a lazy chunk's set: the chunk's name (`<name>-<hash>.js`), a lazy import of the first page's shell. */
+  readonly chunk?: string;
 }
 
 /** What each bundle budget measures. */
@@ -63,6 +67,7 @@ const bundles: Readonly<Record<string, Bundle>> = {
   "catalog-gallery": { dist: "apps/catalog/dist", pages: ["index.html"] },
   "catalog-embed": { dist: "apps/catalog/dist", pages: ["embed.html"] },
   "catalog-3d": { dist: "apps/catalog/dist", pages: ["index.html", "embed.html"], carries: ["isObject3D", "isWebGPURenderer"], shell: "index.html" },
+  "catalog-panel": { dist: "apps/catalog/dist", pages: ["index.html"], chunk: "ParameterPanel" },
   "site-island": { dist: "apps/site/dist", pages: ["index.html"] },
 };
 
@@ -118,13 +123,22 @@ function reachThreeD(dist: string, pages: readonly string[], markers: readonly s
   return [...closure(entries, true, shell)].sort();
 }
 
+/** A lazy chunk's set: the chunk the gallery's shell imports under `name` (`<name>-<hash>.js`) and what it imports statically, past the shell. */
+function reachChunk(dist: string, shellPage: string, name: string): string[] {
+  const shell = closure(pageScripts(dist, [shellPage]), false);
+  const named = new RegExp(`^${name}(-[\\w-]+)?\\.js$`);
+  const targets = new Set<string>();
+  for (const file of shell) for (const match of readFileSync(file, "utf8").matchAll(dynamicImport)) targets.add(resolve(dirname(file), match[1] ?? ""));
+  return [...closure([...targets].filter((target) => named.test(basename(target))), false, shell)].sort();
+}
+
 export function measureBundles(root: string): Readonly<Record<string, BundleSize>> {
   return Object.fromEntries(
     Object.entries(bundles).map(([id, bundle]): readonly [string, BundleSize] => {
       const dist = join(root, bundle.dist);
       if (!existsSync(dist)) throw new Error(`${id}: no build output at ${bundle.dist}; run \`bun run build\``);
-      const { carries, shell } = bundle;
-      const files = carries === undefined || shell === undefined ? reach(dist, bundle.pages) : reachThreeD(dist, bundle.pages, carries, shell);
+      const { carries, shell, chunk } = bundle;
+      const files = chunk !== undefined ? reachChunk(dist, bundle.pages[0] ?? "", chunk) : carries === undefined || shell === undefined ? reach(dist, bundle.pages) : reachThreeD(dist, bundle.pages, carries, shell);
       return [id, { gzipBytes: gzipBytes(files), files: files.map((file) => file.slice(root.length + 1)) }];
     }),
   );

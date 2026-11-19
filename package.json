@@ -49,7 +49,7 @@
     "knip": "knip",
     "e2e": "playwright test",
     "e2e:webgpu": "bun run build && LTS_WEBGPU_LANE=1 playwright test",
-    "stills": "bun run build && LTS_STILLS=1 playwright test",
+    "stills": "bun tools/stills/src/run.ts",
     "goldens": "rm -f e2e/golden/*.png && STILLS_OUT=e2e/golden bun run stills",
     "e2e:golden": "bun run build && LTS_GOLDEN=1 playwright test",
     "e2e:golden:loose": "bun run build && LTS_GOLDEN_LOOSE=1 playwright test",

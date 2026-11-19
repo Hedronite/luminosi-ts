@@ -78,13 +78,16 @@ describe("measureBundles", () => {
   // The embed page preloads spec.js, which the gallery page does not load; the view imports it too.
   write("apps/catalog/dist/embed.html", `${page("/assets/embed.js")}<link rel="modulepreload" crossorigin href="/assets/spec.js">`);
   write("apps/catalog/dist/assets/spec.js", "export const s = 'shared by the embed page and the 3D view';");
-  write("apps/catalog/dist/assets/main.js", 'import{r}from"./react.js";const view=()=>import(`./view.js`).then(e=>e.t);const packs=()=>import(`./packs.js`);export{r,view,packs};');
+  write("apps/catalog/dist/assets/main.js", 'import{r}from"./react.js";const view=()=>import(`./view.js`).then(e=>e.t);const packs=()=>import(`./packs.js`);const panel=()=>import(`./ParameterPanel-x1Y2.js`);export{r,view,packs,panel};');
   write("apps/catalog/dist/assets/react.js", "export const r = 1;");
   write("apps/catalog/dist/assets/view.js", 'import{t}from"./three.js";import{r}from"./react.js";import{l}from"./loader.js";import{s}from"./spec.js";const late=()=>import(`./late.js`);export{t,r,l,s,late};');
   write("apps/catalog/dist/assets/three.js", "export const t = { isObject3D: true };");
   write("apps/catalog/dist/assets/loader.js", "export const l = 'a chunk that kept no three marker when the code moved';");
   write("apps/catalog/dist/assets/late.js", "export const late = 'loaded by the view on demand';");
   write("apps/catalog/dist/assets/packs.js", "export const p = 'a lazy page with no 3D in its reach';");
+  // The panel: a lazy chunk with a static import of its own, and one of the gallery's (react), which stays the gallery's.
+  write("apps/catalog/dist/assets/ParameterPanel-x1Y2.js", 'import{r}from"./react.js";import{f}from"./paramFit-q9.js";const late=()=>import(`./late.js`);export{r,f,late};');
+  write("apps/catalog/dist/assets/paramFit-q9.js", "export const f = 'what the panel and the detail view both read';");
   write("apps/catalog/dist/assets/embed.js", "export const e = 1;");
   // Left in dist by an older build and reached by nothing.
   write("apps/catalog/dist/assets/orphan.js", `export const o = { isObject3D: true, filler: "${"orphan ".repeat(2000)}" };`);
@@ -107,6 +110,10 @@ describe("measureBundles", () => {
   it("builds the shell from the gallery page alone: a chunk only the embed page preloads is counted when a 3D view reaches it", () => {
     expect(names("catalog-gallery")).not.toContain("spec.js");
     expect(names("catalog-3d")).toContain("spec.js");
+  });
+
+  it("takes a lazy chunk's set by its name: the chunk and its static imports past the shell, no dynamic imports, none of the shell", () => {
+    expect(names("catalog-panel")).toEqual(["ParameterPanel-x1Y2.js", "paramFit-q9.js"]);
   });
 
   it("leaves out a lazy chunk whose reach has no 3D, and a page script that has none", () => {

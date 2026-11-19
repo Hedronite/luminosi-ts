@@ -296,6 +296,7 @@
         "@hedronite/lts-tokens": "workspace:*",
         "@types/three": "catalog:",
         "meshoptimizer": "catalog:",
+        "sharp": "0.35.5",
         "three": "catalog:",
         "vitest": "catalog:",
         "zod": "catalog:",

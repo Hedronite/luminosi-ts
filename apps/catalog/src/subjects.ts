@@ -9,15 +9,16 @@ const modelUrl = crystalClusterGlb;
 
 /**
  * Builds what the viewport shows for an asset, with its descriptor: an object or a scene kit as it is, a primitive's
- * geometry as a mesh in satin, a material on a sphere. The caller owns the result and frees it with disposeObject.
+ * geometry as a mesh in satin, a material on a sphere. `params` are the asset's parameters, over its defaults. The caller owns the result and frees it with disposeObject.
  * Nothing for an asset that is not something to look at (an icon, a shader, a screen effect).
  */
-export async function buildSubject(meta: AssetMeta, palette: ScenePalette, signal: AbortSignal): Promise<Object3D | undefined> {
+export async function buildSubject(meta: AssetMeta, palette: ScenePalette, signal: AbortSignal, params?: Readonly<Record<string, unknown>>): Promise<Object3D | undefined> {
   const registry = await loadDescriptors();
   const descriptor = registry.get(meta.id);
   if (descriptor === undefined) return undefined;
-  const params = descriptor.fields.some((field) => field.key === "url") ? { url: modelUrl } : undefined;
-  const built = await descriptor.build(params, palette, { signal });
+  // The model the catalog serves is the one an asset that asks where its model is gets, whatever the parameters say.
+  const own = descriptor.fields.some((field) => field.key === "url") ? { url: modelUrl } : undefined;
+  const built = await descriptor.build(params === undefined && own === undefined ? undefined : { ...params, ...own }, palette, { signal });
   if (built instanceof Object3D) return built;
   if (built instanceof BufferGeometry) {
     const satin = await registry.get("satin")?.build(undefined, palette);
