@@ -13,6 +13,10 @@
     "./emit": {
       "types": "./dist/emit/index.d.ts",
       "import": "./dist/emit/index.js"
+    },
+    "./three": {
+      "types": "./dist/three.d.ts",
+      "import": "./dist/three.js"
     }
   },
   "files": [
@@ -25,10 +29,22 @@
   },
   "dependencies": {
     "@hedronite/lts-core": "workspace:*",
+    "@hedronite/lts-materials": "workspace:*",
+    "@hedronite/lts-objects": "workspace:*",
+    "@hedronite/lts-postfx": "workspace:*",
+    "@hedronite/lts-primitives": "workspace:*",
+    "@hedronite/lts-registry": "workspace:*",
+    "@hedronite/lts-shaders": "workspace:*",
+    "@hedronite/lts-tokens": "workspace:*",
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@types/three": "catalog:",
     "fast-check": "catalog:",
+    "three": "catalog:",
     "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "three": "^0.187.0"
   }
 }
