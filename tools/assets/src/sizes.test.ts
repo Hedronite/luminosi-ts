@@ -56,6 +56,20 @@ describe("measureGoldens", () => {
     expect(measureGoldens(root)).toEqual({ "e2e-golden": { bytes: 12, perImageBytes: 7 } });
   });
 
+  it("counts the scene goldens of e2e/scenes with them", () => {
+    const own = mkdtempSync(join(tmpdir(), "lts-goldens-scenes-"));
+    try {
+      mkdirSync(join(own, "e2e/golden"), { recursive: true });
+      mkdirSync(join(own, "e2e/scenes"), { recursive: true });
+      writeFileSync(join(own, "e2e/golden/a.png"), "12345");
+      writeFileSync(join(own, "e2e/scenes/scene.png"), "123456789");
+      writeFileSync(join(own, "e2e/scenes/emitted.ts"), "not an image, not counted");
+      expect(measureGoldens(own)).toEqual({ "e2e-golden": { bytes: 14, perImageBytes: 9 } });
+    } finally {
+      rmSync(own, { recursive: true, force: true });
+    }
+  });
+
   it("measures nothing for a tree with no golden folder", () => {
     expect(measureGoldens(join(root, "nowhere"))).toEqual({ "e2e-golden": { bytes: 0, perImageBytes: 0 } });
   });

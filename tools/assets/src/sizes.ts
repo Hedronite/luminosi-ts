@@ -144,10 +144,12 @@ export function measureBundles(root: string): Readonly<Record<string, BundleSize
   );
 }
 
-/** The golden images (written by `bun run goldens`), measured as the one budget line "e2e-golden". */
+/** The golden images (`bun run goldens` writes e2e/golden, `bun run scenes` e2e/scenes), measured together as the one budget line "e2e-golden". */
 export function measureGoldens(root: string): Readonly<Record<string, GoldenSize>> {
-  const directory = join(root, "e2e/golden");
-  const sizes = existsSync(directory) ? readdirSync(directory).filter((name) => name.endsWith(".png")).map((name) => statSync(join(directory, name)).size) : [];
+  const sizes = ["e2e/golden", "e2e/scenes"].flatMap((folder) => {
+    const directory = join(root, folder);
+    return existsSync(directory) ? readdirSync(directory).filter((name) => name.endsWith(".png")).map((name) => statSync(join(directory, name)).size) : [];
+  });
   return { "e2e-golden": { bytes: sizes.reduce((sum, size) => sum + size, 0), perImageBytes: Math.max(0, ...sizes) } };
 }
 

@@ -155,7 +155,7 @@ jobs:
           path: playwright-report
           retention-days: 7
 
-  # The loose golden check: each 3D asset drawn by the still-frame rig on software WebGL (no GPU here) and compared coarsely
+  # The loose golden check: each 3D asset (and, after it, each scene fixture of the round trip) drawn by the still-frame rig on software WebGL (no GPU here) and compared coarsely
   # with the golden image a GPU made for it (e2e/golden), and four plants (a blank canvas, a recoloured subject, a missing part,
   # a moved camera) that it must fail. The strict check, which needs the GPU, never runs here: see STACK.md, "Golden images".
   golden:
@@ -198,6 +198,14 @@ jobs:
       # What each asset measured, for setting and checking the bars (e2e/golden/metrics.ts).
       - if: always()
         run: for f in test-results/golden/loose/*.json; do cat "$f"; done
+      # The round trip's loose check: each scene fixture drawn through createScene on software WebGL against its scene golden
+      # (e2e/scenes), with the same four plants and margin. Its own report directory, because Playwright empties test-results on a run.
+      - if: always()
+        run: bun run e2e:scenes:loose
+        env:
+          GOLDEN_REPORT: ${{ runner.temp }}/scenes-report
+      - if: always()
+        run: for f in "$RUNNER_TEMP"/scenes-report/loose/*.json; do cat "$f"; done
       - if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
