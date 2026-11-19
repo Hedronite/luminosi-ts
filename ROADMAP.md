@@ -143,7 +143,7 @@ Each line is one PR. Order holds in one place: Stage 6, then 7, then 8; Stages 9
 
 ### Stage 8 (C) — The scene document
 
-- [ ] C1 `lts-scene` schema: one versioned format for a composition, with migrations
+- [x] C1 `lts-scene` schema: one versioned format for a composition, with migrations (#66)
 - [ ] C2 Build and emit: document to pixels and to code (TSX, vanilla)
 - [ ] C3 Playground on documents: open, save, share, undo, free transforms
 - [ ] C4 `lumin scene`: validate, render, diff, patch, export for agents, and a stdio MCP server over the same operations

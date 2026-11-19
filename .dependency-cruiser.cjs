@@ -51,6 +51,22 @@ module.exports = {
       to: { path: react },
     },
     {
+      name: "scene-root-is-pure-data",
+      comment:
+        "The scene package's root and ./emit read, check, migrate and write documents: zod and core only, so no three.js, no three/webgpu and no React. " +
+        "Only src/three.ts (the ./three entry) builds, and it may use core, the registry, tokens and the ./three entries of materials, primitives, objects, shaders, postfx and scenes, never adapters or React.",
+      severity: "error",
+      from: { path: "^packages/(scene)/src/", pathNot: "^packages/scene/src/three(\\.test)?\\.ts$" },
+      to: { path: [anyPackage, "^three(/|$)", "(^|/)node_modules/three(/|$)", react], pathNot: [pkg("core"), "^(packages/$1/|@hedronite/lts-$1$)"] },
+    },
+    {
+      name: "scene-three-builds-from-libraries",
+      comment: "The scene package's ./three entry composes the libraries' ./three entries; it never imports adapters, React or an app.",
+      severity: "error",
+      from: { path: "^packages/scene/src/three(\\.test)?\\.ts$" },
+      to: { path: [anyPackage, react], pathNot: [pkg("core|registry|tokens|materials|primitives|objects|shaders|postfx|scenes"), "^(packages/scene/|@hedronite/lts-scene$)"] },
+    },
+    {
       name: "no-deep-imports",
       comment: "Import other packages through their exports, never their src/.",
       severity: "error",
