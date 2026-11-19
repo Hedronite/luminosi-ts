@@ -12,6 +12,7 @@ export {
   type PrimitiveMeshProps,
 } from "./components.js";
 export { accentPalette, FramedSolid, LibraryObject, type FramedSolidProps, type LibraryObjectProps } from "./objects.js";
+export { Scene, type SceneProps } from "./scene.js";
 export { EffectClockProvider } from "./effectClock.js";
 export { useEffectMaterial, type ShaderParams } from "./effectMaterial.js";
 export { useReducedMotion } from "./motion.js";
