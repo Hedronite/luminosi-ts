@@ -256,7 +256,9 @@ export function createScene(initial: SceneDocument, options: SceneOptions = {}):
 
   async function setUpEnvironment(): Promise<void> {
     if (renderer === undefined || stage === undefined) return;
-    const [{ PMREMGenerator }, { RoomEnvironment }] = await Promise.all([import("three/webgpu"), import("three/examples/jsm/environments/RoomEnvironment.js")]);
+    // One load after the other, each naming what it takes: a pair taken together keeps the whole of three's WebGPU build in the chunk.
+    const { PMREMGenerator } = await import("three/webgpu");
+    const { RoomEnvironment } = await import("three/examples/jsm/environments/RoomEnvironment.js");
     if (disposed) return;
     const room = new RoomEnvironment();
     const pmrem = new PMREMGenerator(renderer);
