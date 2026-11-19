@@ -112,7 +112,7 @@ const nodes = fc
   });
 
 /** Screen effect stacks the small catalog takes: each effect once, in any order. */
-export const effectStacks: fc.Arbitrary<SceneEffect[]> = fc.shuffledSubarray([{ id: "dither", params: { cell: 4 } }, { id: "grain" }]);
+const effectStacks: fc.Arbitrary<SceneEffect[]> = fc.shuffledSubarray([{ id: "dither", params: { cell: 4 } }, { id: "grain" }]);
 
 /** Valid documents that pass `checkRefs` against `resolve`. */
 export const scenes: fc.Arbitrary<Scene> = fc.record({
