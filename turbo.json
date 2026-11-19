@@ -12,11 +12,12 @@
       "outputs": ["dist/**"],
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/assets/src/models/**", "$TURBO_ROOT$/assets/budgets.json"]
     },
-    // The catalog build copies the posters from assets/posters, which sit outside its package.
+    // The catalog build copies the posters from assets/posters, and builds the still-frame rig's scene page from the fixtures
+    // (packages/scene/fixtures) and the modules emitted for them (e2e/scenes/generated, and the planted ones in e2e/scenes/plants): all outside its package.
     "catalog#build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**"],
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/assets/posters/**"]
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/assets/posters/**", "$TURBO_ROOT$/packages/scene/fixtures/**", "$TURBO_ROOT$/e2e/scenes/generated/**", "$TURBO_ROOT$/e2e/scenes/plants/**"]
     },
     "typecheck": { "dependsOn": ["^build"] },
     // Never cached. The tests read the repository at large (the README, STACK.md, the skill copies and the harness

@@ -43,6 +43,10 @@ export const MARGIN = 1.2;
 const LOOSE_OVERRIDES: Readonly<Record<string, Partial<Record<keyof typeof LOOSE_BAR, number>>>> = {
   ascii: { tone: 0.55, coverage: 0.026 },
   crystallize: { tone: 0.4, coverage: 0.0083 },
+  // The scene round trip's four fixtures (e2e/scenes.spec.ts) are keyed `scene-<fixture>`. One has glass, and the runner's software renderer
+  // draws its transmission further from the GPU's: primitives-in-materials is 4.947 from its golden in `local` on CI, the common bar being 3.9.
+  // The bar is the least that keeps that frame a MARGIN under it (5.94) with room (7.5); every plant of it reaches at least 5 times its bar on tone.
+  "scene-primitives-in-materials": { local: 7.5 },
 };
 
 export const strictDistance = difference;
