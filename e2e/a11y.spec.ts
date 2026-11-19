@@ -385,9 +385,8 @@ test.describe("under reduced motion", () => {
       const host = stage.host(page);
       // Nothing moves, so there is nothing to pause.
       await expect(stage.scope(page).getByRole("button", { name: /^(Pause|Resume) motion$/ })).toHaveCount(0);
-      await page.waitForTimeout(1000);
-      const settledFrames = await number(host, "data-frames");
-      const settledTime = await number(host, "data-time");
+      // A stage that builds its scene asynchronously draws once more when the build lands, so wait for the counter to settle rather than for a fixed time.
+      const { frames: settledFrames, time: settledTime } = await heldCounters(host);
       await page.waitForTimeout(1500);
       expect(await number(host, "data-frames")).toBe(settledFrames);
       expect(await number(host, "data-time")).toBe(settledTime);
