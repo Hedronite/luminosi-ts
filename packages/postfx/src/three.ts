@@ -140,6 +140,8 @@ export class ScreenEffects {
   private readonly dpr: FloatUniform;
   private pointer: ScreenPointer = null;
   private readonly reduced: boolean;
+  /** The pass that draws the scene, with the render target it owns: freed by `dispose`. */
+  private readonly scenePass: ReturnType<typeof pass>;
 
   constructor(renderer: WebGPURenderer, scene: Scene, camera: Camera, stack: readonly ScreenEffectConfig[], options: ScreenEffectsOptions = {}) {
     this.renderer = renderer;
@@ -155,6 +157,7 @@ export class ScreenEffects {
     const targets: TextureNode[] = [];
     const passes: string[] = [];
     const scenePass = pass(scene, camera);
+    this.scenePass = scenePass;
     // Each pass reads the one before as a texture, since prints sample their input at cell centres.
     let output: Node = scenePass.getTextureNode();
     let first = true;
@@ -325,5 +328,6 @@ export class ScreenEffects {
     for (const texture of this.textures) texture.dispose();
     for (const target of this.targets) target.dispose();
     this.pipeline.dispose();
+    this.scenePass.dispose();
   }
 }
