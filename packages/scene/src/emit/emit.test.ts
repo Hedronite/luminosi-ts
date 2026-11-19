@@ -87,6 +87,13 @@ describe.each([
     expect(emit(sceneOf([cube("a")], { look: "hedronite" }))).toContain('"hedronite"');
   });
 
+  it("throws in the module for a look the tokens do not have, rather than drawing in another", () => {
+    const code = emit(sceneOf([cube("a")], { look: "no-such-look" }));
+    expect(code).toContain('throw new Error("no look named \\"no-such-look\\"")');
+    expect(code).not.toContain("?? neutral");
+    expect(emit(sceneOf([cube("a")], { look: "neutral" }))).not.toContain("throw new Error");
+  });
+
   it("stands a child under its parent even when the child is listed first", () => {
     const code = emit(sceneOf([cube("child", "parent"), cube("parent")]));
     expect(code.indexOf('"parent"')).toBeLessThan(code.indexOf('"child"'));
@@ -101,6 +108,14 @@ describe.each([
 });
 
 describe("toTsx", () => {
+  it("gives the canvas a camera of near 0.1 and far 100, and passes reduced motion to the effects", () => {
+    const code = toTsx(sceneOf([cube("a")], { effects: [{ id: "grain" }] }));
+    expect(code).toContain("near: 0.1, far: 100");
+    expect(code).toContain("reducedMotion={reducedMotion}");
+    expect(code).toContain("export function Scene({ reducedMotion = false }");
+    expect(toTsx(sceneOf([cube("a")]))).toContain("export function Scene() {");
+  });
+
   it("names the components over the adapters, and gives a parent's children a group", () => {
     const code = toTsx(sceneOf([cube("a"), cube("b", "a", { asset: { kind: "object", id: "dress-watch", params: { hours: 3 } }, surface: undefined })]));
     expect(code).toContain('import { LibraryObject, PrimitiveMesh, StudioLights } from "@hedronite/lts-adapters";');

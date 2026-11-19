@@ -18,6 +18,7 @@
     "@hedronite/lts-shaders": "workspace:*",
     "@hedronite/lts-tokens": "workspace:*",
     "@react-three/fiber": "catalog:",
+    "@react-three/test-renderer": "catalog:",
     "@types/react": "catalog:",
     "@types/three": "catalog:",
     "react": "catalog:",

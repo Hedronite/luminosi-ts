@@ -48,12 +48,7 @@
         "@hedronite/lts-postfx",
         "@hedronite/lts-primitives",
         "@hedronite/lts-shaders",
-        "@hedronite/lts-tokens",
-        "@react-three/fiber",
-        "@types/react",
-        "@types/three",
-        "react",
-        "three"
+        "@hedronite/lts-tokens"
       ]
     }
   },

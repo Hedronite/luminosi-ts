@@ -80,7 +80,12 @@ export function lookSource(look: SceneLook): { readonly values: readonly string[
     return { values: [], types: ["ScenePalette"], lines: ["const palette: ScenePalette = {", ...Object.entries({ base, accent, metal, glass, emissive }).map(([name, hex]) => `  ${name}: ${JSON.stringify(hex)},`), "};"] };
   }
   if (look === "neutral") return { values: ["neutral"], types: [], lines: ["const palette = neutral.scene;"] };
-  return { values: ["neutral", "presets"], types: [], lines: [`const palette = presets.find((preset) => preset.id === ${JSON.stringify(look)})?.scene ?? neutral.scene;`] };
+  // A look the tokens do not have is an error in the module, as it is in `createScene`, not a quiet change of look.
+  return {
+    values: ["presets"],
+    types: [],
+    lines: [`const chosen = presets.find((preset) => preset.id === ${JSON.stringify(look)});`, `if (chosen === undefined) throw new Error(${JSON.stringify(`no look named "${look}"`)});`, "const palette = chosen.scene;"],
+  };
 }
 
 /** `{ a, b, type C }`, the names in order. */
