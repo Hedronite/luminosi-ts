@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { materialPreset } from "@hedronite/lts-materials";
 import { loadDescriptors } from "@hedronite/lts-registry";
 import { hedronite, neutral, presets, type ScenePalette } from "@hedronite/lts-tokens";
-import { Color, InstancedMesh, Mesh, MeshPhysicalMaterial, Texture, type BufferGeometry, type Material, type Object3D } from "three";
+import { Color, Euler, InstancedMesh, Matrix4, Quaternion, Vector3, Mesh, MeshPhysicalMaterial, Texture, type BufferGeometry, type Material, type Object3D } from "three";
 import { describe, expect, it, vi } from "vitest";
 import { checkRefs, parseScene, type Scene as SceneDocument, type SceneNode } from "./index.js";
 import { createScene } from "./three.js";
@@ -375,6 +375,31 @@ describe("the fixtures", () => {
     const built = createScene(parsed.scene, { palette: neutral.scene });
     await built.ready;
     expect(meshesOf(built.root).length).toBeGreaterThanOrEqual(parsed.scene.nodes.length);
+    built.dispose();
+  });
+
+  it("places every node of the transform fixture where its chain of parents puts it: Euler x, y, z order, a parent coming later in the list", async () => {
+    const parsed = parseScene(readFileSync(new URL("../fixtures/transform-hierarchy.json", import.meta.url), "utf8"));
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.issues));
+    const { nodes } = parsed.scene;
+    // The expected world matrix, worked out apart from the scene: each node's own matrix, multiplied up through its parents.
+    const local = (node: SceneNode): Matrix4 => new Matrix4().compose(new Vector3(...node.position), new Quaternion().setFromEuler(new Euler(...node.rotation, "XYZ")), new Vector3(...node.scale));
+    const world = (node: SceneNode): Matrix4 => {
+      const parent = node.parent === null ? undefined : nodes.find((candidate) => candidate.id === node.parent);
+      return parent === undefined ? local(node) : world(parent).multiply(local(node));
+    };
+    expect(nodes.some((node) => node.parent !== null)).toBe(true);
+    expect(nodes.some((node) => node.rotation.some((angle) => angle !== 0))).toBe(true);
+    const built = createScene(parsed.scene, { palette: neutral.scene });
+    await built.ready;
+    built.root.updateMatrixWorld(true);
+    for (const node of nodes) {
+      const group = built.root.getObjectByName(node.id);
+      expect(group?.name).toBe(node.id);
+      group?.matrixWorld.elements.forEach((value, i) => {
+        expect(value).toBeCloseTo(world(node).elements[i] ?? Number.NaN, 9);
+      });
+    }
     built.dispose();
   });
 });
