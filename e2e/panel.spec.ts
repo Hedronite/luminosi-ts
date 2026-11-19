@@ -109,8 +109,8 @@ test("a shader's panel: typed, labelled controls; live edits keep the program co
   await expect.poll(() => paramsOf(page)).toBe("density=300,intensity=10");
   await expect.poll(async () => number(host, "data-frames")).toBeGreaterThan(frames);
   await page.waitForTimeout(500);
-  expect(await number(host, "data-programs")).toBe(programs);
   expect(await builds(host), "builds after two live edits").toBe(built);
+  expect(await number(host, "data-programs")).toBe(programs);
   expect((await host.locator("canvas").screenshot()).equals(before)).toBe(false);
 
   // The usage code shows what the view shows, and the panel says nothing was rebuilt.
@@ -127,8 +127,8 @@ test("a shader's panel: typed, labelled controls; live edits keep the program co
   await expect(density).toHaveValue("40");
   await expect(dialog.getByRole("region", { name: "Changed parameters snippet" })).toHaveCount(0);
   await page.waitForTimeout(500);
-  expect(await number(host, "data-programs")).toBe(programs);
   expect(await builds(host), "builds after reset").toBe(built);
+  expect(await number(host, "data-programs")).toBe(programs);
   expect(errors).toEqual([]);
 });
 
@@ -229,8 +229,8 @@ test("a screen effect's panel moves it live; the ASCII ramp, which is baked in, 
   });
   await expect.poll(() => paramsOf(page)).toBe("cell=9");
   await page.waitForTimeout(500);
-  expect(await number(host, "data-programs")).toBe(programs);
   expect(await builds(host), "builds after a live edit").toBe(built);
+  expect(await number(host, "data-programs")).toBe(programs);
   expect((await host.locator("canvas").screenshot()).equals(first)).toBe(false);
 
   await page.goto("/?asset=ascii");
