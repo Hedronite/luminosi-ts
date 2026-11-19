@@ -196,7 +196,9 @@ Each line is one PR. Order holds in one place: Stage 6, then 7, then 8; Stages 9
 Small slices left open by earlier waves, each its own PR.
 
 - [x] Descriptor presentation: optional `preview` and `thumbnail` fields on the asset descriptor, so the catalog's per-id presentation table and object shape table go away (#56)
-- [ ] Root typecheck: `e2e/` and the config files are checked by the root typecheck
+- [x] Scene-kit lights recolor in place: `applyPalette` covers the lights and materials a kit builds, and the catalog no longer builds a kit again on a look change (#60)
+- [x] Material lineup recolors in place: the materials are made once and a look change writes their colors, with no per-look key (#60)
+- [x] Root typecheck: `e2e/` and the config files are checked by the root typecheck (#59)
 - [ ] CI shards balanced by run time, not by file count
 - [ ] Icon packs as data: each pack is a data entry the catalog and `lumin` read, not code
 

@@ -1,10 +1,10 @@
 import { StudioLights } from "@hedronite/lts-adapters";
 import { materialIds, materialPreset } from "@hedronite/lts-materials";
-import { createMaterial } from "@hedronite/lts-materials/three";
+import { applyPalette, createMaterial } from "@hedronite/lts-materials/three";
 import { isPrimitiveId, primitive, primitiveIds, primitiveInfo, type PrimitiveId } from "@hedronite/lts-primitives";
 import { createPolyhedronGeometry } from "@hedronite/lts-primitives/three";
 import type { ScenePalette } from "@hedronite/lts-tokens";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useThree } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { SphereGeometry } from "three";
 import { lineupLayout } from "./lineup";
@@ -20,27 +20,42 @@ function geometryFor(shape: Shape) {
   return shape === "sphere" ? new SphereGeometry(0.95, 64, 32) : createPolyhedronGeometry(primitive(shape), shape);
 }
 
-/** Every material on the same shape, one per cell; 1 world unit is 1 CSS pixel, so cells line up with the labels. */
+/**
+ * Every material on the same shape, one per cell; 1 world unit is 1 CSS pixel, so cells line up with the labels.
+ * The materials are made once and recolored in place when the look changes; a new shape swaps the geometry only.
+ */
 function Spheres({ shape, palette, width, cell, cols }: { readonly shape: Shape; readonly palette: ScenePalette; readonly width: number; readonly cell: number; readonly cols: number }) {
+  const invalidate = useThree((state) => state.invalidate);
   const rows = Math.ceil(materialIds.length / cols);
-  const resources = useMemo(() => ({ geometry: geometryFor(shape), materials: materialIds.map((id) => createMaterial(id, palette)) }), [shape, palette]);
+  const geometry = useMemo(() => geometryFor(shape), [shape]);
+  // Made in the look this mounts in; a later look is written to them below.
+  const [materials] = useState(() => materialIds.map((id) => createMaterial(id, palette)));
   useEffect(
     () => () => {
-      resources.geometry.dispose();
-      for (const material of resources.materials) material.dispose();
+      geometry.dispose();
     },
-    [resources],
+    [geometry],
   );
+  useEffect(
+    () => () => {
+      for (const material of materials) material.dispose();
+    },
+    [materials],
+  );
+  useEffect(() => {
+    applyPalette(materials, palette);
+    invalidate();
+  }, [materials, palette, invalidate]);
   const height = rows * cell;
   return (
     <>
-      {resources.materials.map((material, index) => {
+      {materials.map((material, index) => {
         const col = index % cols;
         const row = Math.floor(index / cols);
         return (
           <mesh
             key={material.name}
-            geometry={resources.geometry}
+            geometry={geometry}
             material={material}
             dispose={null}
             position={[(col + 0.5) * cell - width / 2, height / 2 - (row + 0.42) * cell, 0]}
@@ -113,7 +128,7 @@ export function MaterialLineup() {
               <Canvas frameloop="demand" dpr={[1, 2]} orthographic camera={{ position: [0, 0, 500], zoom: 1, near: 1, far: 2000 }}>
                 <Environment />
                 <StudioLights />
-                <Spheres key={`${shape}:${preset.id}`} shape={shape} palette={preset.scene} width={width} cell={cell} cols={cols} />
+                <Spheres shape={shape} palette={preset.scene} width={width} cell={cell} cols={cols} />
                 <GpuCounts target={box} />
               </Canvas>
             </div>

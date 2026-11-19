@@ -1,10 +1,11 @@
 import { createRegistry, registerManifest } from "@hedronite/lts-core";
 import { disposeObject } from "@hedronite/lts-primitives/three";
-import { Light, Mesh, type Object3D } from "three";
+import { hedronite, neutral } from "@hedronite/lts-tokens";
+import { Color, DirectionalLight, HemisphereLight, Light, Mesh, MeshPhysicalMaterial, type Object3D } from "three";
 import { describe, expect, it, vi } from "vitest";
 import { sceneKit, sceneKitIds } from "./kits.js";
 import { manifest } from "./manifest.js";
-import { createSceneKit } from "./three.js";
+import { applyPalette, createSceneKit } from "./three.js";
 
 const isMesh = (o: Object3D): o is Mesh => o instanceof Mesh;
 
@@ -37,5 +38,56 @@ describe("scene kits", () => {
     const registry = createRegistry();
     registerManifest(registry, manifest);
     expect(registry.list({ kind: "scene" }).map((a) => a.id)).toEqual(sceneKitIds.map((id) => `scene-${id}`));
+  });
+});
+
+describe("applyPalette", () => {
+  /** Every color a kit shows: each light's colors, each mesh material's colors. */
+  const colorsOf = (group: Object3D): string[] => {
+    const colors: string[] = [];
+    group.traverse((child) => {
+      if (child instanceof HemisphereLight) colors.push(child.color.getHexString(), child.groundColor.getHexString());
+      else if (child instanceof Light) colors.push(child.color.getHexString());
+      else if (child instanceof Mesh && child.material instanceof MeshPhysicalMaterial) colors.push(child.material.color.getHexString(), child.material.emissive.getHexString());
+    });
+    return colors;
+  };
+
+  it.each(sceneKitIds)("%s: recolored from one look to another, it equals a kit made in the second look", (id) => {
+    const kit = createSceneKit(id, neutral.scene);
+    applyPalette(kit, hedronite.scene);
+    expect(colorsOf(kit)).toEqual(colorsOf(createSceneKit(id, hedronite.scene)));
+    expect(colorsOf(kit)).not.toEqual(colorsOf(createSceneKit(id, neutral.scene)));
+  });
+
+  it.each(sceneKitIds)("%s: recoloring adds and removes nothing", (id) => {
+    const kit = createSceneKit(id);
+    const parts = kit.children.slice();
+    const materials = kit.children.filter((child): child is Mesh => child instanceof Mesh).map((mesh) => mesh.material);
+    applyPalette(kit, hedronite.scene);
+    expect(kit.children).toEqual(parts);
+    expect(kit.children.filter((child): child is Mesh => child instanceof Mesh).map((mesh) => mesh.material)).toEqual(materials);
+  });
+
+  it("writes a kit's lights from its data, whatever they were changed to, and leaves a light it did not build alone", () => {
+    const kit = createSceneKit("dusk");
+    const [warm] = kit.children.filter((child): child is DirectionalLight => child instanceof DirectionalLight);
+    expect(warm).toBeDefined();
+    warm?.color.set("#123456");
+    const stranger = new DirectionalLight(new Color("#654321"), 1);
+    kit.add(stranger);
+    applyPalette(kit, hedronite.scene);
+    expect(warm?.color.getHexString()).toBe("ffb36b");
+    expect(stranger.color.getHexString()).toBe("654321");
+  });
+
+  it("recolors a kit's hemisphere light's sky and ground", () => {
+    const kit = createSceneKit("gallery");
+    const light = kit.children.find((child): child is HemisphereLight => child instanceof HemisphereLight);
+    light?.color.set("#000000");
+    light?.groundColor.set("#000000");
+    applyPalette(kit, hedronite.scene);
+    expect(light?.color.getHexString()).toBe("ffffff");
+    expect(light?.groundColor.getHexString()).toBe("d8d4cc");
   });
 });

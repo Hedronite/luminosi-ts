@@ -11,7 +11,7 @@ Stages 0–4 of [`ROADMAP.md`](ROADMAP.md) are built: core, tokens, icons, primi
 ```bash
 nix develop            # or direnv: Bun and Node from the flake
 bun install            # CI uses --frozen-lockfile
-bun run typecheck      # tsc --noEmit in every package, through Turborepo
+bun run typecheck      # tsc --noEmit in every package through Turborepo, then in the root project (e2e/, playwright.config.ts, eslint.config.js)
 bun run build          # tsc for packages, vite build for the catalog
 bun run test           # Vitest
 bun run icons          # regenerate packages/icons from assets/src/icons (icons:check verifies)
