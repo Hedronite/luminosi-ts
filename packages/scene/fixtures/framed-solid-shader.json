@@ -1,0 +1,42 @@
+{
+  "format": "lts-scene",
+  "version": 1,
+  "look": "neutral",
+  "seed": 0,
+  "nodes": [
+    {
+      "id": "node-1",
+      "parent": null,
+      "position": [0, 0, 0],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "asset": {
+        "kind": "framed",
+        "id": "archimedean-truncated-icosahedron",
+        "edges": {
+          "material": "metal"
+        }
+      },
+      "surface": {
+        "shader": "toon",
+        "params": {
+          "bands": 4
+        }
+      }
+    }
+  ],
+  "lights": {
+    "rig": "studio",
+    "intensity": 1
+  },
+  "environment": {
+    "kind": "studio"
+  },
+  "camera": {
+    "position": [0, 0, 3.4],
+    "target": [0, 0, 0],
+    "fov": 35
+  },
+  "effects": [],
+  "ink": "look"
+}
