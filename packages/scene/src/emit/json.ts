@@ -1,8 +1,10 @@
 import type { Scene } from "../schema.js";
 
 /**
- * The keys the format itself names, in the order they are written. Any other key (a parameter's name) follows them, in
- * alphabetical order, so every object has exactly one order whatever order the value was built in.
+ * One list of names fixes the order of keys: a key on it is written at its place on it, in every object, and a key not on
+ * it (most parameter names) follows them all in alphabetical order. So every object has exactly one order whatever order
+ * the value was built in, and a parameter that is called `id`, `scale` or `material` is written by this list, not
+ * alphabetically.
  */
 const ORDER = [
   "format",
@@ -73,8 +75,7 @@ function write(value: unknown, indent: string): string {
 }
 
 /**
- * A scene as text, in one canonical form: two-space indent, one key order (the format's own keys first, then others
- * alphabetically), numbers in their shortest round-trip form (negative zero as -0), numeric lists on one line, and
+ * A scene as text, in one canonical form: two-space indent, one key order (the list above, then any other key alphabetically), numbers in their shortest round-trip form (negative zero as -0), numeric lists on one line, and
  * a final newline. Equal documents give equal text, and `parseScene` of the text is the document.
  */
 export function toCanonicalJson(scene: Scene): string {

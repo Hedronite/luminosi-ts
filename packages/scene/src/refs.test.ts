@@ -81,6 +81,32 @@ describe("checkRefs", () => {
     expect(codes(withNodes([withoutSurface("a", watch), withoutSurface("b", { kind: "object", id: "crystal-cluster", params: { material: "metal" } })]))).toEqual([]);
   });
 
+  it("names an effect that is in the stack twice, at the second", () => {
+    expect(codes({ ...base, nodes: [], effects: [{ id: "dither" }, { id: "grain" }, { id: "dither", params: { cell: 4 } }] })).toEqual(["duplicate-effect@effects.2.id"]);
+    expect(codes({ ...base, nodes: [], effects: [{ id: "grain" }, { id: "dither" }] })).toEqual([]);
+  });
+
+  it("rejects a parameter whose value is not a number where the schema wants one", () => {
+    const notNumbers = fc.oneof(fc.string(), fc.boolean(), fc.constant(null), fc.array(fc.nat(), { maxLength: 2 }), fc.record({ a: fc.nat() }));
+    fc.assert(
+      fc.property(notNumbers, (value) => {
+        const scene: Scene = { ...base, nodes: [node("a", null, { asset: { kind: "primitive", id: "platonic-cube", params: { scale: value } } })], effects: [{ id: "dither", params: { cell: value } }] };
+        expect(codes(scene)).toEqual(["invalid-param@nodes.0.asset.params.scale", "invalid-param@effects.0.params.cell"]);
+      }),
+    );
+  });
+
+  it("accepts the ids that are names on every object, listed before or after their children", () => {
+    expect(codes(withNodes([node("constructor", "__proto__"), node("__proto__", "toString"), node("toString", null)]))).toEqual([]);
+    expect(codes(withNodes([node("a", "__proto__"), node("__proto__", null)]))).toEqual([]);
+    expect(codes(withNodes([node("a", "toString")]))).toEqual(["missing-parent@nodes.0.parent"]);
+    expect(codes(withNodes([node("constructor", "constructor")]))).toEqual(["cycle@nodes.0.parent"]);
+  });
+
+  it("accepts a framed solid with a shader for its faces", () => {
+    expect(codes(withNodes([node("a", null, { asset: { kind: "framed", id: "platonic-cube", edges: { material: "metal" } }, surface: { shader: "toon", params: { bands: 4 } } })]))).toEqual([]);
+  });
+
   it("names a duplicate id, a missing parent and a cycle", () => {
     expect(codes(withNodes([node("a", null), node("a", null)]))).toEqual(["duplicate-id@nodes.1.id"]);
     expect(codes(withNodes([node("a", "ghost")]))).toEqual(["missing-parent@nodes.0.parent"]);

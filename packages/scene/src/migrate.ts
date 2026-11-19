@@ -1,12 +1,15 @@
 import { z } from "zod";
 import { ringLayout } from "./layout.js";
-import { headerOf, parseScene, readJson, SCENE_FORMAT, SCENE_VERSION, type SceneIssue, type SceneResult } from "./schema.js";
+import { headerOf, issuesOf, parseScene, readJson, SCENE_FORMAT, SCENE_VERSION, type SceneIssue, type SceneResult } from "./schema.js";
 
 /** The look a version 0 document had, since it named none: the default. */
 const V0_LOOK = "neutral";
 
 /** How big the playground drew each kind of placement: primitives and framed solids are about a unit across, objects are built larger. */
 const V0_SCALE = { shape: 0.5, object: 0.6 } as const;
+
+/** How the playground turned the whole scene (x, then y), which a version 0 document did not say: each node is turned so a migrated scene draws as it was seen. */
+const V0_TILT = [0.3, 0.5, 0] as const;
 
 /** Where the playground's camera stood. A version 0 document did not say, so it stands there. */
 const V0_CAMERA = { position: [0, 2.2, 5.5], target: [0, 0, 0], fov: 40 } as const;
@@ -37,7 +40,7 @@ function fromV0(old: V0): Record<string, unknown> {
   const positions = ringLayout(old.placements.length);
   const nodes = old.placements.map((placement, i) => {
     const scale = placement.kind === "object" ? V0_SCALE.object : V0_SCALE.shape;
-    const base = { id: `node-${String(i + 1)}`, parent: null, position: positions[i] ?? [0, 0, 0], rotation: [0, 0, 0], scale: [scale, scale, scale] };
+    const base = { id: `node-${String(i + 1)}`, parent: null, position: positions[i] ?? [0, 0, 0], rotation: [...V0_TILT], scale: [scale, scale, scale] };
     switch (placement.kind) {
       case "primitive":
         return { ...base, asset: { kind: "primitive", id: placement.primitive }, surface: placement.shader === undefined ? { material: placement.material } : { shader: placement.shader } };
@@ -72,7 +75,7 @@ const steps: readonly { readonly from: number; readonly up: (document: unknown) 
     up: (document) => {
       const parsed = v0.safeParse(document);
       if (parsed.success) return { ok: true, next: fromV0(parsed.data) };
-      return { ok: false, issues: parsed.error.issues.map((issue) => ({ path: issue.path.filter((key): key is string | number => typeof key !== "symbol"), code: issue.code, message: issue.message })) };
+      return { ok: false, issues: issuesOf(parsed.error) };
     },
   },
 ];

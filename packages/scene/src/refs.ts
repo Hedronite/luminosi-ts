@@ -27,6 +27,7 @@ type Path = readonly (string | number)[];
  * - `unknown-param`: a parameter the asset's schema does not have;
  * - `invalid-param`: a value outside the asset's schema;
  * - `surface-on-object`: a surface on an object node (an object has none; its material is a parameter of the object);
+ * - `duplicate-effect`: an effect id twice in the stack (reported at the second);
  * - `duplicate-id`: two nodes with one id (reported at the second);
  * - `missing-parent`: a parent that is no node's id;
  * - `cycle`: a node that is its own ancestor (reported at the first node of each cycle).
@@ -97,7 +98,10 @@ export function checkRefs(scene: Scene, resolve: Resolve): readonly SceneIssue[]
     add(["nodes", index, "parent"], "cycle", `"${node.id}" is its own ancestor`);
   });
 
+  const seen = new Set<string>();
   scene.effects.forEach((effect, index) => {
+    if (seen.has(effect.id)) add(["effects", index, "id"], "duplicate-effect", `"${effect.id}" is already in the stack`);
+    seen.add(effect.id);
     checkParams(known("effect", effect.id, ["effects", index, "id"]), effect.params, ["effects", index, "params"]);
   });
 

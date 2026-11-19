@@ -38,6 +38,8 @@ describe("migrate", () => {
     const ring = ringLayout(5);
     expect(result.scene.nodes.map((node) => node.position)).toEqual(ring);
     expect(result.scene.nodes.map((node) => node.scale[0])).toEqual([0.5, 0.5, 0.5, 0.6, 0.6]);
+    // The playground turned its whole view by this much; every migrated node carries it.
+    expect(result.scene.nodes.map((node) => node.rotation)).toEqual(Array.from({ length: 5 }, () => [0.3, 0.5, 0]));
     expect(result.scene.nodes.map((node) => node.id)).toEqual(["node-1", "node-2", "node-3", "node-4", "node-5"]);
     expect(result.scene.effects).toEqual([{ id: "dither" }, { id: "grain" }]);
     expect(result.scene).toMatchObject({ ink: "accent", lights: { rig: "studio", intensity: 1.2 }, look: "neutral", seed: 0 });
@@ -92,8 +94,18 @@ describe("migrate", () => {
     const bad = migrate({ lightIntensity: "bright", placements: [{ kind: "primitive", primitive: "platonic-cube" }], effects: "dither" });
     expect(bad.ok).toBe(false);
     if (bad.ok) return;
-    const paths = bad.issues.map((issue) => issue.path.join("."));
-    expect(paths).toEqual(expect.arrayContaining(["lightIntensity", "placements.0.material", "effects"]));
+    expect(bad.issues.map((issue) => `${issue.code}@${issue.path.join(".")}`)).toEqual(expect.arrayContaining(["wrong-type@lightIntensity", "missing-field@placements.0.material", "wrong-type@effects"]));
+    const stranger = migrate({ lightIntensity: 1, placements: [], extra: 1 });
+    expect(stranger.ok ? [] : stranger.issues.map((issue) => `${issue.code}@${issue.path.join(".")}`)).toEqual(["unknown-key@extra"]);
+  });
+
+  it("names every issue in this package's words", () => {
+    fc.assert(
+      fc.property(fc.oneof(fc.anything(), fc.jsonValue(), fc.record({ lightIntensity: fc.anything(), placements: fc.anything(), effects: fc.anything(), ink: fc.anything() })), (input) => {
+        const result = migrate(input);
+        expect(result.ok || result.issues.every((issue) => /^[a-z]+(-[a-z]+)*$/.test(issue.code))).toBe(true);
+      }),
+    );
   });
 
   it("never throws", () => {

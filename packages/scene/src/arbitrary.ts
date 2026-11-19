@@ -82,18 +82,33 @@ const surface = fc.option(
   { nil: undefined },
 );
 
-/** Nodes whose parents are always earlier nodes, so there is no cycle, with ids `node-0`, `node-1` and so on. */
-const nodes = fc.array(fc.record({ asset, surface, position: vec3, rotation: vec3, scale: vec3, up: fc.nat() }), { maxLength: 6 }).map((drafts) =>
-  drafts.map(({ asset: drafted, surface: surfaced, position, rotation, scale, up }, index): SceneNode => ({
-    id: `node-${String(index)}`,
-    parent: index === 0 || up % 3 === 0 ? null : `node-${String(up % index)}`,
-    position,
-    rotation,
-    scale,
-    asset: drafted,
-    ...(surfaced === undefined || drafted.kind === "object" ? {} : { surface: surfaced }),
-  })),
-);
+/** Ids that are also names on every object: they must work as ids, and nothing may use an id as a key or an identifier. */
+const awkward = ["constructor", "__proto__", "toString", "hasOwnProperty", "Node-With-Capitals"] as const;
+
+/**
+ * Nodes whose parents are never in a cycle (each hangs from a node drafted before it) but are listed in any order, so a
+ * parent is often listed after its children. Some ids are names such as `constructor` and `__proto__`.
+ */
+const nodes = fc
+  .array(fc.record({ asset, surface, position: vec3, rotation: vec3, scale: vec3, up: fc.nat(), name: fc.option(fc.constantFrom(...awkward), { nil: undefined }), key: fc.nat() }), { maxLength: 6 })
+  .map((drafts) => {
+    const used = new Set<string>();
+    const ids = drafts.map(({ name }, index) => {
+      const id = name !== undefined && !used.has(name) ? name : `node-${String(index)}`;
+      used.add(id);
+      return id;
+    });
+    const built = drafts.map(({ asset: drafted, surface: surfaced, position, rotation, scale, up }, index): SceneNode => ({
+      id: ids[index] ?? "",
+      parent: index === 0 || up % 3 === 0 ? null : (ids[up % index] ?? null),
+      position,
+      rotation,
+      scale,
+      asset: drafted,
+      ...(surfaced === undefined || drafted.kind === "object" ? {} : { surface: surfaced }),
+    }));
+    return built.map((node, index) => ({ node, order: drafts[index]?.key ?? 0, index })).sort((x, y) => x.order - y.order || x.index - y.index).map(({ node }) => node);
+  });
 
 /** Valid documents that pass `checkRefs` against `resolve`. */
 export const scenes: fc.Arbitrary<Scene> = fc.record({
@@ -123,7 +138,7 @@ export function fixtureScene(name: string): Scene {
 }
 
 /** Every fixture of the current version. */
-export const currentFixtures = ["v1", "primitives-in-materials", "framed-solid-shader", "object-effects-ink"] as const;
+export const currentFixtures = ["v1", "primitives-in-materials", "framed-solid-shader", "object-effects-ink", "transform-hierarchy"] as const;
 
 /** The scene of a result, or a thrown error naming its issues: for a test that expects the document to read. */
 export function sceneOf(result: SceneResult): Scene {

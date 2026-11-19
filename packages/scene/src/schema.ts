@@ -7,8 +7,8 @@ export const SCENE_VERSION = 1;
 const number = z.number();
 const vec3 = z.tuple([number, number, number]);
 
-/** A node id: letters, digits, dashes and underscores, starting with a letter or digit. */
-const nodeId = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]*$/, "an id is letters, digits, dashes and underscores");
+/** A node id: letters, digits, underscores and dashes, not starting with a dash. `constructor` and `__proto__` are ids like any other. */
+const nodeId = z.string().regex(/^[A-Za-z0-9_][A-Za-z0-9_-]*$/, "an id is letters, digits, underscores and dashes, and does not start with a dash");
 
 /** An asset id: the lowercase slug the registry uses. */
 const assetId = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "an asset id is a lowercase slug");
@@ -47,7 +47,7 @@ const node = z.strictObject({
   surface: surface.optional(),
 });
 
-/** A screen effect and its parameters. Effects run in the order they are listed. */
+/** A screen effect and its parameters. Effects are kept in document order, and an effect appears once; the order they run in is the effect library's. */
 const effect = z.strictObject({ id: assetId, params: params.optional() });
 
 export const inkModes = ["look", "accent", "emissive", "glass"] as const;
@@ -61,7 +61,7 @@ export const sceneSchema = z.strictObject({
   version: z.literal(SCENE_VERSION),
   /** A look id, or an inline palette. */
   look: z.union([assetId, palette]),
-  /** Seeds whatever the scene draws at random. */
+  /** Reserved for whatever the scene will draw at random. Nothing reads it yet, so changing it changes no picture. */
   seed: z.int().min(0),
   nodes: z.array(node),
   lights: z.strictObject({ rig: z.literal("studio"), intensity: z.number().min(0).max(10) }),
@@ -84,19 +84,47 @@ export type InkMode = (typeof inkModes)[number];
 export interface SceneIssue {
   /** Keys and indexes from the document's root: `["nodes", 2, "asset", "id"]`. */
   readonly path: readonly (string | number)[];
-  /** A short stable name: "invalid_type", "unsupported-version", "unknown-material", "cycle". */
+  /**
+   * A short stable name. Of the shape: "invalid-json", "wrong-format", "unsupported-version", "missing-field", "wrong-type",
+   * "wrong-value", "out-of-range", "bad-format", "no-match", "unknown-key". Of the references (`checkRefs`): "unknown-material",
+   * "unknown-param", "duplicate-id", "cycle" and the rest listed there.
+   */
   readonly code: string;
   readonly message: string;
 }
 
 export type SceneResult = { readonly ok: true; readonly scene: Scene } | { readonly ok: false; readonly issues: readonly SceneIssue[] };
 
-const issuesOf = (error: z.ZodError): readonly SceneIssue[] =>
+/** The short name of what is wrong, in this package's words rather than the schema library's. */
+function nameOf(issue: z.ZodError["issues"][number]): string {
+  switch (issue.code) {
+    case "invalid_type":
+      return /received undefined/.test(issue.message) ? "missing-field" : "wrong-type";
+    case "invalid_value":
+      return "wrong-value";
+    case "too_small":
+    case "too_big":
+      return "out-of-range";
+    case "invalid_format":
+      return "bad-format";
+    case "invalid_union":
+      return "no-match";
+    case "custom":
+    case "invalid_element":
+    case "invalid_key":
+    case "not_multiple_of":
+    case "unrecognized_keys":
+      return "invalid";
+  }
+}
+
+/** The issues of a failed schema parse as `SceneIssue`s: a path, a named code and a sentence for each. */
+export const issuesOf = (error: z.ZodError): readonly SceneIssue[] =>
   error.issues.flatMap((issue): SceneIssue[] => {
     const path = issue.path.filter((key): key is string | number => typeof key !== "symbol");
     // A key the schema does not have is one issue per key, so each is named at its own path.
     if (issue.code === "unrecognized_keys") return issue.keys.map((key) => ({ path: [...path, key], code: "unknown-key", message: `"${key}" is not a field of this object` }));
-    return [{ path, code: issue.code, message: issue.message }];
+    return [{ path, code: nameOf(issue), message: issue.message }];
   });
 
 /** The value of JSON text, or the value as it came. Text that is not JSON is an issue, not an exception. */
