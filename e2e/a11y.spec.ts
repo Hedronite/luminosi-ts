@@ -31,7 +31,7 @@ const number = async (host: Locator, attribute: string): Promise<number> => Numb
  * loaded runner (software WebGL) that takes longer than any fixed wait; so wait until the frame counter has held
  * steady across two samples in a row, then read what it held.
  */
-async function heldCounters(host: Locator): Promise<{ readonly frames: number; readonly time: number }> {
+async function heldCounters(host: Locator, steadySamples = 2): Promise<{ readonly frames: number; readonly time: number }> {
   let last = await number(host, "data-frames");
   let steady = 0;
   await expect
@@ -45,7 +45,7 @@ async function heldCounters(host: Locator): Promise<{ readonly frames: number; r
       },
       { message: "the frame counter settles after a pause", timeout: 15_000 },
     )
-    .toBeGreaterThanOrEqual(2);
+    .toBeGreaterThanOrEqual(steadySamples);
   return { frames: last, time: await number(host, "data-time") };
 }
 
@@ -385,8 +385,8 @@ test.describe("under reduced motion", () => {
       const host = stage.host(page);
       // Nothing moves, so there is nothing to pause.
       await expect(stage.scope(page).getByRole("button", { name: /^(Pause|Resume) motion$/ })).toHaveCount(0);
-      // A stage that builds its scene asynchronously draws once more when the build lands, so wait for the counter to settle rather than for a fixed time.
-      const { frames: settledFrames, time: settledTime } = await heldCounters(host);
+      // A stage that builds its scene asynchronously (its environment and effects load on demand) draws once more when each build lands, so wait for the counter to hold for three seconds, not for a fixed time.
+      const { frames: settledFrames, time: settledTime } = await heldCounters(host, 6);
       await page.waitForTimeout(1500);
       expect(await number(host, "data-frames")).toBe(settledFrames);
       expect(await number(host, "data-time")).toBe(settledTime);

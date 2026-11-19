@@ -9,7 +9,10 @@
     "noEmit": true,
     "declaration": false,
     "declarationMap": false,
-    "sourceMap": false
+    "sourceMap": false,
+    "types": [
+      "node"
+    ]
   },
   "include": [
     "test"
