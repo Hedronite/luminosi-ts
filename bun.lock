@@ -8,6 +8,7 @@
         "@axe-core/playwright": "4.14.0",
         "@eslint-community/eslint-plugin-eslint-comments": "4.8.1",
         "@eslint/js": "9.39.5",
+        "@hedronite/lts-materials": "workspace:*",
         "@hedronite/lts-registry": "workspace:*",
         "@hedronite/lts-scene": "workspace:*",
         "@playwright/test": "catalog:",

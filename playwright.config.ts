@@ -28,7 +28,7 @@ export default defineConfig<ConsoleOptions>({
   testDir: "e2e",
   // Against a deployed container only the served pages are under test; the image-to-object review
   // runs local tooling on the local build, so it stays with the normal run.
-  testIgnore: [...(external ? ["**/review.spec.ts"] : []), ...(webgpuLane ? [] : ["**/webgpu.spec.ts"]), ...(goldenAny ? [] : ["**/golden.spec.ts"]), ...(scenesAny ? [] : ["**/scenes.spec.ts"])],
+  testIgnore: [...(external ? ["**/review.spec.ts", "**/scenes/*.spec.ts"] : []), ...(webgpuLane ? [] : ["**/webgpu.spec.ts"]), ...(goldenAny ? [] : ["**/golden.spec.ts"]), ...(scenesAny ? [] : ["**/scenes.spec.ts"])],
   // Tests, not files, are what workers and CI shards divide: catalog.spec.ts alone is over half the suite.
   fullyParallel: true,
   // Locally every test draws with software WebGL, and each browser's GPU process takes one to three cores, so the default

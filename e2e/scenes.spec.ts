@@ -15,6 +15,7 @@ import { decodePng, type Picture } from "../tools/stills/src/png.js";
 import { plant, plants } from "./golden/plants.js";
 import { looseDistance, looseRatio, MARGIN, strictDistance, strictFails } from "./golden/metrics.js";
 import { fixture, goldenPath, plantPath } from "./scenes/emitted.js";
+import { leftoverTextures } from "./scenes/memory.js";
 import type { Memory } from "./scenes/window.js";
 import { roundTrip, type Fixture } from "./scenes/fixtures.js";
 import { planted, plantNames } from "./scenes/plants.js";
@@ -53,32 +54,37 @@ const counts = (key: string): boolean => key !== "total" && !/size$/i.test(key);
 
 /**
  * What the renderer may hold once a scene is freed, against what it held having drawn only an empty scene: the same counts, and for
- * textures up to two more, the library's fixed leftovers (the environment bake keeps one, transmission glass keeps one). Nothing grows with a build.
+ * textures `leftovers` more, the library's fixed leftovers of that fixture (`leftoverTextures`: the environment bake's one, and
+ * transmission glass's one where the fixture has any). Nothing grows with a build.
  */
-function expectEmpty(label: string, reading: Memory, baseline: Memory): void {
+function expectEmpty(label: string, reading: Memory, baseline: Memory, leftovers: number): void {
   for (const [key, base] of Object.entries(baseline).filter(([key]) => counts(key))) {
-    const allowed = key === "textures" ? base + 2 : base;
+    const allowed = key === "textures" ? base + leftovers : base;
     expect(reading[key] ?? 0, `${label}: ${key} is ${String(reading[key])}, a renderer that drew an empty scene holds ${String(base)} (and may keep ${String(allowed - base)} more)`).toBeLessThanOrEqual(allowed);
   }
 }
 
-/** Frees the scene on the page, then builds and frees it five times more: every reading is the empty scene's plus the leftovers, and the five are the same. */
-async function expectFlat(page: Page, label: string): Promise<{ readonly baseline: Memory; readonly freed: Memory; readonly cycles: readonly Memory[] }> {
+/**
+ * Frees the scene on the page, then builds and frees it five times more. The five readings are the same (asserted first, so a leak that
+ * grows by one a cycle fails this on its own), and every reading, the first free's too, is the empty scene's plus this fixture's leftovers.
+ */
+async function expectFlat(page: Page, label: string, leftovers: number): Promise<{ readonly baseline: Memory; readonly freed: Memory; readonly cycles: readonly Memory[] }> {
   const baseline = await page.evaluate<Memory>(() => {
     if (window.stillScene === undefined) throw new Error("the page has no stillScene");
     return window.stillScene.baseline;
   });
   const freed = await page.evaluate<Memory>(() => window.stillScene?.dispose() ?? Promise.reject(new Error("the page has no stillScene")));
-  expectEmpty(`${label} after dispose`, freed, baseline);
   const cycles: Memory[] = [];
   for (let cycle = 1; cycle <= 5; cycle += 1) {
     // eslint-disable-next-line no-await-in-loop -- the cycles are one after another on one renderer
-    const reading = await page.evaluate<Memory>(() => window.stillScene?.cycle() ?? Promise.reject(new Error("the page has no stillScene")));
-    expectEmpty(`${label} cycle ${String(cycle)}`, reading, baseline);
-    cycles.push(reading);
+    cycles.push(await page.evaluate<Memory>(() => window.stillScene?.cycle() ?? Promise.reject(new Error("the page has no stillScene"))));
   }
   const [first, ...rest] = cycles.map((reading) => Object.fromEntries(Object.entries(reading).filter(([key]) => counts(key))));
   for (const reading of rest) expect(reading, `${label}: the readings over five build-and-free cycles are not flat`).toEqual(first);
+  expectEmpty(`${label} after dispose`, freed, baseline, leftovers);
+  cycles.forEach((reading, at) => {
+    expectEmpty(`${label} cycle ${String(at + 1)}`, reading, baseline, leftovers);
+  });
   return { baseline, freed, cycles };
 }
 
@@ -100,11 +106,11 @@ for (const name of roundTrip) {
 
     if (strict) {
       expect(strictDistance(doc, golden), `${name}: the doc frame is not its golden`).toMatchObject({ changedPixels: 0 });
-      const docMemory = await expectFlat(page, `${name} (doc)`);
+      const docMemory = await expectFlat(page, `${name} (doc)`, leftoverTextures(fixture(name)));
       const code = await draw(page, name, "code");
       expect(strictDistance(code, doc), `${name}: the emitted module draws a different frame from the document`).toMatchObject({ changedPixels: 0 });
       expect(strictDistance(code, golden), `${name}: the code frame is not its golden`).toMatchObject({ changedPixels: 0 });
-      const codeMemory = await expectFlat(page, `${name} (code)`);
+      const codeMemory = await expectFlat(page, `${name} (code)`, leftoverTextures(fixture(name)));
       const results: Record<string, unknown> = { fixture: name, mode: "strict", memory: { doc: docMemory, code: codeMemory } };
       const missed: string[] = [];
       for (const kind of plantNames) {
