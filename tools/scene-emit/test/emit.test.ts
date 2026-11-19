@@ -50,16 +50,27 @@ function documents() {
 }
 
 describe("emitted code", () => {
-  it("type-checks for every fixture document, as React and as plain three.js", () => {
-    const files = new Map(documents().flatMap(([name, scene]) => [[`${name}.tsx`, toTsx(scene)] as const, [`${name}.vanilla.ts`, toVanilla(scene)] as const]));
-    expect(files.size).toBeGreaterThanOrEqual(12);
+  // Each way of writing a scene is checked by a compiler run of its own, and each planted id by one, so no test holds more than one run: a run
+  // loads the types of three.js and the packages before it checks a line, and that is most of what it costs.
+  it("type-checks for every fixture document, as React", () => {
+    const files = new Map(documents().map(([name, scene]) => [`${name}.tsx`, toTsx(scene)] as const));
+    expect(files.size).toBeGreaterThanOrEqual(6);
     const run = check(good, files);
     expect(run.output).toBe("");
     expect(run.passed).toBe(true);
   }, 240_000);
 
-  it("fails to type-check when the document names an id the packages do not have", () => {
-    const scene = sceneSchema.parse({
+  it("type-checks for every fixture document, as plain three.js", () => {
+    const files = new Map(documents().map(([name, scene]) => [`${name}.vanilla.ts`, toVanilla(scene)] as const));
+    expect(files.size).toBeGreaterThanOrEqual(6);
+    const run = check(good, files);
+    expect(run.output).toBe("");
+    expect(run.passed).toBe(true);
+  }, 240_000);
+
+  /** A document that names an id of each kind that the packages do not have. */
+  const planted = () =>
+    sceneSchema.parse({
       format: "lts-scene",
       version: 1,
       look: "neutral",
@@ -74,10 +85,15 @@ describe("emitted code", () => {
       effects: [{ id: "no-such-effect" }],
       ink: "look",
     });
-    const vanilla = check(bad, new Map([["bad.vanilla.ts", toVanilla(scene)]]));
+
+  it("fails to type-check plain three.js when the document names an id the packages do not have", () => {
+    const vanilla = check(bad, new Map([["bad.vanilla.ts", toVanilla(planted())]]));
     expect(vanilla.passed).toBe(false);
     expect(vanilla.output).toMatch(/platonic-cuboid/);
-    const tsx = check(bad, new Map([["bad.tsx", toTsx(scene)]]));
+  }, 240_000);
+
+  it("fails to type-check React when the document names an id the packages do not have", () => {
+    const tsx = check(bad, new Map([["bad.tsx", toTsx(planted())]]));
     expect(tsx.passed).toBe(false);
     expect(tsx.output).toMatch(/platonic-cuboid|chrome/);
   }, 240_000);

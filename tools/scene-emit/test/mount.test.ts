@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createElement, type ReactNode } from "react";
 import { Group, Mesh, type Object3D } from "three";
-import { afterAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 // The emitted React code is run, not only type-checked: it is written out, imported and mounted with the R3F test renderer, as the
 // adapters' own tests mount their components. The canvas and the WebGPU parts need a browser, so those three are stood in for; the
@@ -39,16 +39,23 @@ const named = (root: Object3D, name: string): Object3D => {
 };
 
 describe("the emitted React code, mounted", () => {
-  it("draws the document's nodes where it says: a parent's children stand in its group, with its transform", async () => {
+  // The emitted module is written and loaded before the test: loading it pulls in three.js and the adapters, which takes longer than
+  // drawing the scene, and the test is about the drawing.
+  let Scene: (() => ReactNode) | undefined;
+  beforeAll(async () => {
     const result = migrate(readFileSync(join(here, "..", "..", "..", "packages", "scene", "fixtures", "transform-hierarchy.json"), "utf8"));
     if (!result.ok) throw new Error(JSON.stringify(result.issues));
     mkdirSync(dir, { recursive: true });
     const file = join(dir, "transform-hierarchy.tsx");
     writeFileSync(file, toTsx(result.scene));
     const loaded: unknown = await import(/* @vite-ignore */ file);
-    const Scene: unknown = typeof loaded === "object" && loaded !== null && "Scene" in loaded ? loaded.Scene : undefined;
-    if (!isComponent(Scene)) throw new Error("the emitted module has no Scene");
+    const component: unknown = typeof loaded === "object" && loaded !== null && "Scene" in loaded ? loaded.Scene : undefined;
+    if (!isComponent(component)) throw new Error("the emitted module has no Scene");
+    Scene = component;
+  });
 
+  it("draws the document's nodes where it says: a parent's children stand in its group, with its transform", async () => {
+    if (Scene === undefined) throw new Error("the emitted module was not loaded");
     const renderer = await ReactThreeTestRenderer.create(createElement(Scene));
     const root = renderer.scene.instance;
 

@@ -72,13 +72,17 @@ describe.runIf(hasNu)("skills through Nushell", () => {
     expect(JSON.stringify(envelope.data)).toContain('"dryRun":true');
   });
 
-  it("lumin-new object plans a forge workspace on a dry run, and refuses a missing source", () => {
+  // One process each: a test that starts two Nushell processes takes twice as long as one that starts one, and these are two separate facts.
+  it("lumin-new object plans a forge workspace on a dry run", () => {
     const dir = mkdtempSync(join(tmpdir(), "lumin-"));
     const image = join(dir, "lamp.png");
     writeFileSync(image, "not really a png");
     const planned = runSkill("lumin-new", ["object", "lumin-test-lamp", "--from-image", image, "--dry-run"]);
     expect(planned.code).toBe(0);
     expect(JSON.stringify(planned.envelope.data)).toContain('"dryRun":true');
+  });
+
+  it("lumin-new object refuses a missing source", () => {
     const refused = runSkill("lumin-new", ["object", "lumin-test-lamp"]);
     expect(refused.code).toBe(2);
     expect(refused.envelope.kind).toBe("usage");
@@ -148,11 +152,17 @@ export const Broken = () => (
       expect(JSON.stringify(rows)).toMatch(/"of":[1-9]\d/);
     });
 
-    it("scope and a diff review work against HEAD; render without a server says so", () => {
+    it("scope works against HEAD", () => {
       expect(runSkill("lumin-ui", ["scope", "--against", "HEAD"]).envelope.ok).toBe(true);
+    });
+
+    it("a diff review works against HEAD", () => {
       const review = runSkill("lumin-ui", ["review", "--against", "HEAD"]);
       expect(review.code).toBe(0);
       expect(JSON.stringify(review.envelope.data)).toContain('"mode":"diff"');
+    });
+
+    it("render without a server says so", () => {
       const offline = runSkill("lumin-ui", ["render", "--url", "http://127.0.0.1:9"]);
       expect(offline.code).toBe(1);
       expect(offline.envelope.kind).toBe("no_server");
