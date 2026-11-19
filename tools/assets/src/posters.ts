@@ -28,8 +28,8 @@ export const posterEdge = galleryTile * 2;
 
 export const posterDir = "assets/posters";
 export const manifestPath = "assets/posters/manifest.json";
-/** The rig's version is the version of its package: whoever changes what a frame looks like bumps it. */
-const rigPackage = "tools/stills/package.json";
+/** The rig's version is `RIG_VERSION` in its page: whoever changes what a frame looks like for a reason other than an asset bumps it. */
+const rigSource = "apps/catalog/src/Still.tsx";
 
 interface PosterEntry {
   /** Relative to the repo root, forward slashes. */
@@ -67,12 +67,10 @@ export function posterInputHash({ id, defaults, rig }: PosterInput): string {
   return createHash("sha256").update(text).digest("hex").slice(0, 16);
 }
 
-/** The rig's version, or undefined while there is no rig. */
+/** The rig's version, or undefined when the rig's page does not say. */
 export function rigVersion(root: string): string | undefined {
-  const file = join(root, rigPackage);
-  if (!existsSync(file)) return undefined;
-  const parsed: unknown = JSON.parse(readFileSync(file, "utf8"));
-  return typeof parsed === "object" && parsed !== null && "version" in parsed && typeof parsed.version === "string" ? parsed.version : undefined;
+  const file = join(root, rigSource);
+  return existsSync(file) ? /^const RIG_VERSION = (\d+);$/m.exec(readFileSync(file, "utf8"))?.[1] : undefined;
 }
 
 /** The width and height of a WebP file (lossy, lossless or extended), or undefined if the bytes are not one. */
@@ -128,7 +126,7 @@ export interface PosterReport {
 export function checkPosters(root: string, assets: readonly PosterAsset[], manifest: PosterManifest | undefined, budgets: Budgets["posters"], rig: string | undefined): PosterReport {
   const problems: string[] = [];
   if (budgets === undefined) problems.push("posters: no budget in assets/budgets.json");
-  if (rig === undefined) problems.push(`posters: no rig version (${rigPackage})`);
+  if (rig === undefined) problems.push(`posters: no rig version (RIG_VERSION in ${rigSource})`);
   if (manifest === undefined) problems.push(`posters: no manifest (${manifestPath}); run \`bun run --filter tool-assets posters\``);
   let totalBytes = 0;
   let count = 0;

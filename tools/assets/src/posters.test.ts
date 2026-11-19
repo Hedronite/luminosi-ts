@@ -4,7 +4,7 @@ import { join } from "node:path";
 import type { AssetMeta } from "@hedronite/lts-core";
 import sharp from "sharp";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { checkPosters, hasPoster, loadPosterManifest, manifestSource, posterEdge, posterInputHash, webpSize, type PosterAsset, type PosterManifest } from "./posters.js";
+import { checkPosters, rigVersion, hasPoster, loadPosterManifest, manifestSource, posterEdge, posterInputHash, webpSize, type PosterAsset, type PosterManifest } from "./posters.js";
 
 const meta = (id: string, kind: AssetMeta["kind"]): AssetMeta => ({ id, kind, name: id, tags: [], version: "0.0.0", package: "@hedronite/lts-materials", added: "2026-11-18" });
 const assets: readonly PosterAsset[] = [
@@ -104,7 +104,20 @@ describe("checkPosters", () => {
 
   it("fails a poster left for an asset that is gone, and a missing manifest, budget or rig", () => {
     expect(check({ ...good, gone: { path: "assets/posters/matte.webp", size: posterEdge, hash: "0" } }).problems).toEqual(["gone: a poster in the manifest for an asset that has none"]);
-    expect(checkPosters(root, assets, undefined, undefined, undefined).problems).toEqual(["posters: no budget in assets/budgets.json", "posters: no rig version (tools/stills/package.json)", "posters: no manifest (assets/posters/manifest.json); run `bun run --filter tool-assets posters`"]);
+    expect(checkPosters(root, assets, undefined, undefined, undefined).problems).toEqual(["posters: no budget in assets/budgets.json", "posters: no rig version (RIG_VERSION in apps/catalog/src/Still.tsx)", "posters: no manifest (assets/posters/manifest.json); run `bun run --filter tool-assets posters`"]);
+  });
+});
+
+describe("rigVersion", () => {
+  it("reads RIG_VERSION from the rig's page, and says nothing where there is none", () => {
+    const dir = mkdtempSync(join(tmpdir(), "rig-"));
+    mkdirSync(join(dir, "apps/catalog/src"), { recursive: true });
+    writeFileSync(join(dir, "apps/catalog/src/Still.tsx"), "export const a = 1;\nconst RIG_VERSION = 7;\n");
+    expect(rigVersion(dir)).toBe("7");
+    writeFileSync(join(dir, "apps/catalog/src/Still.tsx"), "const OTHER = 7;\n");
+    expect(rigVersion(dir)).toBeUndefined();
+    expect(rigVersion(join(dir, "nowhere"))).toBeUndefined();
+    rmSync(dir, { recursive: true, force: true });
   });
 });
 
