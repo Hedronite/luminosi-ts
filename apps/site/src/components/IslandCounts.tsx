@@ -60,6 +60,7 @@ export function IslandCounts({ target }: { readonly target: RefObject<HTMLDivEle
       element.dataset["builds"] = String(seen.size);
       element.dataset["geometries"] = String(memory.geometries);
       element.dataset["textures"] = String(memory.textures);
+      // The renderer's own figure: the WebGPU renderer counts its render targets, and the WebGL renderer counts none, so it reads 0 here.
       element.dataset["targets"] = String(memory.targets);
     }, 150);
     return () => {
