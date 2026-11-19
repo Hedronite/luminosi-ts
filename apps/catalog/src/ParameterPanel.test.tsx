@@ -1,7 +1,7 @@
 import { loadDescriptors } from "@hedronite/lts-registry";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { startValues } from "./paramFit";
+import { shownFields, startValues } from "./paramFit";
 import ParameterPanel from "./ParameterPanel";
 
 const registry = await loadDescriptors();
@@ -13,9 +13,9 @@ const markup = (id: string, overrides: Record<string, unknown> = {}): string => 
 
 describe("ParameterPanel", () => {
   it("makes a labelled control of the schema's type for every parameter, for every asset that has parameters", () => {
-    for (const descriptor of registry.list().filter(({ fields }) => fields.length > 0)) {
+    for (const descriptor of registry.list().filter((each) => shownFields(each).length > 0)) {
       const html = markup(descriptor.meta.id);
-      for (const field of descriptor.fields) {
+      for (const field of shownFields(descriptor)) {
         expect(html, `${descriptor.meta.id} ${field.key}`).toContain(`data-parameter="${field.key}"`);
         expect(html, `${descriptor.meta.id} ${field.key} label`).toContain(`for="parameter-${field.key}"`);
         expect(html, `${descriptor.meta.id} ${field.key} control`).toContain(`id="parameter-${field.key}"`);
@@ -30,6 +30,10 @@ describe("ParameterPanel", () => {
     expect(hologram).toContain('type="color"');
     expect(markup("framed-solid")).toContain("<select");
     for (const { meta } of registry.list().filter(({ fields }) => fields.some((field) => field.type === "boolean"))) expect(markup(meta.id)).toContain('role="switch"');
+  });
+
+  it("offers no control for a model URL", () => {
+    expect(markup("crystal-cluster-glb")).not.toContain("parameter-url");
   });
 
   it("groups the controls by the hints' groups, with a legend each", () => {

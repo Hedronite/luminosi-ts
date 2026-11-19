@@ -16,6 +16,12 @@ export const structuralParams: Readonly<Record<string, readonly string[]>> = {
   ascii: ["ramp"],
 };
 
+/** Parameters the detail view cannot honour, so no control is offered for them and the address cannot carry them: the viewport serves its own bundled model, whatever a "url" says. */
+const notShown: readonly string[] = ["url"];
+
+/** The parameters the panel offers and the address carries: the descriptor's, less those the view cannot honour. */
+export const shownFields = (described: Pick<Described, "fields">): readonly ParameterField[] => described.fields.filter((field) => !notShown.includes(field.key));
+
 /**
  * Reads a `params` value: a JSON object (`{"density":80}`), or pairs joined by commas (`density=80,speed=3`). The values are
  * left as they came, text for pairs; `fitParams` makes them what each parameter takes. Nothing comes back for an empty or unreadable value.
@@ -65,7 +71,7 @@ export const accepts = (described: Described, key: string, value: unknown): bool
 export function fitParams(described: Described, text: string): Values {
   const raw = readParams(text) ?? {};
   const fitted: Record<string, unknown> = {};
-  for (const field of described.fields) {
+  for (const field of shownFields(described)) {
     if (!Object.hasOwn(raw, field.key)) continue;
     const value = coerce(field, raw[field.key]);
     if (value !== undefined && accepts(described, field.key, value)) fitted[field.key] = value;

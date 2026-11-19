@@ -1,6 +1,6 @@
 import type { ParameterField } from "@hedronite/lts-core";
 import { useState } from "react";
-import { accepts, formatParams, structuralParams, withEdit, type Described, type Values } from "./paramFit";
+import { accepts, formatParams, shownFields, structuralParams, withEdit, type Described, type Values } from "./paramFit";
 import { writeParamsText } from "./paramsAddress";
 
 const input = "rounded-md border border-line bg-surface-raised px-2 py-1 text-sm text-fg focus-visible:outline-2 focus-visible:outline-accent aria-[invalid=true]:border-red-600";
@@ -280,7 +280,7 @@ export default function ParameterPanel({ described, assetId, noun, overrides, st
         {notice}
       </p>
       <div className="mt-2 grid gap-4">
-        {grouped(described.fields).map(([group, fields]) => {
+        {grouped(shownFields(described)).map(([group, fields]) => {
           const controls = fields.map((field) => (
             <Control
               key={field.key}

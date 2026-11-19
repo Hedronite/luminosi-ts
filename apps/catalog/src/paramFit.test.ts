@@ -1,7 +1,7 @@
 import { loadDescriptors } from "@hedronite/lts-registry";
 import { stackStructure } from "@hedronite/lts-postfx/three";
 import { describe, expect, it } from "vitest";
-import { accepts, dropsUnset, fitParams, formatParams, readParams, startValues, structuralParams, withEdit } from "./paramFit";
+import { accepts, dropsUnset, fitParams, formatParams, readParams, shownFields, startValues, structuralParams, withEdit } from "./paramFit";
 
 const registry = await loadDescriptors();
 
@@ -52,6 +52,16 @@ describe("fitParams", () => {
   });
 });
 
+describe("shownFields", () => {
+  it("leaves out a model URL, which the view cannot honour, from the controls and from what an address can carry", () => {
+    const glb = need("crystal-cluster-glb");
+    expect(glb.fields.map((field) => field.key)).toEqual(["url"]);
+    expect(shownFields(glb)).toEqual([]);
+    expect(fitParams(glb, "url=/elsewhere.glb")).toEqual({});
+    expect(shownFields(need("framed-solid")).map((field) => field.key)).toEqual(need("framed-solid").fields.map((field) => field.key));
+  });
+});
+
 describe("what is shown with nothing in the address, and edits", () => {
   it("starts from the defaults, with the stage's own values over them", () => {
     expect(startValues(need("scan"))).toMatchObject({ period: 4 });
@@ -91,7 +101,7 @@ describe("formatParams", () => {
     for (const descriptor of registry.list().filter(({ fields }) => fields.length > 0)) {
       const start = startValues(descriptor);
       const edited = Object.fromEntries(
-        descriptor.fields.flatMap((field) => {
+        shownFields(descriptor).flatMap((field) => {
           const value = field.type === "boolean" ? field.default !== true : field.type === "choice" ? field.options?.find((option) => option !== field.default) : field.type === "color" ? "#123456" : field.type === "string" ? "a,b=c" : field.min !== undefined && field.max !== undefined && field.default !== field.max ? field.max : undefined;
           return value === undefined || !accepts(descriptor, field.key, value) ? [] : [[field.key, value]];
         }),

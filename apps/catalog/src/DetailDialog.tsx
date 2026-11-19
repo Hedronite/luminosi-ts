@@ -107,7 +107,7 @@ export function DetailDialog({ meta, onClose, onStep, position }: DetailDialogPr
     }
   }, [descriptor, fit, overrides]);
   const snippetsFailed = failed;
-  const hasParameters = descriptor !== undefined && descriptor.fields.length > 0;
+  const hasParameters = descriptor !== undefined && fit !== undefined && fit.shownFields(descriptor).length > 0;
 
   return (
     <dialog
@@ -157,7 +157,7 @@ export function DetailDialog({ meta, onClose, onStep, position }: DetailDialogPr
                 ) : meta.kind === "effect" ? (
                   <EffectViewport meta={meta} palette={preset.scene} params={values} />
                 ) : (
-                  <Viewport meta={meta} palette={preset.scene} />
+                  <Viewport meta={meta} palette={preset.scene} params={values} />
                 )}
               </Suspense>
             ) : (
@@ -167,7 +167,7 @@ export function DetailDialog({ meta, onClose, onStep, position }: DetailDialogPr
             )}
           </div>
 
-          {hasParameters && fit !== undefined && start !== undefined && overrides !== undefined ? (
+          {hasParameters && start !== undefined && overrides !== undefined ? (
             <Suspense fallback={null}>
               <ParameterPanel key={meta.id} described={descriptor} assetId={meta.id} noun={nounFor(meta)} overrides={overrides} start={start} />
             </Suspense>

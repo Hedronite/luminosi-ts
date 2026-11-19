@@ -241,3 +241,71 @@ test("an icon's panel changes the icon in the detail view and the code beside it
   expect(results.violations.map((v) => v.id)).toEqual([]);
   expect(errors).toEqual([]);
 });
+
+// Phase two: the plain 3D viewport (primitives, objects) takes parameters too. An edit rebuilds the object it shows, so the picture
+// changes and nothing leaks on the GPU; a link opens with its values already in the picture.
+const objectCases = [
+  { name: "a primitive", asset: "platonic-cube", label: "Size", value: "2.5", params: "scale=2.5" },
+  { name: "the framed solid", asset: "framed-solid", label: "Radius", value: "0.4", params: "radius=0.4" },
+  { name: "the crystal cluster", asset: "crystal-cluster", label: "Crystals", value: "3", params: "count=3" },
+  { name: "the lattice", asset: "instanced-lattice", label: "Spacing", value: "0.8", params: "spacing=0.8" },
+  { name: "the watch", asset: "dress-watch", label: "Hours", value: "3", params: "hours=3" },
+] as const;
+
+for (const { name, asset, label, value, params } of objectCases) {
+  test(`${name}: the panel's edit shows in the viewport, the address follows, and a link opens with its values`, async ({ page }) => {
+    const errors = errorsOn(page);
+    await page.goto(`/?asset=${asset}`);
+    const dialog = page.getByRole("dialog");
+    const panel = dialog.getByRole("region", { name: "Parameters", exact: true });
+    const host = dialog.getByTestId("viewport");
+    await drawn(host);
+    const geometries = await number(host, "data-gpu-geometries");
+    const before = await host.locator("canvas").screenshot();
+    await panel.getByRole("spinbutton", { name: label, exact: true }).fill(value);
+    await expect.poll(() => paramsOf(page)).toBe(params);
+    await expect.poll(async () => (await host.locator("canvas").screenshot()).equals(before), { message: "the picture changes with the parameter" }).toBe(false);
+    // The old build is freed: the GPU holds no more geometries than it did.
+    await expect.poll(async () => number(host, "data-gpu-geometries")).toBeLessThanOrEqual(geometries);
+    const edited = await host.locator("canvas").screenshot();
+
+    // Reset brings the first picture back.
+    await panel.getByRole("button", { name: "Reset to defaults" }).click();
+    await expect.poll(async () => (await host.locator("canvas").screenshot()).equals(edited)).toBe(false);
+
+    // A link with the values opens on the edited picture, built once.
+    await page.goto(`/?asset=${asset}&params=${params}`);
+    const linked = page.getByRole("dialog").getByTestId("viewport");
+    await drawn(linked);
+    await expect(page.getByRole("dialog").getByRole("region", { name: "Parameters", exact: true }).getByRole("spinbutton", { name: label, exact: true })).toHaveValue(value);
+    await expect.poll(async () => (await linked.locator("canvas").screenshot()).equals(before)).toBe(false);
+    expect(errors).toEqual([]);
+  });
+}
+
+// The glTF crystal cluster's only parameter is a model URL, which the viewport cannot honour: no panel, and an address cannot set it.
+test("the glTF crystal cluster offers no panel for its model URL", async ({ page }) => {
+  const errors = errorsOn(page);
+  await page.goto("/?asset=crystal-cluster-glb&params=url=/elsewhere.glb");
+  const dialog = page.getByRole("dialog");
+  await drawn(dialog.getByTestId("viewport"));
+  await expect(dialog.getByRole("region", { name: "Parameters", exact: true })).toHaveCount(0);
+  await expect(dialog.getByRole("region", { name: "Changed parameters snippet" })).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+// Materials and scene kits take no parameters today, so there is no panel and nothing for an address to carry: the view is as it was.
+for (const { name, asset } of [
+  { name: "a material", asset: "metal" },
+  { name: "a scene kit", asset: "scene-dusk" },
+] as const) {
+  test(`${name} has no parameters, so no panel, and a params value in the address changes nothing`, async ({ page }) => {
+    const errors = errorsOn(page);
+    await page.goto(`/?asset=${asset}&params=scale=3`);
+    const dialog = page.getByRole("dialog");
+    const host = dialog.getByTestId("viewport");
+    await drawn(host);
+    await expect(dialog.getByRole("region", { name: "Parameters", exact: true })).toHaveCount(0);
+    expect(errors).toEqual([]);
+  });
+}
