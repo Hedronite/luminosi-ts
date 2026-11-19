@@ -1,7 +1,7 @@
 import { useReducedMotion } from "@hedronite/lts-adapters";
 import { useFrame, useStore, useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode, type RefObject } from "react";
-import { MathUtils, Spherical, Vector3 } from "three";
+import { MathUtils, Spherical, Vector3, type Object3D } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
 /** The studio environment comes from the adapters, so the catalog uses what consumers use. */
@@ -131,6 +131,20 @@ const programsOf = (gl: object): number => {
 };
 
 /**
+ * Adds to `seen` the `uuid` of every drawable object under `root` (anything that carries a material: meshes, lines, points)
+ * and of every material those objects hold. It reads the scene graph and nothing else: no name, no type of material.
+ */
+const noteBuilds = (root: Object3D, seen: Set<string>): void => {
+  root.traverse((object) => {
+    if (!("material" in object)) return;
+    seen.add(object.uuid);
+    const held: unknown = object.material;
+    const materials: readonly unknown[] = Array.isArray(held) ? held : [held];
+    for (const material of materials) if (typeof material === "object" && material !== null && "uuid" in material && typeof material.uuid === "string") seen.add(material.uuid);
+  });
+};
+
+/**
  * Which backend drew the canvas: `webgpu` when three's renderer is running on the browser's WebGPU,
  * `webgl` for the WebGL renderer and for the WebGPU renderer's WebGL 2 fallback.
  */
@@ -141,21 +155,28 @@ const backendOf = (gl: object): "webgpu" | "webgl" => {
 
 /**
  * Writes the scene's rendered frame count, the backend that drew it, live GPU resource counts and
- * camera (azimuth and polar in degrees, distance from the origin), the number of shader programs, and the stage's animation
+ * camera (azimuth and polar in degrees, distance from the origin), the number of shader programs, the builds (how many distinct meshes
+ * and materials the stage has ever attached, by `uuid`, never counting one twice and never going down: a remount raises it, a
+ * recolor or a uniform edit leaves it), and the stage's animation
  * clock when it has one (and the time its surface shaders read, when it gave them one), onto `target`, for tests.
  */
 export function GpuCounts({ target, clockRef, shaderClock }: { readonly target: RefObject<HTMLDivElement | null>; readonly clockRef?: RefObject<number>; readonly shaderClock?: { readonly value: number } }) {
   const gl = useThree((state) => state.gl);
   const camera = useThree((state) => state.camera);
+  const scene = useThree((state) => state.scene);
   // useFrame runs once per scene render, so environment baking does not count.
   const frames = useRef(0);
+  const [builds] = useState(() => new Set<string>());
   useFrame(() => {
     frames.current += 1;
+    // A frame follows every commit that attaches something, so an object that lives for one commit is still seen.
+    noteBuilds(scene, builds);
   });
   useEffect(() => {
     const timer = setInterval(() => {
       const element = target.current;
       if (element === null) return;
+      noteBuilds(scene, builds);
       const { x, y, z } = camera.position;
       const distance = Math.hypot(x, y, z);
       element.dataset["frames"] = String(frames.current);
@@ -163,6 +184,7 @@ export function GpuCounts({ target, clockRef, shaderClock }: { readonly target: 
       element.dataset["gpuGeometries"] = String(gl.info.memory.geometries);
       element.dataset["gpuTextures"] = String(gl.info.memory.textures);
       element.dataset["programs"] = String(programsOf(gl));
+      element.dataset["builds"] = String(builds.size);
       element.dataset["azimuth"] = MathUtils.radToDeg(Math.atan2(x, z)).toFixed(1);
       element.dataset["polar"] = MathUtils.radToDeg(Math.acos(MathUtils.clamp(y / distance, -1, 1))).toFixed(1);
       element.dataset["distance"] = distance.toFixed(2);
@@ -172,7 +194,7 @@ export function GpuCounts({ target, clockRef, shaderClock }: { readonly target: 
     return () => {
       clearInterval(timer);
     };
-  }, [gl, camera, target, clockRef, shaderClock]);
+  }, [gl, camera, scene, builds, target, clockRef, shaderClock]);
   return null;
 }
 
