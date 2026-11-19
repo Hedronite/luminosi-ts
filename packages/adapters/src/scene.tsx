@@ -3,6 +3,7 @@ import { createScene, type SceneHandle } from "@hedronite/lts-scene/three";
 import { type ScenePalette } from "@hedronite/lts-tokens";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useContext, useEffect, useRef, useState } from "react";
+import type { Group } from "three";
 import type { WebGPURenderer } from "three/webgpu";
 import { EffectClockContext } from "./effectClock.js";
 import { useReducedMotion } from "./motion.js";
@@ -17,6 +18,11 @@ export interface SceneProps {
    * Default: the viewer's reduced-motion setting (`useReducedMotion`). Changing it builds the scene again.
    */
   readonly reducedMotion?: boolean;
+  /**
+   * Told the root of what the scene built (and told `undefined` when it is freed). With a WebGPU renderer the scene draws its own
+   * graph, which is no part of the canvas's, so this is how a caller reads it (to count what it built, say).
+   */
+  readonly onRoot?: (root: Group | undefined) => void;
 }
 
 /** A property check, not an instanceof: this entry must not import three's WebGPU build. */
@@ -28,7 +34,7 @@ const isWebGPURenderer = (gl: unknown): gl is WebGPURenderer => typeof gl === "o
  * makes the document's camera the canvas's. On another renderer it adds the nodes and lights to the canvas's scene and
  * leaves the environment, the effects and any surface shader (which need WebGPU) out. Frees everything it built on unmount.
  */
-export function Scene({ doc, palette, reducedMotion }: SceneProps) {
+export function Scene({ doc, palette, reducedMotion, onRoot }: SceneProps) {
   const gl: unknown = useThree((state) => state.gl);
   const renderer = isWebGPURenderer(gl) ? gl : undefined;
   const invalidate = useThree((state) => state.invalidate);
@@ -42,15 +48,16 @@ export function Scene({ doc, palette, reducedMotion }: SceneProps) {
   // of them reaches a scene a rebuild just freed.
   const [handle, setHandle] = useState<SceneHandle | undefined>(undefined);
   const live = useRef<SceneHandle | undefined>(undefined);
-  const latest = useRef({ doc, palette });
+  const latest = useRef({ doc, palette, onRoot });
   useEffect(() => {
-    latest.current = { doc, palette };
+    latest.current = { doc, palette, onRoot };
   });
 
   useEffect(() => {
     const { doc: first, palette: look } = latest.current;
     const made = createScene(first, { ...(look === undefined ? {} : { palette: look }), ...(renderer === undefined ? {} : { renderer }), ...(clock === undefined ? {} : { clock }), reducedMotion: still });
     live.current = made;
+    latest.current.onRoot?.(made.root);
     setHandle(made);
     made.ready.then(
       () => {
@@ -63,6 +70,7 @@ export function Scene({ doc, palette, reducedMotion }: SceneProps) {
     );
     return () => {
       live.current = undefined;
+      latest.current.onRoot?.(undefined);
       made.dispose();
     };
   }, [renderer, clock, still, invalidate]);

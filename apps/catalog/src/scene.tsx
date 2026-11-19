@@ -1,7 +1,7 @@
 import { useReducedMotion } from "@hedronite/lts-adapters";
 import { useFrame, useStore, useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode, type RefObject } from "react";
-import { MathUtils, Spherical, Vector3 } from "three";
+import { MathUtils, Spherical, Vector3, type Object3D } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { buildsOf, noteBuilds } from "./builds";
 
@@ -147,7 +147,18 @@ const backendOf = (gl: object): "webgpu" | "webgl" => {
  * a recolor or a uniform edit leaves it; see `builds.ts`, where the count lives outside React so a remount of the Canvas cannot reset it), and the stage's animation
  * clock when it has one (and the time its surface shaders read, when it gave them one), onto `target`, for tests.
  */
-export function GpuCounts({ target, clockRef, shaderClock }: { readonly target: RefObject<HTMLDivElement | null>; readonly clockRef?: RefObject<number>; readonly shaderClock?: { readonly value: number } }) {
+export function GpuCounts({
+  target,
+  clockRef,
+  shaderClock,
+  watch,
+}: {
+  readonly target: RefObject<HTMLDivElement | null>;
+  readonly clockRef?: RefObject<number>;
+  readonly shaderClock?: { readonly value: number };
+  /** A graph the canvas's scene does not hold (the one a `Scene` draws on the WebGPU renderer), counted with it. */
+  readonly watch?: RefObject<Object3D | undefined>;
+}) {
   const gl = useThree((state) => state.gl);
   const camera = useThree((state) => state.camera);
   const scene = useThree((state) => state.scene);
@@ -157,7 +168,10 @@ export function GpuCounts({ target, clockRef, shaderClock }: { readonly target: 
     frames.current += 1;
     // A frame follows every commit that attaches something, so an object that lives for one commit is still seen.
     const host = target.current;
-    if (host !== null) noteBuilds(scene, buildsOf(host));
+    if (host === null) return;
+    const seen = buildsOf(host);
+    noteBuilds(scene, seen);
+    if (watch?.current !== undefined) noteBuilds(watch.current, seen);
   });
   useEffect(() => {
     const timer = setInterval(() => {
@@ -165,6 +179,7 @@ export function GpuCounts({ target, clockRef, shaderClock }: { readonly target: 
       if (element === null) return;
       const seen = buildsOf(element);
       noteBuilds(scene, seen);
+      if (watch?.current !== undefined) noteBuilds(watch.current, seen);
       const { x, y, z } = camera.position;
       const distance = Math.hypot(x, y, z);
       element.dataset["frames"] = String(frames.current);
@@ -182,7 +197,7 @@ export function GpuCounts({ target, clockRef, shaderClock }: { readonly target: 
     return () => {
       clearInterval(timer);
     };
-  }, [gl, camera, scene, target, clockRef, shaderClock]);
+  }, [gl, camera, scene, target, clockRef, shaderClock, watch]);
   return null;
 }
 
