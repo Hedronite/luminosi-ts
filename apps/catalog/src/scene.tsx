@@ -3,7 +3,7 @@ import { useFrame, useStore, useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode, type RefObject } from "react";
 import { MathUtils, Spherical, Vector3, type Object3D } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { buildsOf, noteBuilds } from "./builds";
+import { buildsOf, effectBuildsOf, memoryOf, noteBuilds } from "./builds";
 
 /** The studio environment comes from the adapters, so the catalog uses what consumers use. */
 export { StudioEnvironment as Environment } from "@hedronite/lts-adapters";
@@ -141,23 +141,29 @@ const backendOf = (gl: object): "webgpu" | "webgl" => {
 };
 
 /**
- * Writes the scene's rendered frame count, the backend that drew it, live GPU resource counts and
+ * Writes the scene's rendered frame count, the backend that drew it, live GPU resource counts (`data-gpu-geometries`, `data-gpu-textures`, and the same
+ * three the renderer's memory report gives, `data-geometries`, `data-textures` and `data-targets`) and
  * camera (azimuth and polar in degrees, distance from the origin), the number of shader programs, the builds (how many distinct meshes,
  * geometries and materials the stage has ever attached, by `uuid`, never counting one twice and never going down: a remount raises it,
  * a recolor or a uniform edit leaves it; see `builds.ts`, where the count lives outside React so a remount of the Canvas cannot reset it), and the stage's animation
- * clock when it has one (and the time its surface shaders read, when it gave them one), onto `target`, for tests.
+ * clock when it has one (and the time its surface shaders read, when it gave them one), onto `target`, for tests. A stage that
+ * runs screen effects says so with `screenEffects`, and also gets `data-effect-builds`: how many distinct render-target textures its
+ * effect pipeline has ever held (see `effectBuildsOf`), never lowered.
  */
 export function GpuCounts({
   target,
   clockRef,
   shaderClock,
   watch,
+  screenEffects = false,
 }: {
   readonly target: RefObject<HTMLDivElement | null>;
   readonly clockRef?: RefObject<number>;
   readonly shaderClock?: { readonly value: number };
   /** A graph the canvas's scene does not hold (the one a `Scene` draws on the WebGPU renderer), counted with it. */
   readonly watch?: RefObject<Object3D | undefined>;
+  /** The stage runs a screen-effect pipeline: report its builds too. */
+  readonly screenEffects?: boolean;
 }) {
   const gl = useThree((state) => state.gl);
   const camera = useThree((state) => state.camera);
@@ -184,8 +190,12 @@ export function GpuCounts({
       const distance = Math.hypot(x, y, z);
       element.dataset["frames"] = String(frames.current);
       element.dataset["backend"] = backendOf(gl);
-      element.dataset["gpuGeometries"] = String(gl.info.memory.geometries);
-      element.dataset["gpuTextures"] = String(gl.info.memory.textures);
+      const memory = memoryOf(gl);
+      element.dataset["gpuGeometries"] = element.dataset["geometries"] = String(memory.geometries);
+      element.dataset["gpuTextures"] = element.dataset["textures"] = String(memory.textures);
+      // The renderer's own figure: the WebGPU renderer counts its render targets, and the WebGL renderer counts none, so it reads 0 there.
+      element.dataset["targets"] = String(memory.targets);
+      if (screenEffects) element.dataset["effectBuilds"] = String(effectBuildsOf(element).size);
       element.dataset["programs"] = String(programsOf(gl));
       element.dataset["builds"] = String(seen.size);
       element.dataset["azimuth"] = MathUtils.radToDeg(Math.atan2(x, z)).toFixed(1);
@@ -197,7 +207,7 @@ export function GpuCounts({
     return () => {
       clearInterval(timer);
     };
-  }, [gl, camera, scene, target, clockRef, shaderClock, watch]);
+  }, [gl, camera, scene, target, clockRef, shaderClock, watch, screenEffects]);
   return null;
 }
 

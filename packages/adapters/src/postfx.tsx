@@ -41,6 +41,12 @@ export interface ScreenEffectsPassProps {
    * Default: the viewer's reduced-motion setting (`useReducedMotion`).
    */
   readonly reducedMotion?: boolean;
+  /**
+   * Called each time a pipeline is built (when the pass mounts, and when a change of structure builds another), with the `uuid` of every
+   * render-target texture that pipeline holds, and again with the same ones when the function itself changes. A counter that keeps what it
+   * is given counts builds. Read-only: it changes nothing.
+   */
+  readonly onPipeline?: (targets: readonly string[]) => void;
 }
 
 /**
@@ -48,7 +54,7 @@ export interface ScreenEffectsPassProps {
  * the effects are TSL passes on the WebGPU renderer. It takes over rendering from React Three Fiber, follows the pointer for the lens (a tap opens it for a moment on touch), and frees
  * its passes when the stack's structure changes or it unmounts. Parameters and the look's inks move in place.
  */
-export function ScreenEffectsPass({ effects, palette = neutral.scene, monochrome, reducedMotion }: ScreenEffectsPassProps) {
+export function ScreenEffectsPass({ effects, palette = neutral.scene, monochrome, reducedMotion, onPipeline }: ScreenEffectsPassProps) {
   const preferred = useReducedMotion();
   const still = reducedMotion ?? preferred;
   const gl: unknown = useThree((state) => state.gl);
@@ -69,6 +75,9 @@ export function ScreenEffectsPass({ effects, palette = neutral.scene, monochrome
     runner.setParams(stackValues(effects));
     applyPalette(runner, palette, monochrome === undefined ? {} : { monochrome });
   }, [runner, effects, palette, monochrome]);
+  useEffect(() => {
+    onPipeline?.(runner.targetIds);
+  }, [runner, onPipeline]);
   useEffect(
     () => () => {
       runner.dispose();

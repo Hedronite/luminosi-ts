@@ -189,6 +189,25 @@ describe("screen effects", () => {
     runner.dispose();
   });
 
+  it("lists the uuid of every render-target texture it holds: new for each build, the same after any write", () => {
+    const stack = [{ id: "smoke" }, { id: "dither" }, { id: "grain" }] as const;
+    const first = build(stack);
+    // The scene pass's own target, and each target the stack made.
+    expect(first.targetIds).toHaveLength(1 + first["targets"].length);
+    expect(new Set(first.targetIds).size).toBe(first.targetIds.length);
+    const held = [...first.targetIds];
+    first.setParams({ grain: { amount: 0.3 }, dither: { cell: 6 } });
+    first.setInks(inksFor(hedronite.scene));
+    first.setSize();
+    expect(first.targetIds).toEqual(held);
+    // Another build holds targets of its own, and one more effect holds one more.
+    const second = build(stack);
+    const third = build([...stack, { id: "crt" }]);
+    expect(second.targetIds.filter((id) => held.includes(id))).toEqual([]);
+    expect(third.targetIds.length).toBeGreaterThan(second.targetIds.length);
+    for (const runner of [first, second, third]) runner.dispose();
+  });
+
   it("writes parameters into the uniforms without rebuilding the pipeline", () => {
     const runner = build([{ id: "scan" }, { id: "lens" }, { id: "dither" }, { id: "smoke" }, { id: "crt" }, { id: "grain" }]);
     const pipeline = runner.pipeline;
