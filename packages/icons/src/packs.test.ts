@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { packIconToSvg, paintAttributes } from "./pack.js";
 import { iconPacks, loadIconPack } from "./packs/index.js";
 
-const pathData = /^[Mm][\d\s.,eE+\-MmLlHhVvCcSsQqTtAaZz]*$/;
+const viewBox = /^-?[\d.]+ -?[\d.]+ [\d.]+ [\d.]+$/;
+const pathData =/^[Mm][\d\s.,eE+\-MmLlHhVvCcSsQqTtAaZz]*$/;
 const colors = /^(currentColor|none|#[0-9a-fA-F]{3,8})$/;
 
 describe("icon packs", () => {
@@ -23,17 +24,21 @@ describe("icon packs", () => {
     expect(icons).toHaveLength(pack.count);
     expect(new Set(icons.map((i) => i.id)).size).toBe(icons.length);
     expect(new Set(icons.map((i) => i.importName)).size).toBe(icons.length);
+    // A pack holds thousands of icons and each has a handful of checks, so the checks are plain tests and one `expect` reads what they found:
+    // an `expect` call per check costs more than the check. A failure still names the icon and what is wrong with it.
+    const problems: string[] = [];
     for (const icon of icons) {
-      expect(icon.viewBox).toMatch(/^-?[\d.]+ -?[\d.]+ [\d.]+ [\d.]+$/);
-      expect(icon.paths.length).toBeGreaterThan(0);
+      if (!viewBox.test(icon.viewBox)) problems.push(`${icon.id}: viewBox "${icon.viewBox}"`);
+      if (icon.paths.length === 0) problems.push(`${icon.id}: no paths`);
       for (const paint of [icon.paint, ...icon.paths]) {
         for (const key of ["fill", "stroke"] as const) {
           const value = paint[key];
-          expect(value === undefined || colors.test(value), `${icon.id} ${key}=${String(value)}`).toBe(true);
+          if (value !== undefined && !colors.test(value)) problems.push(`${icon.id}: ${key}=${value}`);
         }
       }
-      for (const path of icon.paths) expect(path.d).toMatch(pathData);
+      for (const path of icon.paths) if (!pathData.test(path.d)) problems.push(`${icon.id}: path data "${path.d.slice(0, 40)}"`);
     }
+    expect(problems).toEqual([]);
   });
 });
 

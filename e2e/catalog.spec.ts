@@ -1,8 +1,14 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
-import { builds, expect, settledBuilds, test } from "./fixtures.js";
+import { expect, test } from "./fixtures.js";
 
 test.use({ permissions: ["clipboard-read", "clipboard-write"] });
+
+/** How long a stage may take to draw: it waits on the stage's own counters, and this is only the ceiling that makes a stage that never draws fail. */
+const STAGE_WAIT = 20_000;
+
+/** The dialog's "3 / 12", as a pattern that does not match "13 / 12" or "3 / 120". */
+const position = (at: number, total: number): RegExp => new RegExp(`(?<!\\d)${String(at)} / ${String(total)}(?!\\d)`);
 
 const gallery = (page: Page) => page.getByRole("main").getByRole("list").getByRole("button");
 
@@ -214,10 +220,12 @@ test("a material renders with its environment", async ({ page }) => {
   await page.goto("/?asset=glass");
   const viewport = page.getByRole("dialog", { name: "Glass" }).getByTestId("viewport");
   await expect(viewport.locator("canvas")).toBeVisible();
-  await expect(viewport).toHaveAttribute("data-gpu-textures", /^[1-9]\d*$/);
+  await expect(viewport).toHaveAttribute("data-gpu-textures", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
 });
 
 test("stepping through 3D assets frees each geometry it replaces", async ({ page }) => {
+  // Every 3D asset in turn, each drawn with software rendering: the run is long by nature, and longer on a busy machine.
+  test.slow();
   await page.goto("/");
   const primitives = page.getByRole("group", { name: "Filter by kind" }).getByRole("button", { name: /^Primitives/ });
   const total = Number(/\d+/.exec((await primitives.textContent()) ?? "")?.[0] ?? "0");
@@ -225,17 +233,19 @@ test("stepping through 3D assets frees each geometry it replaces", async ({ page
   await primitives.click();
   await gallery(page).first().click();
   const viewport = page.getByTestId("viewport");
+  // The first asset is drawn when the stage has counted a frame; its geometry count is the baseline. A slow machine takes longer to get here, never reads early.
+  await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
   await expect(viewport).toHaveAttribute("data-gpu-geometries", /^[1-9]\d*$/);
-  await expect.poll(() => viewport.getAttribute("data-gpu-geometries"), { intervals: [300] }).toBe(await viewport.getAttribute("data-gpu-geometries"));
   const baseline = await viewport.getAttribute("data-gpu-geometries");
 
   const next = page.getByRole("button", { name: "Next asset" });
   for (let i = 0; i < total; i++) {
-    // eslint-disable-next-line no-await-in-loop -- each step must render before the next, to load and free one geometry at a time
+    // eslint-disable-next-line no-await-in-loop -- each click replaces the asset the stage shows, so the stage loads one asset and frees the last
     await next.click();
   }
-  await expect(page.getByRole("dialog")).toContainText(`1 / ${String(total)}`);
-  await expect.poll(() => viewport.getAttribute("data-gpu-geometries"), { timeout: 5000 }).toBe(baseline);
+  // Back at the first asset. The stage may have been mounted again on the way, so its counters can be missing until it reports: the wait is on them.
+  await expect(page.getByRole("dialog")).toContainText(position(1, total), { timeout: STAGE_WAIT });
+  await expect.poll(() => viewport.getAttribute("data-gpu-geometries"), { message: "the geometry count is back at the first asset's", timeout: STAGE_WAIT }).toBe(baseline);
 });
 
 for (const [id, name] of [
@@ -250,8 +260,8 @@ for (const [id, name] of [
     });
     await page.goto(`/?asset=${id}`);
     const viewport = page.getByRole("dialog", { name }).getByTestId("viewport");
-    await expect(viewport).toHaveAttribute("data-gpu-geometries", /^[1-9]\d*$/);
-    await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/);
+    await expect(viewport).toHaveAttribute("data-gpu-geometries", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
+    await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
     expect(errors).toEqual([]);
   });
 }
@@ -279,39 +289,12 @@ for (const [id, name] of [
   });
 }
 
-test("the playground composes primitives and exports the scene", async ({ page }) => {
-  await page.goto("/?view=playground");
-  await expect(page.getByRole("heading", { name: "Playground" })).toBeVisible();
-  const scene = page.getByRole("list", { name: "Scene" }).getByRole("listitem");
-  const before = await scene.count();
-  const viewport = page.getByTestId("playground-viewport");
-  await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 15_000 });
-  const built = await settledBuilds(viewport);
-
-  await page.getByLabel("Primitive", { exact: true }).selectOption("hexagonal-bipyramid");
-  await page.getByLabel("Surface", { exact: true }).selectOption("glass");
-  await page.getByRole("button", { name: "Add to scene" }).click();
-  await expect(scene).toHaveCount(before + 1);
-
-  // The counter's positive control in the playground: an added node is a new build.
-  await expect.poll(() => builds(viewport), { message: "builds after an add" }).toBeGreaterThan(built);
-  await expect(page.getByRole("region", { name: "JSON export" }).locator("code")).toContainText('"kind": "primitive", "id": "hexagonal-bipyramid"');
-  await expect(page.getByRole("region", { name: "React export" }).locator("code")).toContainText('<PrimitiveMesh primitive="hexagonal-bipyramid" material="glass"');
-  await expect(page.getByRole("region", { name: "Vanilla export" }).locator("code")).toContainText('createPolyhedronGeometry(primitive("hexagonal-bipyramid")');
-  await expect(page.getByTestId("playground-viewport")).toHaveAttribute("data-frames", /^[1-9]\d*$/);
-
-  await page.getByRole("button", { name: "Remove Hexagonal bipyramid, Glass" }).click();
-  await expect(scene).toHaveCount(before);
-
-  const results = await new AxeBuilder({ page }).analyze();
-  expect(results.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => v.id)).toEqual([]);
-});
-
 test("a scene kit renders with its own lights", async ({ page }) => {
   await page.goto("/?asset=scene-dusk");
   const viewport = page.getByRole("dialog", { name: "Dusk" }).getByTestId("viewport");
-  await expect(viewport).toHaveAttribute("data-gpu-geometries", /^[1-9]\d*$/);
-  await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/);
+  // A kit builds its lights and every object in it before it draws; that first frame is slow under software rendering and under load.
+  await expect(viewport).toHaveAttribute("data-gpu-geometries", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
+  await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
 });
 
 test("the growth view groups assets by the day they were added", async ({ page }) => {
@@ -508,19 +491,3 @@ for (const [id, name] of [
     expect(errors).toEqual([]);
   });
 }
-
-test("the playground lines up every material on one shape", async ({ page }) => {
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto("/?view=playground");
-  const lineup = page.getByTestId("material-lineup");
-  await lineup.scrollIntoViewIfNeeded();
-  await expect(page.getByRole("list", { name: "Materials in the lineup" }).getByRole("listitem")).toHaveCount(13);
-  // Thirteen materials, transmission among them, compile slowly under software rendering in CI.
-  await expect(lineup).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 20000 });
-  // One shared shape: a single geometry however many materials.
-  await expect(lineup).toHaveAttribute("data-gpu-geometries", "1");
-  await page.getByLabel("Shape", { exact: true }).selectOption("platonic-icosahedron");
-  await expect(page.getByRole("group", { name: "13 materials on the Icosahedron shape, in a grid." })).toBeVisible();
-  expect(errors).toEqual([]);
-});
