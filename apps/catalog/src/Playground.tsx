@@ -4,10 +4,11 @@ import { Close } from "@hedronite/lts-icons/react";
 import { isMaterialId, materialIds, materialPreset, type MaterialId } from "@hedronite/lts-materials";
 import { isScreenEffectId, screenEffectIds, screenEffectInfo } from "@hedronite/lts-postfx";
 import { isPrimitiveId, primitiveIds, primitiveInfo, type PrimitiveId } from "@hedronite/lts-primitives";
-import { ringLayout, type InkMode, type Scene as SceneDocument, type SceneNode } from "@hedronite/lts-scene";
+import { addNode, canRedo, canUndo, createHistory, encodeScene, endGesture, push, redo, removeNode, ringLayout, setEffects, setInk, setLights, SHARE_LIMITS, undo, type InkMode, type Scene as SceneDocument, type SceneHistory, type SceneIssue, type SceneNode, type SceneResult } from "@hedronite/lts-scene";
 import { toCanonicalJson, toTsx, toVanilla } from "@hedronite/lts-scene/emit";
 import { effectIds, effectInfo, isEffectId, type EffectId } from "@hedronite/lts-shaders";
-import { useMemo, useRef, useState } from "react";
+import { presets } from "@hedronite/lts-tokens";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Object3D } from "three";
 import { CopyButton } from "./CopyButton";
 import { usePreset } from "./look";
@@ -15,6 +16,7 @@ import { MaterialLineup } from "./MaterialLineup";
 import { stageFrameloop, useStageShown, WakeOnShow } from "./onscreen";
 import { usePlaceable, type Placeable } from "./placeable";
 import { Controls, GpuCounts, StageClock, StageFrame, useMotion } from "./scene";
+import { describeIssue, fileNameFor, linkFor, openFile, openLink, sceneParam, stemOf, type Opened } from "./sceneFile";
 import { useShaderClock } from "./shaderClock";
 
 const field = "rounded-lg border border-line bg-surface px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-accent";
@@ -48,8 +50,12 @@ const SHAPE_SCALE = 0.5;
 const OBJECT_SCALE = 0.6;
 
 let lastNode = 0;
-const newId = (): string => {
-  lastNode += 1;
+/** An id no node has: `node-` and the next number, skipping any that a document which was opened already uses. */
+const newId = (taken: readonly SceneNode[] = []): string => {
+  const used = new Set(taken.map((node) => node.id));
+  do {
+    lastNode += 1;
+  } while (used.has(`node-${String(lastNode)}`));
   return `node-${String(lastNode)}`;
 };
 
@@ -95,6 +101,30 @@ const starter: SceneDocument = {
   ink: "look",
 };
 
+/** What the playground says about the last thing a person did to the document: it was opened, or it could not be (and the document is as it was). */
+type Note = { readonly kind: "ok"; readonly text: string } | { readonly kind: "problem"; readonly title: string; readonly issues: readonly SceneIssue[] };
+
+/** The most issues listed at once; the rest are counted. */
+const MAX_LISTED = 8;
+
+/** Beside the controls, on a window wide and tall enough for both, the stage and its buttons stay in view while the controls scroll: a stage out of view draws nothing, and the controls are longer than the window. */
+const stays = "[@media(min-width:64rem)_and_(min-height:40rem)]:sticky [@media(min-width:64rem)_and_(min-height:40rem)]:top-4";
+
+const barButton = "rounded-lg border border-line bg-surface px-3 py-2 text-sm hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50";
+
+/** The ids of the looks a scene may name. */
+const lookIds = presets.map((preset) => preset.id);
+
+/** `result` with its nodes put on the ring for their count: a node added or removed puts every one at its place. */
+const onRing = (result: SceneResult): SceneResult => (result.ok ? { ok: true, scene: { ...result.scene, nodes: arranged(result.scene.nodes) } } : result);
+
+/** Whether the target of a key press is somewhere a person types text: there the browser's own undo is the one that applies. */
+function typesText(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable || target instanceof HTMLTextAreaElement) return true;
+  return target instanceof HTMLInputElement && ["text", "search", "number", "email", "url", "tel", "password", ""].includes(target.type);
+}
+
 const objectName = (id: string, objects: readonly Placeable[]): string => objects.find((object) => object.id === id)?.name ?? id;
 
 const shaderName = (id: string): string => (isEffectId(id) ? effectInfo[id].name : id);
@@ -119,7 +149,14 @@ function describeNode({ asset, surface }: SceneNode, objects: readonly Placeable
 /** Compose primitives, framed solids and objects in any material, under screen effects. The scene is a document: it is drawn from it, and exported from it as JSON, React and three.js. */
 export function Playground() {
   const preset = usePreset();
-  const [doc, setDoc] = useState<SceneDocument>(starter);
+  // The document and what can be undone and redone of it. The viewer's look, the add form and the orbit are not in it.
+  const [history, setHistory] = useState<SceneHistory>(() => createHistory(starter));
+  const doc = history.present;
+  const [note, setNote] = useState<Note | undefined>(undefined);
+  // The name a saved file takes: the one that was opened, or "scene".
+  const [name, setName] = useState("scene");
+  // A link in the address opens its document in place of the starter, once.
+  const [link] = useState(() => sceneParam(window.location.search));
   const [kind, setKind] = useState<AddKind>("primitive");
   const [primitive, setPrimitive] = useState<PrimitiveId>("platonic-dodecahedron");
   const [material, setMaterial] = useState<MaterialId>("ceramic");
@@ -130,11 +167,87 @@ export function Playground() {
   const full = doc.nodes.length >= MAX_NODES;
   // What is drawn and exported: the document, in the look the viewer is in.
   const shown = useMemo<SceneDocument>(() => ({ ...doc, look: preset.id }), [doc, preset.id]);
+  const json = useMemo(() => toCanonicalJson(shown), [shown]);
   const exports = useMemo(() => [
-    { label: "JSON export", code: toCanonicalJson(shown) },
+    { label: "JSON export", code: json },
     { label: "React export", code: toTsx(shown) },
     { label: "Vanilla export", code: toVanilla(shown) },
-  ], [shown]);
+  ], [json, shown]);
+  // The link for what the exports show, made for exactly that text (a link made for an earlier edit is never offered); null when it would be too long for a link.
+  const [shared, setShared] = useState<{ readonly json: string; readonly link: string | null } | undefined>(undefined);
+  const shareLink = shared?.json === json ? shared.link : undefined;
+  useEffect(() => {
+    let current = true;
+    encodeScene(shown).then(
+      (text) => {
+        if (current) setShared({ json, link: text.length > SHARE_LIMITS.link ? null : linkFor(window.location, text) });
+      },
+      () => {
+        if (current) setShared({ json, link: null });
+      },
+    );
+    return () => {
+      current = false;
+    };
+  }, [json, shown]);
+
+  /** Makes `result` the document, as one step to undo (a step in the gesture `key` when it has one), or says why it cannot be. */
+  const commit = (result: SceneResult, key?: string): void => {
+    if (result.ok) {
+      setHistory((h) => push(h, result.scene, key));
+      setNote(undefined);
+    } else {
+      setNote({ kind: "problem", title: "That change could not be made", issues: result.issues });
+    }
+  };
+
+  const take = (opened: Opened, source: string, replace: boolean): void => {
+    if (opened.ok) {
+      setHistory((h) => (replace ? createHistory(opened.scene) : push(h, opened.scene)));
+      setNote({ kind: "ok", text: `Opened ${source}: ${String(opened.scene.nodes.length)} things.` });
+    } else {
+      setNote({ kind: "problem", title: `${opened.title} (${source})`, issues: opened.issues });
+    }
+  };
+
+  // Undo and redo from the keyboard, anywhere but in a field that takes text.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent): void => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || typesText(event.target)) return;
+      const key = event.key.toLowerCase();
+      if (key === "z" && !event.shiftKey) setHistory(undo);
+      else if ((key === "z" && event.shiftKey) || (key === "y" && event.ctrlKey && !event.metaKey)) setHistory(redo);
+      else return;
+      event.preventDefault();
+      setNote(undefined);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+    };
+  }, []);
+
+  // The link the page was opened on becomes the document, as the one to start from (nothing to undo to).
+  useEffect(() => {
+    if (link === undefined) return undefined;
+    let current = true;
+    openLink(link, lookIds, MAX_NODES).then((opened) => {
+      if (current) take(opened, "the link", true);
+    }, () => undefined);
+    return () => {
+      current = false;
+    };
+  }, [link]);
+  const save = (): void => {
+    const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = fileNameFor(name);
+    anchor.click();
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+    }, 1000);
+  };
   // The graph the scene draws on the WebGPU renderer is its own, so the counters are given it.
   const built = useRef<Object3D | undefined>(undefined);
   const takesShader = kind === "primitive" || kind === "framed";
@@ -167,6 +280,74 @@ export function Playground() {
           <h2 id="playground-title" className="text-lg font-semibold">
             Playground
           </h2>
+          <div role="group" aria-label="Scene file and history" className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={!canUndo(history)}
+              aria-keyshortcuts="Control+Z Meta+Z"
+              onClick={() => {
+                setHistory(undo);
+                setNote(undefined);
+              }}
+              className={barButton}
+            >
+              Undo
+            </button>
+            <button
+              type="button"
+              disabled={!canRedo(history)}
+              aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z Control+Y"
+              onClick={() => {
+                setHistory(redo);
+                setNote(undefined);
+              }}
+              className={barButton}
+            >
+              Redo
+            </button>
+            <label className={`${barButton} cursor-pointer focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent`}>
+              Open scene
+              <input
+                type="file"
+                accept=".json,application/json"
+                className="sr-only"
+                onChange={(event) => {
+                  const input = event.currentTarget;
+                  const file = input.files?.[0];
+                  // Cleared, so the same file can be opened again after it changes on disk.
+                  input.value = "";
+                  if (file === undefined) return;
+                  openFile(file, lookIds, MAX_NODES).then((opened) => {
+                    if (opened.ok) setName(stemOf(file.name));
+                    take(opened, file.name, false);
+                  }, () => undefined);
+                }}
+              />
+            </label>
+            <button type="button" onClick={save} className={barButton}>
+              Save
+            </button>
+            {shareLink === undefined ? null : shareLink === null ? (
+              <span className="text-sm text-fg-muted">Too large to share as a link</span>
+            ) : (
+              <CopyButton text={shareLink} what="share link" />
+            )}
+          </div>
+          {note === undefined ? null : note.kind === "ok" ? (
+            <p role="status" className="text-sm text-fg-muted">
+              {note.text}
+            </p>
+          ) : (
+            <div role="alert" className="rounded-lg border border-line p-3 text-sm">
+              <p className="font-medium">{note.title}</p>
+              <ul className="mt-1 list-disc pl-5 text-fg-muted">
+                {note.issues.slice(0, MAX_LISTED).map((issue, index) => (
+                  <li key={`${describeIssue(issue)}:${String(index)}`}>{describeIssue(issue)}</li>
+                ))}
+              </ul>
+              {note.issues.length > MAX_LISTED ? <p className="mt-1 text-fg-muted">and {String(note.issues.length - MAX_LISTED)} more</p> : null}
+            </div>
+          )}
           <div className="flex flex-col gap-1 text-sm">
             <label htmlFor="playground-kind">Add</label>
             <select
@@ -274,7 +455,7 @@ export function Playground() {
             type="button"
             disabled={full}
             onClick={() => {
-              setDoc((d) => ({ ...d, nodes: arranged([...d.nodes, nodeFor(item, newId())]) }));
+              commit(onRing(addNode(doc, nodeFor(item, newId(doc.nodes)))));
             }}
             className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-on-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50"
           >
@@ -291,7 +472,7 @@ export function Playground() {
                     type="button"
                     aria-label={`Remove ${label}`}
                     onClick={() => {
-                      setDoc((d) => ({ ...d, nodes: arranged(d.nodes.filter((other) => other.id !== node.id)) }));
+                      commit(onRing(removeNode(doc, node.id)));
                     }}
                     className="rounded p-1 hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-accent"
                   >
@@ -312,7 +493,7 @@ export function Playground() {
                   checked={doc.effects.some((effect) => effect.id === id)}
                   onChange={(event) => {
                     const on = event.target.checked;
-                    setDoc((d) => ({ ...d, effects: on ? [...d.effects, { id }] : d.effects.filter((effect) => effect.id !== id) }));
+                    commit(setEffects(doc, on ? [...doc.effects, { id }] : doc.effects.filter((effect) => effect.id !== id)));
                   }}
                 />
                 {screenEffectInfo[id].name}
@@ -328,7 +509,7 @@ export function Playground() {
                 value={doc.ink}
                 onChange={(event) => {
                   const next = event.target.value;
-                  if (isInkMode(next)) setDoc((d) => ({ ...d, ink: next }));
+                  if (isInkMode(next)) commit(setInk(doc, next));
                 }}
               >
                 {inkModes.map(([mode, label]) => (
@@ -351,38 +532,47 @@ export function Playground() {
               step={0.1}
               value={doc.lights.intensity}
               onChange={(event) => {
-                setDoc((d) => ({ ...d, lights: { ...d.lights, intensity: Number(event.target.value) } }));
+                // One drag of the slider is one step to undo, however many values it passes through.
+                commit(setLights(doc, { intensity: Number(event.target.value) }), "lights.intensity");
+              }}
+              onPointerUp={() => {
+                setHistory(endGesture);
+              }}
+              onBlur={() => {
+                setHistory(endGesture);
               }}
             />
           </label>
         </div>
 
         <div className="flex min-w-0 flex-col gap-4">
-          <StageFrame
-            group={host}
-            motion={motion}
-            label={`The composed scene: ${String(doc.nodes.length)} things${doc.effects.length === 0 ? "" : `, under ${doc.effects.map(({ id }) => (isScreenEffectId(id) ? screenEffectInfo[id].name : id)).join(", ")}`}.`}
-            className="h-96 overflow-hidden rounded-xl border border-line bg-surface-raised"
-            testId="playground-viewport"
-          >
-            {/* Screen effects and some shaders animate, so the scene renders every frame while any are on. */}
-            {/* The WebGPU renderer (WebGL 2 where WebGPU is missing) runs surface shaders and screen effects together; the scene brings its own lights, environment and effects. */}
-            <WebGPUCanvas frameloop={stageFrameloop(onscreen, !animated || motion.still)} dpr={[1, 2]} camera={{ position: [0, 2.2, 5.5], fov: 40 }}>
-              <WakeOnShow shown={onscreen} />
-              <Controls keys={host} />
-              <StageClock clockRef={clock} running={animated && !motion.still} writeShaderTime={writeShaderTime} />
-              <EffectClockProvider clock={shaderClock}>
-                <Scene
-                  doc={shown}
-                  palette={preset.scene}
-                  onRoot={(root) => {
-                    built.current = root;
-                  }}
-                />
-              </EffectClockProvider>
-              <GpuCounts target={host} clockRef={clock} shaderClock={shaderClock} watch={built} />
-            </WebGPUCanvas>
-          </StageFrame>
+          <div className={stays}>
+            <StageFrame
+              group={host}
+              motion={motion}
+              label={`The composed scene: ${String(doc.nodes.length)} things${doc.effects.length === 0 ? "" : `, under ${doc.effects.map(({ id }) => (isScreenEffectId(id) ? screenEffectInfo[id].name : id)).join(", ")}`}.`}
+              className="h-96 overflow-hidden rounded-xl border border-line bg-surface-raised"
+              testId="playground-viewport"
+            >
+              {/* Screen effects and some shaders animate, so the scene renders every frame while any are on. */}
+              {/* The WebGPU renderer (WebGL 2 where WebGPU is missing) runs surface shaders and screen effects together; the scene brings its own lights, environment and effects. */}
+              <WebGPUCanvas frameloop={stageFrameloop(onscreen, !animated || motion.still)} dpr={[1, 2]} camera={{ position: [0, 2.2, 5.5], fov: 40 }}>
+                <WakeOnShow shown={onscreen} />
+                <Controls keys={host} />
+                <StageClock clockRef={clock} running={animated && !motion.still} writeShaderTime={writeShaderTime} />
+                <EffectClockProvider clock={shaderClock}>
+                  <Scene
+                    doc={shown}
+                    palette={preset.scene}
+                    onRoot={(root) => {
+                      built.current = root;
+                    }}
+                  />
+                </EffectClockProvider>
+                <GpuCounts target={host} clockRef={clock} shaderClock={shaderClock} watch={built} />
+              </WebGPUCanvas>
+            </StageFrame>
+          </div>
           {exports.map((snippet) => (
             <section key={snippet.label} aria-label={snippet.label}>
               <div className="flex items-center justify-between">
