@@ -11,28 +11,36 @@ const QUIET_REPORTS = 4;
 /**
  * A stage's `data-builds` once it has settled: positive, and the same in each of its next few reports. The stage writes its counters on a timer
  * of its own, and each write sets the attribute, so the wait is counted in those writes and not in milliseconds: a slow machine takes longer to
- * reach them and does not read the count early.
+ * reach them and does not read the count early. A stage that stops reporting, or never settles, fails after `STAGE_WAIT` with a message that says so.
  */
-function settledBuilds(host: Locator): Promise<number> {
-  return host.evaluate(
-    (element, quiet) =>
-      new Promise<number>((resolve) => {
+async function settledBuilds(host: Locator): Promise<number> {
+  const result = await host.evaluate(
+    (element, { quiet, ceiling }) =>
+      new Promise<{ readonly builds: number; readonly settled: boolean; readonly reports: number }>((resolve) => {
         let last = -1;
         let held = 0;
+        let reports = 0;
+        const done = (settled: boolean): void => {
+          observer.disconnect();
+          clearTimeout(timer);
+          resolve({ builds: last, settled, reports });
+        };
         const observer = new MutationObserver(() => {
+          reports += 1;
           const now = Number(element.getAttribute("data-builds"));
           held = now > 0 && now === last ? held + 1 : 0;
           last = now;
-          if (held >= quiet) {
-            observer.disconnect();
-            resolve(now);
-          }
+          if (held >= quiet) done(true);
         });
+        const timer = setTimeout(() => {
+          done(false);
+        }, ceiling);
         observer.observe(element, { attributes: true, attributeFilter: ["data-builds"] });
       }),
-    QUIET_REPORTS,
-    { timeout: STAGE_WAIT },
+    { quiet: QUIET_REPORTS, ceiling: STAGE_WAIT },
   );
+  expect(result.settled, `the stage's build count did not settle: ${String(result.reports)} reports in ${String(STAGE_WAIT)} ms, the last of ${String(result.builds)}`).toBe(true);
+  return result.builds;
 }
 
 test("the playground composes primitives and exports the scene", async ({ page }) => {
