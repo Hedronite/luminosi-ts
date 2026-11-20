@@ -106,14 +106,44 @@ async function playgroundAt(page: Page, address = "/?view=playground"): Promise<
   return (await exported(page).textContent()) ?? "";
 }
 
+/** The part of a scene document the file tests change: its nodes, each with the asset it draws. */
+interface FileNode {
+  id: string;
+  asset: { id: string };
+}
+interface FileDoc {
+  nodes: FileNode[];
+}
+
+const isFileDoc = (value: unknown): value is FileDoc => typeof value === "object" && value !== null && "nodes" in value && Array.isArray(value.nodes);
+
 /** The page's JSON export as a document with `change` applied, as a file's bytes. */
-async function fileWith(page: Page, change: (doc: { nodes: unknown[] }) => void): Promise<Buffer> {
-  const doc: { nodes: unknown[] } = JSON.parse((await exported(page).textContent()) ?? "{}");
+async function fileWith(page: Page, change: (doc: FileDoc) => void): Promise<Buffer> {
+  const doc: unknown = JSON.parse((await exported(page).textContent()) ?? "null");
+  if (!isFileDoc(doc)) throw new Error("the JSON export is not a document with nodes");
   change(doc);
   return Buffer.from(JSON.stringify(doc), "utf8");
 }
 
+/** The first node of a document, which every starter scene has. */
+function firstNode(doc: FileDoc): FileNode {
+  const [first] = doc.nodes;
+  if (first === undefined) throw new Error("the document has no nodes");
+  return first;
+}
+
 const sceneFile = (name: string, buffer: Buffer): { name: string; mimeType: string; buffer: Buffer } => ({ name, mimeType: "application/json", buffer });
+
+test("the stage stays in view while the controls scroll, since a stage out of view draws nothing", async ({ page }) => {
+  await playgroundAt(page);
+  const viewport = page.getByTestId("playground-viewport");
+  await expect(viewport).toBeInViewport();
+  await page.evaluate(() => {
+    window.scrollTo(0, 600);
+  });
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(300);
+  await expect(viewport).toBeInViewport({ ratio: 0.9 });
+});
 
 test("opening a scene file replaces the document in one step that undo takes back", async ({ page }) => {
   const start = await playgroundAt(page);
@@ -138,15 +168,15 @@ test("a file that is not a scene, one that names what the library lacks, and one
   await expect(problems(page)).toContainText("This is not a scene document");
 
   const ghost = await fileWith(page, (doc) => {
-    const first = doc.nodes[0] as { asset: { id: string } };
-    first.asset.id = "no-such-solid";
+    firstNode(doc).asset.id = "no-such-solid";
   });
   await openInput(page).setInputFiles(sceneFile("ghost.json", ghost));
   await expect(problems(page)).toContainText("nodes.0.asset.id: no primitive named");
 
   // Over the cap is refused by name, never cut down to fit.
   const many = await fileWith(page, (doc) => {
-    doc.nodes = Array.from({ length: 9 }, (_, index) => ({ ...(doc.nodes[0] as object), id: `n-${String(index)}` }));
+    const template = firstNode(doc);
+    doc.nodes = Array.from({ length: 9 }, (_, index) => ({ ...template, id: `n-${String(index)}` }));
   });
   await openInput(page).setInputFiles(sceneFile("many.json", many));
   await expect(problems(page)).toContainText("at most 8 things, and this scene has 9");

@@ -107,6 +107,9 @@ type Note = { readonly kind: "ok"; readonly text: string } | { readonly kind: "p
 /** The most issues listed at once; the rest are counted. */
 const MAX_LISTED = 8;
 
+/** Beside the controls, on a window wide and tall enough for both, the stage and its buttons stay in view while the controls scroll: a stage out of view draws nothing, and the controls are longer than the window. */
+const stays = "[@media(min-width:64rem)_and_(min-height:40rem)]:sticky [@media(min-width:64rem)_and_(min-height:40rem)]:top-4";
+
 const barButton = "rounded-lg border border-line bg-surface px-3 py-2 text-sm hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50";
 
 /** The ids of the looks a scene may name. */
@@ -543,31 +546,33 @@ export function Playground() {
         </div>
 
         <div className="flex min-w-0 flex-col gap-4">
-          <StageFrame
-            group={host}
-            motion={motion}
-            label={`The composed scene: ${String(doc.nodes.length)} things${doc.effects.length === 0 ? "" : `, under ${doc.effects.map(({ id }) => (isScreenEffectId(id) ? screenEffectInfo[id].name : id)).join(", ")}`}.`}
-            className="h-96 overflow-hidden rounded-xl border border-line bg-surface-raised"
-            testId="playground-viewport"
-          >
-            {/* Screen effects and some shaders animate, so the scene renders every frame while any are on. */}
-            {/* The WebGPU renderer (WebGL 2 where WebGPU is missing) runs surface shaders and screen effects together; the scene brings its own lights, environment and effects. */}
-            <WebGPUCanvas frameloop={stageFrameloop(onscreen, !animated || motion.still)} dpr={[1, 2]} camera={{ position: [0, 2.2, 5.5], fov: 40 }}>
-              <WakeOnShow shown={onscreen} />
-              <Controls keys={host} />
-              <StageClock clockRef={clock} running={animated && !motion.still} writeShaderTime={writeShaderTime} />
-              <EffectClockProvider clock={shaderClock}>
-                <Scene
-                  doc={shown}
-                  palette={preset.scene}
-                  onRoot={(root) => {
-                    built.current = root;
-                  }}
-                />
-              </EffectClockProvider>
-              <GpuCounts target={host} clockRef={clock} shaderClock={shaderClock} watch={built} />
-            </WebGPUCanvas>
-          </StageFrame>
+          <div className={stays}>
+            <StageFrame
+              group={host}
+              motion={motion}
+              label={`The composed scene: ${String(doc.nodes.length)} things${doc.effects.length === 0 ? "" : `, under ${doc.effects.map(({ id }) => (isScreenEffectId(id) ? screenEffectInfo[id].name : id)).join(", ")}`}.`}
+              className="h-96 overflow-hidden rounded-xl border border-line bg-surface-raised"
+              testId="playground-viewport"
+            >
+              {/* Screen effects and some shaders animate, so the scene renders every frame while any are on. */}
+              {/* The WebGPU renderer (WebGL 2 where WebGPU is missing) runs surface shaders and screen effects together; the scene brings its own lights, environment and effects. */}
+              <WebGPUCanvas frameloop={stageFrameloop(onscreen, !animated || motion.still)} dpr={[1, 2]} camera={{ position: [0, 2.2, 5.5], fov: 40 }}>
+                <WakeOnShow shown={onscreen} />
+                <Controls keys={host} />
+                <StageClock clockRef={clock} running={animated && !motion.still} writeShaderTime={writeShaderTime} />
+                <EffectClockProvider clock={shaderClock}>
+                  <Scene
+                    doc={shown}
+                    palette={preset.scene}
+                    onRoot={(root) => {
+                      built.current = root;
+                    }}
+                  />
+                </EffectClockProvider>
+                <GpuCounts target={host} clockRef={clock} shaderClock={shaderClock} watch={built} />
+              </WebGPUCanvas>
+            </StageFrame>
+          </div>
           {exports.map((snippet) => (
             <section key={snippet.label} aria-label={snippet.label}>
               <div className="flex items-center justify-between">
