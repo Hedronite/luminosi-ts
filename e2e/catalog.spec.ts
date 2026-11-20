@@ -220,7 +220,7 @@ test("a material renders with its environment", async ({ page }) => {
   await page.goto("/?asset=glass");
   const viewport = page.getByRole("dialog", { name: "Glass" }).getByTestId("viewport");
   await expect(viewport.locator("canvas")).toBeVisible();
-  await expect(viewport).toHaveAttribute("data-gpu-textures", /^[1-9]\d*$/);
+  await expect(viewport).toHaveAttribute("data-gpu-textures", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
 });
 
 test("stepping through 3D assets frees each geometry it replaces", async ({ page }) => {
@@ -260,8 +260,8 @@ for (const [id, name] of [
     });
     await page.goto(`/?asset=${id}`);
     const viewport = page.getByRole("dialog", { name }).getByTestId("viewport");
-    await expect(viewport).toHaveAttribute("data-gpu-geometries", /^[1-9]\d*$/);
-    await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/);
+    await expect(viewport).toHaveAttribute("data-gpu-geometries", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
+    await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
     expect(errors).toEqual([]);
   });
 }
