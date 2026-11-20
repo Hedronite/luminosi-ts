@@ -42,9 +42,9 @@
   "scripts": {
     "build": "turbo run build",
     "typecheck": "turbo run typecheck && tsc -p tsconfig.json --noEmit",
-    "test": "turbo run test",
+    "test": "turbo run test --concurrency=2",
     "dev": "turbo run dev --filter=catalog",
-    "lint": "NODE_OPTIONS=--max-old-space-size=8192 eslint .",
+    "lint": "eslint packages/icons && eslint packages --ignore-pattern packages/icons/ && eslint apps tools && eslint . --ignore-pattern packages/ --ignore-pattern apps/ --ignore-pattern tools/",
     "boundaries": "depcruise packages apps tools --config .dependency-cruiser.cjs",
     "knip": "knip",
     "e2e": "playwright test",

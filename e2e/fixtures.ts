@@ -30,10 +30,14 @@ export const builds = async (host: Locator): Promise<number> => Number(await hos
  * `uuid`. It never goes down either: a new pipeline (an effect added or removed, a new ramp, a remount) raises it, and a
  * parameter, a look, an ink and a pause leave it flat.
  */
-export const effectBuilds = async (host: Locator): Promise<number> => Number(await host.getAttribute("data-effect-builds"));
+export const effectBuilds = (host: Locator): Promise<number> => counted(host, "data-effect-builds");
 
-/** A count the page publishes onto `host`, as a number (0 until it is there). */
-export const counted = async (host: Locator, attribute: string): Promise<number> => Number(await host.getAttribute(attribute));
+/**
+ * A count the page publishes onto `host`, as a number: 0 until the host and the count are there. It looks for a second at most, not for
+ * the test's whole time, so a poll that reads it ends at its own timeout and says what it was waiting for (a bare `getAttribute` on a
+ * host that is not there yet waits until the test times out, and the failure names the locator, not the count).
+ */
+export const counted = async (host: Locator, attribute: string): Promise<number> => Number(await host.getAttribute(attribute, { timeout: 1_000 }).catch(() => null));
 
 /**
  * Waits until the stage has attached everything it will (`attribute`, `data-builds` unless said, is positive and holds across two samples),

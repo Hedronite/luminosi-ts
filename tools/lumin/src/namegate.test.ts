@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { root } from "./commands.js";
@@ -94,10 +94,10 @@ const hashCached = (token: string): string => {
 };
 
 /** Every hit in one file's text. `gated` is the set of hashes to match. */
-const scanText = (file: string, text: string, gated: ReadonlySet<string>): readonly Hit[] => {
+const scanText = (file: string, text: string, gated: ReadonlySet<string>, firstLine = 1): readonly Hit[] => {
   const hits: Hit[] = [];
   text.split("\n").forEach((content, index) => {
-    const line = index + 1;
+    const line = index + firstLine;
     const seen = new Set<string>();
     for (const token of tokensOf(content)) {
       const hash = hashCached(token);
@@ -124,6 +124,42 @@ const textFiles = (): readonly string[] => {
     .sort();
 };
 
+/** How many bytes of text one part of the scan holds, at most: about a second of work on a CI runner. */
+const partBytes = 1_000_000;
+
+/** A part of the scan: a file, or the `index`th of `of` runs of lines of a file too big for one part. */
+interface Slice {
+  readonly file: string;
+  readonly index: number;
+  readonly of: number;
+}
+
+/** The slices of every file, in order, in parts of about `partBytes` each, so that no part is much slower than another. */
+const partsOf = (all: readonly string[]): readonly (readonly Slice[])[] => {
+  const out: Slice[][] = [];
+  let current: Slice[] = [];
+  let size = 0;
+  const add = (slice: Slice, bytes: number): void => {
+    if (current.length > 0 && size + bytes > partBytes) {
+      out.push(current);
+      current = [];
+      size = 0;
+    }
+    current.push(slice);
+    size += bytes;
+  };
+  for (const file of all) {
+    const bytes = statSync(join(root, file)).size;
+    const of = Math.max(1, Math.ceil(bytes / partBytes));
+    for (let index = 0; index < of; index += 1) add({ file, index, of }, bytes / of);
+  }
+  if (current.length > 0) out.push(current);
+  return out;
+};
+
+/** The lines of `lines` that the `index`th of `of` slices holds: each line belongs to exactly one slice. */
+const sliceOf = <T,>(lines: readonly T[], index: number, of: number): readonly T[] => lines.slice(Math.floor((lines.length * index) / of), Math.floor((lines.length * (index + 1)) / of));
+
 /** Binary files hold a NUL byte early; they are skipped. */
 const readText = (file: string): string | undefined => {
   const bytes = readFileSync(join(root, file));
@@ -137,6 +173,8 @@ const show = (hit: Hit): string => `${hit.file}:${String(hit.line)} ${hit.kind =
 
 describe("the name gate", () => {
   const fake = new Set([hashToken("zzplanted")]);
+  const files = textFiles();
+  const parts = partsOf(files);
 
   it("matches whole words, case-insensitively, and nothing inside a longer word", () => {
     expect(scanText("a.md", "the ZzPlanted host", fake)).toHaveLength(1);
@@ -215,14 +253,36 @@ describe("the name gate", () => {
     expect(stale).toEqual([]);
   });
 
-  it("finds no gated name, step label or tailnet address in any tracked text file outside the vendored trees", () => {
-    const gated = new Set(hashes);
-    const hits: Hit[] = [];
-    for (const file of textFiles()) {
-      const text = readText(file);
-      if (text !== undefined) hits.push(...scanText(file, text, gated));
-    }
-    expect(hits.filter((hit) => !isAllowed(hit)).map(show)).toEqual([]);
-    // The explicit limit is a backstop for a slow runner; the scan itself takes a few seconds at most.
-  }, 60_000);
+  it("splits the tree into parts that together hold every file, and every line of a file, once", () => {
+    const seen = new Map<string, number>();
+    for (const slice of parts.flat()) seen.set(slice.file, (seen.get(slice.file) ?? 0) + 1 / slice.of);
+    expect([...seen.keys()]).toEqual(files);
+    expect([...seen.values()].every((count) => Math.abs(count - 1) < 1e-9)).toBe(true);
+    expect(parts.every((part) => part.length > 0)).toBe(true);
+    const lines = Array.from({ length: 1003 }, (_, line) => line);
+    for (const of of [1, 2, 3, 7]) expect(Array.from({ length: of }, (_, index) => sliceOf(lines, index, of)).flat()).toEqual(lines);
+  });
+
+  // The whole tree in one test took longer than a unit test should: icon packs alone are most of its bytes. Each part is a test of its own, so
+  // a slow runner stretches a part and not one test past its limit, and a failure names the files of the part that found it.
+  parts.forEach((part, index) => {
+    const first = part[0];
+    const last = part.at(-1);
+    it(`finds no gated name, step label or tailnet address in a part of the tracked text files outside the vendored trees (${String(index + 1)} of ${String(parts.length)}: ${first?.file ?? ""} to ${last?.file ?? ""})`, () => {
+      const gated = new Set(hashes);
+      const hits: Hit[] = [];
+      for (const { file, index: at, of } of part) {
+        const text = readText(file);
+        if (text === undefined) continue;
+        if (of === 1) {
+          hits.push(...scanText(file, text, gated));
+          continue;
+        }
+        const lines = text.split("\n");
+        const before = Math.floor((lines.length * at) / of);
+        hits.push(...scanText(file, sliceOf(lines, at, of).join("\n"), gated, before + 1));
+      }
+      expect(hits.filter((hit) => !isAllowed(hit)).map(show)).toEqual([]);
+    });
+  });
 });
