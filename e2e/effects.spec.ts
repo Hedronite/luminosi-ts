@@ -198,6 +198,31 @@ test("a new ASCII ramp, which is built into the effect, makes a new pipeline", a
   expect(errors).toEqual([]);
 });
 
+test("a glass node under screen effects leaves no textures behind as its pipeline is built and freed again", async ({ page }) => {
+  const errors = errorsOn(page);
+  const { stage } = await effectsStage(page);
+  // Glass reads the frame behind it through a copy that is made for each target the scene is drawn into.
+  await page.getByLabel("Subject").selectOption({ label: "Cuboctahedron" });
+  await page.getByLabel("Surface", { exact: true }).selectOption({ label: "Glass" });
+  await settledBuilds(stage, "data-textures");
+  const dither = page.getByRole("checkbox", { name: "Dither" });
+  // Each change of the stack builds a pipeline and frees the one before: the textures the renderer holds depend on the stack, and on nothing that came before it.
+  const rebuilt = async (on: boolean): Promise<number> => {
+    const before = await effectBuilds(stage);
+    await (on ? dither.check() : dither.uncheck());
+    await expect.poll(() => effectBuilds(stage), { message: "effect builds after a change of the stack", timeout: 30_000 }).toBeGreaterThan(before);
+    return settledBuilds(stage, "data-textures");
+  };
+  const readings: number[] = [];
+  for (const on of [true, false, true, false, true]) {
+    // eslint-disable-next-line no-await-in-loop -- each rebuild is read before the next
+    readings.push(await rebuilt(on));
+  }
+  const [first, off, second, offAgain, third] = readings;
+  expect({ withDither: [first, second, third], without: [off, offAgain] }, "textures after each of five rebuilds").toEqual({ withDither: [first, first, first], without: [off, off] });
+  expect(errors).toEqual([]);
+});
+
 test("every stage publishes the renderer's memory counts, and an effects stage its effect builds", async ({ page }) => {
   await page.goto("/?view=effects");
   const stage = page.getByTestId("effects-stage");
