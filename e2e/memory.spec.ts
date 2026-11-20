@@ -27,7 +27,11 @@ const FIXTURE_A = join(fixtures, "primitives-in-materials.json");
 const FIXTURE_B = join(fixtures, "object-effects-ink.json");
 
 /** How many nodes a scene document holds: what the scene list shows once it is opened. */
-const nodesIn = (file: string): number => (JSON.parse(readFileSync(file, "utf8")) as { readonly nodes: readonly unknown[] }).nodes.length;
+const nodesIn = (file: string): number => {
+  const parsed: unknown = JSON.parse(readFileSync(file, "utf8"));
+  if (typeof parsed === "object" && parsed !== null && "nodes" in parsed && Array.isArray(parsed.nodes)) return parsed.nodes.length;
+  throw new Error(`${file} holds no nodes`);
+};
 
 const ATTRIBUTES = ["data-geometries", "data-textures", "data-targets"] as const;
 type Memory = Readonly<Record<(typeof ATTRIBUTES)[number], number>>;
@@ -70,7 +74,7 @@ async function settledMemory(host: Locator, frames: number, above = -1): Promise
     { attributes: [...ATTRIBUTES], quiet: QUIET_REPORTS, ceiling: STAGE_WAIT, after: frames, over: above },
   );
   expect(result.settled, `the stage's memory counts did not settle: ${String(result.reports)} reports in ${String(STAGE_WAIT)} ms, the last ${JSON.stringify(result.memory)}`).toBe(true);
-  return result.memory as Memory;
+  return { "data-geometries": result.memory["data-geometries"] ?? 0, "data-textures": result.memory["data-textures"] ?? 0, "data-targets": result.memory["data-targets"] ?? 0 };
 }
 
 const framesOf = async (host: Locator): Promise<number> => Number(await host.getAttribute("data-frames"));
