@@ -25,7 +25,7 @@ const views: readonly { readonly id: View; readonly label: string; readonly para
   { id: "looks", label: "Looks", params: [] },
   { id: "effects", label: "Effects", params: [] },
   { id: "open-source", label: "Open source", params: ["set", "item", "page"] },
-  { id: "playground", label: "Playground", params: [] },
+  { id: "playground", label: "Playground", params: ["scene"] },
   { id: "growth", label: "Growth", params: [] },
 ];
 const viewParams = views.flatMap((option) => option.params);
