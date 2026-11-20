@@ -17,20 +17,38 @@ const QUIET_REPORTS = 4;
 const CYCLES = 5;
 
 /**
- * Two documents of different sizes, so each open is seen in the scene list: A is four primitives in materials, and B is a watch
- * under two screen effects, so a cycle builds meshes, materials, textures, effect targets and frees them again.
- * (`v1.json` is not used: its glass node under the same effects leaves two textures behind each time its effect pipeline is replaced. R15 fixes
- * that leak in its own change, and the glass-plus-effects case joins this check once the fix is merged.)
+ * Documents of different sizes, so each open is seen in the scene list: A is four primitives in materials. The second is either a watch under two
+ * screen effects, or one node of transmission glass under the same effects, so a cycle builds meshes, materials, textures and effect targets, and frees them again.
+ * The glass document is built here from `v1.json`, and nothing hand-edited is committed beside the fixtures: that file's third node (a glass solid), with no parent,
+ * under the effects the file already names. Glass under screen effects once left two textures behind each time its effect pipeline was replaced; this case holds that shut.
  */
 const fixtures = join(import.meta.dirname, "..", "packages", "scene", "fixtures");
 const FIXTURE_A = join(fixtures, "primitives-in-materials.json");
 const FIXTURE_B = join(fixtures, "object-effects-ink.json");
+const FIXTURE_GLASS = join(fixtures, "v1.json");
+
+/** A scene document to open: a file on disk, or a file made in memory. */
+type Source = string | { readonly name: string; readonly mimeType: string; readonly buffer: Buffer };
+interface Document {
+  readonly source: Source;
+  readonly nodes: number;
+}
 
 /** How many nodes a scene document holds: what the scene list shows once it is opened. */
 const nodesIn = (file: string): number => {
   const parsed: unknown = JSON.parse(readFileSync(file, "utf8"));
   if (typeof parsed === "object" && parsed !== null && "nodes" in parsed && Array.isArray(parsed.nodes)) return parsed.nodes.length;
   throw new Error(`${file} holds no nodes`);
+};
+
+/** The glass node of `v1.json` as a document of its own: no parent, and the effects the file names kept. It fails if the file stops holding a glass node or its effects. */
+const glassUnderEffects = (): Document => {
+  const parsed: unknown = JSON.parse(readFileSync(FIXTURE_GLASS, "utf8"));
+  if (typeof parsed !== "object" || parsed === null || !("nodes" in parsed) || !Array.isArray(parsed.nodes) || !("effects" in parsed)) throw new Error(`${FIXTURE_GLASS} holds no nodes and effects`);
+  const node: unknown = parsed.nodes[2];
+  if (typeof node !== "object" || node === null || !JSON.stringify(node).includes('"glass"')) throw new Error(`${FIXTURE_GLASS} holds no glass node as its third`);
+  const solo = { ...parsed, nodes: [{ ...node, parent: null }] };
+  return { source: { name: "glass-under-effects.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(solo)) }, nodes: 1 };
 };
 
 const ATTRIBUTES = ["data-geometries", "data-textures", "data-targets"] as const;
@@ -80,9 +98,9 @@ async function settledMemory(host: Locator, frames: number, above = -1): Promise
 const framesOf = async (host: Locator): Promise<number> => Number(await host.getAttribute("data-frames"));
 
 /** Opens a scene document from a file, as a person does with Open scene, and waits until the scene list shows what it holds. */
-async function open(page: Page, file: string, things: number): Promise<void> {
-  await page.getByLabel("Open scene").setInputFiles(file);
-  await expect(page.getByRole("list", { name: "Scene" }).getByRole("listitem")).toHaveCount(things, { timeout: STAGE_WAIT });
+async function open(page: Page, scene: Document): Promise<void> {
+  await page.getByLabel("Open scene").setInputFiles(scene.source);
+  await expect(page.getByRole("list", { name: "Scene" }).getByRole("listitem")).toHaveCount(scene.nodes, { timeout: STAGE_WAIT });
 }
 
 /** Removes every node, one at a time, until the scene list is empty. */
@@ -97,62 +115,71 @@ async function removeAll(page: Page): Promise<void> {
   }
 }
 
-test("the playground holds the same GPU memory after every cycle of open, undo, redo and remove", async ({ page }, info) => {
-  // Five cycles of builds and rebuilds on software WebGL take longer than one test's usual share of the clock.
-  test.slow();
-  await page.goto("/?view=playground");
-  const stage = page.getByTestId("playground-viewport");
-  await expect(stage).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
-  const a = nodesIn(FIXTURE_A);
-  const b = nodesIn(FIXTURE_B);
+const rounds: readonly { readonly title: string; readonly build: () => Document }[] = [
+  { title: "the playground holds the same GPU memory after every cycle of open, undo, redo and remove", build: () => ({ source: FIXTURE_B, nodes: nodesIn(FIXTURE_B) }) },
+  { title: "the playground holds the same GPU memory after every cycle with transmission glass under screen effects", build: glassUnderEffects },
+];
 
-  const readings: Memory[] = [];
-  const empties: Memory[] = [];
-  for (let cycle = 1; cycle <= CYCLES; cycle += 1) {
-    // eslint-disable-next-line no-await-in-loop -- the cycles run one after another: each starts from what the last one left
-    await open(page, FIXTURE_A, a);
-    // eslint-disable-next-line no-await-in-loop -- see above
-    await open(page, FIXTURE_B, b);
-    // eslint-disable-next-line no-await-in-loop -- see above
-    await page.getByRole("button", { name: "Undo" }).click();
-    // eslint-disable-next-line no-await-in-loop -- see above
-    await expect(page.getByRole("list", { name: "Scene" }).getByRole("listitem")).toHaveCount(a);
-    // eslint-disable-next-line no-await-in-loop -- see above
-    await page.getByRole("button", { name: "Redo" }).click();
-    // eslint-disable-next-line no-await-in-loop -- see above
-    await expect(page.getByRole("list", { name: "Scene" }).getByRole("listitem")).toHaveCount(b);
-    // eslint-disable-next-line no-await-in-loop -- see above
-    await removeAll(page);
-    // The empty scene, after the same frame: what the stage holds with nothing of the document built.
-    // eslint-disable-next-line no-await-in-loop -- see above
-    const empty = await settledMemory(stage, await framesOf(stage));
-    empties.push(empty);
-    // Each removal is a step of its own, so one undo brings back one node: undo them all, which rebuilds every node that was removed.
-    for (let back = 1; back <= b; back += 1) {
-      // eslint-disable-next-line no-await-in-loop -- one undo at a time, each read from the scene list before the next
+rounds.forEach(({ title, build }) => {
+  test(title, async ({ page }, info) => {
+    // Five cycles of builds and rebuilds on software WebGL take longer than one test's usual share of the clock.
+    test.slow();
+    await page.goto("/?view=playground");
+    const stage = page.getByTestId("playground-viewport");
+    await expect(stage).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
+    const opening = { source: FIXTURE_A, nodes: nodesIn(FIXTURE_A) };
+    const closing = build();
+    const a = opening.nodes;
+    const b = closing.nodes;
+
+    const readings: Memory[] = [];
+    const empties: Memory[] = [];
+    for (let cycle = 1; cycle <= CYCLES; cycle += 1) {
+      // eslint-disable-next-line no-await-in-loop -- the cycles run one after another: each starts from what the last one left
+      await open(page, opening);
+      // eslint-disable-next-line no-await-in-loop -- see above
+      await open(page, closing);
+      // eslint-disable-next-line no-await-in-loop -- see above
       await page.getByRole("button", { name: "Undo" }).click();
       // eslint-disable-next-line no-await-in-loop -- see above
-      await expect(page.getByRole("list", { name: "Scene" }).getByRole("listitem")).toHaveCount(back);
+      await expect(page.getByRole("list", { name: "Scene" }).getByRole("listitem")).toHaveCount(a);
+      // eslint-disable-next-line no-await-in-loop -- see above
+      await page.getByRole("button", { name: "Redo" }).click();
+      // eslint-disable-next-line no-await-in-loop -- see above
+      await expect(page.getByRole("list", { name: "Scene" }).getByRole("listitem")).toHaveCount(b);
+      // eslint-disable-next-line no-await-in-loop -- see above
+      await removeAll(page);
+      // The empty scene, after the same frame: what the stage holds with nothing of the document built.
+      // eslint-disable-next-line no-await-in-loop -- see above
+      const empty = await settledMemory(stage, await framesOf(stage));
+      empties.push(empty);
+      // Each removal is a step of its own, so one undo brings back one node: undo them all, which rebuilds every node that was removed.
+      for (let back = 1; back <= b; back += 1) {
+        // eslint-disable-next-line no-await-in-loop -- one undo at a time, each read from the scene list before the next
+        await page.getByRole("button", { name: "Undo" }).click();
+        // eslint-disable-next-line no-await-in-loop -- see above
+        await expect(page.getByRole("list", { name: "Scene" }).getByRole("listitem")).toHaveCount(back);
+      }
+      // After a frame: the stage draws once more, and the counts are read once they hold still.
+      // eslint-disable-next-line no-await-in-loop -- see above
+      const frames = await framesOf(stage);
+      // eslint-disable-next-line no-await-in-loop -- see above
+      readings.push(await settledMemory(stage, frames, empty["data-geometries"]));
     }
-    // After a frame: the stage draws once more, and the counts are read once they hold still.
-    // eslint-disable-next-line no-await-in-loop -- see above
-    const frames = await framesOf(stage);
-    // eslint-disable-next-line no-await-in-loop -- see above
-    readings.push(await settledMemory(stage, frames, empty["data-geometries"]));
-  }
 
-  // The reading after each cycle goes into the report, so a failure and a pass both show what the GPU held.
-  info.annotations.push({ type: "memory after each cycle", description: JSON.stringify(readings) }, { type: "memory empty scene after each cycle", description: JSON.stringify(empties) });
-  // Cycle 1 is the empty-scene baseline plus what the fixtures leave behind for good; every later cycle reads the same.
-  const [first, ...rest] = readings;
-  expect(first, "the first cycle's reading").toBeDefined();
-  rest.forEach((reading, index) => {
-    expect(reading, `cycle ${String(index + 2)} of ${String(CYCLES)} against cycle 1`).toEqual(first);
+    // The reading after each cycle goes into the report, so a failure and a pass both show what the GPU held.
+    info.annotations.push({ type: "memory after each cycle", description: JSON.stringify(readings) }, { type: "memory empty scene after each cycle", description: JSON.stringify(empties) });
+    // Cycle 1 is the empty-scene baseline plus what the fixtures leave behind for good; every later cycle reads the same.
+    const [first, ...rest] = readings;
+    expect(first, "the first cycle's reading").toBeDefined();
+    rest.forEach((reading, index) => {
+      expect(reading, `cycle ${String(index + 2)} of ${String(CYCLES)} against cycle 1`).toEqual(first);
+    });
+    // And the empty scene between them reads the same every time: nothing of a removed document stays on the GPU.
+    const [firstEmpty, ...restEmpty] = empties;
+    restEmpty.forEach((reading, index) => {
+      expect(reading, `the empty scene after cycle ${String(index + 2)} of ${String(CYCLES)} against cycle 1`).toEqual(firstEmpty);
+    });
+    expect(first?.["data-geometries"], "the scene holds geometries after the cycle").toBeGreaterThan(0);
   });
-  // And the empty scene between them reads the same every time: nothing of a removed document stays on the GPU.
-  const [firstEmpty, ...restEmpty] = empties;
-  restEmpty.forEach((reading, index) => {
-    expect(reading, `the empty scene after cycle ${String(index + 2)} of ${String(CYCLES)} against cycle 1`).toEqual(firstEmpty);
-  });
-  expect(first?.["data-geometries"], "the scene holds geometries after the cycle").toBeGreaterThan(0);
 });
