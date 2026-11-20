@@ -125,6 +125,8 @@ test("the playground holds the same GPU memory after every cycle of open, undo, 
     readings.push(await settledMemory(stage, frames));
   }
 
+  // The reading after each cycle goes into the report, so a failure and a pass both show what the GPU held.
+  info.annotations.push({ type: "memory after each cycle", description: JSON.stringify(readings) });
   // Cycle 1 is the empty-scene baseline plus what the fixtures leave behind for good; every later cycle reads the same.
   const [first, ...rest] = readings;
   expect(first, "the first cycle's reading").toBeDefined();
