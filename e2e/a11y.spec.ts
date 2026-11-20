@@ -160,7 +160,8 @@ for (const stage of stages.filter((s) => s.animated)) {
     const pause = scope.getByRole("button", { name: "Pause motion" });
     await expect(pause).toBeVisible();
     await expect(host).toHaveAttribute("data-time", /^\d/);
-    await expect.poll(async () => number(host, "data-time")).toBeGreaterThan(0.3);
+    // Time advances with drawn frames, which are slow under software rendering on a busy machine: the ceiling that every stage wait in the catalog spec uses.
+    await expect.poll(async () => number(host, "data-time"), { timeout: 20_000 }).toBeGreaterThan(0.3);
     await expectCanvasLive(host);
 
     await pause.click();
