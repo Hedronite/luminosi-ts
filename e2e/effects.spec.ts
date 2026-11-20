@@ -222,6 +222,8 @@ async function texturesOnceDrawn(stage: Locator): Promise<number> {
 }
 
 test("a glass node under screen effects leaves no textures behind as its pipeline is built and freed again", async ({ page }) => {
+  // Five rebuilds, each waiting for the new pipeline to draw, after the stage has loaded: on the container shard that is more than the default limit, and the count and its wait stay as they are.
+  test.slow();
   const errors = errorsOn(page);
   const { stage } = await effectsStage(page);
   // Glass reads the frame behind it through a copy that is made for each target the scene is drawn into.
