@@ -4,12 +4,13 @@ import { Close } from "@hedronite/lts-icons/react";
 import { isMaterialId, materialIds, materialPreset, type MaterialId } from "@hedronite/lts-materials";
 import { isScreenEffectId, screenEffectIds, screenEffectInfo } from "@hedronite/lts-postfx";
 import { isPrimitiveId, primitiveIds, primitiveInfo, type PrimitiveId } from "@hedronite/lts-primitives";
-import { addNode, canRedo, canUndo, createHistory, encodeScene, endGesture, push, redo, removeNode, ringLayout, setEffects, setInk, setLights, SHARE_LIMITS, undo, type InkMode, type Scene as SceneDocument, type SceneHistory, type SceneIssue, type SceneNode, type SceneResult } from "@hedronite/lts-scene";
+import { addNode, canRedo, canUndo, createHistory, encodeScene, endGesture, push, redo, removeNode, ringLayout, setEffects, setInk, setLights, setTransform, SHARE_LIMITS, undo, type InkMode, type Scene as SceneDocument, type SceneHistory, type SceneIssue, type SceneNode, type SceneResult } from "@hedronite/lts-scene";
 import { toCanonicalJson, toTsx, toVanilla } from "@hedronite/lts-scene/emit";
 import { effectIds, effectInfo, isEffectId, type EffectId } from "@hedronite/lts-shaders";
 import { presets } from "@hedronite/lts-tokens";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Object3D } from "three";
+import { noteEffectTargets } from "./builds";
 import { CopyButton } from "./CopyButton";
 import { usePreset } from "./look";
 import { MaterialLineup } from "./MaterialLineup";
@@ -18,6 +19,7 @@ import { usePlaceable, type Placeable } from "./placeable";
 import { Controls, GpuCounts, StageClock, StageFrame, useMotion } from "./scene";
 import { describeIssue, fileNameFor, linkFor, openFile, openLink, sceneParam, stemOf, type Opened } from "./sceneFile";
 import { useShaderClock } from "./shaderClock";
+import { TransformPanel } from "./TransformPanel";
 
 const field = "rounded-lg border border-line bg-surface px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-accent";
 
@@ -61,7 +63,7 @@ const newId = (taken: readonly SceneNode[] = []): string => {
 
 /**
  * The node for an item. It starts at the origin, turned the way the playground has always turned its scene (the tilt a version 0
- * composition is given on migrating), and `arranged` puts it on the ring.
+ * composition is given on migrating), and `arranged` puts the starter's on the ring and `slotFor` puts a node added later on the next place.
  */
 function nodeFor(item: Item, id: string): SceneNode {
   const at = (scale: number): Pick<SceneNode, "id" | "parent" | "position" | "rotation" | "scale"> => ({ id, parent: null, position: [0, 0, 0], rotation: [0.3, 0.5, 0], scale: [scale, scale, scale] });
@@ -75,7 +77,7 @@ function nodeFor(item: Item, id: string): SceneNode {
   }
 }
 
-/** The nodes on the ring, each at its place on it: a node added or removed puts every one at its place for the new count. */
+/** The nodes on the ring, each at its place on it: the starter scene's. A node added later takes the next place, and none is moved after (a node is placed by hand once it can be). */
 function arranged(nodes: readonly SceneNode[]): SceneNode[] {
   const ring = ringLayout(nodes.length);
   return nodes.map((node, index): SceneNode => {
@@ -115,8 +117,11 @@ const barButton = "rounded-lg border border-line bg-surface px-3 py-2 text-sm ho
 /** The ids of the looks a scene may name. */
 const lookIds = presets.map((preset) => preset.id);
 
-/** `result` with its nodes put on the ring for their count: a node added or removed puts every one at its place. */
-const onRing = (result: SceneResult): SceneResult => (result.ok ? { ok: true, scene: { ...result.scene, nodes: arranged(result.scene.nodes) } } : result);
+/** The place on the ring for the node that makes `count` things: the slot after the ones the others hold, which nothing already there moves for. */
+const slotFor = (count: number): [number, number, number] => {
+  const [x, y, z] = ringLayout(count + 1)[count] ?? [0, 0, 0];
+  return [x, y, z];
+};
 
 /** Whether the target of a key press is somewhere a person types text: there the browser's own undo is the one that applies. */
 function typesText(target: EventTarget | null): boolean {
@@ -153,6 +158,9 @@ export function Playground() {
   const [history, setHistory] = useState<SceneHistory>(() => createHistory(starter));
   const doc = history.present;
   const [note, setNote] = useState<Note | undefined>(undefined);
+  // The node whose transform is being edited: by id, so it follows the document through an undo, and is none once the document has no such node.
+  const [selected, setSelected] = useState<string | undefined>(undefined);
+  const selectedNode = doc.nodes.find((node) => node.id === selected) ?? null;
   // The name a saved file takes: the one that was opened, or "scene".
   const [name, setName] = useState("scene");
   // A link in the address opens its document in place of the starter, once.
@@ -455,7 +463,7 @@ export function Playground() {
             type="button"
             disabled={full}
             onClick={() => {
-              commit(onRing(addNode(doc, nodeFor(item, newId(doc.nodes)))));
+              commit(addNode(doc, { ...nodeFor(item, newId(doc.nodes)), position: slotFor(doc.nodes.length) }));
             }}
             className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-on-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50"
           >
@@ -468,20 +476,45 @@ export function Playground() {
               return (
                 <li key={node.id} className="flex items-center justify-between rounded-lg border border-line px-3 py-1.5 text-sm">
                   {label}
-                  <button
-                    type="button"
-                    aria-label={`Remove ${label}`}
-                    onClick={() => {
-                      commit(onRing(removeNode(doc, node.id)));
-                    }}
-                    className="rounded p-1 hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-accent"
-                  >
-                    <Close size={16} />
-                  </button>
+                  <span className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      aria-label={`Edit transform of ${label}`}
+                      aria-pressed={selected === node.id}
+                      onClick={() => {
+                        setSelected(node.id);
+                      }}
+                      className="rounded border border-line px-2 py-0.5 text-xs hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-accent aria-pressed:bg-surface-raised aria-pressed:font-medium"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Remove ${label}`}
+                      onClick={() => {
+                        commit(removeNode(doc, node.id));
+                      }}
+                      className="rounded p-1 hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-accent"
+                    >
+                      <Close size={16} />
+                    </button>
+                  </span>
                 </li>
               );
             })}
           </ol>
+
+          <TransformPanel
+            key={selectedNode?.id ?? ""}
+            node={selectedNode}
+            {...(selectedNode === null ? {} : { label: describeNode(selectedNode, objects) })}
+            onChange={(change, gesture) => {
+              if (selectedNode !== null) commit(setTransform(doc, selectedNode.id, change), gesture);
+            }}
+            onGestureEnd={() => {
+              setHistory(endGesture);
+            }}
+          />
 
           <fieldset className="flex flex-col gap-1.5">
             <legend className="mb-1 text-sm font-medium">Screen effects</legend>
@@ -567,9 +600,12 @@ export function Playground() {
                     onRoot={(root) => {
                       built.current = root;
                     }}
+                    onEffectTargets={(ids) => {
+                      noteEffectTargets(host.current, ids);
+                    }}
                   />
                 </EffectClockProvider>
-                <GpuCounts target={host} clockRef={clock} shaderClock={shaderClock} watch={built} />
+                <GpuCounts target={host} clockRef={clock} shaderClock={shaderClock} watch={built} screenEffects />
               </WebGPUCanvas>
             </StageFrame>
           </div>
