@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import AxeBuilder from "@axe-core/playwright";
 import type { Locator, Page } from "@playwright/test";
-import { parseScene, ringLayout, type Scene } from "@hedronite/lts-scene";
+import { ringLayout } from "../packages/scene/src/layout.js";
 import { builds, counted, effectBuilds, expect, test } from "./fixtures.js";
 
 /** How long a stage may take to draw: every wait below is on the stage's own counters, and this is only the ceiling that makes a stage that never draws fail. */
@@ -335,12 +335,38 @@ test("Ctrl+Z in a field that takes text is the browser's own and leaves the docu
 
 // Free transforms: the Transform panel edits one node's nine numbers, as the document holds them.
 
-/** The scene document the JSON export shows, read. */
-async function documentOf(page: Page): Promise<Scene> {
-  const text = await exported(page).innerText();
-  const read = parseScene(text);
-  if (!read.ok) throw new Error(`the JSON export does not read: ${JSON.stringify(read.issues)}`);
-  return read.scene;
+/** One node of the document as these tests read it: where it is, how it is turned and how big it is, relative to its parent. */
+type Triple = readonly [number, number, number];
+interface Placed {
+  readonly id: string;
+  readonly parent: string | null;
+  readonly position: Triple;
+  readonly rotation: Triple;
+  readonly scale: Triple;
+}
+const isTriple = (value: unknown): value is Triple => Array.isArray(value) && value.length === 3 && value.every((entry) => typeof entry === "number");
+const isPlaced = (value: unknown): value is Placed =>
+  typeof value === "object" &&
+  value !== null &&
+  "id" in value &&
+  typeof value.id === "string" &&
+  "parent" in value &&
+  (value.parent === null || typeof value.parent === "string") &&
+  "position" in value &&
+  isTriple(value.position) &&
+  "rotation" in value &&
+  isTriple(value.rotation) &&
+  "scale" in value &&
+  isTriple(value.scale);
+
+/**
+ * The scene document the JSON export shows, read for its nodes. The package's own reader is not used: the container runs this file without the
+ * package built, and the export is what the page shows, so a reader of the page's own text is the stricter test.
+ */
+async function documentOf(page: Page): Promise<{ readonly nodes: readonly Placed[] }> {
+  const parsed: unknown = JSON.parse(await exported(page).innerText());
+  if (typeof parsed === "object" && parsed !== null && "nodes" in parsed && Array.isArray(parsed.nodes) && parsed.nodes.every(isPlaced)) return { nodes: parsed.nodes };
+  throw new Error("the JSON export is not a document whose nodes each have an id, a parent, a position, a rotation and a scale");
 }
 
 const panel = (page: Page): Locator => page.getByRole("region", { name: "Transform", exact: true });
@@ -354,7 +380,7 @@ async function select(page: Page, index: number): Promise<void> {
 }
 
 /** The `index`th node's transform, as the document has it now. */
-async function nodeAt(page: Page, index: number): Promise<Scene["nodes"][number]> {
+async function nodeAt(page: Page, index: number): Promise<Placed> {
   const node = (await documentOf(page)).nodes[index];
   if (node === undefined) throw new Error(`the document has no node ${String(index)}`);
   return node;
