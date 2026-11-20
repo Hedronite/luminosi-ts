@@ -32,7 +32,7 @@ export default defineConfig<ConsoleOptions>({
   // Tests, not files, are what workers and CI shards divide: catalog.spec.ts alone is over half the suite.
   fullyParallel: true,
   // Locally every test draws with software WebGL, and each browser's GPU process takes one to three cores, so the default
-  // (half the cores) overloads a machine shared with other work and first-frame tests miss the 5 s expect timeout.
+  // (half the cores) overloads a machine shared with other work and first-frame tests miss the expect timeout.
   // CI keeps the default: one shard per runner, with the longer timeouts below.
   ...(process.env["CI"] === undefined ? { workers: 2 } : {}),
   // One worker for the still-frame rig and the strict golden check: their frames are compared byte for byte, and two browsers sharing one GPU is a variable they need not carry.
@@ -40,8 +40,9 @@ export default defineConfig<ConsoleOptions>({
   forbidOnly: process.env["CI"] !== undefined,
   // On CI the 3D tests draw with software WebGL on shared runners: the first frame of a viewport
   // (three.js loaded, the studio environment baked) can take longer than the 5 s default, and did,
-  // intermittently, from Hedronite/luminosi-ts#26 on. Locally the default stays.
-  ...(process.env["CI"] === undefined ? {} : { expect: { timeout: 15_000 }, timeout: 60_000 }),
+  // intermittently, from Hedronite/luminosi-ts#26 on. A local run draws with software WebGL as well, on a machine shared with other work, so it has the same expect ceiling.
+  expect: { timeout: 15_000 },
+  ...(process.env["CI"] === undefined ? {} : { timeout: 60_000 }),
   reporter: process.env["CI"] === undefined ? "list" : [["list"], ["html", { open: "never" }]],
   use: {
     baseURL: process.env["E2E_CATALOG_URL"] ?? (stillsLane ? "http://localhost:4176" : framesAny ? "http://localhost:4177" : webgpuLane ? "http://localhost:4175" : "http://localhost:4173"),

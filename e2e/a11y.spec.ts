@@ -159,8 +159,9 @@ for (const stage of stages.filter((s) => s.animated)) {
     const scope = stage.scope(page);
     const pause = scope.getByRole("button", { name: "Pause motion" });
     await expect(pause).toBeVisible();
-    await expect(host).toHaveAttribute("data-time", /^\d/);
-    await expect.poll(async () => number(host, "data-time")).toBeGreaterThan(0.3);
+    await expect(host).toHaveAttribute("data-time", /^\d/, { timeout: 20_000 });
+    // Time advances with drawn frames, which are slow under software rendering on a busy machine: the ceiling that every stage wait in the catalog spec uses.
+    await expect.poll(async () => number(host, "data-time"), { timeout: 20_000 }).toBeGreaterThan(0.3);
     await expectCanvasLive(host);
 
     await pause.click();
@@ -178,9 +179,9 @@ for (const stage of stages.filter((s) => s.animated)) {
     await resume.click();
     await expect(scope.getByRole("button", { name: "Pause motion" })).toBeVisible();
     // It carries on from the held value, not from the wall clock: no jump by the length of the pause.
-    await expect.poll(async () => number(host, "data-time")).toBeGreaterThan(heldTime);
+    await expect.poll(async () => number(host, "data-time"), { timeout: 20_000 }).toBeGreaterThan(heldTime);
     expect((await number(host, "data-time")) - heldTime).toBeLessThan(1.5);
-    await expect.poll(async () => number(host, "data-frames")).toBeGreaterThan(heldFrames);
+    await expect.poll(async () => number(host, "data-frames"), { timeout: 20_000 }).toBeGreaterThan(heldFrames);
     expect(errors).toEqual([]);
   });
 }
