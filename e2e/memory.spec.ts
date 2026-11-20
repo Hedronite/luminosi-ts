@@ -19,8 +19,8 @@ const CYCLES = 5;
 /**
  * Two documents of different sizes, so each open is seen in the scene list: A is four primitives in materials, and B is a watch
  * under two screen effects, so a cycle builds meshes, materials, textures, effect targets and frees them again.
- * (`v1.json` is not used: its glass node under the same effects leaves two textures behind each time its effect pipeline is replaced,
- * which this check finds. That is a leak in its own right, kept for its own step.)
+ * (`v1.json` is not used: its glass node under the same effects leaves two textures behind each time its effect pipeline is replaced. R15 fixes
+ * that leak in its own change, and the glass-plus-effects case joins this check once the fix is merged.)
  */
 const fixtures = join(import.meta.dirname, "..", "packages", "scene", "fixtures");
 const FIXTURE_A = join(fixtures, "primitives-in-materials.json");
