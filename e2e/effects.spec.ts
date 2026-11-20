@@ -153,8 +153,11 @@ test("a forced remount builds the effect pipeline again", async ({ page }) => {
   const errors = errorsOn(page);
   const { stage, built } = await effectsStage(page);
   // The view goes away and comes back, and the stage builds its pipeline again: the count keeps what it held, and adds the new targets.
+  // It goes to a view that draws nothing: the Playground builds a scene of its own, and on a runner that draws in software that
+  // holds the page for most of a minute, which is the Playground's time and not the pipeline's.
   const views = page.getByRole("navigation", { name: "Views" });
-  await views.getByRole("button", { name: "Playground" }).click();
+  await views.getByRole("button", { name: "Growth" }).click();
+  await expect(page.getByRole("heading", { name: "Growth" })).toBeVisible();
   await expect(stage).toHaveCount(0);
   await views.getByRole("button", { name: "Effects", exact: true }).click();
   await expect.poll(() => effectBuilds(page.getByTestId("effects-stage")), { message: "effect builds after a remount", timeout: 30_000 }).toBeGreaterThan(built);
