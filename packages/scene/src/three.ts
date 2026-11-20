@@ -64,6 +64,13 @@ export interface SceneHandle {
   readonly render?: (delta: number) => void;
   /** Present with a renderer: where the pointer is, for the lens effect. */
   readonly setPointer?: (pointer: ScenePointer) => void;
+  /**
+   * Present with a renderer: the `uuid` of every render-target texture the screen-effect pipelines this scene has built have held, in the
+   * order they were built, and never fewer than before (a pipeline that was freed is still listed). A stack whose structure changed builds
+   * another pipeline and adds its own; a parameter, a look, an ink, the pointer and a node's transform add none. Empty while there have been
+   * no effects. Read-only, for a counter that keeps what it reads: it reads the objects' own uuids and no names.
+   */
+  readonly effectTargets?: () => readonly string[];
   /** Frees every geometry, material, texture, shader and pass the scene built, and stops builds that are under way. */
   dispose(): void;
 }
@@ -250,6 +257,8 @@ export function createScene(initial: SceneDocument, options: SceneOptions = {}):
   stage?.scene.add(root);
   /** Loaded with the first effect stack; every later use of it is after that. */
   let postfx: typeof Postfx | undefined;
+  /** The render-target textures every pipeline this scene built held, by `uuid`: kept when a pipeline is freed (see `effectTargets`). */
+  const effectTargets = new Set<string>();
 
   const stackOf = (d: SceneDocument): readonly ScreenEffectConfig[] => stackEntries.parse(d.effects);
   const monochrome = (d: SceneDocument, palette: ScenePalette) => (d.ink === "look" ? undefined : palette[d.ink]);
@@ -285,6 +294,7 @@ export function createScene(initial: SceneDocument, options: SceneOptions = {}):
     if (stage.effects === undefined) {
       stage.effects = new three.ScreenEffects(renderer, stage.scene, camera, stack, { palette: look, reducedMotion, ...(ink === undefined ? {} : { monochrome: ink }) });
       stage.structure = structure;
+      for (const id of stage.effects.targetIds) effectTargets.add(id);
       stage.effects.setPointer(stage.pointer);
     }
     stage.effects.setParams(three.stackValues(stack));
@@ -487,6 +497,7 @@ export function createScene(initial: SceneDocument, options: SceneOptions = {}):
             stage.pointer = pointer;
             stage.effects?.setPointer(pointer);
           },
+          effectTargets: () => [...effectTargets],
         }),
     dispose() {
       if (disposed) return;
