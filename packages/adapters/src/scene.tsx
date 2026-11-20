@@ -23,6 +23,12 @@ export interface SceneProps {
    * graph, which is no part of the canvas's, so this is how a caller reads it (to count what it built, say).
    */
   readonly onRoot?: (root: Group | undefined) => void;
+  /**
+   * Told the `uuid` of every render-target texture the scene's screen-effect pipelines have held (`SceneHandle.effectTargets`), each time the
+   * scene has built or updated: the list only grows, and a stack of another structure adds its own. Only with a WebGPU renderer, which is what
+   * runs the effects; a caller that counts pipelines keeps what it is told (a scene built again lists its own, from the start).
+   */
+  readonly onEffectTargets?: (ids: readonly string[]) => void;
 }
 
 /** A property check, not an instanceof: this entry must not import three's WebGPU build. */
@@ -34,7 +40,7 @@ const isWebGPURenderer = (gl: unknown): gl is WebGPURenderer => typeof gl === "o
  * makes the document's camera the canvas's. On another renderer it adds the nodes and lights to the canvas's scene and
  * leaves the environment, the effects and any surface shader (which need WebGPU) out. Frees everything it built on unmount.
  */
-export function Scene({ doc, palette, reducedMotion, onRoot }: SceneProps) {
+export function Scene({ doc, palette, reducedMotion, onRoot, onEffectTargets }: SceneProps) {
   const gl: unknown = useThree((state) => state.gl);
   const renderer = isWebGPURenderer(gl) ? gl : undefined;
   const invalidate = useThree((state) => state.invalidate);
@@ -48,10 +54,16 @@ export function Scene({ doc, palette, reducedMotion, onRoot }: SceneProps) {
   // of them reaches a scene a rebuild just freed.
   const [handle, setHandle] = useState<SceneHandle | undefined>(undefined);
   const live = useRef<SceneHandle | undefined>(undefined);
-  const latest = useRef({ doc, palette, onRoot });
+  const latest = useRef({ doc, palette, onRoot, onEffectTargets });
   useEffect(() => {
-    latest.current = { doc, palette, onRoot };
+    latest.current = { doc, palette, onRoot, onEffectTargets };
   });
+  /** Tells what the scene's pipelines have held, unless the scene was freed or built again meanwhile. */
+  const reportTargets = (from: SceneHandle): void => {
+    if (live.current !== from) return;
+    const ids = from.effectTargets?.();
+    if (ids !== undefined) latest.current.onEffectTargets?.(ids);
+  };
 
   useEffect(() => {
     const { doc: first, palette: look } = latest.current;
@@ -61,6 +73,7 @@ export function Scene({ doc, palette, reducedMotion, onRoot }: SceneProps) {
     setHandle(made);
     made.ready.then(
       () => {
+        reportTargets(made);
         invalidate();
       },
       (error: unknown) => {
@@ -76,8 +89,10 @@ export function Scene({ doc, palette, reducedMotion, onRoot }: SceneProps) {
   }, [renderer, clock, still, invalidate]);
 
   useEffect(() => {
-    live.current?.update(doc).then(
+    const current = live.current;
+    current?.update(doc).then(
       () => {
+        reportTargets(current);
         invalidate();
       },
       (error: unknown) => {
