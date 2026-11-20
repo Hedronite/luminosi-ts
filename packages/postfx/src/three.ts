@@ -1,7 +1,7 @@
 import { neutral, type ScenePalette } from "@hedronite/lts-tokens";
 import type { z } from "zod";
-import { convertToTexture, pass } from "three/tsl";
-import { CanvasTexture, DataTexture, LinearFilter, MathUtils, RedFormat, RenderPipeline, Vector2, type Camera, type Node, type Scene, type Texture, type TextureNode, type WebGPURenderer } from "three/webgpu";
+import { convertToTexture, pass, viewportOpaqueMipTexture } from "three/tsl";
+import { CanvasTexture, DataTexture, LinearFilter, MathUtils, RedFormat, RenderPipeline, TextureNode, Vector2, ViewportTextureNode, type Camera, type Node, type RenderTarget, type Scene, type Texture, type WebGPURenderer } from "three/webgpu";
 import { orderStack, screenEffectSchemas, type ScreenEffectConfig, type ScreenEffectId } from "./effects.js";
 import { inksFor, type InkOptions, type Inks } from "./inks.js";
 import { crtNode, floatUniform, grainNode, inkUniforms, printNode, smokeField, smokeNode, vec2Uniform, writeInks, type CrtUniforms, type FloatUniform, type InkUniforms, type PrintUniforms } from "./nodes.js";
@@ -105,6 +105,18 @@ function writeStatic(u: PrintUniforms, settings: PrintSettings): void {
   u.grain.value = v.uGrain;
   u.ditherPx.value = v.uDitherPx;
   u.asciiPx.value = v.uAsciiPx;
+}
+
+/**
+ * A glass (transmission) material reads what is behind it from a copy of the frame, and three keeps one shared node for that
+ * (`viewportOpaqueMipTexture`) that makes a framebuffer texture for every render target it is drawn into and never frees it. A
+ * pipeline's scene pass has a target of its own, so every pipeline built over a glass node left one texture on the renderer for good.
+ * Frees the copy made for `target`, the one this pipeline's scene pass drew into; a target that never drew a glass node has none, and nothing is made.
+ */
+function freeViewportCopy(target: RenderTarget): void {
+  const sample = viewportOpaqueMipTexture();
+  const shared = sample instanceof TextureNode ? sample.referenceNode : null;
+  if (shared instanceof ViewportTextureNode) shared.getTextureForReference(target).dispose();
 }
 
 /**
@@ -347,6 +359,7 @@ export class ScreenEffects {
     for (const texture of this.textures) texture.dispose();
     for (const target of this.targets) target.dispose();
     this.pipeline.dispose();
+    freeViewportCopy(this.scenePass.renderTarget);
     this.scenePass.dispose();
   }
 }
