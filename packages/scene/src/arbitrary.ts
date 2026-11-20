@@ -4,7 +4,8 @@ import { readFileSync } from "node:fs";
 import fc from "fast-check";
 import { z } from "zod";
 import type { RefKind, Resolve } from "./refs.js";
-import { inkModes, parseScene, type Scene, type SceneNode, type SceneResult } from "./schema.js";
+import { addNode, removeNode, setEffects, setInk, setLights, setLook, setSurface, setTransform, type TransformChange } from "./edit.js";
+import { inkModes, parseScene, type Scene, type SceneEffect, type SceneLook, type SceneNode, type SceneResult, type SceneSurface } from "./schema.js";
 
 const none = z.object({});
 
@@ -110,6 +111,9 @@ const nodes = fc
     return built.map((node, index) => ({ node, order: drafts[index]?.key ?? 0, index })).sort((x, y) => x.order - y.order || x.index - y.index).map(({ node }) => node);
   });
 
+/** Screen effect stacks the small catalog takes: each effect once, in any order. */
+const effectStacks: fc.Arbitrary<SceneEffect[]> = fc.shuffledSubarray([{ id: "dither", params: { cell: 4 } }, { id: "grain" }]);
+
 /** Valid documents that pass `checkRefs` against `resolve`. */
 export const scenes: fc.Arbitrary<Scene> = fc.record({
   format: fc.constant("lts-scene" as const),
@@ -123,7 +127,7 @@ export const scenes: fc.Arbitrary<Scene> = fc.record({
   lights: fc.record({ rig: fc.constant("studio" as const), intensity: fc.double({ min: 0, max: 10, noNaN: true }) }),
   environment: fc.constant({ kind: "studio" as const }),
   camera: fc.record({ position: vec3, target: vec3, fov: fc.double({ min: 1, max: 179, noNaN: true }) }),
-  effects: fc.subarray([{ id: "dither", params: { cell: 4 } }, { id: "grain" }]),
+  effects: effectStacks,
   ink: fc.constantFrom(...inkModes),
 });
 
@@ -144,4 +148,57 @@ export const currentFixtures = ["v1", "primitives-in-materials", "framed-solid-s
 export function sceneOf(result: SceneResult): Scene {
   if (!result.ok) throw new Error(JSON.stringify(result.issues));
   return result.scene;
+}
+
+/** One edit of a document, as a name and what it does to a document: made by `editsOf`, run by the tests. */
+export interface Edit {
+  readonly name: string;
+  readonly run: (scene: Scene) => SceneResult;
+}
+
+const looks: fc.Arbitrary<SceneLook> = fc.oneof(fc.constant("neutral"), fc.record({ base: hex, accent: hex, metal: hex, glass: hex, emissive: hex }));
+const transforms: fc.Arbitrary<TransformChange> = fc.record({ position: vec3, rotation: vec3, scale: vec3 }, { requiredKeys: [] });
+const concreteSurface: fc.Arbitrary<SceneSurface> = fc.oneof(
+  fc.constantFrom("glass", "metal").map((material): SceneSurface => ({ material })),
+  fc.integer({ min: 2, max: 8 }).map((bands): SceneSurface => ({ shader: "toon", params: { bands } })),
+);
+
+/** A node id that none of `taken` has. */
+function freshId(taken: readonly string[], seed: number): string {
+  let id = `added-${String(seed)}`;
+  while (taken.includes(id)) id += "x";
+  return id;
+}
+
+/**
+ * Edits that suit a document, each with valid arguments: a node of the catalog added under one that is there (or at the root),
+ * a node removed, moved or given a surface (not an object, which takes none), an effect stack, an ink, a light and a look.
+ */
+export function editsOf(scene: Scene): fc.Arbitrary<Edit> {
+  const ids = scene.nodes.map((node) => node.id);
+  const surfaced = scene.nodes.filter((node) => node.asset.kind !== "object").map((node) => node.id);
+  const parents: fc.Arbitrary<string | null> = ids.length === 0 ? fc.constant(null) : fc.option(fc.constantFrom(...ids), { nil: null });
+  const choices: fc.Arbitrary<Edit>[] = [
+    fc.record({ asset, surface, position: vec3, rotation: vec3, scale: vec3, parent: parents, seed: fc.nat() }).map(
+      ({ asset: drafted, surface: chosen, position, rotation, scale, parent, seed }): Edit => ({
+        name: "addNode",
+        run: (current) =>
+          addNode(current, { id: freshId(current.nodes.map((node) => node.id), seed), parent, position, rotation, scale, asset: drafted, ...(chosen === undefined || drafted.kind === "object" ? {} : { surface: chosen }) }),
+      }),
+    ),
+    effectStacks.map((stack): Edit => ({ name: "setEffects", run: (current) => setEffects(current, stack) })),
+    fc.constantFrom(...inkModes).map((ink): Edit => ({ name: "setInk", run: (current) => setInk(current, ink) })),
+    fc.double({ min: 0, max: 10, noNaN: true }).map((intensity): Edit => ({ name: "setLights", run: (current) => setLights(current, { intensity }) })),
+    looks.map((look): Edit => ({ name: "setLook", run: (current) => setLook(current, look) })),
+  ];
+  if (ids.length > 0) {
+    choices.push(
+      fc.constantFrom(...ids).map((id): Edit => ({ name: "removeNode", run: (current) => removeNode(current, id) })),
+      fc.tuple(fc.constantFrom(...ids), transforms).map(([id, change]): Edit => ({ name: "setTransform", run: (current) => setTransform(current, id, change) })),
+    );
+  }
+  if (surfaced.length > 0) {
+    choices.push(fc.tuple(fc.constantFrom(...surfaced), fc.option(concreteSurface, { nil: undefined })).map(([id, chosen]): Edit => ({ name: "setSurface", run: (current) => setSurface(current, id, chosen) })));
+  }
+  return fc.oneof(...choices);
 }

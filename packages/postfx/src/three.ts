@@ -76,6 +76,13 @@ function glyphAtlas(ramp: string): Texture {
   return atlas;
 }
 
+/** The `uuid` of each texture of the render target a pass or a texture node owns; none for a node that owns no target. */
+function textureIds(owner: object): string[] {
+  const target: unknown = Reflect.get(owner, "renderTarget");
+  const held: unknown = typeof target === "object" && target !== null ? Reflect.get(target, "textures") : undefined;
+  return Array.isArray(held) ? held.flatMap((texture: unknown) => (typeof texture === "object" && texture !== null && "uuid" in texture && typeof texture.uuid === "string" ? [texture.uuid] : [])) : [];
+}
+
 /** One print pass's clocks, and the uniforms they drive. `members` are the effects it does the work of. */
 interface PrintState {
   readonly uniforms: PrintUniforms;
@@ -142,6 +149,8 @@ export class ScreenEffects {
   private readonly reduced: boolean;
   /** The pass that draws the scene, with the render target it owns: freed by `dispose`. */
   private readonly scenePass: ReturnType<typeof pass>;
+  /** The `uuid` of every render-target texture this pipeline holds, read once from the objects it built (see `targetIds`). */
+  private readonly held: readonly string[];
 
   constructor(renderer: WebGPURenderer, scene: Scene, camera: Camera, stack: readonly ScreenEffectConfig[], options: ScreenEffectsOptions = {}) {
     this.renderer = renderer;
@@ -221,6 +230,16 @@ export class ScreenEffects {
     this.targets = targets;
     this.passes = passes;
     this.pipeline = new RenderPipeline(renderer, output);
+    this.held = [this.scenePass, ...this.targets].flatMap(textureIds);
+  }
+
+  /**
+   * The `uuid` of every render-target texture this pipeline holds: the scene pass's own, the smoke field's, and the targets between passes.
+   * A build gives it new ones and nothing else does (a parameter, a palette and a size are written into what is already there), so a
+   * counter that keeps every uuid it has seen counts builds of the pipeline. Read-only; it reads the objects and never a name.
+   */
+  get targetIds(): readonly string[] {
+    return this.held;
   }
 
   /** The speed the smoke's clock runs at. */

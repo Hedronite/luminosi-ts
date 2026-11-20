@@ -202,6 +202,7 @@ Small slices left open by earlier waves, each its own PR.
 - [x] Root typecheck: `e2e/` and the config files are checked by the root typecheck (#59)
 - [x] Identity counter: every 3D stage publishes `data-builds`, the distinct meshes and materials it has ever attached, and the panel and looks specs assert it flat, so a remount that keeps the program count fails them (#65)
 - [x] Headroom: no CI unit test near the 5 s default, lint passes under Node's default heap as four runs over disjoint files, and the playground tests live in their own spec and wait on the stage's counters, not on timers, so they hold under load (#71)
+- [x] Effect, island and memory counters: every effects stage publishes `data-effect-builds` (the render-target textures its screen-effect pipeline has ever held), the site island publishes `data-builds`, and every catalog stage and the island publish `data-geometries`, `data-textures` and `data-targets` from the renderer's memory report (#70)
 - [ ] CI shards balanced by run time, not by file count
 - [ ] Icon packs as data: each pack is a data entry the catalog and `lumin` read, not code
 

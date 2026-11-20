@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
-import { expect, test } from "./fixtures.js";
+import { counted, effectBuilds, expect, settledBuilds, test } from "./fixtures.js";
 
 const errorsOn = (page: Page): string[] => {
   const errors: string[] = [];
@@ -110,6 +110,104 @@ for (const [id, name] of [
     expect(errors).toEqual([]);
   });
 }
+
+// Each test below is one short page: a runner that draws in software takes most of a minute for a long one.
+
+/** The Effects tab, drawn, with its pipeline built: the stage and what its pipeline holds. */
+async function effectsStage(page: Page) {
+  await page.goto("/?view=effects");
+  const stage = page.getByTestId("effects-stage");
+  await expect(stage).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 15000 });
+  return { stage, built: await settledBuilds(stage, "data-effect-builds") };
+}
+
+test("a pause, a look and an ink leave the effect pipeline's targets alone", async ({ page }) => {
+  const errors = errorsOn(page);
+  const { stage, built } = await effectsStage(page);
+  // Held, recolored and re-inked: new values written into the passes that are there.
+  await page.getByRole("button", { name: "Pause motion" }).click();
+  await expect(page.getByRole("button", { name: "Resume motion" })).toBeVisible();
+  await page.getByRole("button", { name: "Resume motion" }).click();
+  await page.getByLabel("Look").selectOption("hedronite");
+  await expect(page.locator("html")).toHaveAttribute("data-preset", "hedronite");
+  await page.getByLabel("Ink", { exact: true }).selectOption("accent");
+  const frames = await counted(stage, "data-frames");
+  await expect.poll(() => counted(stage, "data-frames"), { message: "a frame after the look and the ink" }).toBeGreaterThan(frames);
+  await page.waitForTimeout(600);
+  expect(await effectBuilds(stage), "effect builds after a pause, a look and an ink").toBe(built);
+  expect(errors).toEqual([]);
+});
+
+test("an effect added to the stack, and one taken off, each build a new pipeline", async ({ page }) => {
+  const errors = errorsOn(page);
+  const { stage, built } = await effectsStage(page);
+  await page.getByRole("checkbox", { name: "Dither" }).check();
+  await expect.poll(() => effectBuilds(stage), { message: "effect builds after an effect is added", timeout: 30_000 }).toBeGreaterThan(built);
+  const added = await settledBuilds(stage, "data-effect-builds");
+  await page.getByRole("checkbox", { name: "Dither" }).uncheck();
+  await expect.poll(() => effectBuilds(stage), { message: "effect builds after an effect is removed", timeout: 30_000 }).toBeGreaterThan(added);
+  expect(errors).toEqual([]);
+});
+
+test("a forced remount builds the effect pipeline again", async ({ page }) => {
+  const errors = errorsOn(page);
+  const { stage, built } = await effectsStage(page);
+  // The view goes away and comes back, and the stage builds its pipeline again: the count keeps what it held, and adds the new targets.
+  const views = page.getByRole("navigation", { name: "Views" });
+  await views.getByRole("button", { name: "Playground" }).click();
+  await expect(stage).toHaveCount(0);
+  await views.getByRole("button", { name: "Effects", exact: true }).click();
+  await expect.poll(() => effectBuilds(page.getByTestId("effects-stage")), { message: "effect builds after a remount", timeout: 30_000 }).toBeGreaterThan(built);
+  expect(errors).toEqual([]);
+});
+
+test("a screen effect's parameter edit moves it in place", async ({ page }) => {
+  const errors = errorsOn(page);
+  await page.goto("/?asset=dither");
+  const dialog = page.getByRole("dialog", { name: "Dither" });
+  const host = dialog.getByTestId("viewport");
+  await expect(host).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 15000 });
+  const built = await settledBuilds(host, "data-effect-builds");
+  const cell = dialog.getByRole("region", { name: "Parameters", exact: true }).getByRole("spinbutton", { name: "Cell", exact: true });
+  const setCell = async (value: string): Promise<void> => {
+    const frames = await counted(host, "data-frames");
+    await cell.fill(value);
+    await expect.poll(() => counted(host, "data-frames"), { message: `a frame after Cell ${value}` }).toBeGreaterThan(frames);
+    await page.waitForTimeout(500);
+    expect(await effectBuilds(host), `effect builds after Cell ${value}`).toBe(built);
+  };
+  await setCell("9");
+  await setCell("5");
+  expect(errors).toEqual([]);
+});
+
+test("a new ASCII ramp, which is built into the effect, makes a new pipeline", async ({ page }) => {
+  const errors = errorsOn(page);
+  await page.goto("/?asset=ascii");
+  const ascii = page.getByRole("dialog", { name: "ASCII" });
+  const host = ascii.getByTestId("viewport");
+  await expect(host).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 15000 });
+  const built = await settledBuilds(host, "data-effect-builds");
+  const ramp = ascii.getByRole("region", { name: "Parameters", exact: true }).getByRole("textbox", { name: "Ramp", exact: true });
+  await ramp.fill(" .:#");
+  await ramp.press("Enter");
+  await expect.poll(() => effectBuilds(host), { message: "effect builds after a new ramp", timeout: 30_000 }).toBeGreaterThan(built);
+  expect(errors).toEqual([]);
+});
+
+test("every stage publishes the renderer's memory counts, and an effects stage its effect builds", async ({ page }) => {
+  await page.goto("/?view=effects");
+  const stage = page.getByTestId("effects-stage");
+  await expect(stage).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 15000 });
+  await Promise.all(["data-geometries", "data-textures", "data-targets", "data-effect-builds"].map((attribute) => expect(stage).toHaveAttribute(attribute, /^\d+$/)));
+  // The WebGPU renderer counts its render targets: the scene pass and the stack's own are there.
+  await expect.poll(() => counted(stage, "data-targets"), { message: "render targets in use" }).toBeGreaterThan(0);
+  await expect.poll(() => counted(stage, "data-geometries"), { message: "geometries in use" }).toBeGreaterThan(0);
+  await page.goto("/?asset=metal");
+  const viewport = page.getByRole("dialog", { name: "Metal" }).getByTestId("viewport");
+  await Promise.all(["data-geometries", "data-textures", "data-targets"].map((attribute) => expect(viewport).toHaveAttribute(attribute, /^\d+$/)));
+  await expect(viewport).not.toHaveAttribute("data-effect-builds", /.*/);
+});
 
 test("the playground combines framed solids, objects and screen effects, and exports them", async ({ page }) => {
   const errors = errorsOn(page);
