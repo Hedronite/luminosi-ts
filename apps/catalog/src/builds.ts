@@ -20,19 +20,18 @@ export function noteBuilds(root: Object3D, seen: Set<string>): void {
   });
 }
 
-/** A keyed family of sets that live outside React, so a stage that is mounted again (its Canvas, or anything above it) keeps counting where it was. */
+/**
+ * A keyed family of sets that live outside React, so a stage that is mounted again (its Canvas, or anything above it, or the host
+ * element itself) keeps counting where it was. The key is the host's `data-testid`: an element has no identity that outlives its
+ * mount, so a host without one could only be counted from zero each time, and the count would go down. It is an error, not a quiet reset.
+ */
 function family(): (host: Pick<HTMLElement, "dataset">) => Set<string> {
   const byStage = new Map<string, Set<string>>();
-  const byElement = new WeakMap<object, Set<string>>();
   return (host) => {
     const name = host.dataset["testid"];
-    if (name !== undefined) {
-      const held = byStage.get(name) ?? new Set<string>();
-      byStage.set(name, held);
-      return held;
-    }
-    const held = byElement.get(host) ?? new Set<string>();
-    byElement.set(host, held);
+    if (name === undefined) throw new Error("a stage reports its counts onto a host with a data-testid: this host has none");
+    const held = byStage.get(name) ?? new Set<string>();
+    byStage.set(name, held);
     return held;
   };
 }
@@ -49,6 +48,17 @@ export const buildsOf = family();
  * removed, a ramp changed, a remount) adds its targets; a parameter, an ink and a pause add none.
  */
 export const effectBuildsOf = family();
+
+/**
+ * Adds the render-target textures of a pipeline the stage has just built to the stage's `effectBuildsOf` set. A host that is not
+ * there cannot be counted onto, and the targets are not dropped quietly: it is an error (the host holds the Canvas, so it is mounted
+ * whenever one of its passes reports).
+ */
+export function noteEffectTargets(host: Pick<HTMLElement, "dataset"> | null, ids: readonly string[]): void {
+  if (host === null) throw new Error("a screen-effect pipeline was built on a stage whose host is not mounted: its targets would go uncounted");
+  const seen = effectBuildsOf(host);
+  for (const id of ids) seen.add(id);
+}
 
 /**
  * What the renderer itself reports it holds, from `info.memory`: geometries, textures and render targets. The WebGPU renderer counts
