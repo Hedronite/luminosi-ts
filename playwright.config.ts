@@ -113,7 +113,8 @@ export default defineConfig<ConsoleOptions>({
     ? [
         {
           name: "webgpu",
-          testMatch: "webgpu.spec.ts",
+          // The WebGPU spec, and the playground memory guard, which holds the renderer's own counts, render targets among them, flat.
+          testMatch: ["webgpu.spec.ts", "memory.spec.ts"],
           // The real GPU through Metal, with WebGPU switched on: three's WebGPU renderer must find an adapter, not fall back to WebGL 2.
           // Not the software path the default project uses: a SwiftShader adapter would pass for the wrong reason, so the spec also
           // refuses a software adapter (SwiftShader, LLVM, or one that reports itself as a fallback).
