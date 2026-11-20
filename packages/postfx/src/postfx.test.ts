@@ -3,8 +3,8 @@ import { contrastRatio, hedronite, neutral } from "@hedronite/lts-tokens";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { orderStack, screenEffectIds, screenEffectInfo, screenEffectSchemas } from "./effects.js";
-import { texture } from "three/tsl";
-import { PerspectiveCamera, Scene, Texture, Vector2, WebGPURenderer } from "three/webgpu";
+import { texture, viewportOpaqueMipTexture } from "three/tsl";
+import { PerspectiveCamera, Scene, Texture, TextureNode, Vector2, ViewportTextureNode, WebGPURenderer } from "three/webgpu";
 import { crtNode, floatUniform as uniform, grainNode, inkUniforms, printNode, smokeField, smokeNode, vec2Uniform, writeInks, type PrintUniforms } from "./nodes.js";
 import { inksFor, mixHex } from "./inks.js";
 import { manifest } from "./manifest.js";
@@ -206,6 +206,24 @@ describe("screen effects", () => {
     expect(second.targetIds.filter((id) => held.includes(id))).toEqual([]);
     expect(third.targetIds.length).toBeGreaterThan(second.targetIds.length);
     for (const runner of [first, second, third]) runner.dispose();
+  });
+
+  it("frees the copy of the frame that glass keeps for its scene pass's target, so every build leaves nothing on the renderer once it is disposed", () => {
+    // A glass (transmission) material reads the frame through one node three shares, which makes a framebuffer texture for each target it is drawn into and never frees it.
+    const sample = viewportOpaqueMipTexture();
+    const shared = sample instanceof TextureNode ? sample.referenceNode : null;
+    if (!(shared instanceof ViewportTextureNode)) throw new Error("three's shared viewport node is not where it was");
+    const freed: string[] = [];
+    const copies = [0, 1, 2].map(() => {
+      const runner = build([{ id: "dither" }, { id: "grain" }]);
+      // What a frame drawn through a glass node makes for this pipeline's scene pass.
+      const copy = shared.getTextureForReference(runner["scenePass"].renderTarget);
+      copy.addEventListener("dispose", () => freed.push(copy.uuid));
+      runner.dispose();
+      return copy.uuid;
+    });
+    expect(new Set(copies).size).toBe(3);
+    expect(freed).toEqual(copies);
   });
 
   it("writes parameters into the uniforms without rebuilding the pipeline", () => {
