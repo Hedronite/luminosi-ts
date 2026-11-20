@@ -150,7 +150,8 @@ export const Broken = () => (
       expect(Array.isArray(rows) && rows.length).toBeGreaterThan(3);
       expect(JSON.stringify(rows)).toContain('"fg":"fg-muted","bg":"surface"');
       expect(JSON.stringify(rows)).toMatch(/"of":[1-9]\d/);
-    });
+      // One run that starts `bun` twice and reads every UI file: 2.57 to 3.12 s on CI (2.80 to 2.93 s on main), so three times the largest reading, rounded up to 5 s.
+    }, 10_000);
 
     it("scope works against HEAD", () => {
       expect(runSkill("lumin-ui", ["scope", "--against", "HEAD"]).envelope.ok).toBe(true);

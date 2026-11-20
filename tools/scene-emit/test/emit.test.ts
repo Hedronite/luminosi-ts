@@ -58,7 +58,7 @@ describe("emitted code", () => {
     const run = check(good, files);
     expect(run.output).toBe("");
     expect(run.passed).toBe(true);
-  }, 240_000);
+  }, 30_000);
 
   it("type-checks for every fixture document, as plain three.js", () => {
     const files = new Map(documents().map(([name, scene]) => [`${name}.vanilla.ts`, toVanilla(scene)] as const));
@@ -66,7 +66,7 @@ describe("emitted code", () => {
     const run = check(good, files);
     expect(run.output).toBe("");
     expect(run.passed).toBe(true);
-  }, 240_000);
+  }, 30_000);
 
   /** A document that names an id of each kind that the packages do not have. */
   const planted = () =>
@@ -90,11 +90,11 @@ describe("emitted code", () => {
     const vanilla = check(bad, new Map([["bad.vanilla.ts", toVanilla(planted())]]));
     expect(vanilla.passed).toBe(false);
     expect(vanilla.output).toMatch(/platonic-cuboid/);
-  }, 240_000);
+  }, 30_000);
 
   it("fails to type-check React when the document names an id the packages do not have", () => {
     const tsx = check(bad, new Map([["bad.tsx", toTsx(planted())]]));
     expect(tsx.passed).toBe(false);
     expect(tsx.output).toMatch(/platonic-cuboid|chrome/);
-  }, 240_000);
+  }, 30_000);
 });
