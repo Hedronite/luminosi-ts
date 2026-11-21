@@ -96,7 +96,9 @@ test("an inline document and a src document each reach ready on the backend this
       await expect(host).toHaveAttribute("role", "img");
       const names = ["frames", "builds", "geometries", "textures", "targets", "programs"];
       const counters = await Promise.all(names.map((name) => count(host, name)));
-      names.forEach((name, at) => expect(Number.isInteger(counters[at]), `data-${name} on #${id}`).toBe(true));
+      names.forEach((name, at) => {
+        expect(Number.isInteger(counters[at]), `data-${name} on #${id}`).toBe(true);
+      });
       expect(await count(host, "builds")).toBeGreaterThan(0);
       expect(await count(host, "frames")).toBeGreaterThan(0);
     }),
@@ -259,8 +261,9 @@ test("twenty cycles of disconnecting and connecting leave the renderer holding w
     /** Takes an element out of the page and puts it back where it was; says what the renderer held when its scene was freed and what state the element was in. */
     const cycle = async (id: string): Promise<{ leftovers: string | null; state: string | null }> => {
       const element = document.querySelector(`#${id}`);
-      const parent = element?.parentElement;
-      if (element === null || element === undefined || parent === null || parent === undefined) throw new Error(`no element #${id}`);
+      if (element === null) throw new Error(`no element #${id}`);
+      const parent = element.parentElement;
+      if (parent === null) throw new Error(`#${id} has no parent`);
       const next = element.nextSibling;
       element.remove();
       const left = { leftovers: element.getAttribute("data-leftovers"), state: element.getAttribute("data-state") };
