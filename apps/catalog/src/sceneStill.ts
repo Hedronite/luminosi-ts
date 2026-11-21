@@ -222,11 +222,21 @@ function side(name: string, value: number | undefined): number {
 /** A property of an object of unknown shape, getters on its prototype included (a WebGPU adapter's `info` is one), or undefined. */
 const read = (value: unknown, key: string): unknown => (typeof value === "object" && value !== null && key in value ? Reflect.get(value, key) : undefined);
 
+/** An adapter's own description of itself (`vendor architecture device description`, whichever it gives), or undefined. */
+function describeAdapter(info: unknown): string | undefined {
+  const described = ["vendor", "architecture", "device", "description"].flatMap((key) => {
+    const part = read(info, key);
+    return typeof part === "string" && part !== "" ? [part] : [];
+  });
+  return described.length === 0 ? undefined : described.join(" ");
+}
+
 /**
  * Which renderer drew the frames, as text: the adapter's own description for the WebGPU backend, and for the WebGL 2 fallback the driver's
- * (`ANGLE (… SwiftShader …)` is the software path). It is read from the backend the renderer chose, never assumed from a flag.
+ * (`ANGLE (… SwiftShader …)` is the software path). It is read from the backend the renderer chose, never assumed from a flag; the WebGPU
+ * adapter is the one the renderer's device came from, or, where the renderer keeps neither, the one the browser gives to a request.
  */
-function rendererName(renderer: WebGPURenderer): string {
+async function rendererName(renderer: WebGPURenderer): Promise<string> {
   const backend = read(renderer, "backend");
   const gl = read(backend, "gl");
   if (gl instanceof WebGL2RenderingContext) {
@@ -234,12 +244,11 @@ function rendererName(renderer: WebGPURenderer): string {
     const name: unknown = info === null ? gl.getParameter(gl.RENDERER) : gl.getParameter(info.UNMASKED_RENDERER_WEBGL);
     return `webgl2: ${typeof name === "string" ? name : "unknown"}`;
   }
-  const info = read(read(backend, "adapter"), "info");
-  const described = ["vendor", "architecture", "device", "description"].flatMap((key) => {
-    const part = read(info, key);
-    return typeof part === "string" && part !== "" ? [part] : [];
-  });
-  return `webgpu: ${described.length === 0 ? "unknown" : described.join(" ")}`;
+  const requested: unknown = read(navigator, "gpu");
+  const request: unknown = read(requested, "requestAdapter");
+  const asked: unknown = typeof request === "function" ? await Reflect.apply(request, requested, []) : undefined;
+  const found = describeAdapter(read(read(backend, "adapter"), "info")) ?? describeAdapter(read(read(backend, "device"), "adapterInfo")) ?? describeAdapter(read(asked, "info"));
+  return `webgpu: ${found ?? "unknown"}`;
 }
 
 /** What the page offers a caller in document mode. */
@@ -298,7 +307,7 @@ export function mountDocumentStill(root: HTMLElement, link: string | null, size:
       await nextAnimationFrame();
       stage.dataset["frames"] = String(frame);
     }
-    const name = rendererName(renderer);
+    const name = await rendererName(renderer);
     stage.dataset["renderer"] = name;
     stage.dataset["time"] = (FRAMES * STEP).toFixed(2);
     stage.dataset["still"] = "ready";
