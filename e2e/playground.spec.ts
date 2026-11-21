@@ -543,3 +543,25 @@ test.describe("free transforms", () => {
     expect(await effectBuilds(host), "effect builds after the undo").toBe(pipelines);
   });
 });
+
+test("the code the playground shows carries the credits of the work it uses once they have loaded, and the JSON has none", async ({ page }) => {
+  await page.goto("/?view=playground");
+  const react = page.getByRole("region", { name: "React export" }).locator("code");
+  const vanilla = page.getByRole("region", { name: "Vanilla export" }).locator("code");
+  const json = page.getByRole("region", { name: "JSON export" }).locator("code");
+  // Our own look uses no one else's work: the code has no header, and it is shown only after the credits chunk has loaded.
+  await expect(react).toContainText("<WebGPUCanvas camera=");
+  await expect(vanilla).toContainText("createPolyhedronGeometry(");
+  await expect(react).not.toContainText("the work of others");
+  await expect(vanilla).not.toContainText("the work of others");
+  // A look that is someone's work is credited in both, as comment lines and as data, and in neither is the JSON changed.
+  await page.getByLabel("Look").selectOption("tokyo-night");
+  await expect(react).toContainText("// This scene uses the work of others, credited here:");
+  await expect(react).toContainText("// - tokyo-night (look)");
+  await expect(react).toContainText("export const credits = [");
+  await expect(vanilla).toContainText("// - tokyo-night (look)");
+  await expect(vanilla).toContainText("export const credits = [");
+  await expect(json).not.toContainText("the work of others");
+  await page.getByLabel("Look").selectOption("hedronite");
+  await expect(react).not.toContainText("the work of others");
+});

@@ -1,5 +1,5 @@
 import type { Scene, SceneNode } from "../schema.js";
-import { assetScale, forest, importLine, literal, lookSource, names, num, type Entry } from "./common.js";
+import { assetScale, creditExport, creditHeader, forest, importLine, literal, lookSource, names, num, type Entry, type EmitOptions } from "./common.js";
 
 const isShader = (node: SceneNode): boolean => node.surface !== undefined && "shader" in node.surface;
 
@@ -59,9 +59,12 @@ function nodes(entries: readonly Entry[]): readonly string[] {
  * The document as plain three.js: one module that exports `build(renderer)`, made from the libraries' `./three`
  * builders and nothing of this package. It returns the scene, the camera, a `ready` promise (objects build
  * asynchronously), `render(delta)` and `dispose`. Equal documents give equal text. A node is a group named by its
- * id, held in a numbered variable and never used as a name or a key, so any id is safe.
+ * id, held in a numbered variable and never used as a name or a key, so any id is safe. Given `credits` (what `creditsFor`
+ * finds), the module opens with a `//` line for each and exports them as `credits`; given none, the text is as it was before
+ * credits existed.
  */
-export function toVanilla(scene: Scene): string {
+export function toVanilla(scene: Scene, options: EmitOptions = {}): string {
+  const credits = options.credits ?? [];
   const entries = forest(scene);
   const look = lookSource(scene.look);
   const drawn = entries.map(({ node }) => node);
@@ -77,6 +80,7 @@ export function toVanilla(scene: Scene): string {
   const stack = `[${scene.effects.map((effect) => `{ id: ${JSON.stringify(effect.id)}, params: screenEffectSchemas[${JSON.stringify(effect.id)}].parse(${literal(effect.params ?? {})}) }`).join(", ")}]`;
   return [
     "// Generated from a scene document: change the document and generate this again.",
+    ...creditHeader(credits),
     ...(framed ? [importLine("{ materialPreset }", "@hedronite/lts-materials")] : []),
     ...(materials ? [importLine("{ createMaterial }", "@hedronite/lts-materials/three")] : []),
     ...(objects ? [importLine("{ descriptors }", "@hedronite/lts-objects/descriptors")] : []),
@@ -91,6 +95,7 @@ export function toVanilla(scene: Scene): string {
     importLine("{ PMREMGenerator, type WebGPURenderer }", "three/webgpu"),
     "",
     ...look.lines,
+    ...(credits.length === 0 ? [] : ["", ...creditExport(credits)]),
     ...(objects ? ["", "const objects = new Map(descriptors.map((descriptor) => [descriptor.meta.id, descriptor]));"] : []),
     "",
     "export interface Options {",

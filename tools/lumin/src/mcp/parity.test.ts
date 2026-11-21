@@ -44,7 +44,8 @@ const fieldsOf = (row: Operation): readonly string[] => Object.keys(z.toJSONSche
 
 /** A row's input as words for the command line: the positional fields in the row's order, then each other field as a flag. */
 function argvOf(row: Operation, input: Json): readonly string[] {
-  const positionals = row.positional.map((name) => String(input[name]));
+  // Only the positionals the input has: a field left out is no argument, so the command line says what the tool says.
+  const positionals = row.positional.filter((name) => Object.hasOwn(input, name)).map((name) => String(input[name]));
   const flags = Object.entries(input)
     .filter(([name]) => !row.positional.includes(name))
     .flatMap(([name, value]) => (value === true ? [`--${name}`] : [`--${name}`, String(value)]));

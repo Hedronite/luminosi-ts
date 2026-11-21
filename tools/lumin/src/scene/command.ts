@@ -6,7 +6,7 @@ import { fail, type Envelope } from "../envelope.js";
 import { nodeContext } from "./io.js";
 import { operationNamed, operations, type Operation } from "./table.js";
 
-const usage = `scene operations: ${operations.map((operation) => operation.name).join(" | ")}. Each takes a document as a path, or - for stdin: scene validate FILE | scene diff A B | scene patch FILE --ops JSON [--out PATH --force] | scene export FILE --as tsx|vanilla|json|link [--out PATH --force]`;
+const usage = `scene operations: ${operations.map((operation) => operation.name).join(" | ")}. Each takes a document as a path, or - for stdin: scene validate FILE | scene diff A B | scene patch FILE --ops JSON [--out PATH --force] | scene export FILE --as tsx|vanilla|json|link [--no-credits (tests only) --out PATH --force] | scene credits FILE | scene render FILE --out PNG [--width N --height N --gpu --force]`;
 
 /** The row's input fields, and which are booleans (the others take a value). */
 function fieldsOf(operation: Operation): { readonly names: readonly string[]; readonly booleans: ReadonlySet<string> } {
@@ -15,10 +15,13 @@ function fieldsOf(operation: Operation): { readonly names: readonly string[]; re
   return { names: Object.keys(properties), booleans: new Set(Object.entries(properties).filter(([, property]) => typeof property === "object" && property.type === "boolean").map(([name]) => name)) };
 }
 
+/** The flag that fills a field: its name in kebab case, so the field noCredits is --no-credits. */
+export const flagOf = (field: string): string => field.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+
 /** The input a row is given from the words after its name: positionals in the row's order, then flags by field name. */
 export function inputFromArgs(operation: Operation, args: readonly string[]): { readonly ok: true; readonly input: Record<string, unknown> } | { readonly ok: false; readonly error: string } {
   const { names, booleans } = fieldsOf(operation);
-  const options: NonNullable<ParseArgsConfig["options"]> = Object.fromEntries(names.map((name) => [name, { type: booleans.has(name) ? ("boolean" as const) : ("string" as const) }]));
+  const options: NonNullable<ParseArgsConfig["options"]> = Object.fromEntries(names.map((name) => [flagOf(name), { type: booleans.has(name) ? ("boolean" as const) : ("string" as const) }]));
   let parsed;
   try {
     parsed = parseArgs({ args: [...args], allowPositionals: true, options });
@@ -27,10 +30,13 @@ export function inputFromArgs(operation: Operation, args: readonly string[]): { 
   }
   if (parsed.positionals.length > operation.positional.length) return { ok: false, error: `scene ${operation.name} takes ${operation.positional.length === 0 ? "no positional arguments" : operation.positional.join(" ")}; unexpected "${parsed.positionals[operation.positional.length] ?? ""}"` };
   const input: Record<string, unknown> = {};
-  for (const [name, value] of Object.entries(parsed.values)) if (value !== undefined) input[name] = value;
+  for (const name of names) {
+    const value = parsed.values[flagOf(name)];
+    if (value !== undefined) input[name] = value;
+  }
   for (const [index, value] of parsed.positionals.entries()) {
     const name = operation.positional[index] ?? "";
-    if (name in input) return { ok: false, error: `${name} is given twice, as an argument and as --${name}` };
+    if (name in input) return { ok: false, error: `${name} is given twice, as an argument and as --${flagOf(name)}` };
     input[name] = value;
   }
   return { ok: true, input };

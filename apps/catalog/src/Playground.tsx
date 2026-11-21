@@ -20,6 +20,7 @@ import { Controls, GpuCounts, StageClock, StageFrame, useMotion } from "./scene"
 import { describeIssue, fileNameFor, linkFor, openFile, openLink, sceneParam, stemOf, type Opened } from "./sceneFile";
 import { useShaderClock } from "./shaderClock";
 import { TransformPanel } from "./TransformPanel";
+import { useCredits } from "./useCredits";
 
 const field = "rounded-lg border border-line bg-surface px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-accent";
 
@@ -176,11 +177,17 @@ export function Playground() {
   // What is drawn and exported: the document, in the look the viewer is in.
   const shown = useMemo<SceneDocument>(() => ({ ...doc, look: preset.id }), [doc, preset.id]);
   const json = useMemo(() => toCanonicalJson(shown), [shown]);
-  const exports = useMemo(() => [
-    { label: "JSON export", code: json },
-    { label: "React export", code: toTsx(shown) },
-    { label: "Vanilla export", code: toVanilla(shown) },
-  ], [json, shown]);
+  // The code carries the credits of the work it uses (the same list `lumin scene credits` gives). They load in a chunk of their own when this view opens, and
+  // the React and vanilla code is not shown before they are here: code shown without them would leave out what it owes, and so would a copy of it.
+  const credits = useCredits();
+  const exports = useMemo<readonly { readonly label: string; readonly code: string | undefined }[]>(() => {
+    const options = credits.status === "ready" ? { credits: credits.creditsOf(shown) } : undefined;
+    return [
+      { label: "JSON export", code: json },
+      { label: "React export", code: options === undefined ? undefined : toTsx(shown, options) },
+      { label: "Vanilla export", code: options === undefined ? undefined : toVanilla(shown, options) },
+    ];
+  }, [json, shown, credits]);
   // The link for what the exports show, made for exactly that text (a link made for an earlier edit is never offered); null when it would be too long for a link.
   const [shared, setShared] = useState<{ readonly json: string; readonly link: string | null } | undefined>(undefined);
   const shareLink = shared?.json === json ? shared.link : undefined;
@@ -613,11 +620,17 @@ export function Playground() {
             <section key={snippet.label} aria-label={snippet.label}>
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-medium">{snippet.label}</h3>
-                <CopyButton text={snippet.code} what={snippet.label} />
+                {snippet.code === undefined ? null : <CopyButton text={snippet.code} what={snippet.label} />}
               </div>
-              <pre className="mt-2 whitespace-pre-wrap break-all rounded-lg bg-surface-raised p-3 text-xs">
-                <code>{snippet.code}</code>
-              </pre>
+              {snippet.code === undefined ? (
+                <p className="mt-2 rounded-lg bg-surface-raised p-3 text-xs text-fg-muted" role={credits.status === "failed" ? "alert" : "status"}>
+                  {credits.status === "failed" ? "The credits that go with this code could not be loaded, so it is not shown: code that uses the work of others should say so. Reload to try again." : "Loading the credits that go with this code…"}
+                </p>
+              ) : (
+                <pre className="mt-2 whitespace-pre-wrap break-all rounded-lg bg-surface-raised p-3 text-xs">
+                  <code>{snippet.code}</code>
+                </pre>
+              )}
             </section>
           ))}
         </div>

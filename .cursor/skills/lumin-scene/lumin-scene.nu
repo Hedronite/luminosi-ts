@@ -1,10 +1,12 @@
 #!/usr/bin/env nu
-# Deterministic body for the lumin-scene skill: validate, diff, patch and export LuminosiTS scene documents.
+# Deterministic body for the lumin-scene skill: validate, diff, patch, export, credits and render LuminosiTS scene documents.
 # Wraps `bun tools/lumin/src/cli.ts scene …` and prints the CLI's envelope exactly as the CLI printed it (the same bytes).
 #   validate  lumin scene validate FILE
 #   diff      lumin scene diff A B
 #   patch     lumin scene patch FILE --ops=JSON [--out=PATH --force]
 #   export    lumin scene export FILE --as=tsx|vanilla|json|link [--out=PATH --force]
+#   credits   lumin scene credits FILE
+#   render    lumin scene render FILE --out=PNG [--width=N --height=N --gpu]
 # FILE is a path, or - for stdin (the CLI reads it: pipe the document in).
 
 def repo-root [] { $env.FILE_PWD | path dirname | path dirname | path dirname }
@@ -72,7 +74,17 @@ def "main export" [document?: string, --as: string = "", --out: string = "", --f
   finish "export" ((given [$document]) ++ (opt "as" $as) ++ (opt "out" $out) ++ (flag "force" $force))
 }
 
+# The credits of the work a document uses (assets, screen effects, the look): label, work, source, pin, license, credit.
+def "main credits" [document?: string] {
+  finish "credits" (given [$document])
+}
+
+# Draw a document to a PNG with the catalog's own renderer (software GL; --gpu for the machine's GPU). Needs a build.
+def "main render" [document?: string, --out: string = "", --width: string = "", --height: string = "", --gpu] {
+  finish "render" ((given [$document]) ++ (opt "out" $out) ++ (opt "width" $width) ++ (opt "height" $height) ++ (flag "gpu" $gpu))
+}
+
 def main [] {
-  print ({ ok: false, command: "lumin-scene", error: "usage: nu lumin-scene.nu (validate|diff|patch|export) …", kind: "usage", exit: 2 } | to json --raw)
+  print ({ ok: false, command: "lumin-scene", error: "usage: nu lumin-scene.nu (validate|diff|patch|export|credits|render) …", kind: "usage", exit: 2 } | to json --raw)
   exit 2
 }

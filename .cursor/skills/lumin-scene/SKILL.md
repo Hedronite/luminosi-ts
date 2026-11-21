@@ -3,8 +3,8 @@ name: lumin-scene
 description: >
   Check, compare, edit and export LuminosiTS scene documents (`lts-scene` JSON): validate a document with the
   path of every problem and the closest ids for an unknown one, diff two documents by node id, patch one with
-  the package's edit operations, and export it as React code, a vanilla module, canonical JSON or a share
-  link. Use it instead of reading a scene file by eye or hand-editing its JSON. The primary agent path to a scene.
+  the package's edit operations, export it as React code, a vanilla module, canonical JSON or a share
+  link, list the credits of the work it uses, and render it to a PNG. Use it instead of reading a scene file by eye or hand-editing its JSON. The primary agent path to a scene.
 ---
 
 # lumin-scene
@@ -18,6 +18,8 @@ nu lumin-scene.nu validate scene.json                          # valid, version,
 nu lumin-scene.nu diff a.json b.json                           # same, complete, changes keyed by node id, ops, unexpressed
 nu lumin-scene.nu patch scene.json --ops '[{"op":"setInk","ink":"accent"}]' [--out new.json] [--force]
 nu lumin-scene.nu export scene.json --as tsx [--out Scene.tsx]    # tsx | vanilla | json | link
+nu lumin-scene.nu credits scene.json                           # label, work, source, pin, license, credit
+nu lumin-scene.nu render scene.json --out scene.png [--width 512 --height 512 --gpu]   # needs a build
 cat scene.json | nu lumin-scene.nu validate -
 ```
 

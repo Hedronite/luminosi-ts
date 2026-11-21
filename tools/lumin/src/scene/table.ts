@@ -5,7 +5,7 @@ import { z } from "zod";
 import { fail, type Envelope } from "../envelope.js";
 import { opNames } from "./edits.js";
 import { MAX_DOCUMENT_BYTES, type Context } from "./io.js";
-import { diff, exportKinds, exportScene, patch, validate } from "./ops.js";
+import { credits, diff, exportKinds, exportScene, patch, validate } from "./ops.js";
 import { MAX_SIDE, renderOperation } from "./render.js";
 
 /** What a call needs beyond reading: nothing, a browser to render with, or permission to write a file. */
@@ -104,11 +104,26 @@ export const operations: readonly Operation[] = [
   row({
     name: "export",
     summary: "Write a document as React code, a vanilla module, canonical JSON or a share link.",
-    input: z.strictObject({ document, as: z.enum(exportKinds).describe("tsx, vanilla, json or link"), out, force }),
+    input: z.strictObject({
+      document,
+      as: z.enum(exportKinds).describe("tsx, vanilla, json or link"),
+      noCredits: z.boolean().optional().describe("leave the credits out of tsx or vanilla code; for tests only, since code that uses the work of others should say so"),
+      out,
+      force,
+    }),
     positional: ["document"],
     readOnly: false,
     needs: "write",
     run: exportScene,
+  }),
+  row({
+    name: "credits",
+    summary: "The work of others a document uses (looks, assets, materials, shaders, effects that came from vendored work): what it is, where it lives, at what pin, under which license, and whose it is. Exported code carries the same list.",
+    input: z.strictObject({ document }),
+    positional: ["document"],
+    readOnly: true,
+    needs: "none",
+    run: credits,
   }),
   row({
     name: "render",

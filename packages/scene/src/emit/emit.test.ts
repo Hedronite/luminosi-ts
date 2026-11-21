@@ -1,5 +1,11 @@
+/// <reference types="node" />
+import { runInNewContext } from "node:vm";
+import type { Credit } from "@hedronite/lts-core";
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 import { currentFixtures, fixtureScene } from "../arbitrary.js";
+import { assetCredit, creditsFor, lookCredit } from "../credits.js";
+import type { Resolve } from "../refs.js";
 import { sceneSchema, type Scene, type SceneNode } from "../schema.js";
 import { toTsx, toVanilla } from "./index.js";
 
@@ -170,5 +176,155 @@ describe("toVanilla", () => {
     const code = toVanilla(sceneOf([cube("a", null, { surface: { shader: "toon", params: { bands: 4 } } })]));
     expect(code).toContain("options.clock === undefined ? {} : { clock: options.clock }");
     expect(code).not.toContain("uniform(");
+  });
+});
+
+describe("credits in emitted code", () => {
+  const crt = assetCredit({ id: "crt", kind: "effect", origin: { vendor: "threeui", relation: "ported", path: "src/shaders/crt/crtShaders.ts" } });
+  const look = lookCredit("catppuccin");
+  const real = crt === undefined || look === undefined ? [] : [look, crt];
+  // The characters that end a line in JavaScript (and a few that only look like it), written by code so this file holds none of them.
+  const [LS, PS, NEL, NUL] = [String.fromCharCode(0x2028), String.fromCharCode(0x2029), String.fromCharCode(0x85), String.fromCharCode(0)] as const;
+  const hostile: Credit = {
+    subject: "evil",
+    kind: "effect",
+    relation: "adopted",
+    work: `A work\nimport { pwn } from "evil";\r\nwith breaks`,
+    source: `https://example.com/a${LS}b`,
+    pin: `abc${PS}def */ alert(1) /*`,
+    license: `MIT${NEL}${NUL}x`,
+    licenseUrl: "https://example.com/license\nmore",
+    credit: "Someone\rElse\n// and more",
+    path: "src/work.ts",
+  };
+  const emitters = [
+    ["toTsx", toTsx],
+    ["toVanilla", toVanilla],
+  ] as const;
+
+  it("has the credits of a CRT scene in a look that is credited: crt and catppuccin are both there", () => {
+    expect(real).toHaveLength(2);
+  });
+
+  it.each(emitters)("%s: a scene with no credits gives the text it always gave, however none are given", (_name, emit) => {
+    for (const name of currentFixtures) {
+      const scene = fixtureScene(name);
+      const plain = emit(scene);
+      expect(emit(scene, {})).toBe(plain);
+      expect(emit(scene, { credits: [] })).toBe(plain);
+      expect(emit(scene, { credits: undefined })).toBe(plain);
+      expect(plain).not.toContain("credits");
+      expect(plain.split("\n")[1]).toMatch(/^import /);
+    }
+  });
+
+  it.each(emitters)("%s: writes one // line for each credit under the generated line, and exports them as data", (_name, emit) => {
+    const text = emit(fixtureScene("object-effects-ink"), { credits: real });
+    const lines = text.split("\n");
+    const header = lines.slice(1, lines.findIndex((line) => line.startsWith("import ")));
+    expect(header).toHaveLength(real.length + 1);
+    expect(header.every((line) => line.startsWith("//"))).toBe(true);
+    expect(header[1]).toContain("catppuccin (look) ported:");
+    expect(header[2]).toContain("crt (effect) ported:");
+    for (const credit of real) {
+      const line = header.find((candidate) => candidate.includes(`${credit.subject} (${credit.kind})`)) ?? "";
+      for (const field of [credit.work, credit.source, credit.pin, credit.license, credit.credit]) expect(line).toContain(field);
+    }
+    expect(text).toContain("export const credits = [");
+    expect(lines.filter((line) => line.startsWith("  { credit: ")).length).toBe(real.length);
+    expect(text).toContain(`subject: ${JSON.stringify(real[1]?.subject)}`);
+  });
+
+  it.each(emitters)("%s: a line break, a separator or a */ in a credit cannot end the comment or start code", (_name, emit) => {
+    for (const name of currentFixtures) {
+      const text = emit(fixtureScene(name), { credits: [hostile] });
+      const lines = text.split(new RegExp(`\r\n|[\n\r${LS}${PS}${NEL}]`));
+      const firstImport = lines.findIndex((line) => line.startsWith("import "));
+      expect(lines.slice(1, firstImport)).toHaveLength(2);
+      expect(lines.slice(0, firstImport).every((line) => line.startsWith("//"))).toBe(true);
+      expect(text).not.toContain("\nimport { pwn }");
+      // What the credit said is data: one literal each, with its breaks escaped.
+      expect(text).toContain(JSON.stringify(hostile.work));
+    }
+  });
+
+  it("an emitted module's credits are the creditsFor of the scene, the same text in both emitters", () => {
+    const scene = fixtureScene("object-effects-ink");
+    const tsx = toTsx(scene, { credits: real });
+    const vanilla = toVanilla(scene, { credits: real });
+    const block = (text: string): string => text.slice(text.indexOf("export const credits = ["), text.indexOf("] as const;"));
+    expect(block(tsx)).toBe(block(vanilla));
+    expect(tsx.split("\n").slice(1, 4)).toEqual(vanilla.split("\n").slice(1, 4));
+  });
+});
+
+describe("credited code is code, and its credits are the scene's", () => {
+  const crt = assetCredit({ id: "crt", kind: "effect", origin: { vendor: "threeui", relation: "ported", path: "src/shaders/crt/crtShaders.ts" } });
+  const resolve: Resolve = (kind, id) => {
+    const credit = kind === "look" ? lookCredit(id) : kind === "effect" && id === "crt" ? crt : undefined;
+    return credit === undefined ? {} : { credit };
+  };
+  const scene = sceneSchema.parse({ ...fixtureScene("object-effects-ink"), look: "catppuccin", effects: [{ id: "crt" }] });
+  const [LS, PS] = [String.fromCharCode(0x2028), String.fromCharCode(0x2029)] as const;
+  const hostile: Credit = {
+    subject: "evil",
+    kind: "effect",
+    relation: "inspired",
+    work: `A work\nexport const pwned = true;\r\n*/ ${LS} ${PS}`,
+    source: "https://example.com/work",
+    pin: "abc */ def /* ghi",
+    license: "MIT",
+    credit: "Someone\n// else",
+    path: "src/work.ts",
+  };
+  const emitters = [
+    ["toTsx", toTsx, "scene.tsx"],
+    ["toVanilla", toVanilla, "scene.ts"],
+  ] as const;
+
+  /** The syntax diagnostics of a module as TypeScript transpiles it: a comment broken open or a literal broken shut shows here. */
+  const diagnostics = (source: string, fileName: string): readonly string[] =>
+    (ts.transpileModule(source, { fileName, reportDiagnostics: true, compilerOptions: { target: ts.ScriptTarget.ES2023, module: ts.ModuleKind.ESNext, jsx: ts.JsxEmit.ReactJSX } }).diagnostics ?? []).map((diagnostic) => ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n"));
+
+  /** The value of the module's `credits` export, read from the source and evaluated alone (the rest of the module needs the libraries), or undefined where there is none. */
+  function creditsOf(source: string): unknown {
+    const file = ts.createSourceFile("module.ts", source, ts.ScriptTarget.ES2023, true);
+    for (const statement of file.statements) {
+      if (!ts.isVariableStatement(statement)) continue;
+      const declaration = statement.declarationList.declarations.find((candidate) => candidate.name.getText(file) === "credits");
+      if (declaration?.initializer === undefined) continue;
+      const value = ts.isAsExpression(declaration.initializer) ? declaration.initializer.expression : declaration.initializer;
+      const evaluated: unknown = runInNewContext(`(${value.getText(file)})`);
+      return JSON.parse(JSON.stringify(evaluated));
+    }
+    return undefined;
+  }
+
+  it("has the credits of the scene to check: the CRT screen and the look", () => {
+    expect(creditsFor(scene, resolve).map(({ subject }) => subject)).toEqual(["catppuccin", "crt"]);
+  });
+
+  it.each(emitters)("%s: the module transpiles with no diagnostics, and its credits export is what creditsFor gives", (_name, emit, fileName) => {
+    const credits = creditsFor(scene, resolve);
+    const text = emit(scene, { credits });
+    expect(diagnostics(text, fileName)).toEqual([]);
+    expect(creditsOf(text)).toEqual(JSON.parse(JSON.stringify(credits)));
+  });
+
+  it.each(emitters)("%s: a credit that tries to break out of its comment still transpiles clean, and comes back whole", (_name, emit, fileName) => {
+    for (const name of currentFixtures) {
+      const text = emit(fixtureScene(name), { credits: [hostile] });
+      expect(diagnostics(text, fileName)).toEqual([]);
+      expect(creditsOf(text)).toEqual([hostile]);
+      expect(text).not.toMatch(/^export const pwned/m);
+    }
+  });
+
+  it.each(emitters)("%s: with no credits there is no credits export, and it transpiles as it did", (_name, emit, fileName) => {
+    for (const name of currentFixtures) {
+      const text = emit(fixtureScene(name));
+      expect(diagnostics(text, fileName)).toEqual([]);
+      expect(creditsOf(text)).toBeUndefined();
+    }
   });
 });
