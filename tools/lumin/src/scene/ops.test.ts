@@ -432,12 +432,10 @@ describe("export", () => {
       expect(data(await call("export", { document: fixture(name), as: "vanilla" }))["text"]).toBe(toVanilla(scene));
     });
 
-    it("does not change canonical JSON or a link: they have nowhere for a credit to go", async () => {
+    it.each(["json", "link"] as const)("does not change %s: it has nowhere for a credit to go", async (as) => {
       const document = creditedDocument();
-      for (const as of ["json", "link"] as const) {
-        const plain = data(await call("export", { document, as }))["text"];
-        expect(data(await call("export", { document, as, noCredits: true }))["text"]).toBe(plain);
-      }
+      const plain = data(await call("export", { document, as }))["text"];
+      expect(data(await call("export", { document, as, noCredits: true }))["text"]).toBe(plain);
     });
 
     it("writes the credited code to --out", async () => {
