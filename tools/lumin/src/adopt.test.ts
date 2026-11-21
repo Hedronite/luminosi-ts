@@ -2,7 +2,8 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { loadRegistry } from "@hedronite/lts-registry";
-import { digestOf } from "tool-vendor/pin";
+import { digestOf, readPin } from "tool-vendor/pin";
+import { originProblem } from "tool-vendor/policy";
 import { resolveVendor } from "tool-vendor/resolve";
 import { afterAll, describe, expect, it } from "vitest";
 import { adopt, adoptSkill, licenseFor, portingSteps, study, upstreamSkillFiles } from "./adopt.js";
@@ -145,17 +146,22 @@ const put = (dir: string, files: Readonly<Record<string, string>>): void => {
   }
 };
 
+/** What the fixture folder's pin says: its font is OFL (showcase-only), its pictures are CC0, the rest MIT. */
+const LICENSES = [{ spdx: "OFL-1.1", paths: ["src/fonts/**", "skills/fixture-font/**"] }, { spdx: "CC0-1.0", paths: ["src/art/**"] }, { spdx: "MIT", remainder: true }];
+
 const SHADER = 'import * as THREE from "three";\nexport const crt = (uv: number) => uv * 2;\n';
 const SKILL = "---\nname: fixture-skill\ndescription: A skill.\n---\nDo the thing.\n";
 
 /** A repository with one fetchable folder `demo` (CREDIT.md, a license, a pin) and, per the options, raw files in it, a cache, or neither. */
-function repository(options: { readonly raw?: boolean; readonly cached?: boolean; readonly kept?: boolean }) {
+function repository(options: { readonly raw?: boolean; readonly cached?: boolean; readonly kept?: boolean; readonly licensed?: boolean; readonly unruled?: boolean }) {
   const base = mkdtempSync(join(tmpdir(), "lumin-resolver-"));
   scratchRoots.push(base);
   const vendor = join(base, "assets/vendor");
   const home = join(vendor, "demo");
   const cache = join(base, "cache");
-  const files = { "src/crt.ts": SHADER, "skills/fixture/SKILL.md": SKILL };
+  const plain = { "src/crt.ts": SHADER, "skills/fixture/SKILL.md": SKILL };
+  const licensed = { "src/fonts/face.ts": "export const face = 1;\n", "src/art/art.ts": "export const art = 1;\n", "skills/fixture-font/SKILL.md": SKILL.replace("fixture-skill", "font-skill"), "skills/fixture-font/face.ts": "export const f = 1;\n" };
+  const files = options.licensed === true ? { ...plain, ...licensed } : plain;
   put(home, { "CREDIT.md": "# Credit\n\n- **What:** Demo: a fixture\n- **Source:** https://github.com/someone/demo (`0123456789abcdef0123456789abcdef01234567`)\n- **License:** MIT (`LICENSE`)\n- **Credit:** Someone\n- **Pulled:** 2026-11\n", LICENSE: "MIT license text\n" });
   const content = mkdtempSync(join(tmpdir(), "lumin-resolver-content-"));
   scratchRoots.push(content);
@@ -164,8 +170,8 @@ function repository(options: { readonly raw?: boolean; readonly cached?: boolean
   if (options.raw === true) put(home, files);
   const pin =
     options.kept === true
-      ? { schema: 1, kept: true, keptReason: "there is no repository to fetch from", source: "https://example.com/", contentHash: digestOf(home, true).hash }
-      : { schema: 1, kept: false, sources: [{ source: "https://github.com/someone/demo", commit: "0123456789abcdef0123456789abcdef01234567" }], contentHash };
+      ? { schema: 1, kept: true, keptReason: "there is no repository to fetch from", source: "https://example.com/", contentHash: digestOf(home, true).hash, licenses: LICENSES }
+      : { schema: 1, kept: false, sources: [{ source: "https://github.com/someone/demo", commit: "0123456789abcdef0123456789abcdef01234567" }], contentHash, ...(options.unruled === true ? {} : { licenses: LICENSES }) };
   put(home, { "vendor.json": `${JSON.stringify(pin)}\n` });
   if (options.cached === true) {
     put(join(cache, "demo"), { ...files, LICENSE: "MIT license text\n" });
@@ -220,5 +226,65 @@ describe("study, adopt and adopt-skill read raw files through the resolver", () 
   it("reads a kept folder where it is in the repository", () => {
     const world = repository({ kept: true, raw: true });
     expect(study("demo/src", {}, { vendorDir: world.vendor, env: world.env })).toMatchObject({ ok: true, data: { vendor: "demo", files: 1 } });
+  });
+});
+
+// ---- the license gate -------------------------------------------------------------------------------------------------
+
+describe("the license gate", () => {
+  const gated = (options: { readonly unruled?: boolean } = {}) => {
+    const world = repository({ cached: true, licensed: true, ...options });
+    return { world, context: { root: world.base, vendorDir: world.vendor, env: world.env, registry } };
+  };
+  const plan = (context: ReturnType<typeof gated>["context"], path: string) => adopt(path, { as: "effect", id: "fixture-gate", dryRun: true }, context);
+
+  it("refuses a port from a showcase-only path with license_gate and the rule that applied, writing nothing even without --dry-run", () => {
+    const { world, context } = gated();
+    const refused = adopt("demo/src/fonts/face.ts", { as: "effect", id: "fixture-gate", dryRun: false }, context);
+    const words: unknown = expect.stringMatching(/is under OFL-1\.1, which is showcase-only: .*font/);
+    expect(refused).toMatchObject({ ok: false, kind: "license_gate", exit: 1, error: words, data: { vendor: "demo", path: "src/fonts/face.ts", rule: { spdx: "OFL-1.1", class: "showcase-only", covers: "src/fonts/**, skills/fixture-font/**" } } });
+    expect(existsSync(join(world.base, ".adopt/fixture-gate"))).toBe(false);
+  });
+
+  it("refuses a folder that holds a showcase-only file, because what is ported is what is under it", () => {
+    const { context } = gated();
+    expect(plan(context, "demo/src")).toMatchObject({ ok: false, kind: "license_gate", data: { rule: { spdx: "OFL-1.1" } } });
+  });
+
+  it("plans a port from an adopt path with no attribution asked, and from an adopt-with-attribution path with the credit header required", () => {
+    const { context } = gated();
+    const art = plan(context, "demo/src/art/art.ts");
+    expect(art).toMatchObject({ ok: true, data: { attribution: false, licenses: [{ spdx: "CC0-1.0", class: "adopt", files: 1 }] } });
+    const mit = plan(context, "demo/src/crt.ts");
+    expect(mit).toMatchObject({ ok: true, data: { attribution: true, licenses: [{ spdx: "MIT", class: "adopt-with-attribution", files: 1 }] } });
+    if (!mit.ok || typeof mit.data !== "object" || mit.data === null || !("header" in mit.data)) throw new Error("no plan");
+    expect(String(mit.data.header)).toContain("adopted from");
+  });
+
+  it("holds adopt-skill to the same table", () => {
+    const { world } = gated();
+    const context = { root: world.base, vendorDir: world.vendor, env: world.env };
+    expect(adoptSkill("demo/skills/fixture-font", { dryRun: true }, context)).toMatchObject({ ok: false, kind: "license_gate", data: { rule: { spdx: "OFL-1.1", class: "showcase-only" } } });
+    expect(adoptSkill("demo/skills/fixture", { dryRun: true }, context)).toMatchObject({ ok: true, data: { attribution: true, licenses: [{ spdx: "MIT", files: 1 }] } });
+    expect(existsSync(join(world.base, ".agents/skills/font-skill"))).toBe(false);
+  });
+
+  it("refuses a path no license rule covers, and a folder whose pin has no licenses", () => {
+    const { context } = gated({ unruled: true });
+    const words: unknown = expect.stringContaining("has no license rule");
+    expect(plan(context, "demo/src/crt.ts")).toMatchObject({ ok: false, kind: "license_gate", error: words });
+  });
+
+  it("on the real folders: refuses a font of threeui, plans the CRT shader and a skill with attribution", () => {
+    const real = { root, vendorDir, env: process.env, registry };
+    expect(adopt("threeui/src/shaders/fonts/fragment-mono.woff2", { as: "shader", id: "fixture-font", dryRun: true }, real)).toMatchObject({ ok: false, kind: "license_gate", data: { rule: { spdx: "OFL-1.1", class: "showcase-only" } } });
+    expect(adopt("threeui/src/shaders/crt/crtShaders.ts", { as: "effect", id: "crt-gate", dryRun: true }, real)).toMatchObject({ ok: true, data: { attribution: true, licenses: [{ spdx: "MIT" }] } });
+    expect(adoptSkill("jakubkrehel-skills/skills/better-ui", { dryRun: true }, { root, vendorDir, env: process.env })).toMatchObject({ ok: true, data: { attribution: true } });
+  });
+
+  it("holds every asset's origin to its folder's rules: a port or adoption from an adoptable path, inspired work not from a forbidden one", () => {
+    const origins = registry.list().flatMap((asset) => (asset.origin === undefined ? [] : [asset.origin]));
+    expect(origins.length).toBeGreaterThanOrEqual(2);
+    for (const origin of origins) expect(originProblem(readPin(vendorDir, origin.vendor), origin), `${origin.vendor}/${origin.path}`).toBeUndefined();
   });
 });

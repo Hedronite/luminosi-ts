@@ -59,6 +59,11 @@ taken and what changed. Take the technique, never the dressing: no brand names, 
 other third-party text or marks. Check with `nu ../lumin-check/lumin-check.nu`; `adopt.test.ts` fails if an
 origin names a vendored file that is missing or has no license.
 
+`adopt` and `skill` check the license of every file they would copy against the policy (`tools/vendor/src/policy.ts`),
+through the folder's `vendor.json`. A file under a showcase-only license (a font, a screenshot of someone else's scene) or a
+forbidden one, or under none, is refused with `kind: license_gate` and the rule that applied: it may be studied, never ported.
+Where the license asks for a credit the plan says `attribution: true`, and its header is then required above the port.
+
 ## Skills
 
 `skill` copies a vendored skill folder into `.agents/skills/NAME` as published, with the folder's license

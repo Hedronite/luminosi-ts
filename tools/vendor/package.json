@@ -8,7 +8,8 @@
     "./parse": "./src/parse.ts",
     "./pin": "./src/pin.ts",
     "./fetch": "./src/fetch.ts",
-    "./resolve": "./src/resolve.ts"
+    "./resolve": "./src/resolve.ts",
+    "./policy": "./src/policy.ts"
   },
   "scripts": {
     "generate": "bun src/vendor.ts generate",

@@ -13,5 +13,49 @@
       ]
     }
   ],
-  "contentHash": "b53bebefc09fcefc51c9a817063173dad1f9818005147d0414d4ef7dd6939f80"
+  "contentHash": "b53bebefc09fcefc51c9a817063173dad1f9818005147d0414d4ef7dd6939f80",
+  "licenses": [
+    {
+      "spdx": "CC0-1.0",
+      "paths": [
+        "showcase/museum/assets/**",
+        "showcase/daylight-home/assets/**"
+      ]
+    },
+    {
+      "spdx": "LicenseRef-PublicDomain",
+      "paths": [
+        "showcase/moon-phases/assets/**"
+      ]
+    },
+    {
+      "spdx": "LicenseRef-ThirdPartyScreenshots",
+      "paths": [
+        "docs/img/**",
+        "docs/images/**"
+      ]
+    },
+    {
+      "spdx": "MIT OR Apache-2.0",
+      "paths": [
+        "renderer/third_party/glamx/**"
+      ]
+    },
+    {
+      "spdx": "Apache-2.0",
+      "paths": [
+        "renderer/third_party/parry3d/**"
+      ]
+    },
+    {
+      "spdx": "MIT",
+      "paths": [
+        "tools/city/**"
+      ]
+    },
+    {
+      "spdx": "MIT",
+      "remainder": true
+    }
+  ]
 }

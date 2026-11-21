@@ -12,5 +12,11 @@
       ]
     }
   ],
-  "contentHash": "14fc2819da6b74c68c0f22b230e0c4b0d690da27da03d3c2836bd8ac46b7c9a1"
+  "contentHash": "14fc2819da6b74c68c0f22b230e0c4b0d690da27da03d3c2836bd8ac46b7c9a1",
+  "licenses": [
+    {
+      "spdx": "MIT",
+      "remainder": true
+    }
+  ]
 }

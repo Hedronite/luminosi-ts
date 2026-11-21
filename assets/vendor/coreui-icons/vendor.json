@@ -12,5 +12,17 @@
       ]
     }
   ],
-  "contentHash": "753818a8b8a2bb41020246fa817a96ff7bf7c5801510a94fa217bf5ebf8e5727"
+  "contentHash": "753818a8b8a2bb41020246fa817a96ff7bf7c5801510a94fa217bf5ebf8e5727",
+  "licenses": [
+    {
+      "spdx": "CC-BY-4.0",
+      "paths": [
+        "svg/**"
+      ]
+    },
+    {
+      "spdx": "MIT",
+      "remainder": true
+    }
+  ]
 }
