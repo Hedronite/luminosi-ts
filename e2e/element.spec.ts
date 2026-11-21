@@ -113,25 +113,30 @@ test("an inline document and a src document each reach ready on the backend this
 });
 
 test("the canvas replaces the poster only after the first frame is drawn", async ({ page }) => {
+  // Sampled on every animation frame from the start: whether the canvas is shown, how many frames the element has drawn, and its state.
   await page.addInitScript(() => {
     const log: LogRow[] = [];
     window.__elementLog = log;
-    new MutationObserver(() => {
+    const sample = (): void => {
       const host = document.querySelector("lts-scene");
-      if (host === null) return;
-      log.push({ state: host.getAttribute("data-state"), canvas: host.shadowRoot?.querySelector("canvas")?.style.visibility ?? null, frames: host.getAttribute("data-frames") });
-    }).observe(document, { subtree: true, attributes: true, attributeFilter: ["data-state"] });
+      const canvas = host?.shadowRoot?.querySelector("canvas");
+      const state = host?.getAttribute("data-state") ?? null;
+      if (host !== null && canvas !== null && canvas !== undefined) log.push({ state, canvas: canvas.style.visibility, frames: host.getAttribute("data-frames") });
+      if (state !== "ready") requestAnimationFrame(sample);
+    };
+    requestAnimationFrame(sample);
   });
   await page.goto("/element.html?only=src");
   await ready(page.locator("#src"));
   const rows = await page.evaluate(() => window.__elementLog ?? []);
-  const states = rows.map((row) => row.state);
-  expect(states).toContain("loading");
-  expect(states[states.length - 1]).toBe("ready");
+  expect(rows.length, "the samples saw the canvas").toBeGreaterThan(1);
   const last = rows[rows.length - 1];
+  expect(last?.state).toBe("ready");
   expect(last?.canvas).toBe("visible");
   expect(Number(last?.frames), "frames drawn when the canvas was shown").toBeGreaterThan(0);
-  expect(rows.slice(0, -1).filter((row) => row.canvas === "visible"), "a canvas shown before ready").toEqual([]);
+  // The canvas exists from the moment the renderer starts and stays hidden until the first frame is drawn: never shown with no frame behind it.
+  expect(rows.filter((row) => row.canvas === "visible" && !(Number(row.frames) > 0)), "a canvas shown before its first frame").toEqual([]);
+  expect(rows.some((row) => row.canvas === "hidden"), "the samples saw the canvas hidden while it was built").toBe(true);
 });
 
 test("under reduced motion it draws the rest pose once and asks for no animation frames, and follows the setting live", async ({ page }) => {
