@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "kept": false,
+  "sources": [
+    {
+      "source": "https://github.com/elayadesign/ai-design-skills",
+      "commit": "456d9e0d3e2d84c748bb143c6ca3d90c45e16213",
+      "include": [
+        "skills/landing-page-design/**",
+        "README.md",
+        "LICENSE"
+      ]
+    }
+  ],
+  "contentHash": "14fc2819da6b74c68c0f22b230e0c4b0d690da27da03d3c2836bd8ac46b7c9a1"
+}

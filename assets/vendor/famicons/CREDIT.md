@@ -7,3 +7,5 @@
 - **Pulled:** 2026-08
 
 Vendored into LuminosiTS as published. The license above applies to this folder, not LuminosiTS's own.
+
+Kept as published: only `src/svg/*.svg`, `readme.md` and `LICENSE`.

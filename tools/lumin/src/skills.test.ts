@@ -250,6 +250,45 @@ export const Broken = () => (
     }, 20_000);
   });
 
+  describe("lumin-adopt: the vendor commands, offline", () => {
+    // A cache of its own and an empty one: nothing is fetched, and the calls below touch no network (a refused ask, and a verify of nothing).
+    const empty = mkdtempSync(join(tmpdir(), "lumin-vendor-cache-"));
+    afterAll(() => {
+      rmSync(empty, { recursive: true, force: true });
+    });
+    const env = { ...process.env, LTS_VENDOR_CACHE: empty };
+    const cli = (args: readonly string[]) => spawnSync("bun", [join(root, "tools/lumin/src/cli.ts"), ...args], { cwd: root, encoding: "utf8", env });
+    const viaSkill = (args: readonly string[]) => spawnSync("nu", [join(canon, "lumin-adopt/lumin-adopt.nu"), ...args], { cwd: root, encoding: "utf8", env });
+
+    it.each([
+      ["fetch of a folder that is not pinned", ["vendor", "fetch", "no-such-folder"], ["fetch", "no-such-folder"], 1, "unknown_vendor", "no-such-folder"],
+      ["verify of a folder that is not fetched", ["vendor", "verify", "lucide"], ["verify", "lucide"], 1, "not_fetched", "bun run vendor:fetch lucide"],
+    ] as const)("%s: the same bytes and the same exit through the skill and the command line", (_name, cliArgs, skillArgs, code, kind, hint) => {
+      const direct = cli(cliArgs);
+      expect(direct.status).toBe(code);
+      expect(JSON.parse(direct.stdout)).toMatchObject({ ok: false, kind, exit: code });
+      expect(direct.stdout).toContain(hint);
+      const wrapped = viaSkill(skillArgs);
+      expect(wrapped.status).toBe(code);
+      expect(wrapped.stdout).toBe(direct.stdout);
+    }, 30_000);
+
+    it.each([
+      ["an unknown vendor action", ["vendor", "sync"]],
+      ["no vendor action", ["vendor"]],
+    ] as const)("%s is a usage error with exit 2", (_name, cliArgs) => {
+      const direct = cli(cliArgs);
+      expect(direct.status).toBe(2);
+      expect(JSON.parse(direct.stdout)).toMatchObject({ ok: false, kind: "usage", exit: 2 });
+    }, 30_000);
+
+    it("the skill with no subcommand says there are fetch and verify among them", () => {
+      const result = viaSkill([]);
+      expect(result.status).toBe(2);
+      expect(result.stdout).toContain("fetch | verify");
+    }, 30_000);
+  });
+
   it("lumin-check runs one step and reports it", () => {
     const { code, envelope } = runSkill("lumin-check", ["--only", "icons:check"]);
     expect(code).toBe(0);

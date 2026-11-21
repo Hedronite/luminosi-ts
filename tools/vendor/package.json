@@ -5,13 +5,19 @@
   "license": "MIT OR Apache-2.0",
   "type": "module",
   "exports": {
-    "./parse": "./src/parse.ts"
+    "./parse": "./src/parse.ts",
+    "./pin": "./src/pin.ts",
+    "./fetch": "./src/fetch.ts",
+    "./resolve": "./src/resolve.ts"
   },
   "scripts": {
     "generate": "bun src/vendor.ts generate",
     "check": "bun src/vendor.ts check",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "catalog:"
   },
   "devDependencies": {
     "vitest": "catalog:"

@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "kept": false,
+  "sources": [
+    {
+      "source": "https://github.com/iamtechartist/geometry-in-flux",
+      "commit": "da187f6316c7ee18b8f1b60bbb5363be2aec40c2",
+      "into": "geometry-in-flux"
+    },
+    {
+      "source": "https://github.com/iamtechartist/bioluminescence",
+      "commit": "2dc70cfd855704c1a8385f606e82f41505fdd5e9",
+      "into": "bioluminescence"
+    },
+    {
+      "source": "https://github.com/iamtechartist/Threejs-3D-Webpage",
+      "commit": "d827a2a409abc44ff35b4965e3d3aadfbe66278a",
+      "into": "threejs-3d-webpage"
+    }
+  ],
+  "contentHash": "05cd79317de478eee1fee830875fc14bb833af3222ce98c6af8d0e644a0e2871"
+}

@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "kept": false,
+  "sources": [
+    {
+      "source": "https://github.com/coreui/coreui-icons",
+      "commit": "88d1cfc47fc3cc84114de2a01b04db11a941bdf9",
+      "include": [
+        "svg/free/*.svg",
+        "README.md",
+        "LICENSE"
+      ]
+    }
+  ],
+  "contentHash": "753818a8b8a2bb41020246fa817a96ff7bf7c5801510a94fa217bf5ebf8e5727"
+}

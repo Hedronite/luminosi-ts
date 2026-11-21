@@ -7,7 +7,7 @@ import { parseArgs } from "node:util";
 import { boundaries, budgets, check, iconPacks, kinds, list, newIcon, packages, root, search, show } from "./commands.js";
 import { fail, ok, type Envelope } from "./envelope.js";
 
-const usage = "commands: kinds | scene validate|diff|patch|export|render (a scene document: lumin scene, or the lumin-scene skill) | mcp [--root PATH]... [--allow-write] [--allow-render] (the scene and asset tools over stdio, for an MCP client) | list [--kind --package --tag --limit --newest] | search QUERY [--kind --limit] | show ID | packages | icon-packs | budgets | boundaries [--package] | check [--only a,b --keep-going] | new-icon ID --name N --tags a,b (--svg FILE | --stdin) [--dry-run] | new-object ID (--from-image IMG | --from-workspace DIR) [--name N --tags a,b --dry-run] | review-object --spec FILE --reference IMG [--out DIR --look L --yaw D --pitch D] | study VENDOR[/PATH] [--limit] | adopt VENDOR/PATH --as KIND --id ID [--name N --dry-run] | adopt-skill VENDOR/SKILL-DIR [--dry-run --force] | ui-facts FILE... | ui-render --url URL [--views a,b] (for the lumin-ui skill)";
+const usage = "commands: kinds | scene validate|diff|patch|export|render (a scene document: lumin scene, or the lumin-scene skill) | mcp [--root PATH]... [--allow-write] [--allow-render] (the scene and asset tools over stdio, for an MCP client) | list [--kind --package --tag --limit --newest] | search QUERY [--kind --limit] | show ID | packages | icon-packs | budgets | boundaries [--package] | check [--only a,b --keep-going] | new-icon ID --name N --tags a,b (--svg FILE | --stdin) [--dry-run] | new-object ID (--from-image IMG | --from-workspace DIR) [--name N --tags a,b --dry-run] | review-object --spec FILE --reference IMG [--out DIR --look L --yaw D --pitch D] | study VENDOR[/PATH] [--limit] | adopt VENDOR/PATH --as KIND --id ID [--name N --dry-run] | adopt-skill VENDOR/SKILL-DIR [--dry-run --force] | vendor fetch [FOLDER...] [--force] | vendor verify [FOLDER...] | ui-facts FILE... | ui-render --url URL [--views a,b] (for the lumin-ui skill)";
 
 async function readStdin(): Promise<string> {
   const chunks: Buffer[] = [];
@@ -159,14 +159,19 @@ async function run(argv: readonly string[]): Promise<Envelope> {
       if (target === undefined) return fail(command, "usage", `${command} needs a vendored path, such as threeui/src/shaders/crt`);
       const { adopt, adoptSkill, study } = await import("./adopt.js");
       const vendorDir = join(root, "assets/vendor");
-      if (command === "adopt-skill") return adoptSkill(target, { dryRun: values["dry-run"] === true, force: values.force === true }, { root, vendorDir });
-      if (command === "study") return study(target, limit === undefined ? {} : { limit }, { vendorDir });
+      if (command === "adopt-skill") return adoptSkill(target, { dryRun: values["dry-run"] === true, force: values.force === true }, { root, vendorDir, env: process.env });
+      if (command === "study") return study(target, limit === undefined ? {} : { limit }, { vendorDir, env: process.env });
       const { loadRegistry } = await import("@hedronite/lts-registry");
       return adopt(
         target,
         { ...(values.as === undefined ? {} : { as: values.as }), ...(values.id === undefined ? {} : { id: values.id }), ...(values.name === undefined ? {} : { name: values.name }), dryRun: values["dry-run"] === true },
-        { root, vendorDir, registry: loadRegistry() },
+        { root, vendorDir, env: process.env, registry: loadRegistry() },
       );
+    }
+    case "vendor": {
+      const [action = "", ...folders] = positionals;
+      const { vendorCommand } = await import("./vendorCommand.js");
+      return vendorCommand(action, folders, { force: values.force === true }, { vendorDir: join(root, "assets/vendor"), env: process.env });
     }
     default:
       return fail(command || "lumin", "usage", command === "" ? usage : `unknown command "${command}". ${usage}`);

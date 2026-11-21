@@ -426,6 +426,9 @@
     "tools/vendor": {
       "name": "tool-vendor",
       "version": "0.0.0",
+      "dependencies": {
+        "zod": "catalog:",
+      },
       "devDependencies": {
         "vitest": "catalog:",
       },

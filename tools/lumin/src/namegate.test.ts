@@ -23,6 +23,9 @@ import { allowed, hashes, salt } from "./namegate.hashes.js";
 /** Trees that are someone else's code and are never read by this gate. */
 const skipped = ["assets/vendor/", "tools/img-to-object/upstream/"];
 
+/** A vendored folder's pin is ours, not someone else's code: it is read by the gate whatever tree it is in (a pin field may carry no name, SPEC-wave9 S2). */
+const isPin = (file: string): boolean => /^assets\/vendor\/[^/]+\/vendor\.json$/.test(file);
+
 const hashToken = (token: string): string => createHash("sha256").update(salt + token.toLowerCase()).digest("hex");
 
 const runPattern = /[A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*/g;
@@ -120,7 +123,7 @@ const textFiles = (): readonly string[] => {
   const listed = execFileSync("git", ["ls-files", "-z", "--cached", "--others", "--exclude-standard"], { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
   return listed
     .split("\0")
-    .filter((file) => file !== "" && !skipped.some((tree) => file.startsWith(tree)) && existsSync(join(root, file)))
+    .filter((file) => file !== "" && (isPin(file) || !skipped.some((tree) => file.startsWith(tree))) && existsSync(join(root, file)))
     .sort();
 };
 
@@ -251,6 +254,11 @@ describe("the name gate", () => {
       return !scanText(entry.file, text, new Set(hashes)).some((hit) => hit.line === entry.line && hit.what === entry.hash);
     });
     expect(stale).toEqual([]);
+  });
+
+  it("reads every vendored folder's pin, and no other file of a vendored tree", () => {
+    expect(files.filter(isPin).length).toBeGreaterThanOrEqual(11);
+    expect(files.filter((file) => file.startsWith("assets/vendor/") && !isPin(file))).toEqual([]);
   });
 
   it("splits the tree into parts that together hold every file, and every line of a file, once", () => {

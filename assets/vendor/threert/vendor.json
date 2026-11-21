@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "kept": false,
+  "sources": [
+    {
+      "source": "https://github.com/meshy-dev/ThreeRT",
+      "commit": "8cb4e9b146fd5406b43624b49ab85709ace33e6f",
+      "exclude": [
+        "site/",
+        "showcase/showroom/assets/*.glb",
+        ".github/",
+        ".claude/"
+      ]
+    }
+  ],
+  "contentHash": "b53bebefc09fcefc51c9a817063173dad1f9818005147d0414d4ef7dd6939f80"
+}

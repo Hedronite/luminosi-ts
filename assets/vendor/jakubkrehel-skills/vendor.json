@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "kept": false,
+  "sources": [
+    {
+      "source": "https://github.com/jakubkrehel/skills",
+      "commit": "267330e1adfc66a718fb65fa6918c1f06d0a689e",
+      "include": [
+        "skills/**",
+        "README.md",
+        "LICENSE"
+      ]
+    }
+  ],
+  "contentHash": "d9962ca3cbbc1a86f6cf7194bfbcfcaa36b61e14d5a03e9606ac95ef6c321119"
+}
