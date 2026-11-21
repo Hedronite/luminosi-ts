@@ -105,6 +105,10 @@ describe("measureBundles", () => {
   write("apps/catalog/dist/assets/embed.js", "export const e = 1;");
   // Left in dist by an older build and reached by nothing.
   write("apps/catalog/dist/assets/orphan.js", `export const o = { isObject3D: true, filler: "${"orphan ".repeat(2000)}" };`);
+  // The scene element's page: the bootstrap holds the class and imports the drawing half on demand, and that half reaches three.
+  write("apps/catalog/dist/element.html", page("/assets/element.js"));
+  write("apps/catalog/dist/assets/element.js", "const draw=()=>import(`./draw.js`);export{draw};");
+  write("apps/catalog/dist/assets/draw.js", 'import{t}from"./three.js";export const d=t;');
   write("apps/site/dist/index.html", page("/_astro/island.js"));
   write("apps/site/dist/_astro/island.js", "export const i = 1;");
   const sizes = measureBundles(root);
@@ -114,6 +118,11 @@ describe("measureBundles", () => {
     expect(names("catalog-gallery")).toEqual(["main.js", "react.js"]);
     expect(names("catalog-embed")).toEqual(["embed.js", "spec.js"]);
     expect(names("site-island")).toEqual(["island.js"]);
+  });
+
+  it("takes what a page loads for the scene element as the bootstrap alone, and its chunk set as what the bootstrap imports on demand", () => {
+    expect(names("scene-element")).toEqual(["element.js"]);
+    expect(names("scene-element-3d")).toEqual(["draw.js", "three.js"]);
   });
 
   it("takes the 3D set from everything the 3D entries reach, markers or not, and ignores files nothing reaches", () => {
