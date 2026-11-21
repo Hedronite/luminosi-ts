@@ -74,5 +74,8 @@ describe("the emitted React code, mounted", () => {
     });
     expect(meshes.map((mesh) => mesh.geometry.name).sort()).toEqual(["platonic-cube", "platonic-dodecahedron", "platonic-icosahedron", "platonic-octahedron"]);
     await renderer.unmount();
-  });
+    // The test takes 70 to 120 ms on a quiet machine, but its first step is the cold import of three, the adapters and R3F, and CI runs it on two
+    // cores beside the lumin tests: 2,432 ms (run 44866191568), 4,056 ms (run 44859038343) and 5,461 ms (run 44869368035, which failed the default 5 s).
+    // Three times the largest reading is 16,383 ms, rounded up to the next 5 s.
+  }, 20_000);
 });
