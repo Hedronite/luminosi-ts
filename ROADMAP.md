@@ -152,7 +152,7 @@ Each line is one PR. Order holds in one place: Stage 6, then 7, then 8; Stages 9
 
 ### Stage 9 (D) — Fidelity
 
-- [ ] D1 One renderer: every viewport on the WebGPU renderer (needs a decision)
+- [x] D1 One renderer: every viewport on the WebGPU renderer, and a tripwire keeps it that way (#89)
 - [ ] D2 Scene tokens v2: looks light the scene; no raw colors in packages (revisit an `accent-text` token here)
 - [ ] D3 Stage quality: shadows, bloom, depth of field, tone mapping per look, with a lite tier
 - [ ] D4 Procedural finishes: brushed, weave, grain, orange peel, frost, with no texture files
