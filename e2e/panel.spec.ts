@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Locator, Page } from "@playwright/test";
-import { builds, expect, settledBuilds, test } from "./fixtures.js";
+import { builds, expect, expectRenderer, settledBuilds, test } from "./fixtures.js";
 
 // The parameter panel in the detail view: controls made from each asset's schema, edits that move the asset live (a flat
 // program count), a parameter baked into the asset that rebuilds it and says so, and an address (`?params=`) that follows every
@@ -83,6 +83,7 @@ test("a shader's panel: typed, labelled controls; live edits keep the program co
   const dialog = dialogOf(page, "Hologram");
   const panel = dialog.getByRole("region", { name: "Parameters", exact: true });
   const host = dialog.getByTestId("viewport");
+  await expectRenderer(host.locator("canvas"));
   const programs = await drawn(host);
   const built = await settledBuilds(host);
 
@@ -138,6 +139,7 @@ test("a parameter baked into the shader rebuilds it, and the panel says so", asy
   const dialog = dialogOf(page, "Toon outline");
   const panel = dialog.getByRole("region", { name: "Parameters", exact: true });
   const host = dialog.getByTestId("viewport");
+  await expectRenderer(host.locator("canvas"));
   await drawn(host);
   const built = await settledBuilds(host);
   await expect(panel.getByText("Rebuilds the asset")).toHaveCount(1);
@@ -166,6 +168,7 @@ test("a color with no default is set by the panel and cleared back to the look",
   const dialog = dialogOf(page, "Pulse");
   const panel = dialog.getByRole("region", { name: "Parameters", exact: true });
   const host = dialog.getByTestId("viewport");
+  await expectRenderer(host.locator("canvas"));
   await drawn(host);
   await expect(panel.getByRole("button", { name: /^Clear/ })).toHaveCount(0);
   await drawsAfter(host, async () => {
@@ -187,6 +190,7 @@ test("the address and the panel agree both ways: a link opens with its values, a
   const dialog = dialogOf(page, "Hologram");
   const panel = dialog.getByRole("region", { name: "Parameters", exact: true });
   const host = dialog.getByTestId("viewport");
+  await expectRenderer(host.locator("canvas"));
   const density = panel.getByRole("spinbutton", { name: "Density", exact: true });
   const speed = panel.getByRole("spinbutton", { name: "Speed", exact: true });
   await drawn(host);
@@ -226,6 +230,7 @@ test("a screen effect's panel moves it live; the ASCII ramp, which is baked in, 
   const dialog = dialogOf(page, "Dither");
   const panel = dialog.getByRole("region", { name: "Parameters", exact: true });
   const host = dialog.getByTestId("viewport");
+  await expectRenderer(host.locator("canvas"));
   const programs = await drawn(host);
   const built = await settledBuilds(host);
   const cell = panel.getByRole("spinbutton", { name: "Cell", exact: true });
@@ -242,6 +247,7 @@ test("a screen effect's panel moves it live; the ASCII ramp, which is baked in, 
   await page.goto("/?asset=ascii");
   const ascii = dialogOf(page, "ASCII");
   const asciiPanel = ascii.getByRole("region", { name: "Parameters", exact: true });
+  await expectRenderer(ascii.getByTestId("viewport").locator("canvas"));
   await drawn(ascii.getByTestId("viewport"));
   const ramp = asciiPanel.getByRole("textbox", { name: "Ramp", exact: true });
   await ramp.fill(" .:#");
@@ -286,6 +292,7 @@ for (const { name, asset, label, value, params } of objectCases) {
     const dialog = page.getByRole("dialog");
     const panel = dialog.getByRole("region", { name: "Parameters", exact: true });
     const host = dialog.getByTestId("viewport");
+    await expectRenderer(host.locator("canvas"));
     await drawn(host);
     const geometries = await number(host, "data-gpu-geometries");
     const before = await host.locator("canvas").screenshot();
@@ -315,6 +322,7 @@ test("the glTF crystal cluster offers no panel for its model URL", async ({ page
   const errors = errorsOn(page);
   await page.goto("/?asset=crystal-cluster-glb&params=url=/elsewhere.glb");
   const dialog = page.getByRole("dialog");
+  await expectRenderer(dialog.getByTestId("viewport").locator("canvas"));
   await drawn(dialog.getByTestId("viewport"));
   await expect(dialog.getByRole("region", { name: "Parameters", exact: true })).toHaveCount(0);
   await expect(dialog.getByRole("region", { name: "Changed parameters snippet" })).toHaveCount(0);
@@ -331,6 +339,7 @@ for (const { name, asset } of [
     await page.goto(`/?asset=${asset}&params=scale=3`);
     const dialog = page.getByRole("dialog");
     const host = dialog.getByTestId("viewport");
+    await expectRenderer(host.locator("canvas"));
     await drawn(host);
     await expect(dialog.getByRole("region", { name: "Parameters", exact: true })).toHaveCount(0);
     expect(errors).toEqual([]);

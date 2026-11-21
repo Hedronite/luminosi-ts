@@ -1,5 +1,5 @@
 import type { Locator, Page } from "@playwright/test";
-import { expect, test } from "./fixtures.js";
+import { expect, expectRenderer, test } from "./fixtures.js";
 
 const frames = async (stage: Locator): Promise<number> => Number(await stage.getAttribute("data-frames"));
 
@@ -57,6 +57,7 @@ test("an animated stage draws no frames in a hidden tab, and resumes when the ta
 test("a shader's detail view draws no frames while its tab is hidden", async ({ page }) => {
   await page.goto("/?asset=dissolve");
   const viewport = page.getByRole("dialog", { name: "Dissolve" }).getByTestId("viewport");
+  await expectRenderer(viewport.locator("canvas"));
   await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 15000 });
   await hideTab(page, true);
   const hidden = await settled(viewport);

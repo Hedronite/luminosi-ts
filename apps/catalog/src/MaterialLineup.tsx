@@ -1,15 +1,16 @@
 import { StudioLights } from "@hedronite/lts-adapters";
+import { WebGPUCanvas, WebGPUStudioEnvironment } from "@hedronite/lts-adapters/webgpu";
 import { materialIds, materialPreset } from "@hedronite/lts-materials";
 import { applyPalette, createMaterial } from "@hedronite/lts-materials/three";
 import { isPrimitiveId, primitive, primitiveIds, primitiveInfo, type PrimitiveId } from "@hedronite/lts-primitives";
 import { createPolyhedronGeometry } from "@hedronite/lts-primitives/three";
 import type { ScenePalette } from "@hedronite/lts-tokens";
-import { Canvas, useThree } from "@react-three/fiber";
+import { useThree } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { SphereGeometry } from "three";
 import { lineupLayout } from "./lineup";
 import { usePreset } from "./look";
-import { Environment, GpuCounts } from "./scene";
+import { GpuCounts } from "./scene";
 
 const field = "rounded-lg border border-line bg-surface px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-accent";
 
@@ -125,12 +126,12 @@ export function MaterialLineup() {
         {width === 0 ? null : (
           <>
             <div role="group" aria-label={`${String(materialIds.length)} materials on the ${shape === "sphere" ? "sphere" : primitiveInfo(shape).name} shape, in a grid.`} className="absolute inset-0">
-              <Canvas frameloop="demand" dpr={[1, 2]} orthographic camera={{ position: [0, 0, 500], zoom: 1, near: 1, far: 2000 }}>
-                <Environment />
+              <WebGPUCanvas frameloop="demand" dpr={[1, 2]} orthographic camera={{ position: [0, 0, 500], zoom: 1, near: 1, far: 2000 }}>
+                <WebGPUStudioEnvironment />
                 <StudioLights />
                 <Spheres shape={shape} palette={preset.scene} width={width} cell={cell} cols={cols} />
                 <GpuCounts target={box} />
-              </Canvas>
+              </WebGPUCanvas>
             </div>
             <ul aria-label="Materials in the lineup" className="pointer-events-none absolute inset-0 grid content-start" style={{ gridTemplateColumns: `repeat(${String(cols)}, minmax(0, 1fr))` }}>
               {materialIds.map((id) => (

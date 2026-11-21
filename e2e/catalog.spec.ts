@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
-import { expect, test } from "./fixtures.js";
+import { decodePng } from "../tools/stills/src/png.js";
+import { expect, expectRenderer, settledBuilds, test } from "./fixtures.js";
 
 test.use({ permissions: ["clipboard-read", "clipboard-write"] });
 
@@ -210,15 +211,19 @@ test("looks are grouped by category, and a one-scheme look keeps its scheme", as
 test("a primitive opens in an interactive 3D viewport", async ({ page }) => {
   await page.goto("/?asset=platonic-icosahedron");
   const viewport = page.getByRole("dialog", { name: "Icosahedron" }).getByTestId("viewport");
+  await expectRenderer(viewport.locator("canvas"));
   await expect(viewport.locator("canvas")).toBeVisible();
-  await expect(viewport).toHaveAttribute("data-gpu-geometries", /^[1-9]\d*$/);
-  // A frame was drawn without any interaction: on-demand rendering must not wait for input.
   await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/);
+  // A frame was drawn without any interaction: on-demand rendering must not wait for input. The geometry
+  // count is read once it has held across two samples: the WebGPU renderer registers one of its own after
+  // the first frame, so a first reading can still be one short (R21).
+  expect(await settledBuilds(viewport, "data-gpu-geometries")).toBeGreaterThan(0);
 });
 
 test("a material renders with its environment", async ({ page }) => {
   await page.goto("/?asset=glass");
   const viewport = page.getByRole("dialog", { name: "Glass" }).getByTestId("viewport");
+  await expectRenderer(viewport.locator("canvas"));
   await expect(viewport.locator("canvas")).toBeVisible();
   await expect(viewport).toHaveAttribute("data-gpu-textures", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
 });
@@ -233,10 +238,13 @@ test("stepping through 3D assets frees each geometry it replaces", async ({ page
   await primitives.click();
   await gallery(page).first().click();
   const viewport = page.getByTestId("viewport");
+  await expectRenderer(viewport.locator("canvas"));
   // The first asset is drawn when the stage has counted a frame; its geometry count is the baseline. A slow machine takes longer to get here, never reads early.
   await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
-  await expect(viewport).toHaveAttribute("data-gpu-geometries", /^[1-9]\d*$/);
-  const baseline = await viewport.getAttribute("data-gpu-geometries");
+  // The baseline is read once the count has held across two samples: the WebGPU renderer registers one of
+  // its own geometry after the first frame, and on a loaded runner that can land after the stage reports
+  // frames, so a first reading can be one short (R21).
+  const baseline = await settledBuilds(viewport, "data-gpu-geometries");
 
   const next = page.getByRole("button", { name: "Next asset" });
   for (let i = 0; i < total; i++) {
@@ -245,7 +253,7 @@ test("stepping through 3D assets frees each geometry it replaces", async ({ page
   }
   // Back at the first asset. The stage may have been mounted again on the way, so its counters can be missing until it reports: the wait is on them.
   await expect(page.getByRole("dialog")).toContainText(position(1, total), { timeout: STAGE_WAIT });
-  await expect.poll(() => viewport.getAttribute("data-gpu-geometries"), { message: "the geometry count is back at the first asset's", timeout: STAGE_WAIT }).toBe(baseline);
+  await expect.poll(async () => Number(await viewport.getAttribute("data-gpu-geometries")), { message: "the geometry count is back at the first asset's", timeout: STAGE_WAIT }).toBe(baseline);
 });
 
 for (const [id, name] of [
@@ -260,8 +268,9 @@ for (const [id, name] of [
     });
     await page.goto(`/?asset=${id}`);
     const viewport = page.getByRole("dialog", { name }).getByTestId("viewport");
-    await expect(viewport).toHaveAttribute("data-gpu-geometries", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
+    await expectRenderer(viewport.locator("canvas"));
     await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
+    expect(await settledBuilds(viewport, "data-gpu-geometries")).toBeGreaterThan(0);
     expect(errors).toEqual([]);
   });
 }
@@ -283,6 +292,7 @@ for (const [id, name] of [
     page.on("pageerror", (error) => errors.push(error.message));
     await page.goto(`/?asset=${id}`);
     const viewport = page.getByRole("dialog", { name }).getByTestId("viewport");
+    await expectRenderer(viewport.locator("canvas"));
     await expect(viewport.locator("canvas")).toBeVisible();
     await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 15000 });
     expect(errors).toEqual([]);
@@ -292,9 +302,10 @@ for (const [id, name] of [
 test("a scene kit renders with its own lights", async ({ page }) => {
   await page.goto("/?asset=scene-dusk");
   const viewport = page.getByRole("dialog", { name: "Dusk" }).getByTestId("viewport");
+  await expectRenderer(viewport.locator("canvas"));
   // A kit builds its lights and every object in it before it draws; that first frame is slow under software rendering and under load.
-  await expect(viewport).toHaveAttribute("data-gpu-geometries", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
   await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
+  expect(await settledBuilds(viewport, "data-gpu-geometries")).toBeGreaterThan(0);
 });
 
 test("the growth view groups assets by the day they were added", async ({ page }) => {
@@ -325,17 +336,13 @@ test("the embed page draws a spec framed into the box it is given", async ({ pag
     });
   await expect.poll(status, { timeout: 15_000 }).not.toBe("loading");
   expect(await status()).toBe("drawn");
-  // The lit box against black: its pixels must span the box it was given, height to height.
-  const extent = await page.evaluate(async () => {
-    const canvas = document.querySelector("canvas");
-    if (canvas === null) return null;
-    const image = new Image();
-    image.src = canvas.toDataURL();
-    await image.decode();
-    const context = new OffscreenCanvas(canvas.width, canvas.height).getContext("2d");
-    if (context === null) return null;
-    context.drawImage(image, 0, 0);
-    const { data, width, height } = context.getImageData(0, 0, canvas.width, canvas.height);
+  // The lit box against black: its pixels must span the box it was given, height to height. The frame is
+  // read from a screenshot (decoded with the still rig's own PNG reader), not the canvas's buffer: a
+  // WebGPU-drawn canvas holds nothing to `toDataURL` after G2 moves the embed to the WebGPU renderer.
+  const png = await page.locator("canvas").screenshot();
+  const extent = ((): { y0: number; y1: number; cx: number } | null => {
+    const frame = decodePng(new Uint8Array(png));
+    const { rgba, width, height } = frame;
     let top = height;
     let bottom = -1;
     let left = width;
@@ -343,7 +350,7 @@ test("the embed page draws a spec framed into the box it is given", async ({ pag
     for (let y = 0; y < height; y += 1) {
       for (let x = 0; x < width; x += 1) {
         const i = (y * width + x) * 4;
-        if ((data[i] ?? 0) + (data[i + 1] ?? 0) + (data[i + 2] ?? 0) > 60) {
+        if ((rgba[i] ?? 0) + (rgba[i + 1] ?? 0) + (rgba[i + 2] ?? 0) > 60) {
           top = Math.min(top, y);
           bottom = Math.max(bottom, y);
           left = Math.min(left, x);
@@ -351,8 +358,9 @@ test("the embed page draws a spec framed into the box it is given", async ({ pag
         }
       }
     }
+    if (bottom === -1) return null;
     return { y0: top / height, y1: (bottom + 1) / height, cx: (left + right + 1) / 2 / width };
-  });
+  })();
   expect(extent).not.toBeNull();
   expect(extent?.y0).toBeCloseTo(0.25, 1);
   expect(extent?.y1).toBeCloseTo(0.75, 1);
@@ -486,8 +494,9 @@ for (const [id, name] of [
     page.on("pageerror", (error) => errors.push(error.message));
     await page.goto(`/?asset=${id}`);
     const viewport = page.getByRole("dialog", { name }).getByTestId("viewport");
-    await expect(viewport).toHaveAttribute("data-gpu-geometries", /^[1-9]\d*$/);
+    await expectRenderer(viewport.locator("canvas"));
     await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/);
+    expect(await settledBuilds(viewport, "data-gpu-geometries")).toBeGreaterThan(0);
     expect(errors).toEqual([]);
   });
 }

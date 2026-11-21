@@ -1,5 +1,5 @@
 import type { Locator, Page } from "@playwright/test";
-import { expect, test } from "./fixtures.js";
+import { expect, expectRenderer, test } from "./fixtures.js";
 
 /**
  * The WebGPU lane: `bun run e2e:webgpu` (see STACK.md). The default `e2e` run and CI draw with software
@@ -49,6 +49,7 @@ const coloursOn = async (page: Page, stage: Locator): Promise<number> => {
  * has also kept drawing; the playground draws on demand, so its frame counter holds still until something changes.
  */
 const expectDrawnOnWebGPU = async (page: Page, stage: Locator, animated: boolean): Promise<void> => {
+  await expectRenderer(stage.locator("canvas"));
   await expect(stage).toHaveAttribute("data-backend", "webgpu", { timeout: 20_000 });
   await expect(stage).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 20_000 });
   if (animated) {
@@ -59,6 +60,20 @@ const expectDrawnOnWebGPU = async (page: Page, stage: Locator, animated: boolean
   // Every element that carries a frame counter also carries the backend, on this page.
   expect(await page.locator("[data-frames]:not([data-backend])").count()).toBe(0);
 };
+
+test("the detail viewport draws on WebGPU", async ({ page }) => {
+  await page.goto("/?asset=platonic-icosahedron");
+  const viewport = page.getByRole("dialog", { name: "Icosahedron" }).getByTestId("viewport");
+  await expectRenderer(viewport.locator("canvas"));
+  await expectDrawnOnWebGPU(page, viewport, false);
+});
+
+test("the material lineup draws on WebGPU", async ({ page }) => {
+  await page.goto("/?view=playground");
+  const lineup = page.getByTestId("material-lineup");
+  await expectRenderer(lineup.locator("canvas"));
+  await expectDrawnOnWebGPU(page, lineup, false);
+});
 
 test("the shader viewport draws on WebGPU", async ({ page }) => {
   await page.goto("/?asset=hologram");
