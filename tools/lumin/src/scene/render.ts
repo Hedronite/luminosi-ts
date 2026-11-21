@@ -5,15 +5,15 @@
 // (so it runs anywhere) and `--gpu` asks for the machine's. The command waits on the page's own state (`data-still` and `data-frames`), never on a timer.
 // It takes the document's JSON text: reading it, and checking it against the library, is the scene table's input step (`io.ts`).
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
-import { dirname, extname, join, normalize, resolve, sep } from "node:path";
+import { extname, join, normalize, resolve, sep } from "node:path";
 import type { Browser } from "@playwright/test";
 import { decodePng, type Picture } from "../../../stills/src/png.js";
 import { toCanonicalJson } from "@hedronite/lts-scene/emit";
 import { root } from "../commands.js";
 import { fail, ok, type Envelope } from "../envelope.js";
-import { failureEnvelope, loadDocument, type Context, type Source } from "./io.js";
+import { failureEnvelope, loadDocument, type Context, type Files, type Source } from "./io.js";
 
 /** The longest side a render may have, in pixels: the still page's own cap, asked here first so an oversized request never starts a browser. */
 export const MAX_SIDE = 2048;
@@ -105,7 +105,7 @@ const launchArgs = (gpu: boolean): readonly string[] => (gpu ? ["--enable-unsafe
 /** The renderer names that mean no GPU drew the frame. */
 const SOFTWARE = /swiftshader|llvmpipe|software|fallback/i;
 
-interface Stage {
+export interface Stage {
   readonly still: string;
   readonly frames: number;
   readonly renderer: string;
@@ -150,42 +150,51 @@ async function draw(browser: Browser, origin: string, options: RenderOptions, si
   }
 }
 
-/** `lumin scene render`: the document as a PNG at `out`, or the envelope that says why not. Nothing is written for a frame that is refused. */
-export async function renderScene(options: RenderOptions, paths: RenderPaths): Promise<Envelope> {
-  const command = paths.command ?? "render";
-  const problem = checkSide("width", options.width) ?? checkSide("height", options.height);
-  if (problem !== undefined) return fail(command, "usage", problem);
-  if (options.force !== true && existsSync(resolve(options.out))) return fail(command, "exists", EXISTS);
+/** How a frame is drawn: the PNG's bytes with what the page says about the draw, or the envelope that refuses it. The browser is the default; a test hands its own, so the writing after it can be held to what it does without one. */
+export type DrawFrame = (options: RenderOptions, paths: RenderPaths, size: { readonly width: number; readonly height: number }, command: string) => Promise<{ readonly png: Buffer; readonly stage: Stage } | Envelope>;
+
+/** The still page served read-only on a loopback port, a headless Chromium, and one draw. Both are closed whatever happens. */
+const drawInBrowser: DrawFrame = async (options, paths, size, command) => {
   const dist = join(paths.root, "apps/catalog/dist");
-  if (!existsSync(join(dist, "still.html"))) return fail(command, "not_built", "the catalog's still page is not built: run bun run build");
-  const size = { width: options.width ?? DEFAULT_SIDE, height: options.height ?? DEFAULT_SIDE };
   const { server, origin } = await serve(dist);
   let browser: Browser | undefined;
   try {
     // Playwright is loaded when a render is asked for, so the other scene operations (and a server that lists them) never pay for it.
     const { chromium } = await import("@playwright/test");
     browser = await chromium.launch({ args: [...launchArgs(options.gpu === true)] });
-    const drawn = await draw(browser, origin, options, size, command);
-    if ("ok" in drawn) return drawn;
-    const picture = decodePng(drawn.png);
-    if (picture.width !== size.width || picture.height !== size.height) return fail(command, "failed", `the page drew ${String(picture.width)}x${String(picture.height)}, not the ${String(size.width)}x${String(size.height)} asked`);
-    if (isBlank(picture)) return fail(command, "blank", "every pixel of the frame is the stage's background: the document shows nothing a viewer could see");
-    const out = resolve(options.out);
-    mkdirSync(dirname(out), { recursive: true });
-    // `wx` makes the refusal exact: a file that appeared while the page was drawing is not replaced either.
-    try {
-      writeFileSync(out, drawn.png, { flag: options.force === true ? "w" : "wx" });
-    } catch (error: unknown) {
-      if (error instanceof Error && "code" in error && error.code === "EEXIST") return fail(command, "exists", EXISTS);
-      throw error;
-    }
-    return ok(command, { out, ...size, sha256: createHash("sha256").update(drawn.png).digest("hex"), renderer: drawn.stage.renderer, frames: drawn.stage.frames });
+    return await draw(browser, origin, options, size, command);
   } catch (error: unknown) {
     return fail(command, "failed", error instanceof Error ? error.message : String(error));
   } finally {
     await browser?.close();
     await closeServer(server);
   }
+};
+
+/**
+ * `lumin scene render`: the document as a PNG at `out`, or the envelope that says why not. Nothing is written for a frame that is refused. The PNG is
+ * written through `files`, the same ones `patch` and `export` write through: for the MCP server those are held to its roots at the moment of writing, not
+ * only when the tool was called, so a path that became a link out of a root while the browser drew is refused, and a link put at a new path is never followed.
+ */
+export async function renderScene(options: RenderOptions, paths: RenderPaths, files: Files, drawFrame: DrawFrame = drawInBrowser): Promise<Envelope> {
+  const command = paths.command ?? "render";
+  const problem = checkSide("width", options.width) ?? checkSide("height", options.height);
+  if (problem !== undefined) return fail(command, "usage", problem);
+  if (options.force !== true) {
+    const there = files.exists(options.out);
+    if (!there.ok) return failureEnvelope(command, there.failure);
+    if (there.value) return fail(command, "exists", EXISTS);
+  }
+  if (!existsSync(join(paths.root, "apps/catalog/dist", "still.html"))) return fail(command, "not_built", "the catalog's still page is not built: run bun run build");
+  const size = { width: options.width ?? DEFAULT_SIDE, height: options.height ?? DEFAULT_SIDE };
+  const drawn = await drawFrame(options, paths, size, command);
+  if ("ok" in drawn) return drawn;
+  const picture = decodePng(drawn.png);
+  if (picture.width !== size.width || picture.height !== size.height) return fail(command, "failed", `the page drew ${String(picture.width)}x${String(picture.height)}, not the ${String(size.width)}x${String(size.height)} asked`);
+  if (isBlank(picture)) return fail(command, "blank", "every pixel of the frame is the stage's background: the document shows nothing a viewer could see");
+  const written = files.writeBytes(options.out, drawn.png, options.force === true);
+  if (!written.ok) return failureEnvelope(command, written.failure);
+  return ok(command, { out: resolve(options.out), ...size, sha256: createHash("sha256").update(drawn.png).digest("hex"), renderer: drawn.stage.renderer, frames: drawn.stage.frames });
 }
 
 /** What the table's `render` row is given: a document as every scene operation takes one, where to put the PNG, and the size and renderer. */
@@ -210,5 +219,5 @@ export async function renderOperation(input: RenderInput, ctx: Context): Promise
   const loaded = await loadDocument(input.document, ctx);
   if (!loaded.ok) return failureEnvelope("scene render", loaded.failure);
   const { width, height } = { width: sideOf(input.width), height: sideOf(input.height) };
-  return renderScene({ document: toCanonicalJson(loaded.value.scene), out: input.out, ...(width === undefined ? {} : { width }), ...(height === undefined ? {} : { height }), gpu: input.gpu === true, force: input.force === true }, { root, command: "scene render" });
+  return renderScene({ document: toCanonicalJson(loaded.value.scene), out: input.out, ...(width === undefined ? {} : { width }), ...(height === undefined ? {} : { height }), gpu: input.gpu === true, force: input.force === true }, { root, command: "scene render" }, ctx.files);
 }

@@ -1,11 +1,13 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import type { Picture } from "../../../stills/src/png.js";
 import { sceneCommand } from "./command.js";
-import { nodeContext } from "./io.js";
-import { checkSide, isBlank, MAX_SIDE, renderScene, serve } from "./render.js";
+import { deflateSync } from "node:zlib";
+import { diskFiles, nodeContext, type Files } from "./io.js";
+import { checkSide, isBlank, MAX_SIDE, renderScene, serve, type DrawFrame, type Stage } from "./render.js";
+import { rootFiles } from "../mcp/roots.js";
 import { operationNamed } from "./table.js";
 
 const scratch = mkdtempSync(join(tmpdir(), "lts-render-"));
@@ -58,14 +60,14 @@ describe("renderScene before any browser starts", () => {
   const options = { document: "{}", out: join(scratch, "out.png") };
 
   it("refuses a side over the cap as a usage error, and says so before it looks for a build", async () => {
-    expect(await renderScene({ ...options, width: 4096 }, paths)).toMatchObject({ ok: false, kind: "usage", exit: 2 });
-    expect(await renderScene({ ...options, height: 4096 }, paths)).toMatchObject({ ok: false, kind: "usage", exit: 2 });
+    expect(await renderScene({ ...options, width: 4096 }, paths, diskFiles)).toMatchObject({ ok: false, kind: "usage", exit: 2 });
+    expect(await renderScene({ ...options, height: 4096 }, paths, diskFiles)).toMatchObject({ ok: false, kind: "usage", exit: 2 });
   });
 
   it("says not_built when the catalog has no still page", async () => {
-    expect(await renderScene(options, paths)).toMatchObject({ ok: false, kind: "not_built", exit: 1 });
+    expect(await renderScene(options, paths, diskFiles)).toMatchObject({ ok: false, kind: "not_built", exit: 1 });
     mkdirSync(join(scratch, "apps/catalog/dist"), { recursive: true });
-    expect(await renderScene(options, paths)).toMatchObject({ ok: false, kind: "not_built" });
+    expect(await renderScene(options, paths, diskFiles)).toMatchObject({ ok: false, kind: "not_built" });
   });
 });
 
@@ -75,14 +77,14 @@ describe("renderScene and a path that is there", () => {
   writeFileSync(taken, "a picture");
 
   it("refuses it as exists before anything is drawn, and leaves it as it was", async () => {
-    expect(await renderScene({ document: "{}", out: taken }, paths)).toMatchObject({ ok: false, kind: "exists", exit: 1, error: "that file exists; name a new path, or pass --force to replace it" });
-    expect(await renderScene({ document: "{}", out: taken, force: false }, paths)).toMatchObject({ ok: false, kind: "exists" });
+    expect(await renderScene({ document: "{}", out: taken }, paths, diskFiles)).toMatchObject({ ok: false, kind: "exists", exit: 1, error: "that file exists; name a new path, or pass --force to replace it" });
+    expect(await renderScene({ document: "{}", out: taken, force: false }, paths, diskFiles)).toMatchObject({ ok: false, kind: "exists" });
     expect(readFileSync(taken, "utf8")).toBe("a picture");
   });
 
   it("goes on when force is set (here as far as the missing build), and when the path is new", async () => {
-    expect(await renderScene({ document: "{}", out: taken, force: true }, paths)).toMatchObject({ ok: false, kind: "not_built" });
-    expect(await renderScene({ document: "{}", out: join(scratch, "new.png") }, paths)).toMatchObject({ ok: false, kind: "not_built" });
+    expect(await renderScene({ document: "{}", out: taken, force: true }, paths, diskFiles)).toMatchObject({ ok: false, kind: "not_built" });
+    expect(await renderScene({ document: "{}", out: join(scratch, "new.png") }, paths, diskFiles)).toMatchObject({ ok: false, kind: "not_built" });
   });
 });
 
@@ -140,5 +142,124 @@ describe("the render row of the scene table", () => {
     expect(await row?.run({ document: fixture, out, height: 4096 }, ctx)).toMatchObject({ ok: false, kind: "usage", exit: 2 });
     expect(await row?.run({ document: fixture, out, height: 0 }, ctx)).toMatchObject({ ok: false, kind: "usage" });
     expect(await row?.run({ document: fixture, out, depth: 1 }, ctx)).toMatchObject({ ok: false, kind: "usage" });
+  });
+});
+
+// ---- the write goes through the files it is given -----------------------------------------------------------------------------
+
+/** The CRC-32 a PNG chunk carries. */
+const crcTable = Array.from({ length: 256 }, (_unused, n) => {
+  let c = n;
+  for (let k = 0; k < 8; k += 1) c = (c & 1) === 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+  return c >>> 0;
+});
+const crc32 = (bytes: Uint8Array): number => {
+  let c = 0xffffffff;
+  for (const byte of bytes) c = (crcTable[(c ^ byte) & 0xff] ?? 0) ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+};
+const chunk = (type: string, body: Buffer): Buffer => {
+  const head = Buffer.alloc(8);
+  head.writeUInt32BE(body.length, 0);
+  head.write(type, 4, "ascii");
+  const tail = Buffer.alloc(4);
+  tail.writeUInt32BE(crc32(Buffer.concat([head.subarray(4), body])), 0);
+  return Buffer.concat([head, body, tail]);
+};
+/** An RGBA PNG of one color, the stage's background but for its first pixel, so it is a frame with something in it. */
+function pngOf(width: number, height: number): Buffer {
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header.set([8, 6, 0, 0, 0], 8);
+  const rows = Buffer.alloc((width * 4 + 1) * height);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) rows.set(x === 0 && y === 0 ? [200, 10, 10, 255] : background, y * (width * 4 + 1) + 1 + x * 4);
+  }
+  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk("IHDR", header), chunk("IDAT", deflateSync(rows)), chunk("IEND", Buffer.alloc(0))]);
+}
+
+describe("renderScene writes through the files it is given", () => {
+  const stage: Stage = { still: "ready", frames: 2, renderer: "a test renderer", error: "" };
+  const drawnAs: DrawFrame = (_options, _paths, size) => Promise.resolve({ png: pngOf(size.width, size.height), stage });
+  const world = () => {
+    const base = realpathSync.native(mkdtempSync(join(scratch, "world-")));
+    mkdirSync(join(base, "apps/catalog/dist"), { recursive: true });
+    writeFileSync(join(base, "apps/catalog/dist/still.html"), "<!doctype html>");
+    return { base, paths: { root: base, command: "render" } };
+  };
+  /** The files a render is given, with every call they are given written down. */
+  const watched = (inner: Files): { readonly files: Files; readonly calls: string[] } => {
+    const calls: string[] = [];
+    return {
+      calls,
+      files: {
+        read: (path) => inner.read(path),
+        write: (path, text, force) => inner.write(path, text, force),
+        writeBytes: (path, bytes, force) => {
+          calls.push(`writeBytes force=${String(force)} ${String(bytes.length)} bytes`);
+          return inner.writeBytes(path, bytes, force);
+        },
+        exists: (path) => {
+          calls.push("exists");
+          return inner.exists(path);
+        },
+      },
+    };
+  };
+
+  it("asks whether the path is there, draws, and writes the PNG once through writeBytes, with the bytes it drew", async () => {
+    const { base, paths } = world();
+    const { files, calls } = watched(diskFiles);
+    const out = join(base, "frame.png");
+    const result = await renderScene({ document: "{}", out, width: 16, height: 12 }, paths, files, drawnAs);
+    expect(result).toMatchObject({ ok: true, data: { out, width: 16, height: 12, renderer: "a test renderer", frames: 2 } });
+    expect(calls).toEqual(["exists", `writeBytes force=false ${String(pngOf(16, 12).length)} bytes`]);
+    expect(readFileSync(out)).toEqual(pngOf(16, 12));
+  });
+
+  it("with force does not ask, and writes with force", async () => {
+    const { base, paths } = world();
+    const { files, calls } = watched(diskFiles);
+    const out = join(base, "frame.png");
+    writeFileSync(out, "old");
+    expect(await renderScene({ document: "{}", out, width: 16, height: 12, force: true }, paths, files, drawnAs)).toMatchObject({ ok: true });
+    expect(calls).toEqual([`writeBytes force=true ${String(pngOf(16, 12).length)} bytes`]);
+    expect(readFileSync(out)).toEqual(pngOf(16, 12));
+  });
+
+  it("writes nothing itself: files that refuse the write leave nothing at the path, and their failure is the answer", async () => {
+    const { base, paths } = world();
+    const refusing: Files = { ...diskFiles, writeBytes: () => ({ ok: false, failure: { kind: "no_root", error: "not under a root" } }) };
+    const out = join(base, "frame.png");
+    expect(await renderScene({ document: "{}", out, width: 16, height: 12 }, paths, refusing, drawnAs)).toMatchObject({ ok: false, kind: "no_root", error: "not under a root" });
+    expect(() => readFileSync(out)).toThrow();
+  });
+
+  it("writes no frame that was refused, and does not ask the files for it", async () => {
+    const { base, paths } = world();
+    const { files, calls } = watched(diskFiles);
+    const blank: DrawFrame = (_options, _paths, size) => Promise.resolve({ png: pngOf(size.width + 1, size.height), stage });
+    expect(await renderScene({ document: "{}", out: join(base, "frame.png"), width: 16, height: 12 }, paths, files, blank)).toMatchObject({ ok: false, kind: "failed" });
+    expect(calls).toEqual(["exists"]);
+  });
+
+  it("with the files of an MCP root: a path that becomes a link out of the root while the browser draws is refused, forced or not, and the file it leads to is untouched", async () => {
+    for (const force of [false, true]) {
+      const { base, paths } = world();
+      const root = join(base, "root");
+      mkdirSync(root);
+      const outside = join(base, "outside.txt");
+      writeFileSync(outside, "untouched");
+      const out = join(root, "frame.png");
+      const swapping: DrawFrame = (options, drawPaths, size, command) => {
+        symlinkSync(outside, out);
+        return drawnAs(options, drawPaths, size, command);
+      };
+      // eslint-disable-next-line no-await-in-loop -- one world per case
+      const result = await renderScene({ document: "{}", out, width: 16, height: 12, force }, paths, rootFiles([root], true), swapping);
+      expect(result).toMatchObject({ ok: false, kind: "no_root" });
+      expect(readFileSync(outside, "utf8")).toBe("untouched");
+    }
   });
 });

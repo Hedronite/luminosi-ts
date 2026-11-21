@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import fc from "fast-check";
@@ -184,6 +184,68 @@ describe("writing", () => {
     expect(diskFiles.write(join(scratch, "missing-folder", "out.json"), "x", false)).toMatchObject({ ok: false, failure: { kind: "failed" } });
     mkdirSync(join(scratch, "made"));
     expect(diskFiles.write(join(scratch, "made", "out.json"), "x", false).ok).toBe(true);
+  });
+});
+
+describe("writing bytes", () => {
+  const dir = (): string => mkdtempSync(join(scratch, "bytes-"));
+  const png = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0, 255, 128, 7]);
+
+  it("takes a new path, refuses one that is there, and replaces it with force without leaving a temporary file", () => {
+    const at = dir();
+    const path = join(at, "out.png");
+    expect(diskFiles.writeBytes(path, png, false)).toEqual({ ok: true, value: png.length });
+    expect(readFileSync(path)).toEqual(Buffer.from(png));
+    expect(diskFiles.writeBytes(path, Uint8Array.from([1]), false)).toMatchObject({ ok: false, failure: { kind: "exists" } });
+    expect(readFileSync(path)).toEqual(Buffer.from(png));
+    expect(diskFiles.writeBytes(path, Uint8Array.from([9, 9]), true)).toEqual({ ok: true, value: 2 });
+    expect(readFileSync(path)).toEqual(Buffer.from([9, 9]));
+    expect(readdirSync(at)).toEqual(["out.png"]);
+  });
+
+  it("does not make a folder, and leaves nothing behind when it cannot write", () => {
+    const at = dir();
+    expect(diskFiles.writeBytes(join(at, "missing", "out.png"), png, false)).toMatchObject({ ok: false, failure: { kind: "failed", error: "the folder for that file does not exist" } });
+    expect(diskFiles.writeBytes(join(at, "missing", "out.png"), png, true)).toMatchObject({ ok: false, failure: { kind: "failed" } });
+    expect(readdirSync(at)).toEqual([]);
+  });
+
+  it("never follows a link put at a new path: the file it leads to is as it was, whether or not it is there", () => {
+    const at = dir();
+    const target = join(at, "target.txt");
+    writeFileSync(target, "untouched");
+    symlinkSync(target, join(at, "link.png"));
+    symlinkSync(join(at, "nowhere.txt"), join(at, "dangling.png"));
+    expect(diskFiles.writeBytes(join(at, "link.png"), png, false)).toMatchObject({ ok: false, failure: { kind: "exists" } });
+    expect(diskFiles.writeBytes(join(at, "dangling.png"), png, false)).toMatchObject({ ok: false, failure: { kind: "exists" } });
+    expect(readFileSync(target, "utf8")).toBe("untouched");
+    expect(readdirSync(at).sort()).toEqual(["dangling.png", "link.png", "target.txt"]);
+  });
+
+  it("with force replaces a link at the path and does not write through it", () => {
+    const at = dir();
+    const target = join(at, "target.txt");
+    writeFileSync(target, "untouched");
+    symlinkSync(target, join(at, "link.png"));
+    expect(diskFiles.writeBytes(join(at, "link.png"), png, true)).toEqual({ ok: true, value: png.length });
+    expect(lstatSync(join(at, "link.png")).isSymbolicLink()).toBe(false);
+    expect(readFileSync(join(at, "link.png"))).toEqual(Buffer.from(png));
+    expect(readFileSync(target, "utf8")).toBe("untouched");
+    expect(readdirSync(at).sort()).toEqual(["link.png", "target.txt"]);
+  });
+});
+
+describe("looking for a path", () => {
+  it("says whether anything is there: a file, a folder, a link that leads nowhere; and nothing, or a path under a file", () => {
+    const at = mkdtempSync(join(scratch, "exists-"));
+    writeFileSync(join(at, "a.txt"), "a");
+    mkdirSync(join(at, "sub"));
+    symlinkSync(join(at, "nowhere"), join(at, "dangling"));
+    expect(diskFiles.exists(join(at, "a.txt"))).toEqual({ ok: true, value: true });
+    expect(diskFiles.exists(join(at, "sub"))).toEqual({ ok: true, value: true });
+    expect(diskFiles.exists(join(at, "dangling"))).toEqual({ ok: true, value: true });
+    expect(diskFiles.exists(join(at, "none"))).toEqual({ ok: true, value: false });
+    expect(diskFiles.exists(join(at, "a.txt", "under"))).toEqual({ ok: true, value: false });
   });
 });
 

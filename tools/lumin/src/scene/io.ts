@@ -1,6 +1,8 @@
 // Reading a scene document for the scene operations: from a path, from stdin (`-`) or given inline. Whatever the way in,
 // the document is read, migrated, parsed and checked against the registry the same way, so the way in changes nothing.
-import { readFileSync, statSync, writeFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { closeSync, constants, lstatSync, openSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
 import { loadDescriptors } from "@hedronite/lts-registry";
 import { assetCredit, checkRefs, lookCredit, migrate, SCENE_VERSION, SHARE_LIMITS, type RefKind, type Resolve, type Scene } from "@hedronite/lts-scene";
 import { presets } from "@hedronite/lts-tokens";
@@ -45,6 +47,13 @@ export const failureEnvelope = (command: string, failure: Failure): Envelope =>
 export interface Files {
   read(path: string): Outcome<string>;
   write(path: string, text: string, force: boolean): Outcome<number>;
+  /**
+   * Writes bytes that are not text (a PNG). A new path is made with `O_EXCL | O_NOFOLLOW`, so a link put there after the path was judged is refused
+   * and never followed; with `force` a temporary file is written beside it and renamed over it, so a link at the path is replaced, not followed.
+   */
+  writeBytes(path: string, bytes: Uint8Array, force: boolean): Outcome<number>;
+  /** Whether anything is at the path, a link included (a link that leads nowhere is something there). */
+  exists(path: string): Outcome<boolean>;
 }
 
 /** What an operation is run with: how ids resolve, which files it may touch, and where stdin is. */
@@ -303,6 +312,14 @@ export async function loadDocument(source: Source, ctx: Context): Promise<Outcom
   return good({ scene: read.scene, version: SCENE_VERSION, ...(declared !== undefined && declared < SCENE_VERSION ? { migratedFrom: declared } : {}) });
 }
 
+/** Why a file was not written, in the words every write gives. */
+function notWritten(error: unknown): Outcome<never> {
+  const code = error instanceof Error && "code" in error ? error.code : undefined;
+  if (code === "EEXIST" || code === "ELOOP") return bad("exists", "that file exists; name a new path, or pass --force to replace it");
+  if (code === "ENOENT") return bad("failed", "the folder for that file does not exist");
+  return bad("failed", "the file could not be written");
+}
+
 /** Files on disk, as the command line sees them. A path is never echoed in a failure beyond what the caller typed. */
 export const diskFiles: Files = {
   read(path) {
@@ -320,10 +337,47 @@ export const diskFiles: Files = {
       writeFileSync(path, text, { flag: force ? "w" : "wx" });
       return good(Buffer.byteLength(text));
     } catch (error) {
+      return notWritten(error);
+    }
+  },
+  writeBytes(path, bytes, force) {
+    const flags = constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL;
+    if (!force) {
+      try {
+        const file = openSync(path, flags | constants.O_NOFOLLOW, 0o666);
+        try {
+          writeFileSync(file, bytes);
+        } finally {
+          closeSync(file);
+        }
+        return good(bytes.length);
+      } catch (error) {
+        return notWritten(error);
+      }
+    }
+    const temp = join(dirname(path), `.${basename(path)}.${randomUUID()}.tmp`);
+    try {
+      const file = openSync(temp, flags, 0o666);
+      try {
+        writeFileSync(file, bytes);
+      } finally {
+        closeSync(file);
+      }
+      renameSync(temp, path);
+      return good(bytes.length);
+    } catch (error) {
+      rmSync(temp, { force: true });
+      return notWritten(error);
+    }
+  },
+  exists(path) {
+    try {
+      lstatSync(path);
+      return good(true);
+    } catch (error) {
       const code = error instanceof Error && "code" in error ? error.code : undefined;
-      if (code === "EEXIST") return bad("exists", "that file exists; name a new path, or pass --force to replace it");
-      if (code === "ENOENT") return bad("failed", "the folder for that file does not exist");
-      return bad("failed", "the file could not be written");
+      if (code === "ENOENT" || code === "ENOTDIR") return good(false);
+      return bad("failed", "the path could not be looked at");
     }
   },
 };

@@ -9,8 +9,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "@playwright/test";
 import { decodePng } from "../../tools/stills/src/png.js";
+import { ran } from "./spawn.js";
 
-const bun = (args: readonly string[], options: SpawnSyncOptionsWithStringEncoding): SpawnSyncReturns<string> => spawnSync("bun", args, options);
+/** Every child this spec starts, read through `ran`: a spawn that did not run throws with its error code and message, and never reads an empty `stdout`. */
+const bun = (args: readonly string[], options: SpawnSyncOptionsWithStringEncoding): SpawnSyncReturns<string> => ran(spawnSync("bun", args, options), `bun ${args.map((arg) => (arg.includes("/") ? "<path>" : arg)).join(" ")}`);
 
 const root = join(import.meta.dirname, "../..");
 const cli = join(root, "tools/lumin/src/cli.ts");

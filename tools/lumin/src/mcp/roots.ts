@@ -98,5 +98,17 @@ export function rootFiles(roots: readonly string[], allowWrite: boolean): Files 
       const at = locate(roots, path, "write");
       return at.ok ? diskFiles.write(at.value.real, text, force) : at;
     },
+    // Judged again at the moment of writing, whatever was judged before: a path that was inside a root when a tool was called and is a link out of it now is `no_root`.
+    // What is opened is then the resolved file, without following a link, so a link put there between the judging and the opening is refused too.
+    writeBytes(path, bytes, force) {
+      if (!allowWrite) return bad(WRITE_NOT_ALLOWED);
+      const at = locate(roots, path, "write");
+      return at.ok ? diskFiles.writeBytes(at.value.real, bytes, force) : at;
+    },
+    exists(path) {
+      if (!allowWrite) return bad(WRITE_NOT_ALLOWED);
+      const at = locate(roots, path, "write");
+      return at.ok ? diskFiles.exists(at.value.real) : at;
+    },
   };
 }
