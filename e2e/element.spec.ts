@@ -267,6 +267,43 @@ test("it draws no frames while fully out of view, and draws again when it return
   await expect.poll(() => count(host, "frames")).toBeGreaterThan(frames + 5);
 });
 
+test("on a page whose policy is style-src 'self' the element keeps its layout: no policy error, the canvas inside the host", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("console", (message) => {
+    if (message.type() === "error" && /Content Security Policy/i.test(message.text())) errors.push(message.text());
+  });
+  // The site's policy, as a <meta> in the test page. The host is sized through the CSSOM, which the policy allows.
+  const policy = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self' data: blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'";
+  await page.route("**/element.html*", async (route) => {
+    const response = await route.fetch();
+    // The page's own <style> is left out: the policy would refuse it, and the test is about what the element does.
+    const body = (await response.text()).replace(/<style>[\s\S]*?<\/style>/, "").replace("<head>", `<head><meta http-equiv="Content-Security-Policy" content="${policy}">`);
+    await route.fulfill({ response, body });
+  });
+  await page.goto("/element.html?only=inline");
+  const host = page.locator("#inline");
+  await host.evaluate((element) => {
+    if (element instanceof HTMLElement) {
+      element.style.width = "320px";
+      element.style.height = "240px";
+    }
+  });
+  await ready(host);
+  const hostBox = await host.boundingBox();
+  const canvasBox = await canvasOf(host).boundingBox();
+  const posterBox = await host.locator("img").boundingBox();
+  if (hostBox === null || canvasBox === null || posterBox === null) throw new Error("the host, its canvas or its poster has no box");
+  expect(hostBox.width, "the host takes the size it was given").toBeGreaterThan(300);
+  // The canvas and the poster fill the host and nothing more.
+  for (const [name, box] of [["canvas", canvasBox], ["poster", posterBox]] as const) {
+    expect(box.x, `${name} left`).toBeCloseTo(hostBox.x, 0);
+    expect(box.y, `${name} top`).toBeCloseTo(hostBox.y, 0);
+    expect(box.width, `${name} width`).toBeCloseTo(hostBox.width, 0);
+    expect(box.height, `${name} height`).toBeCloseTo(hostBox.height, 0);
+  }
+  expect(errors, "the page's policy refused something the element did").toEqual([]);
+});
+
 test("twenty cycles of disconnecting and connecting leave the renderer holding what an empty scene leaves, and each connection builds the scene again", async ({ page }) => {
   // Each connection starts a renderer and builds the scene: twenty of them on software GL take their time.
   test.setTimeout(180_000);

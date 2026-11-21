@@ -8,11 +8,25 @@ export const SCENE_ELEMENT_TAG = "lts-scene";
 /** How far from the viewport an element may be and still start to load: its scene is built by the time it scrolls in. */
 const NEAR_MARGIN = "200px 0px";
 
+// The element's own styles. They go into the shadow root as a constructable stylesheet, which a page's `style-src 'self'` does not block; a <style> element would be
+// (the site's policy is exactly that), and the element would lose its layout: the canvas would sit against the page, not the element.
 const STYLE = `
 :host { display: block; position: relative; overflow: hidden; contain: layout paint; }
 img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 #stage { position: absolute; inset: 0; }
 `;
+
+/** Puts the element's styles into `root` as a constructable stylesheet; false where the browser has none. */
+function adopt(root: ShadowRoot): boolean {
+  try {
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(STYLE);
+    root.adoptedStyleSheets = [sheet];
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /** Where the element is: `poster` shows the picture, `loading` builds the scene, `ready` draws it, `error` kept the picture after a failure. Also the `data-state` attribute. */
 export type SceneElementState = "poster" | "loading" | "ready" | "error";
@@ -55,8 +69,6 @@ export class SceneElement extends HTMLElement {
     if (!this.hasAttribute("role")) this.setAttribute("role", "img");
     const root = this.shadowRoot ?? this.attachShadow({ mode: "open" });
     if (this.#image === undefined) {
-      const style = document.createElement("style");
-      style.textContent = STYLE;
       this.#image = document.createElement("img");
       this.#image.setAttribute("part", "poster");
       this.#image.alt = "";
@@ -64,7 +76,13 @@ export class SceneElement extends HTMLElement {
       this.#stage = document.createElement("div");
       this.#stage.id = "stage";
       this.#stage.setAttribute("part", "stage");
-      root.append(style, this.#image, this.#stage);
+      root.append(this.#image, this.#stage);
+      if (!adopt(root)) {
+        // No constructable stylesheets here (an older browser): a <style> element, which is what a page with no `style-src` allows.
+        const style = document.createElement("style");
+        style.textContent = STYLE;
+        root.prepend(style);
+      }
     }
     this.#syncPoster();
     this.#syncName();
