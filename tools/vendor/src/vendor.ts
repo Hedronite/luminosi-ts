@@ -3,10 +3,12 @@
 //   bun run vendor:check    fail if any is stale
 // Every folder under assets/vendor must be listed in `folders` below, with its CREDIT.md, and the CREDIT.md source line must pin it:
 // an upstream commit, or a release version with the sha256 of the folder as vendored (checked here).
-import { createHash } from "node:crypto";
 import { copyFile, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, join, relative, resolve } from "node:path";
-import { firstUrl, humanize, parseCredit, parseDemoReadme, parseFrontMatter, requirePin, vendorCreditLine, type VendorCreditLine } from "./parse.js";
+import { verifyFolder } from "./fetch.js";
+import { firstUrl, humanize, parseCredit, parseDemoReadme, parseFrontMatter, sourcePins, vendorCreditLine, type Credit, type VendorCreditLine } from "./parse.js";
+import { digestOf, readPin, type Pin } from "./pin.js";
+import { cacheDirFor, resolveVendor } from "./resolve.js";
 
 const root = resolve(import.meta.dirname, "../../..");
 const vendorDir = join(root, "assets/vendor");
@@ -149,13 +151,46 @@ async function readmeOf(folderDir: string): Promise<Page | undefined> {
   return name === undefined ? undefined : page(folderDir, join(folderDir, name));
 }
 
-/** The sha256 of a folder as vendored: of its files' `sha256  path` lines, sorted by path, CREDIT.md and .DS_Store left out. */
-async function folderDigest(dir: string): Promise<string> {
-  const paths = (await walk(dir)).map((file) => relative(dir, file).split("\\").join("/")).filter((path) => path !== "CREDIT.md" && path !== "vendor.json" && basename(path) !== ".DS_Store").sort();
-  const lines = await Promise.all(paths.map(async (path) => `${createHash("sha256").update(await readFile(join(dir, path))).digest("hex")}  ${path}\n`));
-  return createHash("sha256").update(lines.join("")).digest("hex");
-}
 
+/** A folder's raw files, through the resolver, and how it found them. */
+function rawOf(id: string): { readonly dir: string; readonly via: "kept" | "cache" | "repo" } {
+  const found = resolveVendor(id, { vendorDir, env: process.env });
+  if (!found.ok) throw new Error(found.error);
+  return { dir: found.dir, via: found.via };
+}
+/** The pin's hash, checked against what the folder holds: the fetched cache, the folder while raw files are still in i… */
+function pinHashOf(id: string, pin: Pin, via: "kept" | "cache" | "repo"): string {
+  const where = `assets/vendor/${id}`;
+  if (pin.kept) {
+    const actual = digestOf(join(vendorDir, id), true).hash;
+    if (actual !== pin.contentHash) throw new Error(`${where}: the folder's sha256 is ${actual}, not the pinned ${pin.contentHash}`);
+    return actual;
+  }
+  if (via === "cache") return verifyFolder(id, pin, vendorDir, cacheDirFor({ vendorDir, env: process.env })).contentHash;
+  const actual = digestOf(join(vendorDir, id), false).hash;
+  if (actual !== pin.contentHash) throw new Error(`${where}: the folder's sha256 is ${actual}, not the pinned ${pin.contentHash}`);
+  return actual;
+}
+/** What disagrees between a pin and its folder's CREDIT.md, in words; empty when they agree. */
+function creditProblems(id: string, pin: Pin, credit: Credit): readonly string[] {
+  const where = `assets/vendor/${id}/CREDIT.md`;
+  const pins = sourcePins(credit.source);
+  const problems: string[] = [];
+  if (pin.kept) {
+    const archives = pins.flatMap((one) => (one.kind === "archive" ? [one.sha256] : []));
+    if (archives.length !== 1) problems.push(`${where} pins ${String(archives.length)} archives, the pin names one kept folder`);
+    else if (archives[0] !== pin.contentHash) problems.push(`${where} pins sha256 ${String(archives[0])}, the pin says ${pin.contentHash}`);
+    return problems;
+  }
+  const commits = pins.flatMap((one) => (one.kind === "commit" ? [one.commit] : []));
+  if (commits.length !== pin.sources.length) {
+    problems.push(`${where} pins ${String(commits.length)} commits, the pin names ${String(pin.sources.length)}`);
+  }
+  for (const commit of commits) {
+    if (!pin.sources.some((source) => source.commit.startsWith(commit))) problems.push(`${where}: ${commit} is no source's commit`);
+  }
+  return problems;
+}
 async function entries() {
   const present = (await readdir(vendorDir, { withFileTypes: true })).filter((e) => e.isDirectory()).map((e) => e.name).sort();
   const unlisted = present.filter((id) => folders[id] === undefined);
@@ -170,29 +205,32 @@ async function entries() {
       const dir = join(vendorDir, id);
       const where = `assets/vendor/${id}/CREDIT.md`;
       const credit = parseCredit(await readFile(join(dir, "CREDIT.md"), "utf8"), where);
-      const archives = requirePin(credit.source, where).flatMap((pin) => (pin.kind === "archive" ? [pin] : []));
-      if (archives.length > 0) {
-        const actual = await folderDigest(dir);
-        for (const pin of archives) {
-          if (actual !== pin.sha256) throw new Error(`${where}: the folder's sha256 is ${actual}, not the pinned ${pin.sha256}: re-pin after a deliberate change`);
-        }
-      }
+      const pin = readPin(vendorDir, id);
+      if (pin === undefined) throw new Error(`assets/vendor/${id}: no vendor.json pin`);
+      const disagreements = creditProblems(id, pin, credit);
+      if (disagreements.length > 0) throw new Error(disagreements.join("; "));
+      const raw = rawOf(id);
+      pinHashOf(id, pin, raw.via);
       const sourceUrl = firstUrl(credit.source);
       if (sourceUrl === undefined) throw new Error(`assets/vendor/${id}/CREDIT.md: the source line has no URL`);
       // vendor.json is the folder's pin (tools/vendor/src/pin.ts), not one of its vendored files: it is in neither the hash nor the counts.
-      const files = (await walk(dir)).filter((file) => relative(dir, file) !== "vendor.json");
+      // The raw files come through the resolver. CREDIT.md stays in the folder, so a cached folder counts it again;
+      // a folder read from the repository already walks it.
+      const files = (await walk(raw.dir)).filter((file) => relative(raw.dir, file) !== "vendor.json");
+      const stays = raw.via === "cache" ? [join(dir, "CREDIT.md")] : [];
+      const creditSize = stays.length === 0 ? 0 : (await stat(join(dir, "CREDIT.md"))).size;
       const sizes = await Promise.all(files.map(async (file) => (await stat(file)).size));
       const items =
         folder.kind === "skills"
-          ? await skills(dir)
+          ? await skills(raw.dir)
           : folder.days !== undefined
-            ? await days(dir, folder.days)
+            ? await days(raw.dir, folder.days)
             : folder.kind === "demos"
-              ? await demos(dir)
+              ? await demos(raw.dir)
               : folder.docs === undefined
                 ? []
-                : [await docsItem(dir, folder.docs)];
-      const readme = await readmeOf(dir);
+                : [await docsItem(raw.dir, folder.docs)];
+      const readme = await readmeOf(raw.dir);
       return {
         id,
         name: folder.name,
@@ -203,8 +241,8 @@ async function entries() {
         ...(folder.link === undefined ? {} : { link: folder.link }),
         ...(folder.packPrefix === undefined ? {} : { packPrefix: folder.packPrefix }),
         ...(folder.preview === undefined ? {} : { preview: `vendor/${id}-${basename(folder.preview)}` }),
-        files: files.length,
-        bytes: sizes.reduce((a, b) => a + b, 0),
+        files: files.length + stays.length,
+        bytes: sizes.reduce((a, b) => a + b, 0) + creditSize,
         ...(readme === undefined ? {} : { readme }),
         items,
       };
@@ -216,7 +254,7 @@ async function entries() {
 /** Preview images: source in assets/vendor → destination in the catalog's public files. */
 const previews = (): readonly (readonly [string, string])[] =>
   Object.entries(folders).flatMap(([id, folder]) =>
-    folder.preview === undefined ? [] : [[join(vendorDir, id, folder.preview), join(publicDir, "vendor", `${id}-${basename(folder.preview)}`)] as const],
+    folder.preview === undefined ? [] : [[join(rawOf(id).dir, folder.preview), join(publicDir, "vendor", `${id}-${basename(folder.preview)}`)] as const],
   );
 
 type Entry = Awaited<ReturnType<typeof entries>>[number];
@@ -295,7 +333,13 @@ const sameBytes = async (a: string, b: string): Promise<boolean> => {
 
 const [command = ""] = process.argv.slice(2);
 if (command === "generate" || command === "check") {
-  const files = renderAll(await entries(), await vendorCreditsOf());
+  let files: ReadonlyMap<string, string>;
+  try {
+    files = renderAll(await entries(), await vendorCreditsOf());
+  } catch (error: unknown) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  }
   const existing = (await readdir(pagesDir).catch(() => [])).map((name) => join(pagesDir, name));
   const leftover = existing.filter((path) => !files.has(path));
   if (command === "check") {

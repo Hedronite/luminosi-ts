@@ -135,6 +135,8 @@ Licensed under either of
 
 at your option.
 
+Vendored folders ship their pins and credits, not their raw files: run `bun run vendor:fetch` to fetch each
+folder at its pin into `.vendor/` before building the catalog's Open source view or running its checks.
 Third-party material is listed, with its license and credit, in [`CREDITS.md`](CREDITS.md). The main exception is `tools/img-to-object/upstream/`, a vendored copy of an Apache-2.0 project: it is under the Apache License 2.0 only. See its [`NOTICE`](tools/img-to-object/NOTICE).
 
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in this work, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.

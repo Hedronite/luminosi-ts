@@ -12,3 +12,4 @@ test-results
 tools/img-to-object/upstream
 .img-to-object
 assets/vendor
+.vendor

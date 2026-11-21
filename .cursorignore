@@ -5,3 +5,4 @@
 # Bun tooling (`lumin study`, `lumin adopt`) reads the trees directly.
 assets/vendor/
 tools/img-to-object/upstream/
+.vendor/

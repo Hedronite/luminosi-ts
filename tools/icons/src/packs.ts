@@ -5,10 +5,17 @@ import { existsSync } from "node:fs";
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 import { z } from "zod";
+import { resolveVendor } from "../../vendor/src/resolve.js";
 import { convertSvg, humanize, importName, svgFromTsx, type ConvertedIcon, type Paint } from "./packConvert.js";
 
 const root = resolve(import.meta.dirname, "../../..");
 const vendor = join(root, "assets/vendor");
+/** Where a folder's raw files are: the fetched cache, the kept folder, or the folder while its raw files are still in it. */
+function rawDir(folder: string): string {
+  const found = resolveVendor(folder, { vendorDir: vendor, env: process.env });
+  if (!found.ok) throw new Error(found.error);
+  return found.dir;
+}
 const outDir = join(root, "packages/icons/src/packs");
 
 interface Source {
@@ -28,8 +35,11 @@ interface PackDefinition {
   readonly tsx?: boolean;
 }
 
-const svgFiles = async (dir: string, idOf: (file: string) => string = (f) => f.slice(0, -4)): Promise<Source[]> =>
-  (await readdir(join(vendor, dir))).filter((f) => f.endsWith(".svg")).sort().map((f) => ({ id: idOf(f), path: join(vendor, dir, f) }));
+const svgFiles = async (dir: string, idOf: (file: string) => string = (f) => f.slice(0, -4)): Promise<Source[]> => {
+  const [folder = "", ...rest] = dir.split("/");
+  const at = join(rawDir(folder), ...rest);
+  return (await readdir(at)).filter((f) => f.endsWith(".svg")).sort().map((f) => ({ id: idOf(f), path: join(at, f) }));
+};
 
 const kebab = (pascal: string): string => pascal.replace(/([a-z0-9])([A-Z])/g, "$1-$2").replace(/([A-Z])([A-Z][a-z])/g, "$1-$2").toLowerCase();
 
@@ -41,11 +51,13 @@ const stashStyle = (style: string): PackDefinition => ({
   credit: "Pingback LLC",
   source: "https://github.com/stash-ui/icons",
   tsx: true,
-  sources: async () =>
-    (await readdir(join(vendor, "stash-icons/packages", style, "src")))
+  sources: async () => {
+    const at = join(rawDir("stash-icons"), "packages", style, "src");
+    return (await readdir(at))
       .filter((f) => f.endsWith("Icon.tsx"))
       .sort()
-      .map((f) => ({ id: kebab(basename(f, "Icon.tsx")), path: join(vendor, "stash-icons/packages", style, "src", f) })),
+      .map((f) => ({ id: kebab(basename(f, "Icon.tsx")), path: join(at, f) }));
+  },
 });
 
 const isoconsCatalog = z.array(z.object({ id: z.string(), title: z.string(), category: z.string() }));
@@ -58,14 +70,15 @@ const isoconsVariant = (variant: string): PackDefinition => ({
   credit: "Isometric Icons by isocons.app (leyeConnect and meandchimso)",
   source: "https://www.isocons.app/",
   sources: async () => {
-    const catalog = isoconsCatalog.parse(JSON.parse(await readFile(join(vendor, "isocons/catalog.json"), "utf8")));
+    const at = rawDir("isocons");
+    const catalog = isoconsCatalog.parse(JSON.parse(await readFile(join(at, "catalog.json"), "utf8")));
     const titles = new Map(catalog.map((entry) => [`${entry.category}/${entry.id}`, entry.title]));
-    const categories = (await readdir(join(vendor, "isocons/svg"))).sort();
-    const listings = await Promise.all(categories.map(async (category) => ({ category, icons: (await readdir(join(vendor, "isocons/svg", category))).sort() })));
+    const categories = (await readdir(join(at, "svg"))).sort();
+    const listings = await Promise.all(categories.map(async (category) => ({ category, icons: (await readdir(join(at, "svg", category))).sort() })));
     return listings.flatMap(({ category, icons }) =>
       icons.flatMap((icon): Source[] => {
         const title = titles.get(`${category}/${icon}`);
-        const path = join(vendor, "isocons/svg", category, icon, `${variant}.svg`);
+        const path = join(at, "svg", category, icon, `${variant}.svg`);
         // Not every icon comes in every variant; a variant pack holds the ones that do.
         if (!existsSync(path)) return [];
         return [{ id: icon, path, ...(title === undefined ? {} : { name: title }) }];
