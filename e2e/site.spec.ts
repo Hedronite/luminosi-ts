@@ -88,7 +88,7 @@ test("the scene shows its poster at load, and nothing 3D is loaded before the el
     return element.getBoundingClientRect().top;
   });
   expect(belowFold).not.toBeNull();
-  expect(belowFold ?? 0).toBeGreaterThan(page.viewportSize()?.height ?? 0 + 200);
+  expect(belowFold ?? 0).toBeGreaterThan((page.viewportSize()?.height ?? 0) + 200);
   // Scrolling the element near the viewport brings the 3D set in and draws it. The trace above only saw
   // the page's own load, so the resource entries now tell what the scroll asked for.
   await host.scrollIntoViewIfNeeded();

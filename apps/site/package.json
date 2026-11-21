@@ -8,6 +8,7 @@
     "dev": "astro dev",
     "build": "astro build",
     "poster": "bun run lumin scene render src/scene/solids.json --out public/solids-poster.png --width 640 --height 288 --force",
+    "test": "vitest run",
     "preview": "astro preview",
     "typecheck": "astro check"
   },
@@ -21,6 +22,7 @@
     "tailwindcss": "catalog:"
   },
   "devDependencies": {
-    "@astrojs/check": "catalog:"
+    "@astrojs/check": "catalog:",
+    "vitest": "catalog:"
   }
 }
