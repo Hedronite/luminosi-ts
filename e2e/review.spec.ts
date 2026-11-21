@@ -1,7 +1,7 @@
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { expect, test } from "./fixtures.js";
+import { expect, expectRenderer, test } from "./fixtures.js";
 import { reviewObject } from "img-to-object/review";
 
 // The image-to-object review, end to end: a render of the desk lamp becomes the "reference", so a
@@ -23,6 +23,7 @@ test("a spec reviewed against its own render lines up", async ({ page }) => {
         return typeof state === "object" && state !== null && "status" in state ? String(state.status) : "missing";
       }), { timeout: 15_000 })
       .toBe("drawn");
+    await expectRenderer(page.locator("canvas"));
     const reference = join(dir, "reference.png");
     await page.locator("canvas").screenshot({ path: reference });
 

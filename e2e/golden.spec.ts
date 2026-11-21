@@ -9,6 +9,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { join, resolve } from "node:path";
 import { loadRegistry } from "@hedronite/lts-registry";
 import { expect, test } from "@playwright/test";
+import { expectRenderer } from "./fixtures.js";
 import { decodePng } from "../tools/stills/src/png.js";
 import { looseDistance, looseRatio, MARGIN, strictDistance, strictFails } from "./golden/metrics.js";
 import { plant, plants } from "./golden/plants.js";
@@ -50,6 +51,8 @@ for (const asset of assets) {
     await expect(stage).toHaveAttribute("data-still", /^(ready|error)$/, { timeout: 60_000 });
     expect(await stage.getAttribute("data-error")).toBeNull();
     await expect(stage).toHaveAttribute("data-still", "ready");
+    // The strict lane draws on a real GPU and is not the WebGPU lane: ask for webgpu explicitly.
+    await expectRenderer(stage.locator("canvas"), strict ? ["webgpu"] : ["webgpu", "webgl2"]);
     expect(problems).toEqual([]);
 
     // The strict check fails a plant at any pixel. The loose one asks more: a plant must reach MARGIN times its bar, and a clean frame must stay a MARGIN under it.
