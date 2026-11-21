@@ -1,4 +1,5 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join, relative, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -44,6 +45,23 @@ const CANVAS_ALLOW = join(ROOT, "packages", "adapters", "src", "postfx.tsx");
 /** The files of an open step whose move to the WebGPU renderer is the step's own PR (Wave 8's G2). */
 const OPEN_STEP_FILES = new Set([join(ROOT, "apps", "catalog", "src", "Still.tsx"), join(ROOT, "apps", "catalog", "src", "embed.ts")]);
 
+/**
+ * The file's text with its comments removed, so a comment that names `WebGLRenderer` ("this used to hold a
+ * `WebGLRenderer`") is not a violation. Strings are left alone: an honest message may say WebGL, and the
+ * matcher only reads identifiers.
+ */
+const stripComments = (text: string): string => text.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, "");
+const where = (file: string): string => relative(ROOT, file);
+
+/** The tripwire's matchers over one comment-free line, as the walk applies them. */
+const matches = (line: string, allowCanvas: boolean): boolean =>
+  /\bnew\s+WebGLRenderer\b/.test(line) ||
+  (/\bWebGLRenderer\b/.test(line)) ||
+  (/<Canvas\b/.test(line) && !allowCanvas);
+
+/** The scanned files, so a test can prove the walk reached the code it guards. */
+const scanned: string[] = [];
+
 const violations: readonly string[] = (() => {
   const found: string[] = [];
   const walk = (dir: string): void => {
@@ -53,16 +71,16 @@ const violations: readonly string[] = (() => {
         walk(file);
         continue;
       }
-      if (!/\.(?:ts|tsx)$/.test(file)) continue;
+      if (!/\.(?:ts|tsx|js|mjs|astro)$/.test(file)) continue;
       if (isTestFile(file)) continue;
       if (GENERATED.test(file)) continue;
       if (OPEN_STEP_FILES.has(file)) continue;
-      const text = readFileSync(file, "utf8");
-      const where = relative(ROOT, file);
+      scanned.push(relative(ROOT, file));
+      const text = stripComments(readFileSync(file, "utf8"));
       for (const line of text.split("\n")) {
-        if (/\bnew\s+WebGLRenderer\b/.test(line)) found.push(`${where}: constructing three's WebGL renderer: ${line.trim()}`);
-        else if (/\bWebGLRenderer\b/.test(line)) found.push(`${where}: the WebGL renderer's name: ${line.trim()}`);
-        else if (/<Canvas\b/.test(line) && file !== CANVAS_ALLOW) found.push(`${where}: a plain React Three Fiber <Canvas> (the WebGPU canvas is in packages/adapters/src/postfx.tsx): ${line.trim()}`);
+        if (/\bnew\s+WebGLRenderer\b/.test(line)) found.push(`${where(file)}: constructing three's WebGL renderer: ${line.trim()}`);
+        else if (/\bWebGLRenderer\b/.test(line)) found.push(`${where(file)}: the WebGL renderer's name (a type-only import is a violation too): ${line.trim()}`);
+        else if (/<Canvas\b/.test(line) && file !== CANVAS_ALLOW) found.push(`${where(file)}: a plain React Three Fiber <Canvas> (the WebGPU canvas is in packages/adapters/src/postfx.tsx): ${line.trim()}`);
       }
     }
   };
@@ -73,5 +91,44 @@ const violations: readonly string[] = (() => {
 describe("one renderer", () => {
   it("finds no WebGL renderer and no plain React Three Fiber canvas in the sources", () => {
     expect(violations, "the classic renderer is back").toEqual([]);
+  });
+
+  it("walked the sources it guards, the WebGPU canvas's own file among them", () => {
+    expect(scanned.length, "the walk reached the code").toBeGreaterThan(0);
+    expect(scanned).toContain(relative(ROOT, CANVAS_ALLOW));
+  });
+
+  it("keeps a WebGPU gl on the one canvas it allows", () => {
+    const text = readFileSync(CANVAS_ALLOW, "utf8");
+    // The allowlisted <Canvas> is WebGPUCanvas's own: it builds a WebGPURenderer and hands it to R3F as gl.
+    expect(text).toMatch(/<Canvas\b/);
+    expect(text).toMatch(/gl=\{?async/);
+    expect(text).toMatch(/new\s+WebGPURenderer/);
+  });
+
+  it("fails a planted classic renderer and a planted plain canvas, in a tree of its own", () => {
+    const root = mkdtempSync(join(tmpdir(), "lts-onerenderer-"));
+    try {
+      for (const top of ["apps", "packages"]) mkdirSync(join(root, top, "demo", "src"), { recursive: true });
+      writeFileSync(
+        join(root, "packages", "demo", "src", "classic.ts"),
+        'import { WebGLRenderer } from "three";\nexport const renderer = new WebGLRenderer();\n',
+      );
+      writeFileSync(
+        join(root, "packages", "demo", "src", "typed.ts"),
+        'import type { WebGLRenderer } from "three";\nexport type R = WebGLRenderer;\n',
+      );
+      writeFileSync(join(root, "packages", "demo", "src", "commented.ts"), '// a WebGLRenderer used to live here\nexport const ok = 1;\n');
+      writeFileSync(join(root, "apps", "demo", "src", "stage.tsx"), 'import { Canvas } from "@react-three/fiber";\nexport const Stage = () => <Canvas />;\n');
+      // A comment naming the renderer is not a violation; a construction, a type-only import and a plain canvas are.
+      const planted = [join(root, "packages", "demo", "src", "classic.ts"), join(root, "packages", "demo", "src", "typed.ts"), join(root, "apps", "demo", "src", "stage.tsx")];
+      const clean = [join(root, "packages", "demo", "src", "commented.ts")];
+      const read = (file: string): readonly string[] => stripComments(readFileSync(file, "utf8")).split("\n");
+      const relativeFile = (file: string): string => relative(root, file);
+      for (const file of planted) expect(read(file).some((line) => matches(line, false)), `${relativeFile(file)} must trip the tripwire`).toBe(true);
+      for (const file of clean) expect(read(file).some((line) => matches(line, false)), `${relativeFile(file)} must stay clean`).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });
