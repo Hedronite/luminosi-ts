@@ -68,9 +68,9 @@ describe("ROADMAP.md", () => {
     expect(drift("## Stage 5\n- [x] X1 done\n")).toHaveLength(1);
   });
 
-  it("ticks B1 with its pull requests, names the MCP server on C4 and lists the open follow-ups", () => {
+  it("ticks B1 with its pull requests, ticks C4 with the three that built it and lists the open follow-ups", () => {
     expect(text).toMatch(/- \[x\] B1 [^\n]*\(#46, #49, #50, #52\)/);
-    expect(text).toMatch(/- \[ \] C4 [^\n]*stdio MCP server over the same operations/);
+    expect(text).toMatch(/- \[x\] C4 [^\n]*stdio MCP server over the same operations[^\n]*\(#80, #81, #\d+\)/);
     expect(text).toMatch(/- \[[ x]\] A5 [^\n]*secure origin/);
     for (const follow of ["`preview` and `thumbnail` fields", "`e2e/` and the config files", "CI shards balanced by run time", "Icon packs as data"]) {
       expect(text).toMatch(new RegExp(`- \\[[ x]\\] [^\\n]*${follow.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
