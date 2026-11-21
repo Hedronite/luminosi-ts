@@ -85,8 +85,11 @@ test("the playground lines up every material on one shape", async ({ page }) => 
   await expect(page.getByRole("list", { name: "Materials in the lineup" }).getByRole("listitem")).toHaveCount(13);
   // Thirteen materials, transmission among them, compile slowly under software rendering in CI.
   await expect(lineup).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
-  // One shared shape: a single geometry however many materials.
-  await expect(lineup).toHaveAttribute("data-gpu-geometries", "1");
+  // One shared shape: a single geometry however many materials. The WebGPU canvas's renderer holds the
+  // studio bake's box beside the scene's one (an info.memory artifact of PMREM on that renderer, stable
+  // across cycles and shapes), so the scene's share is read off `data-builds`: 13 meshes, 13 materials, 1 geometry.
+  await expect(lineup).toHaveAttribute("data-gpu-geometries", "2");
+  await expect(lineup).toHaveAttribute("data-builds", "27");
   await page.getByLabel("Shape", { exact: true }).selectOption("platonic-icosahedron");
   await expect(page.getByRole("group", { name: "13 materials on the Icosahedron shape, in a grid." })).toBeVisible();
   expect(errors).toEqual([]);
