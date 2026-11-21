@@ -1,5 +1,5 @@
 import type { AssetKind, AssetMeta } from "@hedronite/lts-core";
-import { EffectClockProvider, StudioLights, useEffectMaterial } from "@hedronite/lts-adapters";
+import { EffectClockProvider, StudioEnvironment, StudioLights, useEffectMaterial } from "@hedronite/lts-adapters";
 import { ScreenEffectsPass, WebGPUCanvas, WebGPUStudioEnvironment } from "@hedronite/lts-adapters/webgpu";
 import { createRandom } from "@hedronite/lts-core";
 import { disposeObject, createStudioLights } from "@hedronite/lts-primitives/three";
@@ -7,7 +7,7 @@ import { isScreenEffectId, screenEffectInfo, type ScreenEffectId } from "@hedron
 import { effectInfo, isEffectId } from "@hedronite/lts-shaders";
 import { loadDescriptors } from "@hedronite/lts-registry";
 import { neutral } from "@hedronite/lts-tokens";
-import { useThree } from "@react-three/fiber";
+import { Canvas, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { Object3D } from "three";
@@ -155,12 +155,12 @@ function Lights() {
 function Meshes({ meta, rig, finish }: { readonly meta: AssetMeta; readonly rig: Rig; readonly finish: (outcome: Outcome) => void }) {
   const [built, setBuilt] = useState(false);
   return (
-    <WebGPUCanvas frameloop="never" dpr={1} camera={{ position: [...rig.position], fov: rig.fov }}>
-      <WebGPUStudioEnvironment />
+    <Canvas frameloop="never" dpr={1} camera={{ position: [...rig.position], fov: rig.fov }}>
+      <StudioEnvironment />
       {meta.kind === "scene" ? null : <Lights />}
       <Subject meta={meta} turn={rig.turn} onBuilt={setBuilt} />
       <Stepper ready={built} pointer={false} done={finish} />
-    </WebGPUCanvas>
+    </Canvas>
   );
 }
 
