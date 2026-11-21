@@ -170,9 +170,76 @@ export const Broken = () => (
     });
   });
 
+  describe("lumin-scene", () => {
+    const cli = (args: readonly string[], input?: string) => {
+      const argv = [join(root, "tools/lumin/src/cli.ts"), "scene", ...args];
+      return spawnSync("bun", argv, { cwd: root, encoding: "utf8", ...(input === undefined ? {} : { input }) });
+    };
+    const viaSkill = (args: readonly string[], input?: string) => spawnSync("nu", [join(canon, "lumin-scene/lumin-scene.nu"), ...args], { cwd: root, encoding: "utf8", ...(input === undefined ? {} : { input }) });
+    const fixture = (name: string): string => join(root, "packages/scene/fixtures", `${name}.json`);
+    const planted = (): string => {
+      const dir = mkdtempSync(join(tmpdir(), "lumin-scene-"));
+      const file = join(dir, "planted.json");
+      writeFileSync(file, readFileSync(fixture("primitives-in-materials"), "utf8").replace('"platonic-cube"', '"platonic-cub"'));
+      return file;
+    };
+    const stdinText = readFileSync(join(root, "packages/scene/fixtures/v1.json"), "utf8");
+
+    // The skill prints the CLI's own line, the same bytes, and exits with the same code. Each case starts `bun` twice and `nu` once.
+    const cases: readonly (readonly [string, () => readonly string[], number, string | undefined])[] = [
+      ["validate a document", () => ["validate", fixture("v1")], 0, undefined],
+      ["validate a version 0 document, migrated", () => ["validate", fixture("v0")], 0, undefined],
+      ["validate a document with an unknown id", () => ["validate", planted()], 1, undefined],
+      ["validate from stdin", () => ["validate", "-"], 0, stdinText],
+      ["diff two documents", () => ["diff", fixture("v1"), fixture("transform-hierarchy")], 0, undefined],
+      ["patch", () => ["patch", fixture("v1"), "--ops", '[{"op":"setInk","ink":"accent"}]'], 0, undefined],
+      ["patch with a failing step", () => ["patch", fixture("v1"), "--ops", '[{"op":"setInk","ink":"accent"},{"op":"removeNode","id":"ghost"}]'], 1, undefined],
+      ["export as tsx", () => ["export", fixture("v1"), "--as", "tsx"], 0, undefined],
+      ["export as a link", () => ["export", fixture("v1"), "--as=link"], 0, undefined],
+      ["export with no --as", () => ["export", fixture("v1")], 2, undefined],
+      ["diff with one document", () => ["diff", fixture("v1")], 2, undefined],
+    ];
+    it.each(cases)("%s: the skill prints the CLI's envelope exactly", (_name, args, code, input) => {
+      const words = args();
+      const direct = cli(words, input);
+      const wrapped = viaSkill(words, input);
+      expect(direct.status).toBe(code);
+      expect(wrapped.status).toBe(code);
+      expect(wrapped.stdout).toBe(direct.stdout);
+      const envelope: unknown = JSON.parse(direct.stdout);
+      expect(isEnvelope(envelope) && envelope.command.startsWith("scene ")).toBe(true);
+    }, 30_000);
+
+    it("with no subcommand says which there are, as an envelope with exit 2", () => {
+      const result = viaSkill([]);
+      expect(result.status).toBe(2);
+      expect(JSON.parse(result.stdout)).toMatchObject({ ok: false, kind: "usage", exit: 2 });
+    }, 20_000);
+  });
+
   it("lumin-check runs one step and reports it", () => {
     const { code, envelope } = runSkill("lumin-check", ["--only", "icons:check"]);
     expect(code).toBe(0);
     expect(JSON.stringify(envelope.data)).toContain('"step":"icons:check"');
+  });
+});
+
+describe("the lumin-scene skill", () => {
+  const skillText = readFileSync(join(canon, "lumin-scene/SKILL.md"), "utf8");
+
+  it("is thin: a short SKILL.md beside lumin-scene.nu, named for its folder", () => {
+    expect(skillText.split("\n").length).toBeLessThanOrEqual(60);
+    expect(skillText).toMatch(/^name: lumin-scene$/m);
+    expect(readdirSync(join(canon, "lumin-scene")).sort()).toEqual(["SKILL.md", "lumin-scene.nu"]);
+  });
+
+  it.each(["README.md", "STACK.md"])("is the primary path in %s: the skill is named before the command line", (file) => {
+    const text = readFileSync(join(root, file), "utf8");
+    expect(text.indexOf("lumin-scene.nu")).toBeGreaterThan(-1);
+    expect(text.indexOf("lumin-scene.nu")).toBeLessThan(text.indexOf("bun run lumin scene"));
+  });
+
+  it("is listed in AGENTS.md", () => {
+    expect(readFileSync(join(root, "AGENTS.md"), "utf8")).toContain("- `lumin-scene`:");
   });
 });

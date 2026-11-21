@@ -61,7 +61,7 @@ export function search(query: string, options: { readonly kind?: string; readonl
 }
 
 /** Edit distance between two strings (insertions, deletions, substitutions). */
-function distance(a: string, b: string): number {
+export function distance(a: string, b: string): number {
   let previous = Array.from({ length: b.length + 1 }, (_, j) => j);
   for (let i = 1; i <= a.length; i++) {
     const current = [i];
