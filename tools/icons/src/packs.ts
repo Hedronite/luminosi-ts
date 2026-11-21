@@ -5,7 +5,7 @@ import { existsSync } from "node:fs";
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 import { z } from "zod";
-import { resolveVendor } from "../../vendor/src/resolve.js";
+import { resolveVendor } from "tool-vendor/resolve";
 import { convertSvg, humanize, importName, svgFromTsx, type ConvertedIcon, type Paint } from "./packConvert.js";
 
 const root = resolve(import.meta.dirname, "../../..");
@@ -172,7 +172,13 @@ async function build(): Promise<Map<string, string>> {
   return outputs;
 }
 
-const outputs = [...(await build())];
+const outputs = await build().then(
+  (built) => [...built],
+  (error: unknown) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  },
+);
 if (process.argv.includes("--check")) {
   const current = await Promise.all(outputs.map(([path]) => readFile(path, "utf8").catch(() => "")));
   const stale = outputs.filter(([, content], i) => current[i] !== content).map(([path]) => path.slice(root.length + 1));
