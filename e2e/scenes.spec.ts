@@ -11,6 +11,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
+import { expectRenderer } from "./fixtures.js";
 import { decodePng, type Picture } from "../tools/stills/src/png.js";
 import { plant, plants } from "./golden/plants.js";
 import { looseDistance, looseRatio, MARGIN, strictDistance, strictFails } from "./golden/metrics.js";
@@ -41,6 +42,8 @@ async function draw(page: Page, name: Fixture, via: "doc" | "code", plantName?: 
   await expect(stage).toHaveAttribute("data-still", /^(ready|error)$/, { timeout: 90_000 });
   expect(await stage.getAttribute("data-error")).toBeNull();
   await expect(stage).toHaveAttribute("data-still", "ready");
+  // The still page's scene modes draw on a hand-built renderer: the canvas must say which backend drew it.
+  await expectRenderer(stage.locator("canvas"));
   expect(problems).toEqual([]);
   page.off("console", onConsole);
   page.off("pageerror", onError);
