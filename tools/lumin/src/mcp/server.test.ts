@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
@@ -336,5 +336,23 @@ describe("no output holds an absolute path", () => {
     const places = [scratch, home, beyond, installRoot, process.cwd(), tmpdir()];
     expect(places.map((place) => [place, everything.filter((text) => text.includes(place))])).toEqual(places.map((place) => [place, []]));
     expect(everything.filter((text) => /(^|[\s"'(=:])\/(Users|home|private|var|tmp|etc|opt|usr)\//.test(text))).toEqual([]);
+  });
+});
+
+describe("the server's own files", () => {
+  // The calls that start a process or reach a network are the render's, in render.ts, and nothing here names one: the one place a browser is started is behind two flags.
+  it("name no way to start a process or to open a connection", () => {
+    const sources = readdirSync(import.meta.dirname).filter((name) => name.endsWith(".ts") && !name.includes(".test.") && name !== "harness.ts");
+    expect(sources).toEqual(expect.arrayContaining(["command.ts", "roots.ts", "server.ts", "tools.ts"]));
+    const read = (name: string): string => readFileSync(join(import.meta.dirname, name), "utf8");
+    const way = /child_process|Bun\.(spawn|listen|connect|serve|udpSocket)|node:(net|http|https|http2|dgram|dns|tls)|\bfetch\(|WebSocket|XMLHttpRequest/;
+    expect(sources.filter((name) => way.test(read(name)))).toEqual([]);
+  });
+
+  it("write to stdout in one place only, the command's, and never with console", () => {
+    const sources = readdirSync(import.meta.dirname).filter((name) => name.endsWith(".ts") && !name.includes(".test.") && name !== "harness.ts");
+    const read = (name: string): string => readFileSync(join(import.meta.dirname, name), "utf8");
+    expect(sources.filter((name) => /console\.|process\.stdout/.test(read(name)))).toEqual(["command.ts"]);
+    expect(sources.filter((name) => /console\./.test(read(name)))).toEqual([]);
   });
 });

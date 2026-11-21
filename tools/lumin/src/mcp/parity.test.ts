@@ -221,6 +221,10 @@ for (const [owner, name] of [[net.Socket.prototype, "connect"], [net.Server.prot
   const real = owner[name];
   owner[name] = function (...args) { note("network", name); return real.apply(this, args); };
 }
+for (const name of ["spawn", "spawnSync", "listen", "connect", "serve", "udpSocket"]) {
+  const real = Bun[name];
+  Bun[name] = function (...args) { note(name.startsWith("spawn") ? "process" : "network", "Bun." + name); return real.apply(this, args); };
+}
 const realFetch = globalThis.fetch;
 globalThis.fetch = (...args) => { note("network", "fetch"); return realFetch(...args); };
 `,
@@ -239,8 +243,8 @@ globalThis.fetch = (...args) => { note("network", "fetch"); return realFetch(...
   };
 
   it("the trace sees a process started and a connection opened (the control)", () => {
-    const { seen } = traced("control", ["-e", 'import cp from "node:child_process"; import net from "node:net"; cp.spawnSync("true"); net.createServer().listen(0, "127.0.0.1", function () { this.close(); });'], "");
-    expect(seen).toEqual(expect.arrayContaining(["process", "network"]));
+    const { seen } = traced("control", ["-e", 'import cp from "node:child_process"; import net from "node:net"; cp.spawnSync("true"); Bun.spawnSync(["true"]); net.createServer().listen(0, "127.0.0.1", function () { this.close(); });'], "");
+    expect([seen.includes("process"), seen.includes("network")]).toEqual([true, true]);
   });
 
   it("starts no process and opens no connection to answer every tool but a render, with every root and flag but the render's", () => {
