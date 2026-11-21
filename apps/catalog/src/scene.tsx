@@ -5,9 +5,6 @@ import { MathUtils, Spherical, Vector3, type Object3D } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { buildsOf, effectBuildsOf, memoryOf, noteBuilds } from "./builds";
 
-/** The studio environment comes from the adapters, so the catalog uses what consumers use. */
-export { StudioEnvironment as Environment } from "@hedronite/lts-adapters";
-
 /** What a stage tells a viewer who cannot drag: the keys, then the pointer. Read as the stage's description. */
 const keyHelp = "Arrow keys orbit, + and - zoom, 0 resets the view. Drag to rotate, scroll to zoom.";
 

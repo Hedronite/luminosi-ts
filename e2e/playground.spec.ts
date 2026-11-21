@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import AxeBuilder from "@axe-core/playwright";
 import type { Locator, Page } from "@playwright/test";
 import { ringLayout } from "../packages/scene/src/layout.js";
-import { builds, counted, effectBuilds, expect, test } from "./fixtures.js";
+import { builds, counted, effectBuilds, expect, expectRenderer, test } from "./fixtures.js";
 
 /** How long a stage may take to draw: every wait below is on the stage's own counters, and this is only the ceiling that makes a stage that never draws fail. */
 const STAGE_WAIT = 20_000;
@@ -53,6 +53,7 @@ test("the playground composes primitives and exports the scene", async ({ page }
   await expect(scene.first()).toBeVisible();
   const before = await scene.count();
   const viewport = page.getByTestId("playground-viewport");
+  await expectRenderer(viewport.locator("canvas"));
   await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
   const built = await settled(viewport, "data-builds");
 
@@ -138,6 +139,7 @@ const sceneFile = (name: string, buffer: Buffer): { name: string; mimeType: stri
 test("the stage stays in view while the controls scroll, since a stage out of view draws nothing", async ({ page }) => {
   await playgroundAt(page);
   const viewport = page.getByTestId("playground-viewport");
+  await expectRenderer(viewport.locator("canvas"));
   await expect(viewport).toBeInViewport();
   await page.evaluate(() => {
     window.scrollTo(0, 600);
@@ -390,6 +392,7 @@ async function nodeAt(page: Page, index: number): Promise<Placed> {
 async function playgroundStage(page: Page): Promise<Locator> {
   await playgroundAt(page);
   const host = page.getByTestId("playground-viewport");
+  await expectRenderer(host.locator("canvas"));
   await expect(host).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
   return host;
 }

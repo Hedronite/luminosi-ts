@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Locator, Page } from "@playwright/test";
-import { builds, expect, settledBuilds, test } from "./fixtures.js";
+import { builds, expect, expectRenderer, settledBuilds, test } from "./fixtures.js";
 
 // What every 3D stage owes a viewer who cannot drag or who wants less motion:
 //
@@ -148,6 +148,7 @@ const ready = async (stage: Stage, page: Page): Promise<void> => {
   await page.goto(stage.path);
   // The playground only animates once something animated is in it.
   if (stage === playgroundStage) await page.getByRole("checkbox", { name: "Smoke" }).check();
+  await expectRenderer(stage.host(page).locator("canvas"));
   await expect(stage.host(page)).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 15000 });
 };
 

@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { expect, test } from "./fixtures.js";
+import { expect, expectRenderer, test } from "./fixtures.js";
 
 const gallery = (page: Page) => page.getByRole("main").getByRole("list").getByRole("button");
 
@@ -24,6 +24,7 @@ for (const [id, name] of [
     page.on("pageerror", (error) => errors.push(error.message));
     await page.goto(`/?asset=${id}`);
     const viewport = page.getByRole("dialog", { name }).getByTestId("viewport");
+    await expectRenderer(viewport.locator("canvas"));
     await expect(viewport).toHaveAttribute("data-gpu-geometries", /^[1-9]\d*$/);
     await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/);
     expect(errors).toEqual([]);

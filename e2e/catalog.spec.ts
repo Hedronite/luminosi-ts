@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
-import { expect, test } from "./fixtures.js";
+import { expect, expectRenderer, test } from "./fixtures.js";
 
 test.use({ permissions: ["clipboard-read", "clipboard-write"] });
 
@@ -210,6 +210,7 @@ test("looks are grouped by category, and a one-scheme look keeps its scheme", as
 test("a primitive opens in an interactive 3D viewport", async ({ page }) => {
   await page.goto("/?asset=platonic-icosahedron");
   const viewport = page.getByRole("dialog", { name: "Icosahedron" }).getByTestId("viewport");
+  await expectRenderer(viewport.locator("canvas"));
   await expect(viewport.locator("canvas")).toBeVisible();
   await expect(viewport).toHaveAttribute("data-gpu-geometries", /^[1-9]\d*$/);
   // A frame was drawn without any interaction: on-demand rendering must not wait for input.
@@ -219,6 +220,7 @@ test("a primitive opens in an interactive 3D viewport", async ({ page }) => {
 test("a material renders with its environment", async ({ page }) => {
   await page.goto("/?asset=glass");
   const viewport = page.getByRole("dialog", { name: "Glass" }).getByTestId("viewport");
+  await expectRenderer(viewport.locator("canvas"));
   await expect(viewport.locator("canvas")).toBeVisible();
   await expect(viewport).toHaveAttribute("data-gpu-textures", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
 });
@@ -233,6 +235,7 @@ test("stepping through 3D assets frees each geometry it replaces", async ({ page
   await primitives.click();
   await gallery(page).first().click();
   const viewport = page.getByTestId("viewport");
+  await expectRenderer(viewport.locator("canvas"));
   // The first asset is drawn when the stage has counted a frame; its geometry count is the baseline. A slow machine takes longer to get here, never reads early.
   await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
   await expect(viewport).toHaveAttribute("data-gpu-geometries", /^[1-9]\d*$/);
@@ -260,6 +263,7 @@ for (const [id, name] of [
     });
     await page.goto(`/?asset=${id}`);
     const viewport = page.getByRole("dialog", { name }).getByTestId("viewport");
+    await expectRenderer(viewport.locator("canvas"));
     await expect(viewport).toHaveAttribute("data-gpu-geometries", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
     await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
     expect(errors).toEqual([]);
@@ -283,6 +287,7 @@ for (const [id, name] of [
     page.on("pageerror", (error) => errors.push(error.message));
     await page.goto(`/?asset=${id}`);
     const viewport = page.getByRole("dialog", { name }).getByTestId("viewport");
+    await expectRenderer(viewport.locator("canvas"));
     await expect(viewport.locator("canvas")).toBeVisible();
     await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 15000 });
     expect(errors).toEqual([]);
@@ -292,6 +297,7 @@ for (const [id, name] of [
 test("a scene kit renders with its own lights", async ({ page }) => {
   await page.goto("/?asset=scene-dusk");
   const viewport = page.getByRole("dialog", { name: "Dusk" }).getByTestId("viewport");
+  await expectRenderer(viewport.locator("canvas"));
   // A kit builds its lights and every object in it before it draws; that first frame is slow under software rendering and under load.
   await expect(viewport).toHaveAttribute("data-gpu-geometries", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
   await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
@@ -486,6 +492,7 @@ for (const [id, name] of [
     page.on("pageerror", (error) => errors.push(error.message));
     await page.goto(`/?asset=${id}`);
     const viewport = page.getByRole("dialog", { name }).getByTestId("viewport");
+    await expectRenderer(viewport.locator("canvas"));
     await expect(viewport).toHaveAttribute("data-gpu-geometries", /^[1-9]\d*$/);
     await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/);
     expect(errors).toEqual([]);

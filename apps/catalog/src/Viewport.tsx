@@ -1,11 +1,12 @@
 import type { AssetMeta } from "@hedronite/lts-core";
+import { WebGPUCanvas, WebGPUStudioEnvironment } from "@hedronite/lts-adapters/webgpu";
 import { applyPalette } from "@hedronite/lts-materials/three";
 import { createStudioLights, disposeObject } from "@hedronite/lts-primitives/three";
 import type { ScenePalette } from "@hedronite/lts-tokens";
-import { Canvas, useThree } from "@react-three/fiber";
+import { useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Object3D } from "three";
-import { Controls, Environment, GpuCounts, StageFrame, useMotion } from "./scene";
+import { Controls, GpuCounts, StageFrame, useMotion } from "./scene";
 import { buildSubject } from "./subjects";
 
 function Lights() {
@@ -86,13 +87,13 @@ export function Viewport({ meta, palette, params }: { readonly meta: AssetMeta; 
   const motion = useMotion(false);
   return (
     <StageFrame group={group} motion={motion} label={`${meta.name}, rendered in 3D.`} className="h-72 w-full" testId="viewport">
-      <Canvas frameloop="demand" dpr={[1, 2]} camera={{ position: [0, 0, 3.4], fov: 35 }}>
-        <Environment />
+      <WebGPUCanvas frameloop="demand" dpr={[1, 2]} camera={{ position: [0, 0, 3.4], fov: 35 }}>
+        <WebGPUStudioEnvironment />
         {meta.kind === "scene" ? null : <Lights />}
         <Controls keys={group} />
         <Subject key={meta.id} meta={meta} palette={palette} params={params} />
         <GpuCounts target={group} />
-      </Canvas>
+      </WebGPUCanvas>
     </StageFrame>
   );
 }

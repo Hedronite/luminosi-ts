@@ -1,10 +1,11 @@
 import type { AssetMeta } from "@hedronite/lts-core";
 import { EffectClockProvider, StudioLights, useEffectMaterial } from "@hedronite/lts-adapters";
+import { WebGPUCanvas } from "@hedronite/lts-adapters/webgpu";
 import { effectInfo, isEffectId } from "@hedronite/lts-shaders";
 import type { ScenePalette } from "@hedronite/lts-tokens";
-import { Canvas, useThree } from "@react-three/fiber";
+import { useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { BoxGeometry, MeshBasicMaterial, SphereGeometry, WebGPURenderer } from "three/webgpu";
+import { BoxGeometry, MeshBasicMaterial, SphereGeometry } from "three/webgpu";
 import { stageFrameloop, useStageShown, WakeOnShow } from "./onscreen";
 import { Controls, GpuCounts, StageClock, StageFrame, useMotion } from "./scene";
 import { useShaderClock } from "./shaderClock";
@@ -51,8 +52,8 @@ function Backdrop({ palette }: { readonly palette: ScenePalette }) {
 }
 
 /**
- * A 3D view for TSL shaders. TSL needs three's WebGPURenderer, which falls back to WebGL 2 where WebGPU
- * is missing. Renders every frame, since effects can animate; paused, or under reduced motion, only on change;
+ * A 3D view for TSL shaders, drawn on the adapters' WebGPUCanvas (three's WebGPURenderer, which falls back
+ * to WebGL 2 where WebGPU is missing). Renders every frame, since effects can animate; paused, or under reduced motion, only on change;
  * off screen, or in a hidden tab, not at all. `params` is every parameter in force (the panel's edits and the address's `?params=` over the defaults):
  * a change of it moves the shader live. `epoch` counts the times a parameter with no default was cleared, which only a new build can undo.
  */
@@ -64,18 +65,7 @@ export function ShaderViewport({ meta, palette, params, epoch }: { readonly meta
   const shown = useStageShown(group);
   return (
     <StageFrame group={group} motion={motion} label={`${meta.name}, a shader on a sphere.`} className="h-72 w-full" testId="viewport">
-      <Canvas
-        frameloop={stageFrameloop(shown, motion.still)}
-        dpr={[1, 2]}
-        camera={{ position: [0, 0, 3.4], fov: 35 }}
-        gl={async ({ canvas }) => {
-          // R3F hands over a DOM canvas in the browser; its OffscreenCanvas type differs from three's.
-          if (!(canvas instanceof HTMLCanvasElement)) throw new Error("the shader viewport needs a DOM canvas");
-          const renderer = new WebGPURenderer({ canvas, antialias: true });
-          await renderer.init();
-          return renderer;
-        }}
-      >
+      <WebGPUCanvas frameloop={stageFrameloop(shown, motion.still)} dpr={[1, 2]} camera={{ position: [0, 0, 3.4], fov: 35 }}>
         <WakeOnShow shown={shown} />
         <StudioLights />
         <Controls keys={group} />
@@ -85,7 +75,7 @@ export function ShaderViewport({ meta, palette, params, epoch }: { readonly meta
           <EffectSphere key={`${meta.id}:${String(epoch)}`} id={meta.id} palette={palette} params={params} />
         </EffectClockProvider>
         <GpuCounts target={group} clockRef={clock} shaderClock={shaderClock} />
-      </Canvas>
+      </WebGPUCanvas>
     </StageFrame>
   );
 }
