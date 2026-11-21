@@ -1,3 +1,4 @@
+import { rendererReadout } from "@hedronite/lts-adapters/webgpu";
 import { createRandom } from "@hedronite/lts-core";
 import { decodeScene, migrate, parseScene, type Scene, type SceneResult } from "@hedronite/lts-scene";
 import { createScene } from "@hedronite/lts-scene/three";
@@ -97,6 +98,7 @@ async function run(stage: HTMLElement, name: string, via: string, plant: string 
   renderer.setPixelRatio(PIXEL_RATIO);
   renderer.setSize(SIZE, SIZE);
   await renderer.init();
+  rendererReadout(renderer);
 
   // The reading of a renderer that has drawn an empty scene and nothing else: what every later reading is held against.
   const empty = new ThreeScene();
@@ -297,6 +299,7 @@ export function mountDocumentStill(root: HTMLElement, link: string | null, size:
     renderer.setSize(wanted.width, wanted.height);
     Object.assign(stage.style, { width: `${String(wanted.width)}px`, height: `${String(wanted.height)}px` });
     await renderer.init();
+    rendererReadout(renderer);
     const handle = createScene(scene, { renderer, clock: createEffectClock(0), reducedMotion: REDUCED_MOTION });
     free = () => { handle.dispose(); };
     await handle.ready;
