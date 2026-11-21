@@ -3,7 +3,7 @@ import { parseObjectSpec } from "@hedronite/lts-objects";
 import { createObjectFromSpec } from "@hedronite/lts-objects/three";
 import { disposeObject } from "@hedronite/lts-primitives/three";
 import { presets } from "@hedronite/lts-tokens";
-import { ACESFilmicToneMapping, Color, DirectionalLight, Mesh, OrthographicCamera, PMREMGenerator, Scene, Vector3, WebGPURenderer, type Object3D } from "three/webgpu";
+import { ACESFilmicToneMapping, DirectionalLight, Mesh, OrthographicCamera, PMREMGenerator, Scene, Vector3, WebGPURenderer, type Object3D } from "three/webgpu";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { defaultBox, fitFrustum, parseEmbedParams, type CameraExtent } from "./embedFit.js";
 
@@ -61,7 +61,7 @@ async function draw(): Promise<EmbedState> {
   if (!response.ok) throw new Error(`could not load ${params.spec}: HTTP ${String(response.status)}`);
   const spec = parseObjectSpec(await response.json());
 
-  const renderer = new WebGPURenderer({ antialias: true });
+  const renderer = new WebGPURenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(1);
   renderer.setSize(params.width, params.height);
   renderer.toneMapping = ACESFilmicToneMapping;
@@ -70,7 +70,9 @@ async function draw(): Promise<EmbedState> {
   document.body.append(renderer.domElement);
 
   const scene = new Scene();
-  scene.background = new Color(params.background);
+  // The background is a page color, not a lit surface: the canvas is transparent where nothing is
+  // drawn, so `bg` lands exactly rather than through the renderer's tone mapping.
+  document.body.style.background = params.background;
   const room = new RoomEnvironment();
   const pmrem = new PMREMGenerator(renderer);
   const target = pmrem.fromScene(room, 0.04);
@@ -95,7 +97,8 @@ async function draw(): Promise<EmbedState> {
   Object.assign(camera, frustum);
   camera.updateProjectionMatrix();
 
-  await renderer.renderAsync(scene, camera);
+  // One frame: submit it, then wait for the backend to finish it before saying it is drawn.
+  renderer.render(scene, camera);
   await whenDrawn(renderer);
   disposeObject(object);
   target.dispose();
