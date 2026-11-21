@@ -3,7 +3,7 @@ import { parseObjectSpec } from "@hedronite/lts-objects";
 import { createObjectFromSpec } from "@hedronite/lts-objects/three";
 import { disposeObject } from "@hedronite/lts-primitives/three";
 import { presets } from "@hedronite/lts-tokens";
-import { ACESFilmicToneMapping, Color, CustomBlending, DirectionalLight, Mesh, MeshBasicMaterial, OneFactor, OrthographicCamera, PlaneGeometry, PMREMGenerator, Scene, Vector3, WebGPURenderer, ZeroFactor, type Object3D } from "three/webgpu";
+import { ACESFilmicToneMapping, Color, CustomBlending, DirectionalLight, Mesh, MeshBasicMaterial, OrthographicCamera, PlaneGeometry, PMREMGenerator, Scene, Vector3, WebGPURenderer, ZeroFactor, type Object3D } from "three/webgpu";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { defaultBox, fitFrustum, parseEmbedParams, type CameraExtent } from "./embedFit.js";
 
@@ -109,8 +109,11 @@ async function draw(): Promise<EmbedState> {
       transparent: true,
       depthWrite: false,
       blending: CustomBlending,
+      // Zero on both sides, so the quad writes nothing at all (0,0,0,0) where the object drew nothing: the
+      // canvas is premultiplied, and keeping the clear colour there adds the page colour a second time on
+      // every antialiased edge. A transparent material with depthWrite off would lose its alpha under it.
       blendSrc: ZeroFactor,
-      blendDst: OneFactor,
+      blendDst: ZeroFactor,
       blendSrcAlpha: ZeroFactor,
       blendDstAlpha: ZeroFactor,
     }),

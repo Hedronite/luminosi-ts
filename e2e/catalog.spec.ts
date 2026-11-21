@@ -368,10 +368,12 @@ test("the embed page draws a spec framed into the box it is given", async ({ pag
   expect(errors).toEqual([]);
 });
 
-test("the embed page shows the glass its background, and paints the page colour exactly around it", async ({ page }) => {
-  // The glass block fills the frame, so its interior is what transmission makes of the background: on white
-  // it reads blue (blue 104 above red before the renderer swap; 38 with the background lost, which Wave 8
-  // shipped as a follow-up), on black it is dark. The page still paints `bg` exactly outside it.
+test("the embed page shows the glass its background, paints the page colour exactly, and no edge fringe", async ({ page }) => {
+  // The glass block is drawn turned (yaw 20, pitch 10), so its silhouette has antialiased edges. Its interior
+  // is what transmission makes of the background: bright on white, dark on black, between them on grey. The
+  // page paints `bg` exactly outside it, and nothing at an edge is brighter than the pixels either side of it
+  // — a spike there is the clear colour added back under premultiplied edges (a fringe of up to +22 levels on
+  // grey before the quad wrote nothing).
   const spec = {
     format: "lts-object-spec",
     version: 1,
@@ -382,7 +384,7 @@ test("the embed page shows the glass its background, and paints the page colour 
   };
   await page.route("**/glass-spec.json", (route) => route.fulfill({ json: spec }));
   const shoot = async (background: string): Promise<ReturnType<typeof decodePng>> => {
-    await page.goto(`/embed.html?spec=/glass-spec.json&width=360&height=360&bg=${encodeURIComponent(background)}`);
+    await page.goto(`/embed.html?spec=/glass-spec.json&width=360&height=360&yaw=20&pitch=10&bg=${encodeURIComponent(background)}`);
     await expect
       .poll(
         () =>
@@ -400,16 +402,61 @@ test("the embed page shows the glass its background, and paints the page colour 
     const at = (y * frame.width + x) * 4;
     return [frame.rgba[at] ?? 0, frame.rgba[at + 1] ?? 0, frame.rgba[at + 2] ?? 0];
   };
-  const white = await shoot("#ffffff");
-  const black = await shoot("#000000");
-  // The page's background, untouched, at the corners of the frame.
-  for (const [x, y] of [[1, 1], [white.width - 2, 1], [1, white.height - 2], [white.width - 2, white.height - 2]] as const) {
-    expect(pixel(white, x, y), "white background").toEqual([255, 255, 255]);
-    expect(pixel(black, x, y), "black background").toEqual([0, 0, 0]);
+  const luminance = (rgb: readonly number[]): number => 0.2126 * (rgb[0] ?? 0) + 0.7152 * (rgb[1] ?? 0) + 0.0722 * (rgb[2] ?? 0);
+  const backgrounds = [
+    { colour: "#ffffff", rgb: [255, 255, 255] as const },
+    { colour: "#808080", rgb: [128, 128, 128] as const },
+    { colour: "#000000", rgb: [0, 0, 0] as const },
+  ];
+  const frames = new Map<string, ReturnType<typeof decodePng>>();
+  for (const background of backgrounds) {
+    // eslint-disable-next-line no-await-in-loop -- one page, one background at a time
+    frames.set(background.colour, await shoot(background.colour));
   }
-  // The object holds the background: on white its interior is the blue the pre-swap picture had.
-  const [red, , blue] = pixel(white, Math.floor(white.width / 2), Math.floor(white.height / 2));
-  expect((blue ?? 0) - (red ?? 0), "the glass transmits the white background").toBeGreaterThan(70);
+  /** The mean luminance of a square of pixels, so a reading never rests on one pixel. */
+  const interior = (frame: ReturnType<typeof decodePng>): number => {
+    let total = 0;
+    for (let y = 160; y < 200; y += 1) for (let x = 160; x < 200; x += 1) total += luminance(pixel(frame, x, y));
+    return total / 1600;
+  };
+  const [white, grey, black] = backgrounds.map((background) => {
+    const frame = frames.get(background.colour);
+    return frame === undefined ? Number.NaN : interior(frame);
+  });
+  // The glass reads the background: white far above black, grey between them.
+  expect((white ?? 0) - (black ?? 0), "the glass transmits the background (interior luminance, white against black)").toBeGreaterThan(50);
+  expect(grey ?? 0, "grey sits between white and black").toBeLessThan(white ?? 0);
+  expect(grey ?? 0, "grey sits between white and black").toBeGreaterThan(black ?? 0);
+  for (const background of backgrounds) {
+    const frame = frames.get(background.colour);
+    if (frame === undefined) throw new Error(`no frame for ${background.colour}`);
+    const at = (x: number, y: number): number => (x < 0 || y < 0 || x >= frame.width || y >= frame.height ? Number.NaN : luminance(pixel(frame, x, y)));
+    // The page's background, untouched, at the corners of the frame.
+    for (const [x, y] of [[1, 1], [frame.width - 2, 1], [1, frame.height - 2], [frame.width - 2, frame.height - 2]] as const) {
+      expect(pixel(frame, x, y), `${background.colour} background`).toEqual([...background.rgb]);
+    }
+    // The edge ring: pixels within three of the background. Nothing there may stand above the pixels two
+    // either side of it — that is the antialiasing overshoot a double-added page colour leaves.
+    const backgroundLuminance = at(1, 1);
+    const nearBackground = (x: number, y: number): boolean => {
+      for (let dy = -3; dy <= 3; dy += 1) for (let dx = -3; dx <= 3; dx += 1) if (Math.abs(at(x + dx, y + dy) - backgroundLuminance) <= 3) return true;
+      return false;
+    };
+    let fringe = 0;
+    let worst = 0;
+    for (let y = 2; y < frame.height - 2; y += 1) {
+      for (let x = 2; x < frame.width - 2; x += 1) {
+        if (!nearBackground(x, y)) continue;
+        const here = at(x, y);
+        const across = Math.max(at(x - 2, y), at(x + 2, y), at(x, y - 2), at(x, y + 2));
+        if (here > across + 2) {
+          fringe += 1;
+          worst = Math.max(worst, here - across);
+        }
+      }
+    }
+    expect(fringe, `no edge fringe on ${background.colour}`).toBe(0);
+  }
 });
 
 test("icons: the core set comes first, then open-source packs with their credit", async ({ page }) => {
