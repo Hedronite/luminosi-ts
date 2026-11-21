@@ -1,7 +1,11 @@
+/// <reference types="node" />
+import { runInNewContext } from "node:vm";
 import type { Credit } from "@hedronite/lts-core";
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 import { currentFixtures, fixtureScene } from "../arbitrary.js";
-import { assetCredit, lookCredit } from "../credits.js";
+import { assetCredit, creditsFor, lookCredit } from "../credits.js";
+import type { Resolve } from "../refs.js";
 import { sceneSchema, type Scene, type SceneNode } from "../schema.js";
 import { toTsx, toVanilla } from "./index.js";
 
@@ -251,5 +255,76 @@ describe("credits in emitted code", () => {
     const block = (text: string): string => text.slice(text.indexOf("export const credits = ["), text.indexOf("] as const;"));
     expect(block(tsx)).toBe(block(vanilla));
     expect(tsx.split("\n").slice(1, 4)).toEqual(vanilla.split("\n").slice(1, 4));
+  });
+});
+
+describe("credited code is code, and its credits are the scene's", () => {
+  const crt = assetCredit({ id: "crt", kind: "effect", origin: { vendor: "threeui", relation: "ported", path: "src/shaders/crt/crtShaders.ts" } });
+  const resolve: Resolve = (kind, id) => {
+    const credit = kind === "look" ? lookCredit(id) : kind === "effect" && id === "crt" ? crt : undefined;
+    return credit === undefined ? {} : { credit };
+  };
+  const scene = sceneSchema.parse({ ...fixtureScene("object-effects-ink"), look: "catppuccin", effects: [{ id: "crt" }] });
+  const [LS, PS] = [String.fromCharCode(0x2028), String.fromCharCode(0x2029)] as const;
+  const hostile: Credit = {
+    subject: "evil",
+    kind: "effect",
+    relation: "inspired",
+    work: `A work\nexport const pwned = true;\r\n*/ ${LS} ${PS}`,
+    source: "https://example.com/work",
+    pin: "abc */ def /* ghi",
+    license: "MIT",
+    credit: "Someone\n// else",
+    path: "src/work.ts",
+  };
+  const emitters = [
+    ["toTsx", toTsx, "scene.tsx"],
+    ["toVanilla", toVanilla, "scene.ts"],
+  ] as const;
+
+  /** The syntax diagnostics of a module as TypeScript transpiles it: a comment broken open or a literal broken shut shows here. */
+  const diagnostics = (source: string, fileName: string): readonly string[] =>
+    (ts.transpileModule(source, { fileName, reportDiagnostics: true, compilerOptions: { target: ts.ScriptTarget.ES2023, module: ts.ModuleKind.ESNext, jsx: ts.JsxEmit.ReactJSX } }).diagnostics ?? []).map((diagnostic) => ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n"));
+
+  /** The value of the module's `credits` export, read from the source and evaluated alone (the rest of the module needs the libraries), or undefined where there is none. */
+  function creditsOf(source: string): unknown {
+    const file = ts.createSourceFile("module.ts", source, ts.ScriptTarget.ES2023, true);
+    for (const statement of file.statements) {
+      if (!ts.isVariableStatement(statement)) continue;
+      const declaration = statement.declarationList.declarations.find((candidate) => candidate.name.getText(file) === "credits");
+      if (declaration?.initializer === undefined) continue;
+      const value = ts.isAsExpression(declaration.initializer) ? declaration.initializer.expression : declaration.initializer;
+      const evaluated: unknown = runInNewContext(`(${value.getText(file)})`);
+      return JSON.parse(JSON.stringify(evaluated));
+    }
+    return undefined;
+  }
+
+  it("has the credits of the scene to check: the CRT screen and the look", () => {
+    expect(creditsFor(scene, resolve).map(({ subject }) => subject)).toEqual(["catppuccin", "crt"]);
+  });
+
+  it.each(emitters)("%s: the module transpiles with no diagnostics, and its credits export is what creditsFor gives", (_name, emit, fileName) => {
+    const credits = creditsFor(scene, resolve);
+    const text = emit(scene, { credits });
+    expect(diagnostics(text, fileName)).toEqual([]);
+    expect(creditsOf(text)).toEqual(JSON.parse(JSON.stringify(credits)));
+  });
+
+  it.each(emitters)("%s: a credit that tries to break out of its comment still transpiles clean, and comes back whole", (_name, emit, fileName) => {
+    for (const name of currentFixtures) {
+      const text = emit(fixtureScene(name), { credits: [hostile] });
+      expect(diagnostics(text, fileName)).toEqual([]);
+      expect(creditsOf(text)).toEqual([hostile]);
+      expect(text).not.toMatch(/^export const pwned/m);
+    }
+  });
+
+  it.each(emitters)("%s: with no credits there is no credits export, and it transpiles as it did", (_name, emit, fileName) => {
+    for (const name of currentFixtures) {
+      const text = emit(fixtureScene(name));
+      expect(diagnostics(text, fileName)).toEqual([]);
+      expect(creditsOf(text)).toBeUndefined();
+    }
   });
 });
