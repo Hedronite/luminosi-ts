@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
+import { decodePng } from "../tools/stills/src/png.js";
 import { expect, expectRenderer, test } from "./fixtures.js";
 
 test.use({ permissions: ["clipboard-read", "clipboard-write"] });
@@ -331,17 +332,13 @@ test("the embed page draws a spec framed into the box it is given", async ({ pag
     });
   await expect.poll(status, { timeout: 15_000 }).not.toBe("loading");
   expect(await status()).toBe("drawn");
-  // The lit box against black: its pixels must span the box it was given, height to height.
-  const extent = await page.evaluate(async () => {
-    const canvas = document.querySelector("canvas");
-    if (canvas === null) return null;
-    const image = new Image();
-    image.src = canvas.toDataURL();
-    await image.decode();
-    const context = new OffscreenCanvas(canvas.width, canvas.height).getContext("2d");
-    if (context === null) return null;
-    context.drawImage(image, 0, 0);
-    const { data, width, height } = context.getImageData(0, 0, canvas.width, canvas.height);
+  // The lit box against black: its pixels must span the box it was given, height to height. The frame is
+  // read from a screenshot (decoded with the still rig's own PNG reader), not the canvas's buffer: a
+  // WebGPU-drawn canvas holds nothing to `toDataURL` after G2 moves the embed to the WebGPU renderer.
+  const png = await page.locator("canvas").screenshot();
+  const extent = ((): { y0: number; y1: number; cx: number } | null => {
+    const frame = decodePng(new Uint8Array(png));
+    const { rgba, width, height } = frame;
     let top = height;
     let bottom = -1;
     let left = width;
@@ -349,7 +346,7 @@ test("the embed page draws a spec framed into the box it is given", async ({ pag
     for (let y = 0; y < height; y += 1) {
       for (let x = 0; x < width; x += 1) {
         const i = (y * width + x) * 4;
-        if ((data[i] ?? 0) + (data[i + 1] ?? 0) + (data[i + 2] ?? 0) > 60) {
+        if ((rgba[i] ?? 0) + (rgba[i + 1] ?? 0) + (rgba[i + 2] ?? 0) > 60) {
           top = Math.min(top, y);
           bottom = Math.max(bottom, y);
           left = Math.min(left, x);
@@ -357,8 +354,9 @@ test("the embed page draws a spec framed into the box it is given", async ({ pag
         }
       }
     }
+    if (bottom === -1) return null;
     return { y0: top / height, y1: (bottom + 1) / height, cx: (left + right + 1) / 2 / width };
-  });
+  })();
   expect(extent).not.toBeNull();
   expect(extent?.y0).toBeCloseTo(0.25, 1);
   expect(extent?.y1).toBeCloseTo(0.75, 1);
