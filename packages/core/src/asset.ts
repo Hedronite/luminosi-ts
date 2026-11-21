@@ -59,9 +59,18 @@ export const assetKindSchema = z.custom<AssetKind>(isAssetKind, {
  * asset was ported from. The folder's CREDIT.md and LICENSE carry the author and the terms; the vendor
  * tool checks that both exist, and the catalog links the asset to its source.
  */
+export const originRelations = ["ported", "adopted", "inspired"] as const;
+
+/** How the asset stands to the work it came from: ported (rewritten for LuminosiTS), adopted (used as published) or inspired by (made after it). */
+export const originRelationSchema = z.enum(originRelations);
+
+export type OriginRelation = z.infer<typeof originRelationSchema>;
+
 export const assetOriginSchema = z
   .object({
     vendor: z.string().regex(slug),
+    /** Ported, adopted or inspired by. Every origin says which. */
+    relation: originRelationSchema,
     /** A path inside the vendored folder, with forward slashes and no leading slash. */
     path: z.string().regex(/^(?!\/)(?!.*\.\.)[\w./@ -]+$/),
     /** What was taken and what was changed, in a sentence. */

@@ -5,12 +5,15 @@ export {
   assetMetaSchema,
   assetOriginSchema,
   isAssetKind,
+  originRelations,
+  originRelationSchema,
   registeredKinds,
   registerKind,
   type AssetKind,
   type AssetKindMap,
   type AssetMeta,
   type AssetOrigin,
+  type OriginRelation,
 } from "./asset.js";
 export {
   compareDescriptors,

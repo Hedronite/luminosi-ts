@@ -1,3 +1,4 @@
+import type { OriginRelation } from "@hedronite/lts-core";
 import { z } from "zod";
 
 /**
@@ -83,7 +84,7 @@ export interface ScreenEffectInfo {
   /** The day it joined the library (YYYY-MM-DD). Default: 2026-11-15, when the first effects landed. */
   readonly added?: string;
   /** Set when it was ported from open-source work in assets/vendor. */
-  readonly origin?: { readonly vendor: string; readonly path: string; readonly note: string };
+  readonly origin?: { readonly vendor: string; readonly relation: OriginRelation; readonly path: string; readonly note: string };
 }
 
 export const screenEffectInfo: Record<ScreenEffectId, ScreenEffectInfo> = {
@@ -100,6 +101,7 @@ export const screenEffectInfo: Record<ScreenEffectId, ScreenEffectInfo> = {
     added: "2026-11-16",
     origin: {
       vendor: "threeui",
+      relation: "ported",
       path: "src/shaders/crt/crtShaders.ts",
       note: "The tube from ThreeUI's CRT background (barrel glass, RGB split, scan lines, aperture grille, rolling bar, vignette) as a TSL pass over any scene, tinted by the look's inks; its boot text is left behind.",
     },
