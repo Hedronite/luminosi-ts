@@ -16,7 +16,7 @@ export const vendored: readonly VendorEntry[] = [
     "repo": "https://github.com/coreui/coreui-icons",
     "packPrefix": "coreui",
     "files": 565,
-    "bytes": 351983,
+    "bytes": 352053,
     "readme": {
       "path": "README.md",
       "title": "CoreUI Icons (1500+ Free icons)- Simply beautiful open source icons"
@@ -36,7 +36,7 @@ export const vendored: readonly VendorEntry[] = [
     "repo": "https://github.com/familyjs/famicons",
     "packPrefix": "famicons",
     "files": 1345,
-    "bytes": 864032,
+    "bytes": 864101,
     "readme": {
       "path": "readme.md",
       "title": "Famicons"
@@ -71,7 +71,7 @@ export const vendored: readonly VendorEntry[] = [
     "repo": "https://github.com/lucide-icons/lucide",
     "packPrefix": "lucide",
     "files": 1810,
-    "bytes": 734136,
+    "bytes": 734190,
     "items": []
   },
   {
@@ -87,7 +87,7 @@ export const vendored: readonly VendorEntry[] = [
     "repo": "https://github.com/stash-ui/icons",
     "packPrefix": "stash",
     "files": 1244,
-    "bytes": 3309214,
+    "bytes": 3309396,
     "readme": {
       "path": "readme.md",
       "title": "Readme"
@@ -388,7 +388,7 @@ export const vendored: readonly VendorEntry[] = [
     "sourceUrl": "https://github.com/elayadesign/ai-design-skills",
     "repo": "https://github.com/elayadesign/ai-design-skills",
     "files": 4,
-    "bytes": 27120,
+    "bytes": 27205,
     "readme": {
       "path": "README.md",
       "title": "AI Design Skills"
@@ -419,7 +419,7 @@ export const vendored: readonly VendorEntry[] = [
     "sourceUrl": "https://github.com/jakubkrehel/skills",
     "repo": "https://github.com/jakubkrehel/skills",
     "files": 60,
-    "bytes": 259283,
+    "bytes": 259348,
     "readme": {
       "path": "README.md",
       "title": "README"

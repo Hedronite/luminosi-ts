@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "kept": false,
+  "sources": [
+    {
+      "source": "https://github.com/lucide-icons/lucide",
+      "commit": "6f56b8f1f665ce64c41506033b66ca67e2bc7724",
+      "include": [
+        "icons/*.svg",
+        "LICENSE"
+      ]
+    }
+  ],
+  "contentHash": "29c4f5bab55081a8062b11a8831db604fe0a5888b9a0c0e7b73b481bf766afa1"
+}

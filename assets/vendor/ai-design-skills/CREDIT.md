@@ -7,3 +7,5 @@
 - **Pulled:** 2026-11-15
 
 Vendored into LuminosiTS as published. The license above applies to this folder, not LuminosiTS's own.
+
+Kept as published: only `skills/landing-page-design/**`, `README.md` and `LICENSE`.

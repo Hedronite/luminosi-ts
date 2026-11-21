@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "kept": false,
+  "sources": [
+    {
+      "source": "https://github.com/ttillberg/codevember-2026",
+      "commit": "4df8e67ab6584b3c354f06f0f9ce9a4348f82dbe",
+      "exclude": [
+        "08/public/logos/",
+        ".github/",
+        ".claude/"
+      ]
+    }
+  ],
+  "contentHash": "aa9042f2e51505340102a740caac592827777084784ea5dd638f60e2312a0724"
+}

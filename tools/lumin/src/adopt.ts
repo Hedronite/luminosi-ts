@@ -5,6 +5,7 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSyn
 import { dirname, join, posix, relative } from "node:path";
 import type { Registry } from "@hedronite/lts-core";
 import { firstUrl, parseCredit, parseFrontMatter, type Credit } from "tool-vendor/parse";
+import { resolveVendor, type ResolveContext } from "tool-vendor/resolve";
 import { fail, ok, type Envelope } from "./envelope.js";
 import { readSources, studyFiles, studyRoot, type StudiedModule, type Technique } from "./study.js";
 
@@ -21,27 +22,40 @@ const adoptTargets = {
 export type AdoptKind = keyof typeof adoptTargets;
 const isAdoptKind = (value: string): value is AdoptKind => Object.hasOwn(adoptTargets, value);
 
+/** Where the vendored folders are, and the environment that may move their cache (LTS_VENDOR_CACHE). */
+export interface VendorPaths {
+  readonly vendorDir: string;
+  readonly env?: ResolveContext["env"];
+}
+
 interface Vendored {
   readonly vendor: string;
   /** The path inside the vendored folder ("" for the folder itself). */
   readonly path: string;
+  /** The folder's raw files, where the resolver found them: the cache, the repository, or the kept folder. */
   readonly folder: string;
+  /** The folder in the repository, which holds its CREDIT.md and license files whatever the resolver found. */
+  readonly home: string;
   readonly credit: Credit;
 }
 
-/** Splits `vendor/path` and checks the folder is a vendored one with its CREDIT.md, and the path exists. */
-function locate(command: string, target: string, vendorDir: string): Vendored | Envelope {
+/** Splits `vendor/path` and checks the folder is a vendored one with its CREDIT.md, that its raw files are there (fetched, or kept), and that the path exists. */
+function locate(command: string, target: string, paths: VendorPaths): Vendored | Envelope {
+  const { vendorDir } = paths;
   const [vendor = "", ...rest] = target.split("/").filter((part) => part !== "");
   const path = rest.join("/");
   if (!slug.test(vendor) || rest.includes("..")) return fail(command, "usage", `"${target}" is not a vendored path: give FOLDER or FOLDER/PATH under assets/vendor`);
-  const folder = join(vendorDir, vendor);
-  const creditFile = join(folder, "CREDIT.md");
+  const home = join(vendorDir, vendor);
+  const creditFile = join(home, "CREDIT.md");
   if (!existsSync(creditFile)) {
     const known = existsSync(vendorDir) ? readdirSync(vendorDir, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name) : [];
     return fail(command, "unknown_vendor", `no vendored folder "${vendor}" (with a CREDIT.md) under assets/vendor`, { matches: known.filter((name) => name.includes(vendor.slice(0, 4))).slice(0, 5) });
   }
+  const raw = resolveVendor(vendor, paths.env === undefined ? { vendorDir } : { vendorDir, env: paths.env });
+  if (!raw.ok) return fail(command, raw.kind, raw.error);
+  const folder = raw.dir;
   if (path !== "" && !existsSync(join(folder, path))) return fail(command, "not_found", `assets/vendor/${vendor} has no ${path}`);
-  return { vendor, path, folder, credit: parseCredit(readFileSync(creditFile, "utf8"), `assets/vendor/${vendor}/CREDIT.md`) };
+  return { vendor, path, folder, home, credit: parseCredit(readFileSync(creditFile, "utf8"), `assets/vendor/${vendor}/CREDIT.md`) };
 }
 
 const isEnvelope = (value: Vendored | Envelope): value is Envelope => "ok" in value;
@@ -82,8 +96,8 @@ export interface StudyOptions {
 }
 
 /** What a vendored folder (or one module in it) holds, and what in it could be ported. */
-export function study(target: string, options: StudyOptions, paths: { readonly vendorDir: string }): Envelope {
-  const found = locate("study", target, paths.vendorDir);
+export function study(target: string, options: StudyOptions, paths: VendorPaths): Envelope {
+  const found = locate("study", target, paths);
   if (isEnvelope(found)) return found;
   const where = studyRoot(found.folder, found.path);
   if (where === undefined) return fail("study", "not_found", `assets/vendor/${target} does not exist`);
@@ -140,13 +154,13 @@ export interface AdoptOptions {
 }
 
 /** Plans porting a vendored module into the library and, unless dry-run, opens its workspace in .adopt/ID. */
-export function adopt(target: string, options: AdoptOptions, context: { readonly root: string; readonly vendorDir: string; readonly registry: Registry }): Envelope {
+export function adopt(target: string, options: AdoptOptions, context: VendorPaths & { readonly root: string; readonly registry: Registry }): Envelope {
   const kind = options.as ?? "";
   if (!isAdoptKind(kind)) return fail("adopt", "usage", `--as must be one of ${Object.keys(adoptTargets).join(", ")}`);
   const id = options.id ?? "";
   if (!slug.test(id)) return fail("adopt", "usage", "--id must be a lowercase slug, such as crt-screen");
   if (context.registry.get(id) !== undefined) return fail("adopt", "exists", `the id "${id}" is taken`);
-  const found = locate("adopt", target, context.vendorDir);
+  const found = locate("adopt", target, context);
   if (isEnvelope(found)) return found;
   if (found.path === "") return fail("adopt", "usage", "adopt needs a path inside the folder: the module (or folder) the port starts from");
   const where = studyRoot(found.folder, found.path);
@@ -192,7 +206,7 @@ export function adopt(target: string, options: AdoptOptions, context: { readonly
   }
   mkdirSync(join(dir, "upstream"), { recursive: true });
   copyFileSync(join(found.folder, license), join(dir, "upstream", posix.basename(license)));
-  copyFileSync(join(found.folder, "CREDIT.md"), join(dir, "upstream", "CREDIT.md"));
+  copyFileSync(join(found.home, "CREDIT.md"), join(dir, "upstream", "CREDIT.md"));
   writeFileSync(join(dir, "PLAN.json"), `${JSON.stringify(plan, null, 2)}\n`);
   return ok("adopt", { dryRun: false, ...plan, next: `port it into ${plan.files.join(", ")} following steps; ${workspace} is gitignored scratch` });
 }
@@ -228,8 +242,8 @@ export const upstreamSkillFiles = (dir: string): readonly string[] => filesUnder
  * Adopts a vendored agent skill into .agents/skills, as published, with its license and a CREDIT.md, so
  * agents working on LuminosiTS can use it. Run `bun run skills:sync` after, to copy it to each harness.
  */
-export function adoptSkill(target: string, options: { readonly dryRun: boolean; readonly force?: boolean }, context: { readonly root: string; readonly vendorDir: string }): Envelope {
-  const found = locate("adopt-skill", target, context.vendorDir);
+export function adoptSkill(target: string, options: { readonly dryRun: boolean; readonly force?: boolean }, context: VendorPaths & { readonly root: string }): Envelope {
+  const found = locate("adopt-skill", target, context);
   if (isEnvelope(found)) return found;
   const dir = join(found.folder, found.path);
   const skillFile = join(dir, "SKILL.md");

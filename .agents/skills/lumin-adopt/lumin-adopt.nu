@@ -4,6 +4,8 @@
 #   study  lumin study VENDOR[/PATH] [--limit=N]
 #   adopt  lumin adopt VENDOR/PATH --as=KIND --id=ID [--name=N --dry-run]
 #   skill  lumin adopt-skill VENDOR/SKILL-DIR [--dry-run --force]
+#   fetch  lumin vendor fetch [FOLDER...] [--force]   the raw upstream files, by pin, into the cache (.vendor/)
+#   verify lumin vendor verify [FOLDER...]            the cached files' hashes, offline
 
 def repo-root [] { $env.FILE_PWD | path dirname | path dirname | path dirname }
 
@@ -60,6 +62,16 @@ def "main skill" [target: string, --dry-run, --force] {
   finish (lumin "adopt-skill" (if $dry_run { $base ++ ["--dry-run"] } else { $base }))
 }
 
+# Fetch the vendored folders' raw upstream files by their pins into the cache. Network, and only when run; no folder named means all.
+def "main fetch" [...folders: string, --force] {
+  finish (lumin "vendor" (["fetch"] ++ $folders ++ (if $force { ["--force"] } else { [] })))
+}
+
+# Recompute the hash of each cached folder against its pin, offline.
+def "main verify" [...folders: string] {
+  finish (lumin "vendor" (["verify"] ++ $folders))
+}
+
 def main [] {
-  finish { ok: false, command: "lumin-adopt", error: "subcommands: study | adopt | skill", kind: "usage", exit: 2 }
+  finish { ok: false, command: "lumin-adopt", error: "subcommands: study | adopt | skill | fetch | verify", kind: "usage", exit: 2 }
 }

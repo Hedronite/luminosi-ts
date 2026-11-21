@@ -76,7 +76,8 @@
     "solids": "bun run --filter tool-solids generate",
     "solids:check": "bun run --filter tool-solids check",
     "vendor": "bun run --filter tool-vendor generate",
-    "vendor:check": "bun run --filter tool-vendor check"
+    "vendor:check": "bun run --filter tool-vendor check",
+    "vendor:fetch": "bun tools/lumin/src/cli.ts vendor fetch"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",

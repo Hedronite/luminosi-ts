@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "kept": false,
+  "sources": [
+    {
+      "source": "https://github.com/familyjs/famicons",
+      "commit": "e702639cfe08c6ff087d25b34c57540c1f63c1e3",
+      "include": [
+        "src/svg/*.svg",
+        "readme.md",
+        "LICENSE"
+      ]
+    }
+  ],
+  "contentHash": "93bb6572c5d6702dbb353ec9c2804de7a6dd2ff768d1e50ab01efb089347f5f4"
+}

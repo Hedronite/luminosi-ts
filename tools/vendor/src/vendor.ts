@@ -151,7 +151,7 @@ async function readmeOf(folderDir: string): Promise<Page | undefined> {
 
 /** The sha256 of a folder as vendored: of its files' `sha256  path` lines, sorted by path, CREDIT.md and .DS_Store left out. */
 async function folderDigest(dir: string): Promise<string> {
-  const paths = (await walk(dir)).map((file) => relative(dir, file).split("\\").join("/")).filter((path) => path !== "CREDIT.md" && basename(path) !== ".DS_Store").sort();
+  const paths = (await walk(dir)).map((file) => relative(dir, file).split("\\").join("/")).filter((path) => path !== "CREDIT.md" && path !== "vendor.json" && basename(path) !== ".DS_Store").sort();
   const lines = await Promise.all(paths.map(async (path) => `${createHash("sha256").update(await readFile(join(dir, path))).digest("hex")}  ${path}\n`));
   return createHash("sha256").update(lines.join("")).digest("hex");
 }
@@ -179,7 +179,8 @@ async function entries() {
       }
       const sourceUrl = firstUrl(credit.source);
       if (sourceUrl === undefined) throw new Error(`assets/vendor/${id}/CREDIT.md: the source line has no URL`);
-      const files = await walk(dir);
+      // vendor.json is the folder's pin (tools/vendor/src/pin.ts), not one of its vendored files: it is in neither the hash nor the counts.
+      const files = (await walk(dir)).filter((file) => relative(dir, file) !== "vendor.json");
       const sizes = await Promise.all(files.map(async (file) => (await stat(file)).size));
       const items =
         folder.kind === "skills"

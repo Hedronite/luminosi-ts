@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "kept": false,
+  "sources": [
+    {
+      "source": "https://github.com/MengTo/threeui",
+      "commit": "02f9835e60ef8f0cac7907810aa223b7d414db1b"
+    }
+  ],
+  "overlay": [
+    "README.md"
+  ],
+  "contentHash": "ba71452d151d87286237695169925bc1203ad0bb035e6d0f8fee5c22a8c8a582"
+}

@@ -37,3 +37,6 @@ test-results/
 
 # The planted modules the strict scene spec draws (bun run scenes:plants), made on each run
 e2e/scenes/plants/
+
+# The raw upstream files of the vendored folders, fetched by their pins (bun run vendor:fetch): a cache, never committed
+.vendor/

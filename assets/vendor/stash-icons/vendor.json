@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "kept": false,
+  "sources": [
+    {
+      "source": "https://github.com/stash-ui/icons",
+      "commit": "44091b180904469d27cf9fa218b4bd0f4c1f9310",
+      "include": [
+        "packages/duotone/src/**",
+        "packages/editor/src/**",
+        "packages/light/src/**",
+        "packages/regular/src/**",
+        "packages/solid/src/**",
+        "readme.md",
+        "LICENSE"
+      ]
+    }
+  ],
+  "contentHash": "1aa5928a6c7d600ac8da7dd627672394e72823247c59288fb46c90bb96cf07b8"
+}

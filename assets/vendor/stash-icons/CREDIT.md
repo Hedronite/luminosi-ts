@@ -7,3 +7,5 @@
 - **Pulled:** 2026-08
 
 Vendored into LuminosiTS as published. The license above applies to this folder, not LuminosiTS's own.
+
+Kept as published: only `packages/duotone/src/**`, `packages/editor/src/**`, `packages/light/src/**`, `packages/regular/src/**`, `packages/solid/src/**`, `readme.md` and `LICENSE`.
