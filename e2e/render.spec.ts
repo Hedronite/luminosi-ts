@@ -51,10 +51,10 @@ interface Answer {
 const isEnvelope = (value: unknown): value is { readonly ok: boolean; readonly command: string } => typeof value === "object" && value !== null && "ok" in value && typeof value.ok === "boolean" && "command" in value && typeof value.command === "string";
 
 /** Runs `lumin scene render` on a document written to this run's scratch directory, and returns what it printed and how it ended. */
-async function render(document: string, file: string, size: { readonly width?: number; readonly height?: number } = {}): Promise<Answer> {
+async function render(document: string, file: string, size: { readonly width?: number; readonly height?: number; readonly force?: boolean } = {}): Promise<Answer> {
   const input = join(scratch, `${file}.json`);
   writeFileSync(input, document);
-  const args = ["tools/lumin/src/cli.ts", "scene", "render", input, "--out", join(scratch, file), ...(size.width === undefined ? [] : ["--width", String(size.width)]), ...(size.height === undefined ? [] : ["--height", String(size.height)])];
+  const args = ["tools/lumin/src/cli.ts", "scene", "render", input, "--out", join(scratch, file), ...(size.width === undefined ? [] : ["--width", String(size.width)]), ...(size.height === undefined ? [] : ["--height", String(size.height)]), ...(size.force === true ? ["--force"] : [])];
   const ended = await new Promise<{ readonly status: number; readonly stdout: string }>((done) => {
     execFile("bun", args, { cwd: root, maxBuffer: 16 * 1024 * 1024 }, (error, stdout) => {
       done({ status: error === null ? 0 : typeof error.code === "number" ? error.code : 1, stdout });
@@ -187,4 +187,18 @@ test("a document too big for a link is drawn through load, by the page and by th
   const fromLoad = decodePng(await stage.screenshot({ animations: "disabled" }));
   expect(isBlank(fromCommand), "the scatter is on the page").toBe(false);
   expect(strictDistance(fromLoad, fromCommand), "load draws what the command wrote").toMatchObject({ changedPixels: 0 });
+});
+
+test("a path that is there is refused unless force is given, and is left as it was", async () => {
+  test.setTimeout(300_000);
+  const text = fixtureText("transform-hierarchy");
+  const first = await rendered(text, "kept.png");
+  const kept = readFileSync(first.out);
+  expect(await render(text, "kept.png")).toMatchObject({ ok: false, kind: "exists", exit: 1, status: 1, command: "scene render" });
+  expect(readFileSync(first.out).equals(kept), "the refused render left the file as it was").toBe(true);
+  // A different document at the same path: only force replaces the picture.
+  const other = fixtureText("framed-solid-shader");
+  expect(await render(other, "kept.png")).toMatchObject({ ok: false, kind: "exists" });
+  expect(await render(other, "kept.png", { force: true })).toMatchObject({ ok: true, status: 0 });
+  expect(readFileSync(first.out).equals(kept), "force replaced it with the other document's picture").toBe(false);
 });

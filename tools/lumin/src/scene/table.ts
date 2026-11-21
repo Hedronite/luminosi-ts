@@ -115,10 +115,11 @@ export const operations: readonly Operation[] = [
     summary: "Draw a document to a PNG with the catalog's own scene renderer (headless Chromium on software GL, or the machine's GPU with gpu); needs the catalog built. A frame with nothing in it is refused as blank.",
     input: z.strictObject({
       document,
-      out: z.string().min(1).max(PATH_MAX).describe("the PNG to write; a file that is there is replaced"),
+      out: z.string().min(1).max(PATH_MAX).describe("the PNG to write; a new path unless force is set"),
       width: z.union([z.number().int().min(1).max(MAX_SIDE), z.string().regex(/^\d{1,5}$/, "a whole number of pixels")]).optional().describe(`pixels, 1 to ${String(MAX_SIDE)}; 512 by default`),
       height: z.union([z.number().int().min(1).max(MAX_SIDE), z.string().regex(/^\d{1,5}$/, "a whole number of pixels")]).optional().describe(`pixels, 1 to ${String(MAX_SIDE)}; 512 by default`),
       gpu: z.boolean().optional().describe("draw on the machine's GPU, not software GL"),
+      force,
     }),
     positional: ["document"],
     // It writes a file (`out`), so by this table's own rule it is not read-only; what it needs beyond that is the browser.

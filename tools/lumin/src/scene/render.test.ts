@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
@@ -69,6 +69,23 @@ describe("renderScene before any browser starts", () => {
   });
 });
 
+describe("renderScene and a path that is there", () => {
+  const paths = { root: scratch, command: "render" };
+  const taken = join(scratch, "taken.png");
+  writeFileSync(taken, "a picture");
+
+  it("refuses it as exists before anything is drawn, and leaves it as it was", async () => {
+    expect(await renderScene({ document: "{}", out: taken }, paths)).toMatchObject({ ok: false, kind: "exists", exit: 1, error: "that file exists; name a new path, or pass --force to replace it" });
+    expect(await renderScene({ document: "{}", out: taken, force: false }, paths)).toMatchObject({ ok: false, kind: "exists" });
+    expect(readFileSync(taken, "utf8")).toBe("a picture");
+  });
+
+  it("goes on when force is set (here as far as the missing build), and when the path is new", async () => {
+    expect(await renderScene({ document: "{}", out: taken, force: true }, paths)).toMatchObject({ ok: false, kind: "not_built" });
+    expect(await renderScene({ document: "{}", out: join(scratch, "new.png") }, paths)).toMatchObject({ ok: false, kind: "not_built" });
+  });
+});
+
 describe("serve", () => {
   it("serves a file of the built directory, refuses a path out of it, and answers 404 for a missing one", async () => {
     const dist = join(scratch, "served");
@@ -110,10 +127,14 @@ describe("the render row of the scene table", () => {
     expect(await sceneCommand(["render", join(scratch, "missing.json"), "--out", out])).toMatchObject({ ok: false, command: "scene render" });
   });
 
-  it("answers a side that is not digits, or not a side, as a usage error from the flag or the field", async () => {
+  it("answers a side that is not digits, or not a side, and a path that is there without force, from the flag or the field", async () => {
     expect(await sceneCommand(["render", fixture, "--out", out, "--width", "wide"])).toMatchObject({ ok: false, kind: "usage", exit: 2, command: "scene render" });
     expect(await sceneCommand(["render", fixture, "--out", out, "--width", "4096"])).toMatchObject({ ok: false, kind: "usage", exit: 2 });
     expect(await sceneCommand(["render", fixture])).toMatchObject({ ok: false, kind: "usage", error: "out is required" });
+    const taken = join(scratch, "row-taken.png");
+    writeFileSync(taken, "a picture");
+    expect(await sceneCommand(["render", fixture, "--out", taken])).toMatchObject({ ok: false, kind: "exists", exit: 1, command: "scene render" });
+    expect(readFileSync(taken, "utf8")).toBe("a picture");
     const row = operationNamed("render");
     const ctx = await nodeContext();
     expect(await row?.run({ document: fixture, out, height: 4096 }, ctx)).toMatchObject({ ok: false, kind: "usage", exit: 2 });

@@ -20,6 +20,9 @@ export const MAX_SIDE = 2048;
 /** The side a render has when none is given: the still rig's square, the size the goldens are. */
 const DEFAULT_SIDE = 512;
 
+/** What a refused `out` says: the words `patch` and `export` use for theirs. */
+const EXISTS = "that file exists; name a new path, or pass --force to replace it";
+
 /** The still page's stage color, the neutral look's raised surface (#f5f5f5): a frame of nothing else has nothing in it. */
 const BACKGROUND = 245;
 
@@ -31,6 +34,8 @@ export interface RenderOptions {
   readonly height?: number;
   /** Draw on the machine's GPU instead of software GL. */
   readonly gpu?: boolean;
+  /** Replace the file at `out` if there is one. Without it a path that is there is refused (`exists`), as `patch` and `export` refuse theirs. */
+  readonly force?: boolean;
 }
 
 /** Where the built catalog is, and the name the envelope carries. */
@@ -150,6 +155,7 @@ export async function renderScene(options: RenderOptions, paths: RenderPaths): P
   const command = paths.command ?? "render";
   const problem = checkSide("width", options.width) ?? checkSide("height", options.height);
   if (problem !== undefined) return fail(command, "usage", problem);
+  if (options.force !== true && existsSync(resolve(options.out))) return fail(command, "exists", EXISTS);
   const dist = join(paths.root, "apps/catalog/dist");
   if (!existsSync(join(dist, "still.html"))) return fail(command, "not_built", "the catalog's still page is not built: run bun run build");
   const size = { width: options.width ?? DEFAULT_SIDE, height: options.height ?? DEFAULT_SIDE };
@@ -166,7 +172,13 @@ export async function renderScene(options: RenderOptions, paths: RenderPaths): P
     if (isBlank(picture)) return fail(command, "blank", "every pixel of the frame is the stage's background: the document shows nothing a viewer could see");
     const out = resolve(options.out);
     mkdirSync(dirname(out), { recursive: true });
-    writeFileSync(out, drawn.png);
+    // `wx` makes the refusal exact: a file that appeared while the page was drawing is not replaced either.
+    try {
+      writeFileSync(out, drawn.png, { flag: options.force === true ? "w" : "wx" });
+    } catch (error: unknown) {
+      if (error instanceof Error && "code" in error && error.code === "EEXIST") return fail(command, "exists", EXISTS);
+      throw error;
+    }
     return ok(command, { out, ...size, sha256: createHash("sha256").update(drawn.png).digest("hex"), renderer: drawn.stage.renderer, frames: drawn.stage.frames });
   } catch (error: unknown) {
     return fail(command, "failed", error instanceof Error ? error.message : String(error));
@@ -184,6 +196,7 @@ export interface RenderInput {
   readonly width?: number | string | undefined;
   readonly height?: number | string | undefined;
   readonly gpu?: boolean | undefined;
+  readonly force?: boolean | undefined;
 }
 
 /** A side as the row is given it: a number, or the digits of one from a flag. A text that is not digits stays as it is, for `checkSide` to name. */
@@ -191,11 +204,11 @@ const sideOf = (value: number | string | undefined): number | undefined => (type
 
 /**
  * `scene render`: the document is read, migrated and checked like every scene operation's (so a bad one is refused here, with its issues, before a
- * browser starts), then drawn by the still page. The PNG is written at `out`, replacing a file that is there: a picture is made again, not edited.
+ * browser starts), then drawn by the still page. The PNG is written at `out`, a new path unless `force` is set, as `patch` and `export` write theirs: no caller replaces a file by accident.
  */
 export async function renderOperation(input: RenderInput, ctx: Context): Promise<Envelope> {
   const loaded = await loadDocument(input.document, ctx);
   if (!loaded.ok) return failureEnvelope("scene render", loaded.failure);
   const { width, height } = { width: sideOf(input.width), height: sideOf(input.height) };
-  return renderScene({ document: toCanonicalJson(loaded.value.scene), out: input.out, ...(width === undefined ? {} : { width }), ...(height === undefined ? {} : { height }), gpu: input.gpu === true }, { root, command: "scene render" });
+  return renderScene({ document: toCanonicalJson(loaded.value.scene), out: input.out, ...(width === undefined ? {} : { width }), ...(height === undefined ? {} : { height }), gpu: input.gpu === true, force: input.force === true }, { root, command: "scene render" });
 }
