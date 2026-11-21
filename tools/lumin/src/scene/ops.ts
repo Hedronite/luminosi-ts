@@ -1,5 +1,6 @@
 // The bodies of the scene operations: each takes its parsed input and a context and gives an envelope. The table (table.ts) is where they are named.
-import { encodeScene, SHARE_LIMITS, type Scene } from "@hedronite/lts-scene";
+import type { Credit } from "@hedronite/lts-core";
+import { creditsFor, encodeScene, SHARE_LIMITS, type Scene } from "@hedronite/lts-scene";
 import { toCanonicalJson, toTsx, toVanilla } from "@hedronite/lts-scene/emit";
 import { fail, ok, type Envelope } from "../envelope.js";
 import { diffScenes } from "./diff.js";
@@ -73,12 +74,12 @@ export async function patch(input: { readonly document: Source; readonly ops: st
   return deliver("scene patch", ctx, toCanonicalJson(applied.scene), input.out, input.force, { applied: operations.ops.length, document: applied.scene }, { applied: operations.ops.length });
 }
 
-function textOf(scene: Scene, as: ExportKind): string | Promise<string> {
+function textOf(scene: Scene, as: ExportKind, credited: readonly Credit[]): string | Promise<string> {
   switch (as) {
     case "tsx":
-      return toTsx(scene);
+      return toTsx(scene, { credits: credited });
     case "vanilla":
-      return toVanilla(scene);
+      return toVanilla(scene, { credits: credited });
     case "json":
       return toCanonicalJson(scene);
     case "link":
@@ -86,11 +87,25 @@ function textOf(scene: Scene, as: ExportKind): string | Promise<string> {
   }
 }
 
-/** The document as React code, as a vanilla module, as canonical JSON or as a share link; a link over 16 KiB is refused. */
-export async function exportScene(input: { readonly document: Source; readonly as: ExportKind; readonly out?: string | undefined; readonly force?: boolean | undefined }, ctx: Context): Promise<Envelope> {
+/**
+ * The work of others a document uses: its look, its assets, its materials, shaders and effects that came from vendored work, each with
+ * what it is, where it lives, at what pin, under which license, and whose it is. An empty list is a document that uses none.
+ */
+export async function credits(input: { readonly document: Source }, ctx: Context): Promise<Envelope> {
+  const loaded = await loadDocument(input.document, ctx);
+  if (!loaded.ok) return failureEnvelope("scene credits", loaded.failure);
+  const list = creditsFor(loaded.value.scene, ctx.resolve);
+  return ok("scene credits", { count: list.length, credits: list });
+}
+
+/**
+ * The document as React code, as a vanilla module, as canonical JSON or as a share link; a link over 16 KiB is refused. React code and a
+ * vanilla module carry the credits of what the document uses (a header of comments and a credits export) unless noCredits is set, which is for tests.
+ */
+export async function exportScene(input: { readonly document: Source; readonly as: ExportKind; readonly noCredits?: boolean | undefined; readonly out?: string | undefined; readonly force?: boolean | undefined }, ctx: Context): Promise<Envelope> {
   const loaded = await loadDocument(input.document, ctx);
   if (!loaded.ok) return failureEnvelope("scene export", loaded.failure);
-  const text = await textOf(loaded.value.scene, input.as);
+  const text = await textOf(loaded.value.scene, input.as, input.noCredits === true ? [] : creditsFor(loaded.value.scene, ctx.resolve));
   if (input.as === "link" && text.length > SHARE_LIMITS.link) {
     return fail("scene export", "too_large", `the link is ${String(text.length)} characters; a link is at most ${String(SHARE_LIMITS.link)}, so export as json instead`);
   }

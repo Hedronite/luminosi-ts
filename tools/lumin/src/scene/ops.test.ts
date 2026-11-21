@@ -2,8 +2,8 @@ import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { decodeScene, type Scene } from "@hedronite/lts-scene";
-import { toCanonicalJson } from "@hedronite/lts-scene/emit";
+import { creditsFor, decodeScene, type Scene } from "@hedronite/lts-scene";
+import { toCanonicalJson, toTsx, toVanilla } from "@hedronite/lts-scene/emit";
 import fc from "fast-check";
 import { afterAll, describe, expect, it } from "vitest";
 import { editsOf, resolve, scenes, sceneOf } from "../../../../packages/scene/src/arbitrary.js";
@@ -11,7 +11,7 @@ import { root } from "../commands.js";
 import type { Envelope } from "../envelope.js";
 import { diffScenes, equal } from "./diff.js";
 import { applyOps } from "./edits.js";
-import { diskFiles, nodeContext, type Context } from "./io.js";
+import { diskFiles, loadDocument, nodeContext, type Context } from "./io.js";
 import { operationNamed } from "./table.js";
 
 const ctx = await nodeContext();
@@ -47,6 +47,23 @@ const written = (name: string, text: string): string => {
   const path = join(scratch, name);
   writeFileSync(path, text);
   return path;
+};
+
+/** The fixtures, none of which uses anything that is someone else's work. */
+const FIXTURES = ["v0", "v1", "framed-solid-shader", "object-effects-ink", "primitives-in-materials", "transform-hierarchy"] as const;
+
+/** A document that uses three credited things: a look (tokyo-night), a shader (soap-film) and a screen effect (crt). */
+const creditedDocument = (): Record<string, unknown> => {
+  const document = objectOf(textOf("framed-solid-shader"));
+  const [node] = recordsOf(document["nodes"]);
+  return { ...document, look: "tokyo-night", nodes: [{ ...node, surface: { shader: "soap-film" } }], effects: [{ id: "crt" }] };
+};
+
+/** The scene of a document as the operations read it. */
+const sceneOfDocument = async (document: Record<string, unknown>): Promise<Scene> => {
+  const loaded = await loadDocument(document, ctx);
+  if (!loaded.ok) throw new Error("the document did not load");
+  return loaded.value.scene;
 };
 
 const call = async (operation: string, input: Record<string, unknown>, context: Context = ctx): Promise<Envelope> => {
@@ -249,26 +266,33 @@ describe("patch(A, diff(A, B).ops) is B", () => {
 
 describe("patch", () => {
   const hierarchy = fixture("transform-hierarchy");
+  /** A patch, held to leave the fixture every test here shares exactly as it was, whatever it was asked for. */
+  const patched = async (input: Record<string, unknown>): Promise<Envelope> => {
+    const before = sha(hierarchy);
+    const result = await call("patch", input);
+    expect(sha(hierarchy)).toBe(before);
+    return result;
+  };
   const secondNode = (): string => {
     return String(recordsOf(objectOf(textOf("transform-hierarchy"))["nodes"])[1]?.["id"]);
   };
 
   it("applies the edits in order and gives the document", async () => {
-    const result = await call("patch", { document: hierarchy, ops: [{ op: "setInk", ink: "accent" }, { op: "setLights", change: { intensity: 2 } }, { op: "setTransform", id: secondNode(), change: { position: [1, 2, 3] } }] });
+    const result = await patched( { document: hierarchy, ops: [{ op: "setInk", ink: "accent" }, { op: "setLights", change: { intensity: 2 } }, { op: "setTransform", id: secondNode(), change: { position: [1, 2, 3] } }] });
     const patchedDocument = data(result)["document"];
     expect(result).toMatchObject({ ok: true, data: { applied: 3 } });
     expect(patchedDocument).toMatchObject({ ink: "accent", lights: { intensity: 2 } });
   });
 
   it("takes the edits as JSON text too, and says where the text stops being JSON", async () => {
-    expect(await call("patch", { document: hierarchy, ops: '[{"op":"setInk","ink":"glass"}]' })).toMatchObject({ ok: true, data: { applied: 1 } });
-    expect(await call("patch", { document: hierarchy, ops: '[{"op":"setInk",}]' })).toMatchObject({ ok: false, kind: "invalid", data: { line: 1, column: 17 } });
-    expect(await call("patch", { document: hierarchy, ops: '{"op":"setInk"}' })).toMatchObject({ ok: false, kind: "invalid" });
+    expect(await patched( { document: hierarchy, ops: '[{"op":"setInk","ink":"glass"}]' })).toMatchObject({ ok: true, data: { applied: 1 } });
+    expect(await patched( { document: hierarchy, ops: '[{"op":"setInk",}]' })).toMatchObject({ ok: false, kind: "invalid", data: { line: 1, column: 17 } });
+    expect(await patched( { document: hierarchy, ops: '{"op":"setInk"}' })).toMatchObject({ ok: false, kind: "invalid" });
   });
 
   it("is atomic: a bad third edit gives its index and issues, and no document, and the input file is as it was", async () => {
     const before = sha(hierarchy);
-    const result = await call("patch", { document: hierarchy, ops: [{ op: "setInk", ink: "accent" }, { op: "setLights", change: { intensity: 3 } }, { op: "removeNode", id: "ghost" }, { op: "setInk", ink: "glass" }] });
+    const result = await patched( { document: hierarchy, ops: [{ op: "setInk", ink: "accent" }, { op: "setLights", change: { intensity: 3 } }, { op: "removeNode", id: "ghost" }, { op: "setInk", ink: "glass" }] });
     expect(result).toMatchObject({ ok: false, kind: "invalid", exit: 1, data: { valid: false, index: 2, issues: [{ code: "unknown-node" }] } });
     expect(JSON.stringify(result)).not.toContain('"document"');
     expect(sha(hierarchy)).toBe(before);
@@ -280,32 +304,71 @@ describe("patch", () => {
     ["something that is not an operation", 7, "unknown-operation"],
     ["a node with an asset the library lacks", { op: "addNode", node: { id: "late", parent: null, position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1], asset: { kind: "primitive", id: "platonic-cub" }, surface: { material: "metal" } } }, "unknown-primitive"],
   ])("fails at its index for %s", async (_name, step, code) => {
-    const result = await call("patch", { document: hierarchy, ops: [{ op: "setInk", ink: "accent" }, step] });
+    const result = await patched( { document: hierarchy, ops: [{ op: "setInk", ink: "accent" }, step] });
     expect(result).toMatchObject({ ok: false, kind: "invalid", data: { index: 1, issues: [{ code }] } });
   });
 
   it("holds the list to the operations cap", async () => {
-    expect(await call("patch", { document: hierarchy, ops: Array.from({ length: 1001 }, () => ({ op: "setInk", ink: "look" })) })).toMatchObject({ ok: false, kind: "too_large" });
+    expect(await patched( { document: hierarchy, ops: Array.from({ length: 1001 }, () => ({ op: "setInk", ink: "look" })) })).toMatchObject({ ok: false, kind: "too_large" });
   });
 
   it("writes to --out, a new path, and replaces one only with force; the input never changes", async () => {
     const before = sha(hierarchy);
     const out = join(scratch, "patched.json");
     const ops = [{ op: "setInk", ink: "emissive" }];
-    const first = await call("patch", { document: hierarchy, ops, out });
+    const first = await patched( { document: hierarchy, ops, out });
     expect(first).toMatchObject({ ok: true, data: { applied: 1, out } });
     expect(first.ok && isRecord(first.data) ? first.data : {}).not.toHaveProperty("document");
     expect(objectOf(readFileSync(out, "utf8"))).toMatchObject({ ink: "emissive" });
-    expect(await call("patch", { document: hierarchy, ops, out })).toMatchObject({ ok: false, kind: "exists" });
-    expect(await call("patch", { document: hierarchy, ops: [{ op: "setInk", ink: "glass" }], out, force: true })).toMatchObject({ ok: true });
+    expect(await patched( { document: hierarchy, ops, out })).toMatchObject({ ok: false, kind: "exists" });
+    expect(await patched( { document: hierarchy, ops: [{ op: "setInk", ink: "glass" }], out, force: true })).toMatchObject({ ok: true });
     expect(objectOf(readFileSync(out, "utf8"))).toMatchObject({ ink: "glass" });
     expect(sha(hierarchy)).toBe(before);
   });
 
   it("writes nothing when a step fails", async () => {
     const out = join(scratch, "never.json");
-    await call("patch", { document: hierarchy, ops: [{ op: "removeNode", id: "ghost" }], out });
+    await patched( { document: hierarchy, ops: [{ op: "removeNode", id: "ghost" }], out });
     expect(diskFiles.read(out)).toMatchObject({ ok: false, failure: { kind: "not_found" } });
+  });
+});
+
+describe("credits", () => {
+  it("lists what a document uses that is someone else's work, one credit for each, as creditsFor says", async () => {
+    const document = creditedDocument();
+    const result = data(await call("credits", { document }));
+    const expected = creditsFor(await sceneOfDocument(document), ctx.resolve);
+    expect(result["count"]).toBe(3);
+    expect(result["credits"]).toEqual(expected);
+    expect(recordsOf(result["credits"]).map((credit) => credit["subject"])).toEqual(["crt", "soap-film", "tokyo-night"]);
+    expect(recordsOf(result["credits"]).map((credit) => credit["kind"])).toEqual(["effect", "shader", "look"]);
+  });
+
+  it("builds an asset's credit from its origin and its vendor's entry, so the effect names the vendor's work and the file it came from", async () => {
+    const credits = recordsOf(data(await call("credits", { document: creditedDocument() }))["credits"]);
+    const crt = credits.find((credit) => credit["subject"] === "crt");
+    expect(crt).toMatchObject({ kind: "effect" });
+    expect(String(crt?.["relation"])).toMatch(/^(ported|adopted|inspired)$/);
+    expect(String(crt?.["source"])).toMatch(/^https:\/\//);
+    expect(String(crt?.["path"]).length).toBeGreaterThan(0);
+  });
+
+  it.each(FIXTURES)("says there are none for the fixture %s", async (name) => {
+    expect(await call("credits", { document: fixture(name) })).toEqual({ ok: true, command: "scene credits", data: { count: 0, credits: [] } });
+  });
+
+  it("refuses a document with problems as validate does, and a missing document as a usage error", async () => {
+    const broken = objectOf(textOf("transform-hierarchy"));
+    const result = await call("credits", { document: { ...broken, look: "no-such-look" } });
+    expect(result).toMatchObject({ ok: false, kind: "invalid", command: "scene credits", exit: 1 });
+    expect(await call("credits", {})).toMatchObject({ ok: false, kind: "usage", exit: 2, command: "scene credits" });
+  });
+
+  it("is read-only: it writes nothing", async () => {
+    const files: string[] = [];
+    const watching: Context = { ...ctx, files: { read: (path) => ctx.files.read(path), write: (path) => { files.push(path); return { ok: false, failure: { kind: "failed", error: "no" } }; } } };
+    await call("credits", { document: creditedDocument() }, watching);
+    expect(files).toEqual([]);
   });
 });
 
@@ -341,5 +404,46 @@ describe("export", () => {
 
   it("is a usage error for an unknown kind", async () => {
     expect(await call("export", { document: fixture("v1"), as: "svg" })).toMatchObject({ ok: false, kind: "usage", exit: 2 });
+  });
+
+  describe("carries the credits of what the document uses", () => {
+    it.each(["tsx", "vanilla"] as const)("%s: the same text the emitter writes with creditsFor, a header of comments and a credits export", async (as) => {
+      const document = creditedDocument();
+      const scene = await sceneOfDocument(document);
+      const text = String(data(await call("export", { document, as }))["text"]);
+      const emit = as === "tsx" ? toTsx : toVanilla;
+      expect(text).toBe(emit(scene, { credits: creditsFor(scene, ctx.resolve) }));
+      expect(text).toContain("// This scene uses the work of others");
+      expect(text).toContain("export const credits = [");
+      for (const subject of ["crt", "soap-film", "tokyo-night"]) expect(text).toContain(`// - ${subject} (`);
+    });
+
+    it.each(["tsx", "vanilla"] as const)("%s: leaves them out, and writes the emitter's own text, with noCredits", async (as) => {
+      const document = creditedDocument();
+      const scene = await sceneOfDocument(document);
+      const text = String(data(await call("export", { document, as, noCredits: true }))["text"]);
+      expect(text).toBe(as === "tsx" ? toTsx(scene) : toVanilla(scene));
+      expect(text).not.toContain("the work of others");
+    });
+
+    it.each(FIXTURES)("is byte for byte the emitter's own text for the uncredited fixture %s", async (name) => {
+      const scene = await sceneOfDocument(objectOf(textOf(name)));
+      expect(data(await call("export", { document: fixture(name), as: "tsx" }))["text"]).toBe(toTsx(scene));
+      expect(data(await call("export", { document: fixture(name), as: "vanilla" }))["text"]).toBe(toVanilla(scene));
+    });
+
+    it("does not change canonical JSON or a link: they have nowhere for a credit to go", async () => {
+      const document = creditedDocument();
+      for (const as of ["json", "link"] as const) {
+        const plain = data(await call("export", { document, as }))["text"];
+        expect(data(await call("export", { document, as, noCredits: true }))["text"]).toBe(plain);
+      }
+    });
+
+    it("writes the credited code to --out", async () => {
+      const out = join(scratch, "Credited.tsx");
+      expect(await call("export", { document: creditedDocument(), as: "tsx", out })).toMatchObject({ ok: true, data: { as: "tsx", out } });
+      expect(readFileSync(out, "utf8")).toContain("// - soap-film (shader)");
+    });
   });
 });

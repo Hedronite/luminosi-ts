@@ -1,8 +1,8 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it } from "vitest";
 import { root } from "./commands.js";
 
 const canon = join(root, ".agents/skills");
@@ -177,10 +177,29 @@ export const Broken = () => (
     };
     const viaSkill = (args: readonly string[], input?: string) => spawnSync("nu", [join(canon, "lumin-scene/lumin-scene.nu"), ...args], { cwd: root, encoding: "utf8", ...(input === undefined ? {} : { input }) });
     const fixture = (name: string): string => join(root, "packages/scene/fixtures", `${name}.json`);
+    // Each document a case writes goes in a directory of its own, and they are all removed after.
+    const made: string[] = [];
+    afterAll(() => {
+      for (const dir of made) rmSync(dir, { recursive: true, force: true });
+    });
     const planted = (): string => {
       const dir = mkdtempSync(join(tmpdir(), "lumin-scene-"));
+      made.push(dir);
       const file = join(dir, "planted.json");
       writeFileSync(file, readFileSync(fixture("primitives-in-materials"), "utf8").replace('"platonic-cube"', '"platonic-cub"'));
+      return file;
+    };
+    // A document that uses three credited things: the tokyo-night look, the soap-film shader and the crt screen effect.
+    const credited = (): string => {
+      const dir = mkdtempSync(join(tmpdir(), "lumin-scene-"));
+      made.push(dir);
+      const file = join(dir, "credited.json");
+      const text = readFileSync(fixture("framed-solid-shader"), "utf8")
+        .replace('"look": "neutral"', '"look": "tokyo-night"')
+        .replace('"shader": "toon",', '"shader": "soap-film",')
+        .replace(/"params": \{\s*"bands": 4\s*\}/, '"params": {}')
+        .replace('"effects": []', '"effects": [{ "id": "crt" }]');
+      writeFileSync(file, text);
       return file;
     };
     const stdinText = readFileSync(join(root, "packages/scene/fixtures/v1.json"), "utf8");
@@ -198,6 +217,20 @@ export const Broken = () => (
       ["export as a link", () => ["export", fixture("v1"), "--as=link"], 0, undefined],
       ["export with no --as", () => ["export", fixture("v1")], 2, undefined],
       ["diff with one document", () => ["diff", fixture("v1")], 2, undefined],
+      ["credits of a document that uses credited work", () => ["credits", credited()], 0, undefined],
+      ["credits of a document that uses none", () => ["credits", fixture("v1")], 0, undefined],
+      ["credits from stdin", () => ["credits", "-"], 0, stdinText],
+      ["credits of a document with an unknown id", () => ["credits", planted()], 1, undefined],
+      ["credits with no document", () => ["credits"], 2, undefined],
+      ["export as tsx, with the credits", () => ["export", credited(), "--as", "tsx"], 0, undefined],
+      ["export as a vanilla module, with the credits", () => ["export", credited(), "--as=vanilla"], 0, undefined],
+      // A render that is refused before a browser starts: the same bytes and the same exit through the skill, with no build or browser needed.
+      ["render with no --out", () => ["render", fixture("v1")], 2, undefined],
+      ["render of a document with an unknown id", () => ["render", planted(), "--out", join(tmpdir(), "lumin-scene-never.png")], 1, undefined],
+      ["render with a side over the cap", () => ["render", fixture("v1"), "--out", join(tmpdir(), "lumin-scene-never.png"), "--width", "99999"], 2, undefined],
+      ["render with a side that is not a number", () => ["render", fixture("v1"), "--out", join(tmpdir(), "lumin-scene-never.png"), "--height=tall"], 2, undefined],
+      ["render to a path that is there", () => ["render", fixture("v1"), "--out", fixture("v1")], 1, undefined],
+      ["render with no document", () => ["render", "--out", join(tmpdir(), "lumin-scene-never.png")], 2, undefined],
     ];
     it.each(cases)("%s: the skill prints the CLI's envelope exactly", (_name, args, code, input) => {
       const words = args();

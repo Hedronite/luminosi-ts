@@ -2,7 +2,7 @@
 // the document is read, migrated, parsed and checked against the registry the same way, so the way in changes nothing.
 import { readFileSync, statSync, writeFileSync } from "node:fs";
 import { loadDescriptors } from "@hedronite/lts-registry";
-import { checkRefs, migrate, SCENE_VERSION, SHARE_LIMITS, type RefKind, type Resolve, type Scene } from "@hedronite/lts-scene";
+import { assetCredit, checkRefs, lookCredit, migrate, SCENE_VERSION, SHARE_LIMITS, type RefKind, type Resolve, type Scene } from "@hedronite/lts-scene";
 import { presets } from "@hedronite/lts-tokens";
 import { distance } from "../commands.js";
 import { fail, type Envelope } from "../envelope.js";
@@ -345,15 +345,20 @@ async function readStdin(): Promise<Outcome<string>> {
   return decode(Buffer.concat(chunks));
 }
 
-/** The context the command line runs with: the registry's descriptors, the looks the tokens ship, files on disk and process stdin. */
+/** The context the command line runs with, whose ids resolve with the credit of the work they came from: the registry's descriptors, the looks the tokens ship, files on disk and process stdin. */
 export async function nodeContext(): Promise<Context> {
   const registry = await loadDescriptors();
   const looks = presets.map((preset) => preset.id);
   return {
     resolve: (kind, id) => {
-      if (kind === "look") return looks.includes(id) ? {} : undefined;
+      if (kind === "look") {
+        const credit = lookCredit(id);
+        return looks.includes(id) ? (credit === undefined ? {} : { credit }) : undefined;
+      }
       const descriptor = registry.get(id);
-      return descriptor?.meta.kind === kind ? descriptor : undefined;
+      if (descriptor?.meta.kind !== kind) return undefined;
+      const credit = assetCredit(descriptor.meta);
+      return credit === undefined ? descriptor : { parameters: descriptor.parameters, credit };
     },
     ids: (kind) => (kind === "look" ? looks : registry.list().filter((descriptor) => descriptor.meta.kind === kind).map((descriptor) => descriptor.meta.id)),
     files: diskFiles,
