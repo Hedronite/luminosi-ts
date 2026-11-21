@@ -69,6 +69,9 @@ const bundles: Readonly<Record<string, Bundle>> = {
   "catalog-3d": { dist: "apps/catalog/dist", pages: ["index.html", "embed.html"], carries: ["isObject3D", "isWebGPURenderer"], shell: "index.html" },
   "catalog-panel": { dist: "apps/catalog/dist", pages: ["index.html"], chunk: "ParameterPanel" },
   "site-island": { dist: "apps/site/dist", pages: ["index.html"] },
+  // The scene element: what a page loads for it (the class, its observers and the poster), and the chunk set it imports when it is about to be seen (three, the builder, zod).
+  "scene-element": { dist: "apps/catalog/dist", pages: ["element.html"] },
+  "scene-element-3d": { dist: "apps/catalog/dist", pages: ["element.html"], carries: ["isObject3D", "isWebGPURenderer"], shell: "element.html" },
 };
 
 const gzipBytes = (files: readonly string[]): number => files.reduce((sum, file) => sum + gzipSync(readFileSync(file), { level: 9 }).length, 0);

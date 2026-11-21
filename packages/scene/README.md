@@ -27,3 +27,22 @@ if (edited.ok) {
 ```
 
 The shape, the migration from the playground's old JSON, the issue codes, the canonical text, the edits, the history and the link format are in [STACK.md](../../STACK.md#scene-document).
+
+## The element: `@hedronite/lts-scene/element`
+
+`<lts-scene>` draws a document on a page with no React: a poster at once, three and the builder loaded only when the element is about to be seen, reduced motion honoured, everything freed when it is removed.
+
+```html
+<lts-scene src="/scene.json" poster="/scene.webp" alt="Three solids on a studio floor"></lts-scene>
+<script type="module">
+  import { defineSceneElement } from "@hedronite/lts-scene/element";
+  defineSceneElement();
+</script>
+```
+
+- Attributes: `src` (a document URL) or one child `<script type="application/json">`; `poster`; `alt` (the accessible name, the element has `role="img"`); `look` (a look id, a change recolours in place); `loading` (`lazy`, the default, or `eager`).
+- `data-state` goes `poster`, `loading`, `ready`, or `error`. On an error the poster stays and an `error` event carries `{ ok: false, issues }` as its `detail`.
+- It publishes `data-frames`, `data-builds`, `data-geometries`, `data-textures`, `data-targets` and `data-programs`, and its canvas carries `data-renderer`.
+- `./renderer` holds the backend readout it shares with the adapters' `WebGPUCanvas`: `rendererReadout`, `backendOf` and `whenDrawn`. It imports nothing.
+
+The states, the events, the counters and the size lines are in [STACK.md](../../STACK.md#scene-element).
