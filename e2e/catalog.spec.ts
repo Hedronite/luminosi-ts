@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { decodePng } from "../tools/stills/src/png.js";
-import { expect, expectRenderer, test } from "./fixtures.js";
+import { expect, expectRenderer, settledBuilds, test } from "./fixtures.js";
 
 test.use({ permissions: ["clipboard-read", "clipboard-write"] });
 
@@ -213,9 +213,11 @@ test("a primitive opens in an interactive 3D viewport", async ({ page }) => {
   const viewport = page.getByRole("dialog", { name: "Icosahedron" }).getByTestId("viewport");
   await expectRenderer(viewport.locator("canvas"));
   await expect(viewport.locator("canvas")).toBeVisible();
-  await expect(viewport).toHaveAttribute("data-gpu-geometries", /^[1-9]\d*$/);
-  // A frame was drawn without any interaction: on-demand rendering must not wait for input.
   await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/);
+  // A frame was drawn without any interaction: on-demand rendering must not wait for input. The geometry
+  // count is read once it has held across two samples: the WebGPU renderer registers one of its own after
+  // the first frame, so a first reading can still be one short (R21).
+  expect(await settledBuilds(viewport, "data-gpu-geometries")).toBeGreaterThan(0);
 });
 
 test("a material renders with its environment", async ({ page }) => {
@@ -239,8 +241,10 @@ test("stepping through 3D assets frees each geometry it replaces", async ({ page
   await expectRenderer(viewport.locator("canvas"));
   // The first asset is drawn when the stage has counted a frame; its geometry count is the baseline. A slow machine takes longer to get here, never reads early.
   await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
-  await expect(viewport).toHaveAttribute("data-gpu-geometries", /^[1-9]\d*$/);
-  const baseline = await viewport.getAttribute("data-gpu-geometries");
+  // The baseline is read once the count has held across two samples: the WebGPU renderer registers one of
+  // its own geometry after the first frame, and on a loaded runner that can land after the stage reports
+  // frames, so a first reading can be one short (R21).
+  const baseline = await settledBuilds(viewport, "data-gpu-geometries");
 
   const next = page.getByRole("button", { name: "Next asset" });
   for (let i = 0; i < total; i++) {
@@ -249,7 +253,7 @@ test("stepping through 3D assets frees each geometry it replaces", async ({ page
   }
   // Back at the first asset. The stage may have been mounted again on the way, so its counters can be missing until it reports: the wait is on them.
   await expect(page.getByRole("dialog")).toContainText(position(1, total), { timeout: STAGE_WAIT });
-  await expect.poll(() => viewport.getAttribute("data-gpu-geometries"), { message: "the geometry count is back at the first asset's", timeout: STAGE_WAIT }).toBe(baseline);
+  await expect.poll(async () => Number(await viewport.getAttribute("data-gpu-geometries")), { message: "the geometry count is back at the first asset's", timeout: STAGE_WAIT }).toBe(baseline);
 });
 
 for (const [id, name] of [
@@ -265,8 +269,8 @@ for (const [id, name] of [
     await page.goto(`/?asset=${id}`);
     const viewport = page.getByRole("dialog", { name }).getByTestId("viewport");
     await expectRenderer(viewport.locator("canvas"));
-    await expect(viewport).toHaveAttribute("data-gpu-geometries", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
     await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
+    expect(await settledBuilds(viewport, "data-gpu-geometries")).toBeGreaterThan(0);
     expect(errors).toEqual([]);
   });
 }
@@ -300,8 +304,8 @@ test("a scene kit renders with its own lights", async ({ page }) => {
   const viewport = page.getByRole("dialog", { name: "Dusk" }).getByTestId("viewport");
   await expectRenderer(viewport.locator("canvas"));
   // A kit builds its lights and every object in it before it draws; that first frame is slow under software rendering and under load.
-  await expect(viewport).toHaveAttribute("data-gpu-geometries", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
   await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
+  expect(await settledBuilds(viewport, "data-gpu-geometries")).toBeGreaterThan(0);
 });
 
 test("the growth view groups assets by the day they were added", async ({ page }) => {
@@ -491,8 +495,8 @@ for (const [id, name] of [
     await page.goto(`/?asset=${id}`);
     const viewport = page.getByRole("dialog", { name }).getByTestId("viewport");
     await expectRenderer(viewport.locator("canvas"));
-    await expect(viewport).toHaveAttribute("data-gpu-geometries", /^[1-9]\d*$/);
     await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/);
+    expect(await settledBuilds(viewport, "data-gpu-geometries")).toBeGreaterThan(0);
     expect(errors).toEqual([]);
   });
 }

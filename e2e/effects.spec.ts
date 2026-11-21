@@ -107,7 +107,7 @@ for (const [id, name] of [
     const viewport = page.getByRole("dialog", { name }).getByTestId("viewport");
     await expectRenderer(viewport.locator("canvas"));
     await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 15000 });
-    await expect(viewport).toHaveAttribute("data-gpu-geometries", /^[1-9]\d*$/);
+    expect(await settledBuilds(viewport, "data-gpu-geometries")).toBeGreaterThan(0);
     expect(errors).toEqual([]);
   });
 }
