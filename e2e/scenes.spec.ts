@@ -26,7 +26,13 @@ const measuring = process.env["GOLDEN_MEASURE"] === "1";
 const report = resolve(process.env["GOLDEN_REPORT"] ?? join("test-results", "golden"));
 
 /** Loads the rig's scene mode for one fixture and waits for its last frame. Anything the page reports as an error fails the test. */
-async function draw(page: Page, name: Fixture, via: "doc" | "code", plantName?: string): Promise<Picture> {
+async function draw(
+  page: Page,
+  name: Fixture,
+  via: "doc" | "code",
+  renderers: readonly string[],
+  plantName?: string,
+): Promise<Picture> {
   const problems: string[] = [];
   const onConsole = (message: { type(): string; text(): string }): void => {
     if (message.type() === "error") problems.push(message.text());
@@ -43,7 +49,7 @@ async function draw(page: Page, name: Fixture, via: "doc" | "code", plantName?: 
   expect(await stage.getAttribute("data-error")).toBeNull();
   await expect(stage).toHaveAttribute("data-still", "ready");
   // The still page's scene modes draw on a hand-built renderer: the canvas must say which backend drew it.
-  await expectRenderer(stage.locator("canvas"));
+  await expectRenderer(stage.locator("canvas"), renderers);
   expect(problems).toEqual([]);
   page.off("console", onConsole);
   page.off("pageerror", onError);
@@ -96,9 +102,11 @@ for (const name of roundTrip) {
     // Software WebGL draws the effects slowly, and the strict check does a build-and-free five times over: this is a long test.
     test.setTimeout(300_000);
     const strict = testInfo.project.name === "scenes";
+    // The strict project draws on a real GPU and is not the WebGPU lane: ask for webgpu by name.
+    const renderers = strict ? ["webgpu"] : ["webgpu", "webgl2"];
     const file = goldenPath(name);
 
-    const doc = await draw(page, name, "doc");
+    const doc = await draw(page, name, "doc", renderers);
     if (strict && updating) {
       mkdirSync(resolve(file, ".."), { recursive: true });
       await page.getByTestId("still").screenshot({ animations: "disabled", path: file });
@@ -110,7 +118,7 @@ for (const name of roundTrip) {
     if (strict) {
       expect(strictDistance(doc, golden), `${name}: the doc frame is not its golden`).toMatchObject({ changedPixels: 0 });
       const docMemory = await expectFlat(page, `${name} (doc)`, leftoverTextures(fixture(name)));
-      const code = await draw(page, name, "code");
+      const code = await draw(page, name, "code", renderers);
       expect(strictDistance(code, doc), `${name}: the emitted module draws a different frame from the document`).toMatchObject({ changedPixels: 0 });
       expect(strictDistance(code, golden), `${name}: the code frame is not its golden`).toMatchObject({ changedPixels: 0 });
       const codeMemory = await expectFlat(page, `${name} (code)`, leftoverTextures(fixture(name)));
@@ -120,7 +128,7 @@ for (const name of roundTrip) {
         if (planted(fixture(name), kind) === undefined) continue;
         expect(existsSync(plantPath(name, kind)), `no planted module ${name}.${kind}: bun run scenes:plants writes it`).toBe(true);
         // eslint-disable-next-line no-await-in-loop -- one plant at a time on one page
-        const shown = await draw(page, name, "code", kind);
+        const shown = await draw(page, name, "code", renderers, kind);
         const distance = strictDistance(shown, doc);
         results[kind] = distance;
         if (!strictFails(distance)) missed.push(kind);
