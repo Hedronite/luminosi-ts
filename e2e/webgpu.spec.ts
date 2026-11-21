@@ -49,6 +49,7 @@ const coloursOn = async (page: Page, stage: Locator): Promise<number> => {
  * has also kept drawing; the playground draws on demand, so its frame counter holds still until something changes.
  */
 const expectDrawnOnWebGPU = async (page: Page, stage: Locator, animated: boolean): Promise<void> => {
+  await expectRenderer(stage.locator("canvas"));
   await expect(stage).toHaveAttribute("data-backend", "webgpu", { timeout: 20_000 });
   await expect(stage).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 20_000 });
   if (animated) {
