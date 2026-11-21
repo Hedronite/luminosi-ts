@@ -4,5 +4,11 @@
   "keptReason": "isocons.app publishes a bundle on its site, no repository and no archive, so there is nothing to fetch by commit: the files stay here, and the hash is of the folder as vendored.",
   "source": "https://www.isocons.app/",
   "version": "v2.1",
-  "contentHash": "d096478f06551496f70c863918a14ad2be8e6601f6383b4c0717efc593477d43"
+  "contentHash": "d096478f06551496f70c863918a14ad2be8e6601f6383b4c0717efc593477d43",
+  "licenses": [
+    {
+      "spdx": "CC-BY-4.0",
+      "remainder": true
+    }
+  ]
 }

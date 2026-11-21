@@ -18,5 +18,11 @@
       "into": "threejs-3d-webpage"
     }
   ],
-  "contentHash": "05cd79317de478eee1fee830875fc14bb833af3222ce98c6af8d0e644a0e2871"
+  "contentHash": "05cd79317de478eee1fee830875fc14bb833af3222ce98c6af8d0e644a0e2871",
+  "licenses": [
+    {
+      "spdx": "MIT",
+      "remainder": true
+    }
+  ]
 }
