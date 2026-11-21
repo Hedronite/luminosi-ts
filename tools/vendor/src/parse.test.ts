@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { firstUrl, humanize, parseCredit, parseDemoReadme, parseFrontMatter, pinText, requirePin, sourcePins, vendorCreditLine } from "./parse.js";
+import { firstUrl, humanize, parseCredit, parseDemoReadme, parseFrontMatter, pinText, plainLicense, requirePin, sourcePins, vendorCreditLine } from "./parse.js";
 
 const credit = `# Credit
 
@@ -92,25 +92,58 @@ describe("pinText", () => {
     const hash = "d096478f06551496f70c863918a14ad2be8e6601f6383b4c0717efc593477d43";
     expect(pinText(sourcePins("https://x.test/a (`6f56b8f1f665ce64c41506033b66ca67e2bc7724`)"))).toBe("6f56b8f1f665ce64c41506033b66ca67e2bc7724");
     expect(pinText(sourcePins(`https://x.test/ (v2.1, \`sha256:${hash}\`)`))).toBe(`v2.1 sha256:${hash}`);
-    expect(pinText(sourcePins("https://x.test/ (`a` at `da187f6316c7ee18b8f1b60bbb5363be2aec40c2`, then `2dc70cfd855704c1a8385f606e82f41505fdd5e9`)"))).toBe("da187f6316c7ee18b8f1b60bbb5363be2aec40c2, 2dc70cfd855704c1a8385f606e82f41505fdd5e9");
+    expect(pinText(sourcePins("https://x.test/ (`da187f6316c7ee18b8f1b60bbb5363be2aec40c2`, then `2dc70cfd855704c1a8385f606e82f41505fdd5e9`)"))).toBe("da187f6316c7ee18b8f1b60bbb5363be2aec40c2, 2dc70cfd855704c1a8385f606e82f41505fdd5e9");
+  });
+});
+
+describe("sourcePins with several repositories", () => {
+  const many = "https://x.test/ (each demo is its own repository: `flux` at `da187f6316c7ee18b8f1b60bbb5363be2aec40c2`, `glow` at `2dc70cfd855704c1a8385f606e82f41505fdd5e9`, `site` (repository `Site-Repo`) at `d827a2a409abc44ff35b4965e3d3aadfbe66278a`)";
+
+  it("names the repository each commit belongs to, in the order of the line", () => {
+    expect(sourcePins(many)).toEqual([
+      { kind: "commit", commit: "da187f6316c7ee18b8f1b60bbb5363be2aec40c2", repo: "flux" },
+      { kind: "commit", commit: "2dc70cfd855704c1a8385f606e82f41505fdd5e9", repo: "glow" },
+      { kind: "commit", commit: "d827a2a409abc44ff35b4965e3d3aadfbe66278a", repo: "Site-Repo" },
+    ]);
+    expect(pinText(sourcePins(many))).toBe("flux: da187f6316c7ee18b8f1b60bbb5363be2aec40c2, glow: 2dc70cfd855704c1a8385f606e82f41505fdd5e9, Site-Repo: d827a2a409abc44ff35b4965e3d3aadfbe66278a");
+  });
+});
+
+describe("plainLicense", () => {
+  it("leaves out the files a line points to and gives the licenses their SPDX ids", () => {
+    expect(plainLicense("MIT (`LICENSE`)", "x")).toBe("MIT");
+    expect(plainLicense("Icons CC BY 4.0; fonts SIL OFL 1.1; code MIT (`LICENSE`)", "x")).toBe("Icons CC-BY-4.0; fonts OFL-1.1; code MIT");
+    expect(plainLicense("MIT (`LICENSE`); fonts SIL OFL 1.1 (`FONT-LICENSES.md`); bundled assets under their own notices", "x")).toBe("MIT; fonts OFL-1.1; bundled assets under their own notices");
+  });
+
+  it("throws, naming where, for a line that still names a file or code", () => {
+    expect(() => plainLicense("MIT; see `NOTICES.md`", "a/CREDIT.md")).toThrow("a/CREDIT.md: the license line names a file or code in backticks");
+    expect(() => plainLicense("MIT (a `LICENSE` beside each demo)", "a/CREDIT.md")).toThrow("a/CREDIT.md");
   });
 });
 
 describe("vendorCreditLine", () => {
   const pinned = parseCredit(credit.replace("https://github.com/lucide-icons/lucide", "https://github.com/lucide-icons/lucide (`6f56b8f1f665ce64c41506033b66ca67e2bc7724`)"), "lucide/CREDIT.md");
 
-  it("keeps what, license and credit, takes the address from the source line, and adds the pin", () => {
+  it("keeps what and credit, takes the address from the source line, adds the pin, and writes the license as plain text", () => {
     expect(vendorCreditLine(pinned, "lucide/CREDIT.md")).toEqual({
       work: "Lucide icons (1,808 SVGs)",
       source: "https://github.com/lucide-icons/lucide",
       pin: "6f56b8f1f665ce64c41506033b66ca67e2bc7724",
-      license: "ISC (`LICENSE`)",
+      license: "ISC",
       credit: "Lucide Icons and contributors",
     });
   });
 
-  it("throws, naming where, when the source line has no pin or no address", () => {
+  it("links the license of a license that asks for it", () => {
+    expect(vendorCreditLine({ ...pinned, license: "CC BY 4.0 (`LICENSE`)" }, "x")).toMatchObject({ license: "CC-BY-4.0", licenseUrl: "https://creativecommons.org/licenses/by/4.0/" });
+    expect(vendorCreditLine(pinned, "x")).not.toHaveProperty("licenseUrl");
+  });
+
+  it("throws, naming where, when the source line has no pin, no https address, or several commits without their repositories", () => {
     expect(() => vendorCreditLine(parseCredit(credit, "lucide/CREDIT.md"), "lucide/CREDIT.md")).toThrow("lucide/CREDIT.md: the source line has no pin");
     expect(() => vendorCreditLine({ ...pinned, source: "(`6f56b8f1f665ce64c41506033b66ca67e2bc7724`)" }, "lucide/CREDIT.md")).toThrow("lucide/CREDIT.md: the source line has no URL");
+    expect(() => vendorCreditLine({ ...pinned, source: "http://x.test/ (`6f56b8f1f665ce64c41506033b66ca67e2bc7724`)" }, "x/CREDIT.md")).toThrow("x/CREDIT.md: the source line's address is not https");
+    expect(() => vendorCreditLine({ ...pinned, source: "https://x.test/ (`da187f6316c7ee18b8f1b60bbb5363be2aec40c2`, `2dc70cfd855704c1a8385f606e82f41505fdd5e9`)" }, "x/CREDIT.md")).toThrow("x/CREDIT.md: the source line has several commits and does not name the repository of each");
   });
 });

@@ -2,7 +2,7 @@
 
 - **What:** ThreeUI Community: the open-source edition of the ThreeUI component catalog (app, components, shaders, scene assets)
 - **Source:** https://github.com/MengTo/threeui (`02f9835e60ef8f0cac7907810aa223b7d414db1b`)
-- **License:** MIT (`LICENSE`); fonts SIL OFL 1.1 (`FONT-LICENSES.md`); see `ASSET-LICENSES.md` and `THIRD_PARTY_NOTICES.md`
+- **License:** MIT (`LICENSE`); fonts SIL OFL 1.1 (`FONT-LICENSES.md`); bundled assets and third-party code under their own notices
 - **Credit:** Meng To / ThreeUI
 - **Pulled:** 2026-08-26
 

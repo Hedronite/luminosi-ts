@@ -59,6 +59,9 @@ export const assetKindSchema = z.custom<AssetKind>(isAssetKind, {
  * asset was ported from. The folder's CREDIT.md and LICENSE carry the author and the terms; the vendor
  * tool checks that both exist, and the catalog links the asset to its source.
  */
+/** A path inside a credited work: forward slashes, no leading slash, nothing that climbs out. */
+export const originPathSchema = z.string().regex(/^(?!\/)(?!.*\.\.)[\w./@ -]+$/);
+
 export const originRelations = ["ported", "adopted", "inspired"] as const;
 
 /** How the asset stands to the work it came from: ported (rewritten for LuminosiTS), adopted (used as published) or inspired by (made after it). */
@@ -72,7 +75,7 @@ export const assetOriginSchema = z
     /** Ported, adopted or inspired by. Every origin says which. */
     relation: originRelationSchema,
     /** A path inside the vendored folder, with forward slashes and no leading slash. */
-    path: z.string().regex(/^(?!\/)(?!.*\.\.)[\w./@ -]+$/),
+    path: originPathSchema,
     /** What was taken and what was changed, in a sentence. */
     note: z.string().min(1).optional(),
   })

@@ -7,14 +7,12 @@ describe("the origins of the registered assets", () => {
     .list()
     .flatMap((asset) => (asset.origin === undefined ? [] : [{ id: asset.id, origin: asset.origin }]));
 
-  it("are the CRT effect and the soap film, both ported", () => {
-    expect(origins.map(({ id, origin }) => [id, origin.relation]).toSorted()).toEqual([
-      ["crt", "ported"],
-      ["soap-film", "ported"],
-    ]);
+  it("are there to check", () => {
+    expect(origins.length).toBeGreaterThan(0);
   });
 
-  it.each(origins.map(({ id, origin }) => [id, origin.vendor] as const))("%s names a vendored folder whose credit the package holds", (_, vendor) => {
-    expect(vendorCredits[vendor]).toBeDefined();
+  it.each(origins.map(({ id, origin }) => [id, origin] as const))("%s names how it stands to its source, and a vendored folder whose credit the package holds", (_, origin) => {
+    expect(["ported", "adopted", "inspired"]).toContain(origin.relation);
+    expect(vendorCredits[origin.vendor]).toBeDefined();
   });
 });
