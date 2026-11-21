@@ -1,5 +1,6 @@
 export { ringLayout, type Vec3 } from "./layout.js";
 export { migrate } from "./migrate.js";
+export { assetCredit, creditsFor, lookCredit } from "./credits.js";
 export { checkRefs, type RefKind, type Resolve, type Resolved } from "./refs.js";
 export {
   inkModes,

@@ -1,3 +1,4 @@
+import type { Credit } from "@hedronite/lts-core";
 import type { Scene, SceneLook, SceneNode } from "../schema.js";
 
 /** A number as source text: the shortest form that reads back as the same number, negative zero kept. */
@@ -93,3 +94,32 @@ export const names = (values: readonly string[], types: readonly string[] = []):
 
 /** One import line. The module comes in as a value, so this package's own source never reads like an import of it. */
 export const importLine = (clause: string, module: string): string => `import ${clause} from ${JSON.stringify(module)};`;
+
+/** What an emitter is given besides the document: the credits of what it uses (`creditsFor`), which the code carries. None, and the code has none. */
+export interface EmitOptions {
+  readonly credits?: readonly Credit[] | undefined;
+}
+
+/** Text as one line of a `//` comment: every line break (and every other control character) becomes a space, so nothing a credit says can end the comment and start code. */
+const oneLine = (text: string): string => text.replace(/[\p{Cc}\p{Zl}\p{Zp}]/gu, " ").replace(/\s+/g, " ").trim();
+
+/** How the scene stands to the credited work, as the label of its line. */
+const RELATION = { ported: "ported", adopted: "adopted", inspired: "inspired by" } as const;
+
+/** The header of an emitted module: one `//` line for each credit, saying what it is, how the scene stands to the work (ported, adopted or inspired by), where the work lives and at which pin, under which license, and whose it is. */
+export function creditHeader(credits: readonly Credit[]): readonly string[] {
+  if (credits.length === 0) return [];
+  return [
+    "// This scene uses the work of others, credited here:",
+    ...credits.map(({ subject, kind, relation, work, source, pin, license, licenseUrl, credit }) => {
+      const terms = licenseUrl === undefined ? license : `${license} (${licenseUrl})`;
+      return oneLine(`// - ${subject} (${kind}) ${RELATION[relation]}: ${work}; ${source}, pin ${pin}; license ${terms}; credit ${credit}.`);
+    }),
+  ];
+}
+
+/** The same credits as data the module exports, whole: JSON values in a literal, so no text of theirs is ever code. */
+export function creditExport(credits: readonly Credit[]): readonly string[] {
+  if (credits.length === 0) return [];
+  return ["// The credits above, as data.", "export const credits = [", ...credits.map((credit) => `  ${literal(credit)},`), "] as const;"];
+}

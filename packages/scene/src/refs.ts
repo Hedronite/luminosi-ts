@@ -1,4 +1,4 @@
-import type { AssetKind } from "@hedronite/lts-core";
+import type { AssetKind, Credit } from "@hedronite/lts-core";
 import type { z } from "zod";
 import type { Scene, SceneIssue } from "./schema.js";
 
@@ -6,11 +6,13 @@ import type { Scene, SceneIssue } from "./schema.js";
 export type RefKind = Extract<AssetKind, "primitive" | "object" | "material" | "shader" | "effect"> | "look";
 
 /**
- * What the caller knows about one id: the schema of the parameters it takes. A registry's asset descriptor fits, and
- * so does `{}` for a look. The root never imports a registry's builders, so the caller passes the lookup in.
+ * What the caller knows about one id: the schema of the parameters it takes, and its credit when it has one. A registry's
+ * asset descriptor fits, and so does `{}` for a look. The root never imports a registry's builders, so the caller passes the lookup in.
  */
 export interface Resolved {
   readonly parameters?: z.ZodObject;
+  /** The credit of the work this asset or look came from, where it is someone else's: what `creditsFor` collects, and the emitted code carries. */
+  readonly credit?: Credit;
 }
 
 /** The thing `id` names as a `kind`, or undefined when there is none. */

@@ -1,5 +1,5 @@
 import type { Scene, SceneNode } from "../schema.js";
-import { assetScale, forest, importLine, literal, lookSource, names, num, vec, type Entry } from "./common.js";
+import { assetScale, creditExport, creditHeader, forest, importLine, literal, lookSource, names, num, vec, type Entry, type EmitOptions } from "./common.js";
 
 /** A JSX attribute value: a plain string as it is, anything else as an expression. */
 const text = (value: string): string => (/^[^"\\&<>{}\r\n]*$/.test(value) ? `"${value}"` : `{${JSON.stringify(value)}}`);
@@ -49,9 +49,12 @@ function lines(entries: readonly Entry[], at: number, depth: number): readonly s
 /**
  * The document as React Three Fiber code over `@hedronite/lts-adapters`, on `WebGPUCanvas`: the WebGPU renderer (with its
  * WebGL 2 fallback) runs surface shaders, screen effects and materials alike. Equal documents give equal text. A node
- * never appears as a name in the code (a string on the component, nothing more), so any id is safe.
+ * never appears as a name in the code (a string on the component, nothing more), so any id is safe. Given `credits` (what
+ * `creditsFor` finds), the module opens with a `//` line for each and exports them as `credits`; given none, the text is as it
+ * was before credits existed.
  */
-export function toTsx(scene: Scene): string {
+export function toTsx(scene: Scene, options: EmitOptions = {}): string {
+  const credits = options.credits ?? [];
   const entries = forest(scene);
   const look = lookSource(scene.look);
   const effects = scene.effects.length > 0;
@@ -62,11 +65,13 @@ export function toTsx(scene: Scene): string {
   const lookAt = x === 0 && y === 0 && z === 0 ? "" : ` onCreated={({ camera }) => {\n        camera.lookAt(${num(x)}, ${num(y)}, ${num(z)});\n      }}`;
   return [
     "// Generated from a scene document: change the document and generate this again.",
+    ...creditHeader(credits),
     importLine(names(components), "@hedronite/lts-adapters"),
     importLine(names(webgpu), "@hedronite/lts-adapters/webgpu"),
     importLine(names(look.values, look.types), "@hedronite/lts-tokens"),
     "",
     ...look.lines,
+    ...(credits.length === 0 ? [] : ["", ...creditExport(credits)]),
     ...(effects ? ["", "// Defined once, outside the component: a new array would rebuild the passes.", `const effects = [${scene.effects.map((effect) => (effect.params === undefined ? `{ id: ${JSON.stringify(effect.id)} }` : `{ id: ${JSON.stringify(effect.id)}, params: ${literal(effect.params)} }`)).join(", ")}] as const;`] : []),
     "",
     effects ? "export function Scene({ reducedMotion = false }: { readonly reducedMotion?: boolean }) {" : "export function Scene() {",
