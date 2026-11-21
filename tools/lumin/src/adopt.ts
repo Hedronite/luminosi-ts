@@ -5,6 +5,8 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSyn
 import { dirname, join, posix, relative } from "node:path";
 import type { Registry } from "@hedronite/lts-core";
 import { firstUrl, parseCredit, parseFrontMatter, type Credit } from "tool-vendor/parse";
+import { readPin } from "tool-vendor/pin";
+import { adoptable, ruleOf, type Rule } from "tool-vendor/policy";
 import { resolveVendor, type ResolveContext } from "tool-vendor/resolve";
 import { fail, ok, type Envelope } from "./envelope.js";
 import { readSources, studyFiles, studyRoot, type StudiedModule, type Technique } from "./study.js";
@@ -79,6 +81,38 @@ const shortWhat = (credit: Credit): string => credit.what.split(":")[0]?.trim() 
 
 /** The license the code is under: the credit's first clause, without the file it names. */
 const codeLicense = (credit: Credit): string => (credit.license.split(";")[0] ?? credit.license).replace(/\s*\(`[^`]+`\)/g, "").trim();
+
+/** What the license gate found for the files a port or an adopted skill would copy. */
+type Gated = { readonly ok: true; readonly licenses: readonly { readonly spdx: string; readonly class: string; readonly files: number }[]; readonly attribution: boolean } | { readonly ok: false; readonly envelope: Envelope };
+
+const ruleData = (rule: Rule): Record<string, string> => ({ spdx: rule.spdx, class: rule.class, reason: rule.reason, covers: rule.covers });
+
+/**
+ * The license gate (SPEC-wave9 E2): every file a port or an adopted skill would copy has a license rule in its folder's pin, and the policy lets it be
+ * ported. A file under a showcase-only or forbidden license, or under none, refuses the whole command with `license_gate` and the rule that applied.
+ * A file under a license that asks for a credit makes `attribution` true: the plan's header is then required, not a courtesy.
+ */
+function gate(command: string, found: Vendored, files: readonly string[], paths: VendorPaths): Gated {
+  const pin = readPin(paths.vendorDir, found.vendor);
+  const counts = new Map<string, { spdx: string; class: string; files: number }>();
+  for (const file of [...new Set(files)].sort()) {
+    const rule = ruleOf(pin, file);
+    if (rule === undefined) {
+      return { ok: false, envelope: fail(command, "license_gate", `assets/vendor/${found.vendor}/${file} has no license rule: the folder's vendor.json must say which license covers it before it can be ported`, { data: { vendor: found.vendor, path: file } }) };
+    }
+    if (!adoptable(rule)) {
+      return {
+        ok: false,
+        envelope: fail(command, "license_gate", `assets/vendor/${found.vendor}/${file} is under ${rule.spdx}, which is ${rule.class}: ${rule.reason}`, { data: { vendor: found.vendor, path: file, rule: ruleData(rule) } }),
+      };
+    }
+    const key = `${rule.spdx}|${rule.class}`;
+    const seen = counts.get(key) ?? { spdx: rule.spdx, class: rule.class, files: 0 };
+    counts.set(key, { ...seen, files: seen.files + 1 });
+  }
+  const licenses = [...counts.values()];
+  return { ok: true, licenses, attribution: licenses.some((use) => use.class === "adopt-with-attribution") };
+}
 
 const brief = (module: StudiedModule) => ({
   path: module.path,
@@ -174,6 +208,10 @@ export function adopt(target: string, options: AdoptOptions, context: VendorPath
   const used = [...new Set(modules.flatMap((module) => module.techniques))];
   const license = licenseFor(found.folder, found.path);
   if (license === undefined) return fail("adopt", "no_license", `no LICENSE file governs assets/vendor/${target}; porting needs one`);
+  const chosen = join(found.folder, found.path);
+  const named = statSync(chosen).isDirectory() ? filesUnder(chosen).map((file) => posix.join(found.path, file)) : [found.path];
+  const gated = gate("adopt", found, [...upstream, ...named], context);
+  if (!gated.ok) return gated.envelope;
   const source = firstUrl(found.credit.source) ?? found.credit.source;
   const name = options.name ?? id;
   const origin = { vendor: found.vendor, path: found.path, note: "What was taken and what changed, in a sentence." };
@@ -192,6 +230,8 @@ export function adopt(target: string, options: AdoptOptions, context: VendorPath
     header,
     license: `assets/vendor/${found.vendor}/${license}`,
     upstream,
+    licenses: gated.licenses,
+    attribution: gated.attribution,
     techniques: used,
     steps: portingSteps(kind, used),
     workspace,
@@ -254,7 +294,9 @@ export function adoptSkill(target: string, options: { readonly dryRun: boolean; 
   if (license === undefined) return fail("adopt-skill", "no_license", `no LICENSE file governs assets/vendor/${target}`);
   const dest = join(context.root, ".agents/skills", name);
   const files = upstreamSkillFiles(dir);
-  const plan = { name, from: `assets/vendor/${found.vendor}/${found.path}`, to: relative(context.root, dest), files, license: `assets/vendor/${found.vendor}/${license}`, next: "bun run skills:sync, to copy it into .claude, .cursor and .grok" };
+  const gated = gate("adopt-skill", found, files.map((file) => posix.join(found.path, file)), context);
+  if (!gated.ok) return gated.envelope;
+  const plan = { name, from: `assets/vendor/${found.vendor}/${found.path}`, to: relative(context.root, dest), files, license: `assets/vendor/${found.vendor}/${license}`, licenses: gated.licenses, attribution: gated.attribution, next: "bun run skills:sync, to copy it into .claude, .cursor and .grok" };
   if (existsSync(dest)) {
     const credit = join(dest, "CREDIT.md");
     const ours = !existsSync(credit) || !readFileSync(credit, "utf8").includes(`- **Adopted from:** ${plan.from}`);

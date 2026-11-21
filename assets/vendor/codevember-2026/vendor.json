@@ -12,5 +12,17 @@
       ]
     }
   ],
-  "contentHash": "aa9042f2e51505340102a740caac592827777084784ea5dd638f60e2312a0724"
+  "contentHash": "aa9042f2e51505340102a740caac592827777084784ea5dd638f60e2312a0724",
+  "licenses": [
+    {
+      "spdx": "LicenseRef-PublicDomain",
+      "paths": [
+        "06/blender/src/*"
+      ]
+    },
+    {
+      "spdx": "MIT",
+      "remainder": true
+    }
+  ]
 }

@@ -35,6 +35,18 @@ const sourceSchema = z.strictObject({
 });
 export type PinSource = z.infer<typeof sourceSchema>;
 
+/** Which license covers which paths of the folder (tools/vendor/src/policy.ts says what each license permits). The paths are the folder's own, with `/`. */
+const licenseEntrySchema = z
+  .strictObject({
+    /** An SPDX id or expression (`MIT`, `MIT OR Apache-2.0`), or a `LicenseRef-` id where SPDX has none. */
+    spdx: z.string().min(1),
+    paths: z.array(globText).min(1).optional(),
+    /** Every path of the folder no other entry names. One per folder at most. */
+    remainder: z.literal(true).optional(),
+  })
+  .refine((entry) => (entry.paths === undefined) !== (entry.remainder === undefined), "an entry names `paths` or is the `remainder`, not both and not neither");
+export type LicenseEntry = z.infer<typeof licenseEntrySchema>;
+
 const fetchable = z
   .strictObject({
     schema: z.literal(1),
@@ -43,6 +55,7 @@ const fetchable = z
     /** Files that stay in the repository, edited after vendoring: they are laid over the fetched tree before the hash. */
     overlay: z.array(relativePath).min(1).optional(),
     contentHash: sha256Hex,
+    licenses: z.array(licenseEntrySchema).min(1).optional(),
   })
   .superRefine((pin, context) => {
     if (pin.sources.length === 1) return;
@@ -61,6 +74,7 @@ const kept = z.strictObject({
   source: z.string().regex(/^https:\/\//, "an https address"),
   version: z.string().min(1).optional(),
   contentHash: sha256Hex,
+  licenses: z.array(licenseEntrySchema).min(1).optional(),
 });
 
 export const pinSchema = z.discriminatedUnion("kept", [fetchable, kept]);
