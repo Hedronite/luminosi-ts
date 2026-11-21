@@ -56,8 +56,15 @@ module.exports = {
         "The scene package's root and ./emit read, check, migrate and write documents: zod and core only, so no three.js, no three/webgpu and no React. " +
         "Only src/three.ts (the ./three entry) builds, and it may use core, the registry, tokens and the ./three entries of materials, primitives, objects, shaders, postfx and scenes, never adapters or React.",
       severity: "error",
-      from: { path: "^packages/(scene)/src/", pathNot: "^packages/scene/src/three(\\.test)?\\.ts$" },
+      from: { path: "^packages/(scene)/src/", pathNot: ["^packages/scene/src/three(\\.test)?\\.ts$", "^packages/scene/src/element/"] },
       to: { path: [anyPackage, "^three(/|$)", "(^|/)node_modules/three(/|$)", react], pathNot: [pkg("core"), "^(packages/$1/|@hedronite/lts-$1$)"] },
+    },
+    {
+      name: "scene-element-no-react",
+      comment: "The scene element (src/element, the ./element entry) draws with three and the scene builder and needs no React: no react, react-dom, React Three Fiber or adapters, in its bootstrap or in the half it loads on demand.",
+      severity: "error",
+      from: { path: "^packages/scene/src/element/" },
+      to: { path: [react, "^(packages/adapters/|@hedronite/lts-adapters)"] },
     },
     {
       name: "scene-three-builds-from-libraries",

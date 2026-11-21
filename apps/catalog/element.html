@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LuminosiTS scene element</title>
+    <style>
+      html, body { margin: 0; background: #14161c; color: #e8eaf0; font-family: system-ui, sans-serif; }
+      main { padding: 16px; max-width: 720px; margin: 0 auto; }
+      lts-scene { width: 320px; height: 240px; margin-bottom: 16px; }
+      .spacer { height: 3200px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>The scene element</h1>
+      <lts-scene id="inline" alt="One metal octahedron, inline document" poster="/element/poster.svg">
+        <script type="application/json">
+          {"format":"lts-scene","version":1,"look":"neutral","seed":0,"nodes":[{"id":"solid","parent":null,"position":[0,0,0],"rotation":[0.35,0.6,0],"scale":[0.8,0.8,0.8],"asset":{"kind":"primitive","id":"platonic-octahedron"},"surface":{"material":"metal"}}],"lights":{"rig":"studio","intensity":1},"environment":{"kind":"studio"},"camera":{"position":[0,0.6,4.2],"target":[0,0,0],"fov":40},"effects":[],"ink":"look"}
+        </script>
+      </lts-scene>
+      <lts-scene id="empty" alt="A scene with no solids" poster="/element/poster.svg">
+        <script type="application/json">
+          {"format":"lts-scene","version":1,"look":"neutral","seed":0,"nodes":[],"lights":{"rig":"studio","intensity":1},"environment":{"kind":"studio"},"camera":{"position":[0,0.6,4.2],"target":[0,0,0],"fov":40},"effects":[],"ink":"look"}
+        </script>
+      </lts-scene>
+      <lts-scene id="src" alt="Three solids, document from src" poster="/element/poster.svg" src="/element/solids.json"></lts-scene>
+      <lts-scene id="bad" alt="A document that is not valid" poster="/element/poster.svg">
+        <script type="application/json">{"format":"lts-scene","version":1,"look":"no-such-look","nodes":[]}</script>
+      </lts-scene>
+      <lts-scene id="missing" alt="A document that is not there" poster="/element/poster.svg" src="/element/not-there.json"></lts-scene>
+      <lts-scene id="eager" alt="Three solids, eager" poster="/element/poster.svg" src="/element/solids.json" loading="eager" look="hedronite"></lts-scene>
+      <div class="spacer" aria-hidden="true"></div>
+      <lts-scene id="far" alt="Three solids, far down the page" poster="/element/poster.svg" src="/element/solids.json"></lts-scene>
+    </main>
+    <script type="module" src="/src/elementEntry.ts"></script>
+  </body>
+</html>

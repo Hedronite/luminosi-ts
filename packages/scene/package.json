@@ -14,6 +14,10 @@
       "types": "./dist/emit/index.d.ts",
       "import": "./dist/emit/index.js"
     },
+    "./element": {
+      "types": "./dist/element/index.d.ts",
+      "import": "./dist/element/index.js"
+    },
     "./renderer": {
       "types": "./dist/renderer.d.ts",
       "import": "./dist/renderer.js"
