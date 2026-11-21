@@ -15,6 +15,8 @@ export {
   type AssetOrigin,
   type OriginRelation,
 } from "./asset.js";
+export { creditSchema, vendorCreditSchema, type Credit, type VendorCredit } from "./credits.js";
+export { vendorCredits } from "./generated/vendorCredits.js";
 export {
   compareDescriptors,
   createDescriptorRegistry,

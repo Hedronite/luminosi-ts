@@ -54,6 +54,25 @@ export function firstUrl(text: string): string | undefined {
   return /https?:\/\/[^\s)`'"]+/.exec(text)?.[0];
 }
 
+/** Pins as one string: a commit as written, an archive as `v<version> sha256:<hash>`, several joined by a comma and a space, in the order the source line gives them. */
+export const pinText = (pins: readonly Pin[]): string => pins.map((pin) => (pin.kind === "commit" ? pin.commit : `v${pin.version} sha256:${pin.sha256}`)).join(", ");
+
+/** One vendored folder's credit as the shipped package holds it (`VendorCredit` in packages/core): what, where, at which pin, under which terms, by whom. */
+export interface VendorCreditLine {
+  readonly work: string;
+  readonly source: string;
+  readonly pin: string;
+  readonly license: string;
+  readonly credit: string;
+}
+
+/** A folder's CREDIT.md as a `VendorCreditLine`. Throws, naming where, if the source line has no URL or no pin. */
+export function vendorCreditLine(credit: Credit, where: string): VendorCreditLine {
+  const source = firstUrl(credit.source);
+  if (source === undefined) throw new Error(`${where}: the source line has no URL`);
+  return { work: credit.what, source, pin: pinText(requirePin(credit.source, where)), license: credit.license, credit: credit.credit };
+}
+
 export interface FrontMatter {
   readonly fields: ReadonlyMap<string, string>;
   /** The Markdown after the front matter. */

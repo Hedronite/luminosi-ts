@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { firstUrl, humanize, parseCredit, parseDemoReadme, parseFrontMatter, requirePin, sourcePins } from "./parse.js";
+import { firstUrl, humanize, parseCredit, parseDemoReadme, parseFrontMatter, pinText, requirePin, sourcePins, vendorCreditLine } from "./parse.js";
 
 const credit = `# Credit
 
@@ -84,5 +84,33 @@ describe("pins", () => {
     ["a hash of the wrong length", "https://www.isocons.app/ (v2.1, `sha256:abc123`)"],
   ])("rejects %s", (_name, source) => {
     expect(() => requirePin(source, "lucide/CREDIT.md")).toThrow("lucide/CREDIT.md: the source line has no pin");
+  });
+});
+
+describe("pinText", () => {
+  it("writes a commit as it is given and an archive as its version and hash, in the order of the source line", () => {
+    const hash = "d096478f06551496f70c863918a14ad2be8e6601f6383b4c0717efc593477d43";
+    expect(pinText(sourcePins("https://x.test/a (`6f56b8f1f665ce64c41506033b66ca67e2bc7724`)"))).toBe("6f56b8f1f665ce64c41506033b66ca67e2bc7724");
+    expect(pinText(sourcePins(`https://x.test/ (v2.1, \`sha256:${hash}\`)`))).toBe(`v2.1 sha256:${hash}`);
+    expect(pinText(sourcePins("https://x.test/ (`a` at `da187f6316c7ee18b8f1b60bbb5363be2aec40c2`, then `2dc70cfd855704c1a8385f606e82f41505fdd5e9`)"))).toBe("da187f6316c7ee18b8f1b60bbb5363be2aec40c2, 2dc70cfd855704c1a8385f606e82f41505fdd5e9");
+  });
+});
+
+describe("vendorCreditLine", () => {
+  const pinned = parseCredit(credit.replace("https://github.com/lucide-icons/lucide", "https://github.com/lucide-icons/lucide (`6f56b8f1f665ce64c41506033b66ca67e2bc7724`)"), "lucide/CREDIT.md");
+
+  it("keeps what, license and credit, takes the address from the source line, and adds the pin", () => {
+    expect(vendorCreditLine(pinned, "lucide/CREDIT.md")).toEqual({
+      work: "Lucide icons (1,808 SVGs)",
+      source: "https://github.com/lucide-icons/lucide",
+      pin: "6f56b8f1f665ce64c41506033b66ca67e2bc7724",
+      license: "ISC (`LICENSE`)",
+      credit: "Lucide Icons and contributors",
+    });
+  });
+
+  it("throws, naming where, when the source line has no pin or no address", () => {
+    expect(() => vendorCreditLine(parseCredit(credit, "lucide/CREDIT.md"), "lucide/CREDIT.md")).toThrow("lucide/CREDIT.md: the source line has no pin");
+    expect(() => vendorCreditLine({ ...pinned, source: "(`6f56b8f1f665ce64c41506033b66ca67e2bc7724`)" }, "lucide/CREDIT.md")).toThrow("lucide/CREDIT.md: the source line has no URL");
   });
 });
