@@ -5,6 +5,7 @@ export {
   assetMetaSchema,
   assetOriginSchema,
   isAssetKind,
+  originPathSchema,
   originRelations,
   originRelationSchema,
   registeredKinds,
@@ -16,6 +17,7 @@ export {
   type OriginRelation,
 } from "./asset.js";
 export { creditSchema, vendorCreditSchema, type Credit, type VendorCredit } from "./credits.js";
+export { lookCredits } from "./generated/lookCredits.js";
 export { vendorCredits } from "./generated/vendorCredits.js";
 export {
   compareDescriptors,
