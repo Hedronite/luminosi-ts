@@ -16,6 +16,7 @@ const root = join(import.meta.dirname, "../..");
 const cli = join(root, "tools/lumin/src/cli.ts");
 const base = realpathSync(mkdtempSync(join(tmpdir(), "lts-mcp-render-")));
 const home = join(base, "home");
+cpSync(join(root, "packages/scene/fixtures"), home, { recursive: true });
 test.afterAll(() => {
   rmSync(base, { recursive: true, force: true });
 });
@@ -38,48 +39,48 @@ const envelopeOf = (reply: Record<string, unknown> | undefined): Record<string, 
 
 test("scene_render draws a document under a root to a PNG under it, as the command line draws it, and holds to its flags and its roots", () => {
   test.setTimeout(300_000);
-  cpSync(join(root, "packages/scene/fixtures"), home, { recursive: true });
   const flags = ["--root", home, "--allow-write", "--allow-render"];
+  const drawn = session(flags, [{ jsonrpc: "2.0", id: 1, method: "tools/list" }, call(2, { document: "transform-hierarchy.json", out: "frame.png" })]);
+  expect({ status: drawn.status, stderr: drawn.stderr }).toEqual({ status: 0, stderr: "" });
+  const listed = record(record(drawn.replies[0])["result"])["tools"];
+  expect(Array.isArray(listed) && listed.map((tool) => record(tool)["name"])).toContain("scene_render");
+
+  const first = envelopeOf(drawn.replies[1]);
+  expect(resultOf(drawn.replies[1])["isError"]).toBe(false);
+  expect(first).toMatchObject({ ok: true, command: "scene render", data: { out: "frame.png", width: 512, height: 512 } });
+  const bytes = readFileSync(join(home, "frame.png"));
+  expect(record(first["data"])["sha256"]).toBe(createHash("sha256").update(bytes).digest("hex"));
+  expect(record(first["data"])["renderer"]).toMatch(/swiftshader/i);
+  expect(decodePng(bytes).width).toBe(512);
+
+  // The same document, drawn by the command line, is the same picture.
+  const printed = record(JSON.parse(bun([cli, "scene", "render", "transform-hierarchy.json", "--out", "cli.png"], { encoding: "utf8", cwd: home, maxBuffer: 16 * 1024 * 1024 }).stdout));
+  expect(record(printed["data"])["sha256"]).toBe(record(first["data"])["sha256"]);
+
+  // The rest, in a second session over the file the first made.
   const { replies, status, stderr } = session(flags, [
-    { jsonrpc: "2.0", id: 1, method: "tools/list" },
-    call(2, { document: "transform-hierarchy.json", out: "frame.png" }),
     call(3, { document: "transform-hierarchy.json", out: "frame.png" }),
     call(4, { document: "transform-hierarchy.json", out: "../outside.png", force: true }),
     call(5, { document: "transform-hierarchy.json", out: "frame.png", force: true, width: 320, height: 192 }),
     call(6, { document: { format: "lts-scene", version: 1 }, out: "bad.png" }),
   ]);
   expect({ status, stderr }).toEqual({ status: 0, stderr: "" });
-  expect(replies.map((reply) => reply["id"])).toEqual([1, 2, 3, 4, 5, 6]);
-
-  const listed = record(record(replies[0])["result"])["tools"];
-  expect(Array.isArray(listed) && listed.map((tool) => record(tool)["name"])).toContain("scene_render");
-
-  const first = envelopeOf(replies[1]);
-  expect(resultOf(replies[1])["isError"]).toBe(false);
-  expect(first).toMatchObject({ ok: true, command: "scene render", data: { out: "frame.png", width: 512, height: 512 } });
-  const bytes = readFileSync(join(home, "frame.png"));
-  expect(record(first["data"])["sha256"], "the digest is of the file written, under the root").toBe(createHash("sha256").update(bytes).digest("hex"));
-  expect(record(first["data"])["renderer"]).toMatch(/swiftshader/i);
-  expect(decodePng(bytes).width).toBe(512);
-
-  // The same document, drawn by the command line, is the same picture.
-  const printed = record(JSON.parse(bun([cli, "scene", "render", "transform-hierarchy.json", "--out", "cli.png"], { encoding: "utf8", cwd: home, maxBuffer: 16 * 1024 * 1024 }).stdout));
-  expect(record(printed["data"])["sha256"], "the tool and the command line draw the same bytes").toBe(record(first["data"])["sha256"]);
-
+  expect(replies.map((reply) => reply["id"])).toEqual([3, 4, 5, 6]);
+  const [again, outside, resized, notScene] = replies;
   // A path that is there is refused unless force is given, and the file is not touched.
-  expect(envelopeOf(replies[2])).toMatchObject({ ok: false, kind: "exists" });
-  expect(resultOf(replies[2])["isError"]).toBe(true);
+  expect(envelopeOf(again)).toMatchObject({ ok: false, kind: "exists" });
+  expect(resultOf(again)["isError"]).toBe(true);
   // A path out of the root is the one fixed no_root, even with force, and nothing is written there.
-  expect(envelopeOf(replies[3])).toMatchObject({ ok: false, kind: "no_root" });
+  expect(envelopeOf(outside)).toMatchObject({ ok: false, kind: "no_root" });
   expect(existsSync(join(base, "outside.png"))).toBe(false);
   // With force the file is replaced, at the size asked.
-  expect(envelopeOf(replies[4])).toMatchObject({ ok: true, data: { out: "frame.png", width: 320, height: 192 } });
+  expect(envelopeOf(resized)).toMatchObject({ ok: true, data: { out: "frame.png", width: 320, height: 192 } });
   expect(decodePng(readFileSync(join(home, "frame.png"))).width).toBe(320);
   // A document that is not one is refused before the browser starts, and no file is made.
-  expect(envelopeOf(replies[5])).toMatchObject({ ok: false, kind: "invalid" });
+  expect(envelopeOf(notScene)).toMatchObject({ ok: false, kind: "invalid" });
   expect(existsSync(join(home, "bad.png"))).toBe(false);
 
-  expect(replies.flatMap(everyString).filter((text) => text.includes(base) || text.includes(root)), "no output holds a path of the machine").toEqual([]);
+  expect([...drawn.replies, ...replies].flatMap(everyString).filter((text) => text.includes(base) || text.includes(root)), "no output holds a path of the machine").toEqual([]);
 });
 
 test("scene_render is not there without both flags: not listed, and a call is a protocol error", () => {
