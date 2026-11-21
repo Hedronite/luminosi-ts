@@ -73,6 +73,12 @@ test("a page with one element far down loads no three, no builder and no zod bef
   expect(before.length, "the trace saw the page's own scripts").toBeGreaterThan(0);
   expect(before.filter((url) => !bootstrapFile.test(url)), "scripts other than the bootstrap, before the element is near").toEqual([]);
   expect(urls.filter((url) => url.endsWith("solids.json")), "the document is not fetched before it is needed").toEqual([]);
+  // What the bootstrap holds: the class and the observers. Three's renderer, three's core and zod are not in it, whatever the file is called.
+  for (const url of before) {
+    // eslint-disable-next-line no-await-in-loop -- one file, read once
+    const text = await (await page.request.get(url)).text();
+    expect(text, `the bootstrap file ${url}`).not.toMatch(/isObject3D|isWebGPURenderer|ZodError/);
+  }
   // The poster is the first paint: an image that has loaded, with no canvas yet.
   expect(await host.locator("img").evaluate((image) => image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0)).toBe(true);
   await expect(canvasOf(host)).toHaveCount(0);
