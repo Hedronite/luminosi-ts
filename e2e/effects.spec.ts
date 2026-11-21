@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Locator, Page } from "@playwright/test";
-import { counted, effectBuilds, expect, settledBuilds, test } from "./fixtures.js";
+import { counted, effectBuilds, expect, expectRenderer, settledBuilds, test } from "./fixtures.js";
 
 const errorsOn = (page: Page): string[] => {
   const errors: string[] = [];
@@ -105,8 +105,9 @@ for (const [id, name] of [
     const errors = errorsOn(page);
     await page.goto(`/?asset=${id}`);
     const viewport = page.getByRole("dialog", { name }).getByTestId("viewport");
+    await expectRenderer(viewport.locator("canvas"));
     await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 15000 });
-    await expect(viewport).toHaveAttribute("data-gpu-geometries", /^[1-9]\d*$/);
+    expect(await settledBuilds(viewport, "data-gpu-geometries")).toBeGreaterThan(0);
     expect(errors).toEqual([]);
   });
 }
@@ -169,6 +170,7 @@ test("a screen effect's parameter edit moves it in place", async ({ page }) => {
   await page.goto("/?asset=dither");
   const dialog = page.getByRole("dialog", { name: "Dither" });
   const host = dialog.getByTestId("viewport");
+  await expectRenderer(host.locator("canvas"));
   await expect(host).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 15000 });
   const built = await settledBuilds(host, "data-effect-builds");
   const cell = dialog.getByRole("region", { name: "Parameters", exact: true }).getByRole("spinbutton", { name: "Cell", exact: true });
@@ -189,6 +191,7 @@ test("a new ASCII ramp, which is built into the effect, makes a new pipeline", a
   await page.goto("/?asset=ascii");
   const ascii = page.getByRole("dialog", { name: "ASCII" });
   const host = ascii.getByTestId("viewport");
+  await expectRenderer(host.locator("canvas"));
   await expect(host).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 15000 });
   const built = await settledBuilds(host, "data-effect-builds");
   const ramp = ascii.getByRole("region", { name: "Parameters", exact: true }).getByRole("textbox", { name: "Ramp", exact: true });
@@ -257,6 +260,7 @@ test("every stage publishes the renderer's memory counts, and an effects stage i
   await expect.poll(() => counted(stage, "data-geometries"), { message: "geometries in use" }).toBeGreaterThan(0);
   await page.goto("/?asset=metal");
   const viewport = page.getByRole("dialog", { name: "Metal" }).getByTestId("viewport");
+  await expectRenderer(viewport.locator("canvas"));
   await Promise.all(["data-geometries", "data-textures", "data-targets"].map((attribute) => expect(viewport).toHaveAttribute(attribute, /^\d+$/)));
   await expect(viewport).not.toHaveAttribute("data-effect-builds", /.*/);
 });
@@ -288,6 +292,7 @@ test("the playground combines framed solids, objects and screen effects, and exp
   await page.getByRole("checkbox", { name: "Smoke" }).check();
   await page.getByLabel("Ink", { exact: true }).selectOption("glass");
   const viewport = page.getByTestId("playground-viewport");
+  await expectRenderer(viewport.locator("canvas"));
   await expect(viewport).toHaveAttribute("aria-label", /under Dither, Smoke\./);
   const frames = Number(await viewport.getAttribute("data-frames"));
   // With effects on, the scene renders every frame.

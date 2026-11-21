@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Locator, Page } from "@playwright/test";
-import { expect, test } from "./fixtures.js";
+import { expect, expectRenderer, test } from "./fixtures.js";
 
 // The playground's memory guard: open, undo, redo and remove, five times over, leave the GPU holding what it held after the first time.
 // A leak (a removed node's geometry kept, a history that keeps old scenes built) shows as a count that climbs cycle by cycle.
@@ -126,6 +126,7 @@ rounds.forEach(({ title, build }) => {
     test.slow();
     await page.goto("/?view=playground");
     const stage = page.getByTestId("playground-viewport");
+    await expectRenderer(stage.locator("canvas"));
     await expect(stage).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
     const opening = { source: FIXTURE_A, nodes: nodesIn(FIXTURE_A) };
     const closing = build();

@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import AxeBuilder from "@axe-core/playwright";
 import type { Locator, Page } from "@playwright/test";
 import { ringLayout } from "../packages/scene/src/layout.js";
-import { builds, counted, effectBuilds, expect, test } from "./fixtures.js";
+import { builds, counted, effectBuilds, expect, expectRenderer, test } from "./fixtures.js";
 
 /** How long a stage may take to draw: every wait below is on the stage's own counters, and this is only the ceiling that makes a stage that never draws fail. */
 const STAGE_WAIT = 20_000;
@@ -53,6 +53,7 @@ test("the playground composes primitives and exports the scene", async ({ page }
   await expect(scene.first()).toBeVisible();
   const before = await scene.count();
   const viewport = page.getByTestId("playground-viewport");
+  await expectRenderer(viewport.locator("canvas"));
   await expect(viewport).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
   const built = await settled(viewport, "data-builds");
 
@@ -84,8 +85,11 @@ test("the playground lines up every material on one shape", async ({ page }) => 
   await expect(page.getByRole("list", { name: "Materials in the lineup" }).getByRole("listitem")).toHaveCount(13);
   // Thirteen materials, transmission among them, compile slowly under software rendering in CI.
   await expect(lineup).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
-  // One shared shape: a single geometry however many materials.
-  await expect(lineup).toHaveAttribute("data-gpu-geometries", "1");
+  // One shared shape: a single geometry however many materials. The WebGPU canvas's renderer holds the
+  // studio bake's box beside the scene's one (an info.memory artifact of PMREM on that renderer, stable
+  // across cycles and shapes), so the scene's share is read off `data-builds`: 13 meshes, 13 materials, 1 geometry.
+  await expect(lineup).toHaveAttribute("data-gpu-geometries", "2");
+  await expect(lineup).toHaveAttribute("data-builds", "27");
   await page.getByLabel("Shape", { exact: true }).selectOption("platonic-icosahedron");
   await expect(page.getByRole("group", { name: "13 materials on the Icosahedron shape, in a grid." })).toBeVisible();
   expect(errors).toEqual([]);
@@ -138,6 +142,7 @@ const sceneFile = (name: string, buffer: Buffer): { name: string; mimeType: stri
 test("the stage stays in view while the controls scroll, since a stage out of view draws nothing", async ({ page }) => {
   await playgroundAt(page);
   const viewport = page.getByTestId("playground-viewport");
+  await expectRenderer(viewport.locator("canvas"));
   await expect(viewport).toBeInViewport();
   await page.evaluate(() => {
     window.scrollTo(0, 600);
@@ -390,6 +395,7 @@ async function nodeAt(page: Page, index: number): Promise<Placed> {
 async function playgroundStage(page: Page): Promise<Locator> {
   await playgroundAt(page);
   const host = page.getByTestId("playground-viewport");
+  await expectRenderer(host.locator("canvas"));
   await expect(host).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
   return host;
 }

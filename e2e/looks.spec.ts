@@ -1,5 +1,5 @@
 import type { Locator, Page } from "@playwright/test";
-import { builds, expect, settledBuilds, test } from "./fixtures.js";
+import { builds, expect, expectRenderer, settledBuilds, test } from "./fixtures.js";
 
 // A change of look is a write to colors and uniforms: nothing on the GPU is rebuilt. Each stage below holds the same
 // geometries and the same shader programs across three looks, keeps drawing, and shows a different picture.
@@ -79,26 +79,31 @@ test("the playground keeps its geometry and programs across looks: solids, the w
   await expect(scene).toHaveCount(6);
   await page.getByRole("checkbox", { name: "Dither" }).check();
   await expectLooksInPlace(page, page.getByTestId("playground-viewport"), looks);
+  await expectRenderer(page.getByTestId("playground-viewport").locator("canvas"));
 });
 
 test("a surface shader's detail view recolors in place", async ({ page }) => {
   await page.goto("/?asset=hologram");
   await expectLooksInPlace(page, page.getByRole("dialog", { name: "Hologram" }).getByTestId("viewport"), looks);
+  await expectRenderer(page.getByRole("dialog", { name: "Hologram" }).getByTestId("viewport").locator("canvas"));
 });
 
 test("a material's detail view recolors in place", async ({ page }) => {
   await page.goto("/?asset=metal");
   await expectLooksInPlace(page, page.getByRole("dialog", { name: "Metal" }).getByTestId("viewport"), looks);
+  await expectRenderer(page.getByRole("dialog", { name: "Metal" }).getByTestId("viewport").locator("canvas"));
 });
 
 test("a scene kit's detail view recolors in place, its lights and materials with no rebuild", async ({ page }) => {
   await page.goto("/?asset=scene-dusk");
   await expectLooksInPlace(page, page.getByRole("dialog", { name: "Dusk" }).getByTestId("viewport"), looks);
+  await expectRenderer(page.getByRole("dialog", { name: "Dusk" }).getByTestId("viewport").locator("canvas"));
 });
 
 test("the material lineup recolors in place: the same geometry and programs, a new picture", async ({ page }) => {
   await page.goto("/?view=playground");
   const lineup = page.getByTestId("material-lineup");
+  await expectRenderer(lineup.locator("canvas"));
   await lineup.scrollIntoViewIfNeeded();
   await expectLooksInPlace(page, lineup, looks);
 });
