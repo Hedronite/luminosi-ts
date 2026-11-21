@@ -146,7 +146,7 @@ Each line is one PR. Order holds in one place: Stage 6, then 7, then 8; Stages 9
 - [x] C1 `lts-scene` schema: one versioned format for a composition, with migrations (#66)
 - [x] C2 Build and emit: document to pixels and to code (TSX, vanilla) (#69)
 - [x] C3 Playground on documents: open, save, share, undo, free transforms (#74, #75)
-- [ ] C4 `lumin scene`: validate, render, diff, patch, export for agents, and a stdio MCP server over the same operations
+- [x] C4 `lumin scene`: validate, render, diff, patch, export for agents, and a stdio MCP server over the same operations (#80, #81, #82)
 - [ ] C5 `<lts-scene>` element: poster first, lazy three, reduced-motion aware, no React needed
 - [ ] C6 Credits travel with the scene: emitted code carries its attribution
 

@@ -7,7 +7,7 @@ import { parseArgs } from "node:util";
 import { boundaries, budgets, check, iconPacks, kinds, list, newIcon, packages, root, search, show } from "./commands.js";
 import { fail, ok, type Envelope } from "./envelope.js";
 
-const usage = "commands: kinds | scene validate|diff|patch|export (a scene document: lumin scene, or the lumin-scene skill) | list [--kind --package --tag --limit --newest] | search QUERY [--kind --limit] | show ID | packages | icon-packs | budgets | boundaries [--package] | check [--only a,b --keep-going] | new-icon ID --name N --tags a,b (--svg FILE | --stdin) [--dry-run] | new-object ID (--from-image IMG | --from-workspace DIR) [--name N --tags a,b --dry-run] | review-object --spec FILE --reference IMG [--out DIR --look L --yaw D --pitch D] | study VENDOR[/PATH] [--limit] | adopt VENDOR/PATH --as KIND --id ID [--name N --dry-run] | adopt-skill VENDOR/SKILL-DIR [--dry-run --force] | ui-facts FILE... | ui-render --url URL [--views a,b] (for the lumin-ui skill)";
+const usage = "commands: kinds | scene validate|diff|patch|export|render (a scene document: lumin scene, or the lumin-scene skill) | mcp [--root PATH]... [--allow-write] [--allow-render] (the scene and asset tools over stdio, for an MCP client) | list [--kind --package --tag --limit --newest] | search QUERY [--kind --limit] | show ID | packages | icon-packs | budgets | boundaries [--package] | check [--only a,b --keep-going] | new-icon ID --name N --tags a,b (--svg FILE | --stdin) [--dry-run] | new-object ID (--from-image IMG | --from-workspace DIR) [--name N --tags a,b --dry-run] | review-object --spec FILE --reference IMG [--out DIR --look L --yaw D --pitch D] | study VENDOR[/PATH] [--limit] | adopt VENDOR/PATH --as KIND --id ID [--name N --dry-run] | adopt-skill VENDOR/SKILL-DIR [--dry-run --force] | ui-facts FILE... | ui-render --url URL [--views a,b] (for the lumin-ui skill)";
 
 async function readStdin(): Promise<string> {
   const chunks: Buffer[] = [];
@@ -173,6 +173,11 @@ async function run(argv: readonly string[]): Promise<Envelope> {
   }
 }
 
-const envelope = await run(process.argv.slice(2));
-console.log(JSON.stringify(envelope));
-process.exit(envelope.ok ? 0 : envelope.exit);
+if (process.argv[2] === "mcp") {
+  // The MCP server speaks JSON-RPC on stdout for as long as its input lasts, so it prints no envelope of its own; it ends when stdin does.
+  process.exitCode = await (await import("./mcp/command.js")).mcpMain(process.argv.slice(3));
+} else {
+  const envelope = await run(process.argv.slice(2));
+  console.log(JSON.stringify(envelope));
+  process.exit(envelope.ok ? 0 : envelope.exit);
+}
