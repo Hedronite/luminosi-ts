@@ -47,6 +47,8 @@
     "boundaries": "depcruise packages apps tools --config .dependency-cruiser.cjs",
     "knip": "knip",
     "e2e": "playwright test",
+    "shards:plan": "bun e2e/shards/plan.ts generate",
+    "shards:check": "bun e2e/shards/plan.ts check",
     "e2e:webgpu": "bun run build && LTS_WEBGPU_LANE=1 playwright test",
     "stills": "bun tools/stills/src/run.ts",
     "goldens": "rm -f e2e/golden/*.png && STILLS_OUT=e2e/golden bun run stills",
