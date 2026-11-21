@@ -4,6 +4,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { loadRegistry } from "@hedronite/lts-registry";
 import { expect, test } from "@playwright/test";
+import { expectRenderer } from "../../../e2e/fixtures.js";
 import { decodePng } from "./png.js";
 
 const out = resolve(process.env["STILLS_OUT"] ?? "test-results/stills");
@@ -28,6 +29,7 @@ for (const asset of assets) {
     await expect(stage).toHaveAttribute("data-still", /^(ready|error)$/, { timeout: 60_000 });
     expect(await stage.getAttribute("data-error")).toBeNull();
     await expect(stage).toHaveAttribute("data-still", "ready");
+    await expectRenderer(stage.locator("canvas"), ["webgpu"]);
     expect(problems).toEqual([]);
     const png = await stage.screenshot({ animations: "disabled" });
     const picture = decodePng(png);

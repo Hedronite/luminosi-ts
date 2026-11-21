@@ -1,8 +1,9 @@
+import { rendererReadout, whenDrawn } from "@hedronite/lts-adapters/webgpu";
 import { parseObjectSpec } from "@hedronite/lts-objects";
 import { createObjectFromSpec } from "@hedronite/lts-objects/three";
 import { disposeObject } from "@hedronite/lts-primitives/three";
 import { presets } from "@hedronite/lts-tokens";
-import { ACESFilmicToneMapping, Color, DirectionalLight, Mesh, OrthographicCamera, PMREMGenerator, Scene, Vector3, WebGLRenderer, type Object3D } from "three";
+import { ACESFilmicToneMapping, DirectionalLight, Mesh, OrthographicCamera, PMREMGenerator, Scene, Vector3, WebGPURenderer, type Object3D } from "three/webgpu";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { defaultBox, fitFrustum, parseEmbedParams, type CameraExtent } from "./embedFit.js";
 
@@ -60,17 +61,24 @@ async function draw(): Promise<EmbedState> {
   if (!response.ok) throw new Error(`could not load ${params.spec}: HTTP ${String(response.status)}`);
   const spec = parseObjectSpec(await response.json());
 
-  const renderer = new WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+  const renderer = new WebGPURenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(1);
   renderer.setSize(params.width, params.height);
   renderer.toneMapping = ACESFilmicToneMapping;
+  await renderer.init();
+  rendererReadout(renderer);
   document.body.append(renderer.domElement);
 
   const scene = new Scene();
-  scene.background = new Color(params.background);
+  // The background is a page color, not a lit surface: the canvas is transparent where nothing is
+  // drawn, so `bg` lands exactly rather than through the renderer's tone mapping.
+  document.body.style.background = params.background;
+  const room = new RoomEnvironment();
   const pmrem = new PMREMGenerator(renderer);
-  const environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-  scene.environment = environment;
+  const target = pmrem.fromScene(room, 0.04);
+  room.dispose();
+  pmrem.dispose();
+  scene.environment = target.texture;
   const key = new DirectionalLight("#ffffff", 1.2);
   key.position.set(1, 2, 3);
   scene.add(key);
@@ -89,10 +97,11 @@ async function draw(): Promise<EmbedState> {
   Object.assign(camera, frustum);
   camera.updateProjectionMatrix();
 
+  // One frame: submit it, then wait for the backend to finish it before saying it is drawn.
   renderer.render(scene, camera);
+  await whenDrawn(renderer);
   disposeObject(object);
-  environment.dispose();
-  pmrem.dispose();
+  target.dispose();
   return { status: "drawn", parts: spec.parts.length, frustum };
 }
 

@@ -1,13 +1,13 @@
 import type { AssetKind, AssetMeta } from "@hedronite/lts-core";
-import { EffectClockProvider, StudioEnvironment, StudioLights, useEffectMaterial } from "@hedronite/lts-adapters";
-import { ScreenEffectsPass, WebGPUCanvas, WebGPUStudioEnvironment } from "@hedronite/lts-adapters/webgpu";
+import { EffectClockProvider, StudioLights, useEffectMaterial } from "@hedronite/lts-adapters";
+import { ScreenEffectsPass, WebGPUCanvas, WebGPUStudioEnvironment, whenDrawn } from "@hedronite/lts-adapters/webgpu";
 import { createRandom } from "@hedronite/lts-core";
 import { disposeObject, createStudioLights } from "@hedronite/lts-primitives/three";
 import { isScreenEffectId, screenEffectInfo, type ScreenEffectId } from "@hedronite/lts-postfx";
 import { effectInfo, isEffectId } from "@hedronite/lts-shaders";
 import { loadDescriptors } from "@hedronite/lts-registry";
 import { neutral } from "@hedronite/lts-tokens";
-import { Canvas, useThree } from "@react-three/fiber";
+import { useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { Object3D } from "three";
@@ -104,6 +104,9 @@ function Stepper({ ready, setClock, pointer, done }: { readonly ready: boolean; 
           // eslint-disable-next-line no-await-in-loop -- the frames are stepped in order, each given a browser frame to reach the screen
           await nextAnimationFrame();
         }
+        // The picture the rig captures is the last frame: wait for the backend to finish it, not for a timer.
+        if (!(gl instanceof WebGPURenderer)) throw new Error("the still rig draws on the WebGPU renderer");
+        await whenDrawn(gl);
         if (!run.signal.aborted) done({ status: "ready", frames: FRAMES });
       } catch (error: unknown) {
         if (!run.signal.aborted) done({ status: "error", frames: 0, error: error instanceof Error ? error.message : String(error) });
@@ -155,12 +158,12 @@ function Lights() {
 function Meshes({ meta, rig, finish }: { readonly meta: AssetMeta; readonly rig: Rig; readonly finish: (outcome: Outcome) => void }) {
   const [built, setBuilt] = useState(false);
   return (
-    <Canvas frameloop="never" dpr={1} camera={{ position: [...rig.position], fov: rig.fov }}>
-      <StudioEnvironment />
+    <WebGPUCanvas frameloop="never" dpr={1} camera={{ position: [...rig.position], fov: rig.fov }}>
+      <WebGPUStudioEnvironment />
       {meta.kind === "scene" ? null : <Lights />}
       <Subject meta={meta} turn={rig.turn} onBuilt={setBuilt} />
       <Stepper ready={built} pointer={false} done={finish} />
-    </Canvas>
+    </WebGPUCanvas>
   );
 }
 
