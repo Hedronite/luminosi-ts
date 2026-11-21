@@ -325,7 +325,7 @@ describe("stack structure", () => {
 it("credits the CRT tube to the ThreeUI shader it was ported from", () => {
   const registry = createRegistry();
   registerManifest(registry, manifest);
-  expect(registry.get("crt")?.origin).toMatchObject({ vendor: "threeui", path: "src/shaders/crt/crtShaders.ts" });
+  expect(registry.get("crt")?.origin).toMatchObject({ vendor: "threeui", relation: "ported", path: "src/shaders/crt/crtShaders.ts" });
   expect(registry.get("dither")?.origin).toBeUndefined();
   expect(() => screenEffectSchemas.crt.parse({ pitch: 0.5 })).toThrow();
 });
