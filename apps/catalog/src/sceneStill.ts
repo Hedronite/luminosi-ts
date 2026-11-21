@@ -1,4 +1,4 @@
-import { rendererReadout } from "@hedronite/lts-adapters/webgpu";
+import { rendererReadout, whenDrawn } from "@hedronite/lts-adapters/webgpu";
 import { createRandom } from "@hedronite/lts-core";
 import { decodeScene, migrate, parseScene, type Scene, type SceneResult } from "@hedronite/lts-scene";
 import { createScene } from "@hedronite/lts-scene/three";
@@ -135,7 +135,8 @@ async function run(stage: HTMLElement, name: string, via: string, plant: string 
     // eslint-disable-next-line no-await-in-loop -- the frames are stepped in order, each given a browser frame to reach the screen
     await nextAnimationFrame();
   }
-
+  // The flag the specs wait on means the backend finished the last frame, not that the loop did.
+  await whenDrawn(renderer);
   let live: Drawn | undefined = drawn;
   const free = async (): Promise<Memory> => {
     live?.dispose();
@@ -313,6 +314,7 @@ export function mountDocumentStill(root: HTMLElement, link: string | null, size:
     const name = await rendererName(renderer);
     stage.dataset["renderer"] = name;
     stage.dataset["time"] = (FRAMES * STEP).toFixed(2);
+    await whenDrawn(renderer);
     stage.dataset["still"] = "ready";
     return { ...wanted, frames: FRAMES, renderer: name };
   }

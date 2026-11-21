@@ -105,7 +105,8 @@ function Stepper({ ready, setClock, pointer, done }: { readonly ready: boolean; 
           await nextAnimationFrame();
         }
         // The picture the rig captures is the last frame: wait for the backend to finish it, not for a timer.
-        if (gl instanceof WebGPURenderer) await whenDrawn(gl);
+        if (!(gl instanceof WebGPURenderer)) throw new Error("the still rig draws on the WebGPU renderer");
+        await whenDrawn(gl);
         if (!run.signal.aborted) done({ status: "ready", frames: FRAMES });
       } catch (error: unknown) {
         if (!run.signal.aborted) done({ status: "error", frames: 0, error: error instanceof Error ? error.message : String(error) });
