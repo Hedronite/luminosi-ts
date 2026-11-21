@@ -47,9 +47,10 @@ TypeScript is pinned to 6.0.x: `typescript-eslint` and `@astrojs/check` do not a
 
 ## Skills: lumin
 
-Five agent skills of LuminosiTS's own in `.agents/skills` (copied to `.claude`, `.cursor` and `.grok` by `bun run skills:sync`; a test fails if the copies drift). Each is a short `SKILL.md` and a Nushell wrapper over `tools/lumin`, which prints one JSON envelope, `{ ok, command, data }` or `{ ok: false, error, kind, exit }`.
+Six agent skills of LuminosiTS's own in `.agents/skills` (copied to `.claude`, `.cursor` and `.grok` by `bun run skills:sync`; a test fails if the copies drift). Each is a short `SKILL.md` and a Nushell wrapper over `tools/lumin`, which prints one JSON envelope, `{ ok, command, data }` or `{ ok: false, error, kind, exit }`.
 
 - `lumin`: find and read. Search, show (with snippets), list, kinds, packages, icon packs (`lumin icon-packs`), budgets, boundaries. Read-only.
+- `lumin-scene`: scene documents, the primary path (`validate`, `diff`, `patch`, `export`). Checks a document and names each problem by path, compares two by node id, applies the package's edit operations all or nothing, writes code, JSON or a link. Writes only to `--out`; the input is never modified. `bun run lumin scene …` is the same without Nushell.
 - `lumin-check`: the gate, one summary per step.
 - `lumin-new`: add a source icon, or an object from a reference photo through the forge (`object`), and review an object against a photo (`review`). Writes files; only when a human asked; dry-run first.
 - `lumin-ui`: interface quality, scripted. `review` (a change with `--against`, or the whole UI) runs every mechanical check in Nushell (JSX rules over the source parsed by `lumin ui-facts`, contrast of every token pair in every look, and with `--url` a rendered pass by `lumin ui-render` for reflow, target size, focus rings and reduced motion) and returns ranked findings, coverage and a verdict; `judgment.md` covers only what a script cannot decide. Read-only. Run it before merging UI work.

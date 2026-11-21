@@ -96,6 +96,13 @@ The catalog imports from local workspace packages and uses the core registry so 
 
 ---
 
+## Agent tools: lumin
+
+Agents reach the library through `lumin`, a command-line tool that prints one JSON envelope (`{ ok, command, data }`, or `{ ok: false, command, error, kind, exit }`) and exits with its code, and through the Nushell skills in `.agents/skills` that wrap it.
+
+- **Scene documents.** The `lumin-scene` skill is the primary path to a scene document (`lts-scene` JSON, see [STACK.md](STACK.md#scene-document)): `nu .agents/skills/lumin-scene/lumin-scene.nu validate|diff|patch|export`. It checks a document and names every problem by path, compares two documents by node id, applies the package's edit operations all or nothing, and writes a document as React code, a vanilla module, canonical JSON or a share link. Without Nushell, `bun run lumin scene validate|diff|patch|export` prints the same envelope.
+- **Assets and the rest.** `lumin` (find and read), `lumin-check` (the gate), `lumin-new`, `lumin-adopt` and `lumin-ui`. See [AGENTS.md](AGENTS.md).
+
 ## Aesthetic Flexibility
 
 Visual language is not prescribed by the library. Primitives, materials, and shaders are tools. Specific looks (including any house style) are optional packs, presets, or consuming-project decisions. The catalog and its playground should be able to demonstrate contrasting examples so the library’s generality is obvious.
