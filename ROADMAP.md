@@ -165,7 +165,7 @@ Each line is one PR. Order holds in one place: Stage 6, then 7, then 8; Stages 9
 ### Stage 10 (E) — Adopt and remix, matured
 
 - [ ] E1 Provenance record: commit, license id, transformations, reviewer (partial: the `origin` field, #30)
-- [ ] E2 License gate: a policy table decides what can be adopted and what stays showcase-only
+- [x] E2 License gate: a policy table decides what can be adopted and what stays showcase-only, and `lumin adopt` and `adopt-skill` refuse the rest (#93)
 - [ ] E3 Equivalence rig: a port is scored against its source, side by side
 - [ ] E4 Parameter lifting: ported literals become a reviewed schema bound to the palette
 - [ ] E5 Adoption checklist as a command

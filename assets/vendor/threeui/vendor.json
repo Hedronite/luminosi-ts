@@ -10,5 +10,24 @@
   "overlay": [
     "README.md"
   ],
-  "contentHash": "ba71452d151d87286237695169925bc1203ad0bb035e6d0f8fee5c22a8c8a582"
+  "contentHash": "ba71452d151d87286237695169925bc1203ad0bb035e6d0f8fee5c22a8c8a582",
+  "licenses": [
+    {
+      "spdx": "OFL-1.1",
+      "paths": [
+        "public/sketchbook/instrument-serif.woff2",
+        "public/sketchbook/instrument-serif-italic.woff2",
+        "public/sketchbook/newsreader.woff2",
+        "public/landing-pages/inner-green-assets/lexend-latin.woff2",
+        "public/landing-pages/meng-to-sketchbook/instrument-serif.woff2",
+        "public/landing-pages/meng-to-sketchbook/instrument-serif-italic.woff2",
+        "public/landing-pages/meng-to-sketchbook/newsreader.woff2",
+        "src/shaders/fonts/fragment-mono.woff2"
+      ]
+    },
+    {
+      "spdx": "MIT",
+      "remainder": true
+    }
+  ]
 }
