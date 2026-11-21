@@ -11,6 +11,20 @@ const scene = (page: Page): Locator => page.getByTestId("island").locator("lts-s
 /** The element's canvas, inside its shadow root. */
 const canvasOf = (host: Locator): Locator => host.locator("canvas");
 
+/**
+ * The page's console errors. The site ships a `style-src 'self'` policy, and a style the element's shadow
+ * root inserts any other way than a constructable sheet is blocked by it — which once hid the canvas behind
+ * the poster. A policy violation on the built page is a failure, not a warning.
+ */
+const consoleErrors = (page: Page): string[] => {
+  const errors: string[] = [];
+  page.on("console", (message) => {
+    if (message.type() === "error") errors.push(message.text());
+  });
+  page.on("pageerror", (error) => errors.push(error.message));
+  return errors;
+};
+
 test("the page renders its icons and solids as static HTML", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1, name: "LuminosiTS" })).toBeVisible();
@@ -66,6 +80,15 @@ test("the scene shows its poster at load, and nothing 3D is loaded before the el
     const text = await (await page.request.get(url)).text();
     expect(text, url).not.toMatch(/isWebGPURenderer|ZodError|@react-three/);
   }
+  // The element starts below the viewport plus its 200px near-margin at this viewport, so nothing 3D is
+  // asked for before the visitor scrolls (a documenting guard for the trace above).
+  const belowFold = await page.evaluate(() => {
+    const element = document.querySelector('[data-testid="island"] lts-scene');
+    if (element === null) return null;
+    return element.getBoundingClientRect().top;
+  });
+  expect(belowFold).not.toBeNull();
+  expect(belowFold ?? 0).toBeGreaterThan(page.viewportSize()?.height ?? 0 + 200);
   // Scrolling the element near the viewport brings the 3D set in and draws it. The trace above only saw
   // the page's own load, so the resource entries now tell what the scroll asked for.
   await host.scrollIntoViewIfNeeded();
@@ -73,10 +96,28 @@ test("the scene shows its poster at load, and nothing 3D is loaded before the el
   const after = await page.evaluate(() => performance.getEntriesByType("resource").map((entry) => entry.name));
   expect(after.some((url) => /three/i.test(new URL(url).pathname)), "scrolling brought in three").toBe(true);
   expect(after.some((url) => new URL(url).pathname.endsWith(".js") && /draw/i.test(new URL(url).pathname)), "the builder came with it").toBe(true);
+  // The canvas fills its host and no more: the shadow style must be applied (a `style-src 'self'` policy
+  // blocks a style sheet that is not a constructable one, and the canvas then covers the viewport).
+  const boxes = await page.evaluate(() => {
+    const element = document.querySelector('[data-testid="island"] lts-scene');
+    const canvas = element === null ? null : (element.shadowRoot?.querySelector("canvas") ?? null);
+    if (element === null || canvas === null) return null;
+    const hostBox = element.getBoundingClientRect();
+    const canvasBox = canvas.getBoundingClientRect();
+    return { host: hostBox, canvas: canvasBox };
+  });
+  expect(boxes).not.toBeNull();
+  expect(boxes?.canvas.width ?? 0).toBeGreaterThan(0);
+  expect(boxes?.canvas.left ?? 0).toBeGreaterThanOrEqual((boxes?.host.left ?? 0) - 0.5);
+  expect(boxes?.canvas.right ?? 0).toBeLessThanOrEqual((boxes?.host.right ?? 0) + 0.5);
+  expect(boxes?.canvas.top ?? 0).toBeGreaterThanOrEqual((boxes?.host.top ?? 0) - 0.5);
+  expect(boxes?.canvas.bottom ?? 0).toBeLessThanOrEqual((boxes?.host.bottom ?? 0) + 0.5);
 });
 
 test("the element draws on the backend this run allows, and reports it", async ({ page }) => {
+  const errors = consoleErrors(page);
   await page.goto("/");
+  expect(errors.filter((error) => /Content Security Policy/i.test(error)), "the page's own policy accepts the element's style").toEqual([]);
   const host = scene(page);
   await expect(host).toHaveAttribute("data-state", "ready", { timeout: 30_000 });
   await expectRenderer(canvasOf(host));

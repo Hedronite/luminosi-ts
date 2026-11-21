@@ -9,10 +9,6 @@ import { describe, expect, it } from "vitest";
 // `packages/adapters/src/postfx.tsx`, which always passes the WebGPU `gl`; that file is the allowlist.
 // A plain `<Canvas>` anywhere else, or any `WebGLRenderer` at all, is the classic renderer back, and this
 // test fails it.
-//
-// Exception while Wave 8's G2 (stills and embed) is still open on its branch: `apps/catalog/src/Still.tsx`
-// and `apps/catalog/src/embed.ts` are that step's files, and its PR moves both onto the WebGPU renderer.
-// The entries below are removed when G2 merges; ROADMAP D1 is ticked only after every step of the wave has.
 
 /** The repo root, from this file's place in tools/assets/src. */
 const ROOT = join(import.meta.dirname, "..", "..", "..");
@@ -41,9 +37,6 @@ const isTestFile = (file: string): boolean => /\.(?:test|spec)\.(?:ts|tsx)$/.tes
 
 /** The one file allowed to render a `Canvas`: it always passes three's WebGPU renderer as `gl`. */
 const CANVAS_ALLOW = join(ROOT, "packages", "adapters", "src", "postfx.tsx");
-
-/** The files of an open step whose move to the WebGPU renderer is the step's own PR (Wave 8's G2). */
-const OPEN_STEP_FILES = new Set([join(ROOT, "apps", "catalog", "src", "Still.tsx"), join(ROOT, "apps", "catalog", "src", "embed.ts")]);
 
 /**
  * The file's text with its comments removed, so a comment that names `WebGLRenderer` ("this used to hold a
@@ -74,7 +67,6 @@ const violations: readonly string[] = (() => {
       if (!/\.(?:ts|tsx|js|mjs|astro)$/.test(file)) continue;
       if (isTestFile(file)) continue;
       if (GENERATED.test(file)) continue;
-      if (OPEN_STEP_FILES.has(file)) continue;
       scanned.push(relative(ROOT, file));
       const text = stripComments(readFileSync(file, "utf8"));
       for (const line of text.split("\n")) {
