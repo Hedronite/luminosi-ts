@@ -33,8 +33,12 @@ const canvasOf = (host: Locator): Locator => host.locator("canvas");
 
 const ready = (host: Locator): Promise<void> => expect(host).toHaveAttribute("data-state", "ready", { timeout: 30_000 });
 
-/** A counter the element publishes, as a number. */
-const count = async (host: Locator, name: string): Promise<number> => Number(await host.getAttribute(`data-${name}`, { timeout: 1_000 }));
+/**
+ * A counter the element publishes, as a number. A read waits for the page's main thread, which a loaded runner keeps busy drawing in software: a 1 s
+ * wait timed out on CI (run 44893506157, shard 4: the reduced-motion, look and out-of-view tests), and under a 4x CPU throttle the slowest read took
+ * 2,201 ms. Three times that, rounded up to the next 5 s, is 10 s.
+ */
+const count = async (host: Locator, name: string): Promise<number> => Number(await host.getAttribute(`data-${name}`, { timeout: 10_000 }));
 
 /** How many distinct colours (4 bits a channel) the canvas shows: a cleared or blank canvas shows one or two. */
 const coloursOn = async (page: Page, canvas: Locator): Promise<number> => {
