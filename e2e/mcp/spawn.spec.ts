@@ -8,7 +8,13 @@ import { ran } from "./spawn.js";
 test("a program that cannot start is an error naming its code and message, not an empty stdout", () => {
   const missing = ["lts-no-such", "program-here"].join("-");
   const done = spawnSync(missing, ["--version"], { encoding: "utf8" });
-  expect(() => ran(done, `${missing} --version`)).toThrow(/did not run: ENOENT: .*lts-no-such-program-here/);
+  expect(() => ran(done, `${missing} --version`)).toThrow(/did not run: ENOENT: .*lts-no-such-program-here.*errno -2, syscall spawnSync lts-no-such-program-here.*MiB free, load/);
+});
+
+test("a folder to start in that is not there is said to be missing, not just ENOENT", () => {
+  const options = { cwd: "/lts-no-such-folder-here", encoding: "utf8" } as const;
+  const done = spawnSync(process.execPath, ["-e", "1"], options);
+  expect(() => ran(done, "node in a missing folder", options)).toThrow(/ENOENT.*the folder is MISSING/);
 });
 
 test("a child ended by a signal is an error naming the signal", () => {
