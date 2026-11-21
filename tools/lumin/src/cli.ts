@@ -7,7 +7,7 @@ import { parseArgs } from "node:util";
 import { boundaries, budgets, check, iconPacks, kinds, list, newIcon, packages, root, search, show } from "./commands.js";
 import { fail, ok, type Envelope } from "./envelope.js";
 
-const usage = "commands: kinds | list [--kind --package --tag --limit --newest] | search QUERY [--kind --limit] | show ID | packages | icon-packs | budgets | boundaries [--package] | check [--only a,b --keep-going] | new-icon ID --name N --tags a,b (--svg FILE | --stdin) [--dry-run] | new-object ID (--from-image IMG | --from-workspace DIR) [--name N --tags a,b --dry-run] | review-object --spec FILE --reference IMG [--out DIR --look L --yaw D --pitch D] | study VENDOR[/PATH] [--limit] | adopt VENDOR/PATH --as KIND --id ID [--name N --dry-run] | adopt-skill VENDOR/SKILL-DIR [--dry-run --force] | ui-facts FILE... | ui-render --url URL [--views a,b] (for the lumin-ui skill)";
+const usage = "commands: kinds | scene validate|diff|patch|export (a scene document: lumin scene, or the lumin-scene skill) | list [--kind --package --tag --limit --newest] | search QUERY [--kind --limit] | show ID | packages | icon-packs | budgets | boundaries [--package] | check [--only a,b --keep-going] | new-icon ID --name N --tags a,b (--svg FILE | --stdin) [--dry-run] | new-object ID (--from-image IMG | --from-workspace DIR) [--name N --tags a,b --dry-run] | review-object --spec FILE --reference IMG [--out DIR --look L --yaw D --pitch D] | study VENDOR[/PATH] [--limit] | adopt VENDOR/PATH --as KIND --id ID [--name N --dry-run] | adopt-skill VENDOR/SKILL-DIR [--dry-run --force] | ui-facts FILE... | ui-render --url URL [--views a,b] (for the lumin-ui skill)";
 
 async function readStdin(): Promise<string> {
   const chunks: Buffer[] = [];
@@ -17,6 +17,8 @@ async function readStdin(): Promise<string> {
 
 async function run(argv: readonly string[]): Promise<Envelope> {
   const [command = "", ...rest] = argv;
+  // The scene operations take their flags from the operation table, so they are read before the fixed list below.
+  if (command === "scene") return (await import("./scene/command.js")).sceneCommand(rest);
   let parsed;
   try {
     parsed = parseArgs({
