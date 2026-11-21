@@ -368,6 +368,50 @@ test("the embed page draws a spec framed into the box it is given", async ({ pag
   expect(errors).toEqual([]);
 });
 
+test("the embed page shows the glass its background, and paints the page colour exactly around it", async ({ page }) => {
+  // The glass block fills the frame, so its interior is what transmission makes of the background: on white
+  // it reads blue (blue 104 above red before the renderer swap; 38 with the background lost, which Wave 8
+  // shipped as a follow-up), on black it is dark. The page still paints `bg` exactly outside it.
+  const spec = {
+    format: "lts-object-spec",
+    version: 1,
+    id: "glass-block",
+    name: "Glass block",
+    materials: { body: { preset: "glass" } },
+    parts: [{ id: "body", shape: { type: "box", size: [1, 1, 1] }, material: "body" }],
+  };
+  await page.route("**/glass-spec.json", (route) => route.fulfill({ json: spec }));
+  const shoot = async (background: string): Promise<ReturnType<typeof decodePng>> => {
+    await page.goto(`/embed.html?spec=/glass-spec.json&width=360&height=360&bg=${encodeURIComponent(background)}`);
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() => {
+            const state: unknown = Reflect.get(window, "__ltsEmbed");
+            return typeof state === "object" && state !== null && "status" in state ? String(state.status) : "missing";
+          }),
+        { timeout: 20_000 },
+      )
+      .toBe("drawn");
+    const png = await page.locator("canvas").screenshot({ animations: "disabled" });
+    return decodePng(new Uint8Array(png));
+  };
+  const pixel = (frame: ReturnType<typeof decodePng>, x: number, y: number): readonly number[] => {
+    const at = (y * frame.width + x) * 4;
+    return [frame.rgba[at] ?? 0, frame.rgba[at + 1] ?? 0, frame.rgba[at + 2] ?? 0];
+  };
+  const white = await shoot("#ffffff");
+  const black = await shoot("#000000");
+  // The page's background, untouched, at the corners of the frame.
+  for (const [x, y] of [[1, 1], [white.width - 2, 1], [1, white.height - 2], [white.width - 2, white.height - 2]] as const) {
+    expect(pixel(white, x, y), "white background").toEqual([255, 255, 255]);
+    expect(pixel(black, x, y), "black background").toEqual([0, 0, 0]);
+  }
+  // The object holds the background: on white its interior is the blue the pre-swap picture had.
+  const [red, , blue] = pixel(white, Math.floor(white.width / 2), Math.floor(white.height / 2));
+  expect((blue ?? 0) - (red ?? 0), "the glass transmits the white background").toBeGreaterThan(70);
+});
+
 test("icons: the core set comes first, then open-source packs with their credit", async ({ page }) => {
   await page.goto("/?view=icons");
   await expect(page.getByRole("heading", { name: "Icons", exact: true })).toBeVisible();

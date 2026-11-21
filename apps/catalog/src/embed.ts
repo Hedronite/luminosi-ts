@@ -3,7 +3,7 @@ import { parseObjectSpec } from "@hedronite/lts-objects";
 import { createObjectFromSpec } from "@hedronite/lts-objects/three";
 import { disposeObject } from "@hedronite/lts-primitives/three";
 import { presets } from "@hedronite/lts-tokens";
-import { ACESFilmicToneMapping, DirectionalLight, Mesh, OrthographicCamera, PMREMGenerator, Scene, Vector3, WebGPURenderer, type Object3D } from "three/webgpu";
+import { ACESFilmicToneMapping, Color, CustomBlending, DirectionalLight, Mesh, MeshBasicMaterial, OneFactor, OrthographicCamera, PlaneGeometry, PMREMGenerator, Scene, Vector3, WebGPURenderer, ZeroFactor, type Object3D } from "three/webgpu";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { defaultBox, fitFrustum, parseEmbedParams, type CameraExtent } from "./embedFit.js";
 
@@ -97,10 +97,40 @@ async function draw(): Promise<EmbedState> {
   Object.assign(camera, frustum);
   camera.updateProjectionMatrix();
 
-  // One frame: submit it, then wait for the backend to finish it before saying it is drawn.
+  // One frame. The clear carries the requested background with full alpha, so the glass, which refracts what
+  // was drawn before it, samples that colour as the WebGL renderer's background did before the swap. The page
+  // still paints `bg` exactly: a quad behind the object is drawn last, at the far end of the view, so every
+  // pixel the object covered fails its depth test; where nothing was drawn it keeps the frame's colour and
+  // writes zero alpha, leaving only the object opaque over the page.
+  renderer.setClearColor(new Color(params.background), 1);
+  const backdrop = new Mesh(
+    new PlaneGeometry((frustum.right - frustum.left) * 1.05, (frustum.top - frustum.bottom) * 1.05),
+    new MeshBasicMaterial({
+      transparent: true,
+      depthWrite: false,
+      blending: CustomBlending,
+      blendSrc: ZeroFactor,
+      blendDst: OneFactor,
+      blendSrcAlpha: ZeroFactor,
+      blendDstAlpha: ZeroFactor,
+    }),
+  );
+  // Perpendicular to the view and a hair wider than the frame, centred on the frustum (its fit box may sit off
+  // centre), so the edge pixels are covered at any camera angle.
+  const right = new Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
+  const up = new Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
+  backdrop.position
+    .copy(camera.position)
+    .addScaledVector(camera.getWorldDirection(new Vector3()), 50)
+    .addScaledVector(right, (frustum.left + frustum.right) / 2)
+    .addScaledVector(up, (frustum.top + frustum.bottom) / 2);
+  backdrop.quaternion.copy(camera.quaternion);
+  backdrop.renderOrder = 1000;
+  scene.add(backdrop);
   renderer.render(scene, camera);
   await whenDrawn(renderer);
   disposeObject(object);
+  disposeObject(backdrop);
   target.dispose();
   return { status: "drawn", parts: spec.parts.length, frustum };
 }
