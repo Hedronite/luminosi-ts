@@ -8,9 +8,12 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import { dirname, extname, join, normalize, resolve, sep } from "node:path";
-import { chromium, type Browser } from "@playwright/test";
+import type { Browser } from "@playwright/test";
 import { decodePng, type Picture } from "../../../stills/src/png.js";
+import { toCanonicalJson } from "@hedronite/lts-scene/emit";
+import { root } from "../commands.js";
 import { fail, ok, type Envelope } from "../envelope.js";
+import { failureEnvelope, loadDocument, type Context, type Source } from "./io.js";
 
 /** The longest side a render may have, in pixels: the still page's own cap, asked here first so an oversized request never starts a browser. */
 export const MAX_SIDE = 2048;
@@ -153,6 +156,8 @@ export async function renderScene(options: RenderOptions, paths: RenderPaths): P
   const { server, origin } = await serve(dist);
   let browser: Browser | undefined;
   try {
+    // Playwright is loaded when a render is asked for, so the other scene operations (and a server that lists them) never pay for it.
+    const { chromium } = await import("@playwright/test");
     browser = await chromium.launch({ args: [...launchArgs(options.gpu === true)] });
     const drawn = await draw(browser, origin, options, size, command);
     if ("ok" in drawn) return drawn;
@@ -169,4 +174,28 @@ export async function renderScene(options: RenderOptions, paths: RenderPaths): P
     await browser?.close();
     await closeServer(server);
   }
+}
+
+/** What the table's `render` row is given: a document as every scene operation takes one, where to put the PNG, and the size and renderer. */
+export interface RenderInput {
+  readonly document: Source;
+  readonly out: string;
+  /** Pixels, as a number or as the digits a flag gives. */
+  readonly width?: number | string | undefined;
+  readonly height?: number | string | undefined;
+  readonly gpu?: boolean | undefined;
+}
+
+/** A side as the row is given it: a number, or the digits of one from a flag. A text that is not digits stays as it is, for `checkSide` to name. */
+const sideOf = (value: number | string | undefined): number | undefined => (typeof value === "string" ? Number(value) : value);
+
+/**
+ * `scene render`: the document is read, migrated and checked like every scene operation's (so a bad one is refused here, with its issues, before a
+ * browser starts), then drawn by the still page. The PNG is written at `out`, replacing a file that is there: a picture is made again, not edited.
+ */
+export async function renderOperation(input: RenderInput, ctx: Context): Promise<Envelope> {
+  const loaded = await loadDocument(input.document, ctx);
+  if (!loaded.ok) return failureEnvelope("scene render", loaded.failure);
+  const { width, height } = { width: sideOf(input.width), height: sideOf(input.height) };
+  return renderScene({ document: toCanonicalJson(loaded.value.scene), out: input.out, ...(width === undefined ? {} : { width }), ...(height === undefined ? {} : { height }), gpu: input.gpu === true }, { root, command: "scene render" });
 }

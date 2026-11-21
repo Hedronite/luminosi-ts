@@ -1,14 +1,16 @@
-// `lumin scene render` (tools/lumin/src/scene/render.ts), run for real: each scene fixture is drawn to a PNG by the still page in headless Chromium, on software
-// WebGL as everything in the default project is, and the frame is held against the fixture's golden the way the scenes-loose project holds the same page's frame:
-// the golden check's loose metrics and bar (e2e/golden/metrics.ts), because the goldens were drawn on a GPU. It starts its own browser and its own loopback
-// server, so it needs the catalog built (bun run build) and nothing else.
+// `lumin scene render` (tools/lumin/src/scene/render.ts, the `render` row of the scene table), run for real: each scene fixture is drawn to a PNG by the still page
+// in headless Chromium, on software WebGL as everything in the default project is, and the frame is held against the fixture's golden the way the scenes-loose
+// project holds the same page's frame: the golden check's loose metrics and bar (e2e/golden/metrics.ts), because the goldens were drawn on a GPU. The command is
+// run as a command line is, `bun tools/lumin/src/cli.ts scene render FILE --out PNG`, so what is checked is its envelope and its exit code. It starts its own
+// browser and its own loopback server, so it needs the catalog built (bun run build) and nothing else.
+import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { decodeScene, encodeScene, parseScene, SHARE_LIMITS } from "@hedronite/lts-scene";
 import { expect, test, type Page } from "@playwright/test";
-import { isBlank, renderScene } from "../tools/lumin/src/scene/render.js";
+import { isBlank } from "../tools/lumin/src/scene/render.js";
 import { decodePng, type Picture } from "../tools/stills/src/png.js";
 import { looseDistance, looseRatio, MARGIN, strictDistance } from "./golden/metrics.js";
 import { goldenPath } from "./scenes/emitted.js";
@@ -35,16 +37,39 @@ interface Rendered {
 const isRendered = (data: unknown): data is Rendered =>
   typeof data === "object" && data !== null && "out" in data && typeof data.out === "string" && "width" in data && typeof data.width === "number" && "height" in data && typeof data.height === "number" && "sha256" in data && typeof data.sha256 === "string" && "renderer" in data && typeof data.renderer === "string" && "frames" in data && typeof data.frames === "number";
 
-/** Renders a document into a file of this run's scratch directory, and returns what the command says. */
-async function render(document: string, file: string, size: { readonly width?: number; readonly height?: number } = {}): Promise<Awaited<ReturnType<typeof renderScene>>> {
-  return renderScene({ document, out: join(scratch, file), ...size }, { root, command: "render" });
+/** What the command prints: the lumin envelope, and the exit code it ended with. */
+interface Answer {
+  readonly ok: boolean;
+  readonly command: string;
+  readonly status: number;
+  readonly kind?: string;
+  readonly exit?: number;
+  readonly error?: string;
+  readonly data?: unknown;
+}
+
+const isEnvelope = (value: unknown): value is { readonly ok: boolean; readonly command: string } => typeof value === "object" && value !== null && "ok" in value && typeof value.ok === "boolean" && "command" in value && typeof value.command === "string";
+
+/** Runs `lumin scene render` on a document written to this run's scratch directory, and returns what it printed and how it ended. */
+async function render(document: string, file: string, size: { readonly width?: number; readonly height?: number } = {}): Promise<Answer> {
+  const input = join(scratch, `${file}.json`);
+  writeFileSync(input, document);
+  const args = ["tools/lumin/src/cli.ts", "scene", "render", input, "--out", join(scratch, file), ...(size.width === undefined ? [] : ["--width", String(size.width)]), ...(size.height === undefined ? [] : ["--height", String(size.height)])];
+  const ended = await new Promise<{ readonly status: number; readonly stdout: string }>((done) => {
+    execFile("bun", args, { cwd: root, maxBuffer: 16 * 1024 * 1024 }, (error, stdout) => {
+      done({ status: error === null ? 0 : typeof error.code === "number" ? error.code : 1, stdout });
+    });
+  });
+  const printed: unknown = JSON.parse(ended.stdout.trim().split("\n").at(-1) ?? "null");
+  if (!isEnvelope(printed)) throw new Error(`the command printed no envelope: ${ended.stdout}`);
+  return { ...printed, status: ended.status };
 }
 
 async function rendered(document: string, file: string): Promise<Rendered> {
-  const envelope = await render(document, file);
-  if (!envelope.ok) throw new Error(`render failed: ${JSON.stringify(envelope)}`);
-  if (!isRendered(envelope.data)) throw new Error(`render returned ${JSON.stringify(envelope.data)}`);
-  return envelope.data;
+  const answer = await render(document, file);
+  if (!answer.ok || answer.status !== 0) throw new Error(`render failed (exit ${String(answer.status)}): ${JSON.stringify(answer)}`);
+  if (!isRendered(answer.data)) throw new Error(`render returned ${JSON.stringify(answer.data)}`);
+  return answer.data;
 }
 
 for (const name of roundTrip) {
@@ -79,7 +104,7 @@ test("two renders of one fixture are the same picture, and say whether they are 
 test("a size is honoured, and the page draws the document at it", async () => {
   test.setTimeout(300_000);
   const envelope = await render(fixtureText("transform-hierarchy"), "wide.png", { width: 320, height: 192 });
-  expect(envelope).toMatchObject({ ok: true, data: { width: 320, height: 192 } });
+  expect(envelope).toMatchObject({ ok: true, status: 0, command: "scene render", data: { width: 320, height: 192 } });
   const picture = decodePng(readFileSync(join(scratch, "wide.png")));
   expect([picture.width, picture.height]).toEqual([320, 192]);
 });
@@ -89,10 +114,10 @@ test("a document with nothing in it is refused as blank and writes no file; a si
   const parsed: unknown = JSON.parse(fixtureText("transform-hierarchy"));
   if (typeof parsed !== "object" || parsed === null) throw new Error("the fixture is not an object");
   const empty = JSON.stringify({ ...parsed, nodes: [], effects: [] });
-  expect(await render(empty, "empty.png")).toMatchObject({ ok: false, kind: "blank", exit: 1 });
+  expect(await render(empty, "empty.png")).toMatchObject({ ok: false, kind: "blank", exit: 1, status: 1 });
   expect(() => readFileSync(join(scratch, "empty.png"))).toThrow(/ENOENT/);
-  expect(await render(fixtureText("transform-hierarchy"), "huge.png", { width: 4096 })).toMatchObject({ ok: false, kind: "usage", exit: 2 });
-  expect(await render("{ not json", "bad.png")).toMatchObject({ ok: false, kind: "invalid", exit: 1 });
+  expect(await render(fixtureText("transform-hierarchy"), "huge.png", { width: 4096 })).toMatchObject({ ok: false, kind: "usage", exit: 2, status: 2 });
+  expect(await render("{ not json", "bad.png")).toMatchObject({ ok: false, kind: "invalid", exit: 1, status: 1 });
 });
 
 /** The still page's own frame of a document at an address, read once the page says it is done. */

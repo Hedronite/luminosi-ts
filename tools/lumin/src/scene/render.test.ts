@@ -3,7 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import type { Picture } from "../../../stills/src/png.js";
+import { sceneCommand } from "./command.js";
+import { nodeContext } from "./io.js";
 import { checkSide, isBlank, MAX_SIDE, renderScene, serve } from "./render.js";
+import { operationNamed } from "./table.js";
 
 const scratch = mkdtempSync(join(tmpdir(), "lts-render-"));
 afterAll(() => {
@@ -88,5 +91,33 @@ describe("serve", () => {
         });
       });
     }
+  });
+});
+
+describe("the render row of the scene table", () => {
+  const fixture = join(import.meta.dirname, "../../../../packages/scene/fixtures/v1.json");
+  const out = join(scratch, "row.png");
+
+  it("is a row that needs the render browser, writes a file, and takes the document first", () => {
+    const row = operationNamed("render");
+    expect(row).toMatchObject({ name: "render", needs: "render", readOnly: false, positional: ["document"] });
+  });
+
+  it("reads the document like every scene operation does, so a bad one is refused with its place before any browser starts", async () => {
+    const bad = join(scratch, "bad.json");
+    writeFileSync(bad, '{ "format": ');
+    expect(await sceneCommand(["render", bad, "--out", out])).toMatchObject({ ok: false, kind: "invalid", exit: 1, command: "scene render" });
+    expect(await sceneCommand(["render", join(scratch, "missing.json"), "--out", out])).toMatchObject({ ok: false, command: "scene render" });
+  });
+
+  it("answers a side that is not digits, or not a side, as a usage error from the flag or the field", async () => {
+    expect(await sceneCommand(["render", fixture, "--out", out, "--width", "wide"])).toMatchObject({ ok: false, kind: "usage", exit: 2, command: "scene render" });
+    expect(await sceneCommand(["render", fixture, "--out", out, "--width", "4096"])).toMatchObject({ ok: false, kind: "usage", exit: 2 });
+    expect(await sceneCommand(["render", fixture])).toMatchObject({ ok: false, kind: "usage", error: "out is required" });
+    const row = operationNamed("render");
+    const ctx = await nodeContext();
+    expect(await row?.run({ document: fixture, out, height: 4096 }, ctx)).toMatchObject({ ok: false, kind: "usage", exit: 2 });
+    expect(await row?.run({ document: fixture, out, height: 0 }, ctx)).toMatchObject({ ok: false, kind: "usage" });
+    expect(await row?.run({ document: fixture, out, depth: 1 }, ctx)).toMatchObject({ ok: false, kind: "usage" });
   });
 });

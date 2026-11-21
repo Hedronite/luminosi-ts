@@ -47,8 +47,9 @@ describe("the command line's flags are the rows' own fields", () => {
 
   it("accepts every field of every row as a flag", () => {
     for (const operation of operations) {
-      for (const field of Object.keys(z.toJSONSchema(operation.input, { io: "input", unrepresentable: "any" }).properties ?? {})) {
-        const boolean = field === "force";
+      for (const [field, property] of Object.entries(z.toJSONSchema(operation.input, { io: "input", unrepresentable: "any" }).properties ?? {})) {
+        // A flag with no value is a boolean field: force, and the render row's gpu.
+        const boolean = typeof property === "object" && property.type === "boolean";
         const parsed = inputFromArgs(operation, boolean ? [`--${field}`] : [`--${field}`, "x"]);
         expect(parsed, `${operation.name} --${field}`).toEqual({ ok: true, input: { [field]: boolean ? true : "x" } });
       }
