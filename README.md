@@ -101,6 +101,13 @@ The catalog imports from local workspace packages and uses the core registry so 
 Agents reach the library through `lumin`, a command-line tool that prints one JSON envelope (`{ ok, command, data }`, or `{ ok: false, command, error, kind, exit }`) and exits with its code, and through the Nushell skills in `.agents/skills` that wrap it.
 
 - **Scene documents.** The `lumin-scene` skill is the primary path to a scene document (`lts-scene` JSON, see [STACK.md](STACK.md#scene-document)): `nu .agents/skills/lumin-scene/lumin-scene.nu validate|diff|patch|export`. It checks a document and names every problem by path, compares two documents by node id, applies the package's edit operations all or nothing, and writes a document as React code, a vanilla module, canonical JSON or a share link. Without Nushell, `bun run lumin scene validate|diff|patch|export` prints the same envelope.
+- **MCP server.** For a client that speaks MCP and not Nushell, `lumin mcp [--root PATH]... [--allow-write] [--allow-render]` serves the same operations over stdio, after the skill and below it in preference: `scene_validate`, `scene_diff`, `scene_patch` and `scene_export` (one tool for each row of the operation table), and `asset_search` and `asset_show` for the library. A tool's result is the CLI's envelope, exactly, in `structuredContent`. A client config:
+
+  ```json
+  { "mcpServers": { "lumin": { "command": "bun", "args": ["/path/to/luminosi-ts/tools/lumin/src/cli.ts", "mcp", "--root", "/path/to/your/documents"] } } }
+  ```
+
+  The server reads a document by path only under a `--root`, writes a file (`out`) only with `--allow-write` and under a root, and lists `scene_render` only with both `--allow-render` and `--allow-write`. See [STACK.md](STACK.md#scene-document).
 - **Assets and the rest.** `lumin` (find and read), `lumin-check` (the gate), `lumin-new`, `lumin-adopt` and `lumin-ui`. See [AGENTS.md](AGENTS.md).
 
 ## Aesthetic Flexibility
