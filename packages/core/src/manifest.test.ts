@@ -36,14 +36,25 @@ describe("registerManifest", () => {
   });
 
   it("keeps an adopted asset's origin", () => {
-    const adopted = { ...manifest, assets: [{ ...manifest.assets[1], origin: { vendor: "lucide", path: "icons/check.svg", note: "Redrawn on the grid." } }] };
-    expect(registerManifest(createRegistry(), adopted)[0]?.origin).toEqual({ vendor: "lucide", path: "icons/check.svg", note: "Redrawn on the grid." });
+    const adopted = { ...manifest, assets: [{ ...manifest.assets[1], origin: { vendor: "lucide", relation: "adopted", path: "icons/check.svg", note: "Redrawn on the grid." } }] };
+    expect(registerManifest(createRegistry(), adopted)[0]?.origin).toEqual({ vendor: "lucide", relation: "adopted", path: "icons/check.svg", note: "Redrawn on the grid." });
   });
 
   it("rejects an origin path that climbs out of its folder or starts at the root", () => {
     for (const path of ["../secrets", "/etc/passwd", "a/../../b"]) {
-      const bad = { ...manifest, assets: [{ ...manifest.assets[1], origin: { vendor: "lucide", path } }] };
+      const bad = { ...manifest, assets: [{ ...manifest.assets[1], origin: { vendor: "lucide", relation: "adopted", path } }] };
       expect(() => registerManifest(createRegistry(), bad)).toThrow(z.ZodError);
+    }
+  });
+
+  it("rejects an origin that does not say how the asset stands to its source", () => {
+    for (const relation of [undefined, "copied", "Ported"]) {
+      const bad = { ...manifest, assets: [{ ...manifest.assets[1], origin: { vendor: "lucide", relation, path: "icons/check.svg" } }] };
+      expect(() => registerManifest(createRegistry(), bad)).toThrow(z.ZodError);
+    }
+    for (const relation of ["ported", "adopted", "inspired"]) {
+      const good = { ...manifest, assets: [{ ...manifest.assets[1], origin: { vendor: "lucide", relation, path: "icons/check.svg" } }] };
+      expect(registerManifest(createRegistry(), good)[0]?.origin?.relation).toBe(relation);
     }
   });
 

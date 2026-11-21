@@ -2,7 +2,7 @@
 
 - **What:** ThreeRT: hardware ray-traced three.js, a real-time path tracer behind a three.js-style API (Rust + wgpu engine, TypeScript scene and gameplay packages, showcase scenes, docs)
 - **Source:** https://github.com/meshy-dev/ThreeRT (`8cb4e9b1`)
-- **License:** MIT (`LICENSE`); `renderer/third_party/` holds patched dependencies under their own licenses (`glamx`: MIT or Apache-2.0; `parry3d`: `LICENSE` there); `tools/city` is from jeantimex/tokyo (MIT, `tools/city/LICENSE`); the Poly Haven models under `showcase/` are CC0
+- **License:** MIT (`LICENSE`); patched dependencies under their own licenses (glamx: MIT or Apache-2.0; parry3d: its own license); the city tool is from jeantimex's tokyo (MIT); the Poly Haven models are CC0
 - **Credit:** Meshy LLC
 - **Pulled:** 2026-11-16
 

@@ -100,7 +100,7 @@ export const vendored: readonly VendorEntry[] = [
     "kind": "components",
     "what": "ThreeUI Community: the open-source edition of the ThreeUI component catalog (app, components, shaders, scene assets)",
     "source": "https://github.com/MengTo/threeui (`02f9835e60ef8f0cac7907810aa223b7d414db1b`)",
-    "license": "MIT (`LICENSE`); fonts SIL OFL 1.1 (`FONT-LICENSES.md`); see `ASSET-LICENSES.md` and `THIRD_PARTY_NOTICES.md`",
+    "license": "MIT (`LICENSE`); fonts SIL OFL 1.1 (`FONT-LICENSES.md`); bundled assets and third-party code under their own notices",
     "credit": "Meng To / ThreeUI",
     "pulled": "2026-08-26",
     "sourceUrl": "https://github.com/MengTo/threeui",
@@ -108,7 +108,7 @@ export const vendored: readonly VendorEntry[] = [
     "link": "https://threeui.com",
     "preview": "vendor/threeui-preview.jpg",
     "files": 300,
-    "bytes": 94392515,
+    "bytes": 94392522,
     "readme": {
       "path": "README.md",
       "title": "ThreeUI Community"
@@ -278,12 +278,12 @@ export const vendored: readonly VendorEntry[] = [
     "kind": "demos",
     "what": "Three Three.js demos: geometry-in-flux, bioluminescence, threejs-3d-webpage",
     "source": "https://iamtechartist.github.io/ (each demo is its own repository under https://github.com/iamtechartist/: `geometry-in-flux` at `da187f6316c7ee18b8f1b60bbb5363be2aec40c2`, `bioluminescence` at `2dc70cfd855704c1a8385f606e82f41505fdd5e9`, `threejs-3d-webpage` (repository `Threejs-3D-Webpage`) at `d827a2a409abc44ff35b4965e3d3aadfbe66278a`)",
-    "license": "MIT (a `LICENSE` beside each demo)",
+    "license": "MIT",
     "credit": "Techartist",
     "pulled": "2026-08-21",
     "sourceUrl": "https://iamtechartist.github.io/",
     "files": 10,
-    "bytes": 182870,
+    "bytes": 182839,
     "items": [
       {
         "id": "bioluminescence",
@@ -314,14 +314,14 @@ export const vendored: readonly VendorEntry[] = [
     "kind": "engines",
     "what": "ThreeRT: hardware ray-traced three.js, a real-time path tracer behind a three.js-style API (Rust + wgpu engine, TypeScript scene and gameplay packages, showcase scenes, docs)",
     "source": "https://github.com/meshy-dev/ThreeRT (`8cb4e9b1`)",
-    "license": "MIT (`LICENSE`); `renderer/third_party/` holds patched dependencies under their own licenses (`glamx`: MIT or Apache-2.0; `parry3d`: `LICENSE` there); `tools/city` is from jeantimex/tokyo (MIT, `tools/city/LICENSE`); the Poly Haven models under `showcase/` are CC0",
+    "license": "MIT (`LICENSE`); patched dependencies under their own licenses (glamx: MIT or Apache-2.0; parry3d: its own license); the city tool is from jeantimex's tokyo (MIT); the Poly Haven models are CC0",
     "credit": "Meshy LLC",
     "pulled": "2026-11-16",
     "sourceUrl": "https://github.com/meshy-dev/ThreeRT",
     "repo": "https://github.com/meshy-dev/ThreeRT",
     "link": "https://threert.dev",
     "files": 1237,
-    "bytes": 47423456,
+    "bytes": 47423385,
     "readme": {
       "path": "README.md",
       "title": "README"

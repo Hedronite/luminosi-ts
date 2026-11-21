@@ -43,7 +43,7 @@ describe("effects", () => {
   it("credits the soap film to the Codevember day it was ported from", () => {
     const registry = createRegistry();
     registerManifest(registry, manifest);
-    expect(registry.get("soap-film")?.origin).toMatchObject({ vendor: "codevember-2026", path: "07/src/Balloon.tsx" });
+    expect(registry.get("soap-film")?.origin).toMatchObject({ vendor: "codevember-2026", relation: "ported", path: "07/src/Balloon.tsx" });
     expect(registry.get("soap-film")?.added).toBe("2026-11-16");
     expect(registry.get("toon")?.origin).toBeUndefined();
     expect(() => createSoapFilmEffect({ color: 2 })).toThrow(z.ZodError);

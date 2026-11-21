@@ -1,3 +1,4 @@
+import type { OriginRelation } from "@hedronite/lts-core";
 import { z } from "zod";
 
 const hex = z.string().regex(/^#[0-9a-f]{6}$/i);
@@ -90,7 +91,7 @@ export interface EffectInfo {
   /** The day it joined the library (YYYY-MM-DD). Default: 2026-11-15, when the first shaders landed. */
   readonly added?: string;
   /** Set when it was ported from open-source work in assets/vendor. */
-  readonly origin?: { readonly vendor: string; readonly path: string; readonly note: string };
+  readonly origin?: { readonly vendor: string; readonly relation: OriginRelation; readonly path: string; readonly note: string };
 }
 
 export const effectInfo: Record<EffectId, EffectInfo> = {
@@ -107,6 +108,7 @@ export const effectInfo: Record<EffectId, EffectInfo> = {
     added: "2026-11-16",
     origin: {
       vendor: "codevember-2026",
+      relation: "ported",
       path: "07/src/Balloon.tsx",
       note: "The soap film from Hollow's balloon (a thin-film rainbow set by a swirling thickness that thins toward the rim, over a pale sheen) for any surface, without the paint; a key-light glint stands in for its studio map.",
     },

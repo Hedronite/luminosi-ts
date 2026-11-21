@@ -128,7 +128,7 @@ Each line is one PR. Order holds in one place: Stage 6, then 7, then 8; Stages 9
 - [x] A7 Vendor pins and quarantine (quick win): every vendored source pinned; vendored agent files excluded from discovery (the policy in #30, the settings in #35)
 - [x] A8 CI split (quick win): cached parallel jobs, faster PRs (#38, #40)
 - [x] A9 Loose ends (quick win): disposal of instanced meshes, icon package licenses, unused loader and scope (#36)
-- [ ] A10 Vendor home: where the vendored tree lives (needs a decision)
+- [ ] A10 Vendor home: the vendored tree leaves the product repo and is vendored by pin, not by copy, with each use credited as ported, adopted or inspired by (decided 2026-11-20; a later wave builds it)
 
 ### Stage 7 (B) — Live parameters
 
@@ -177,8 +177,8 @@ Each line is one PR. Order holds in one place: Stage 6, then 7, then 8; Stages 9
 
 ### Stage 11 (F) — Studio and distribution
 
-- [ ] F1 Release mechanics: changesets, API reports, packs split by license (needs a go-ahead to publish)
-- [ ] F2 Public catalog on HTTPS with share links (needs a decision on hosting)
+- [ ] F1 Release mechanics: changesets, API reports, packs split by license, published to npm under `@hedronite/` (decided 2026-11-20; publishing needs a go-ahead)
+- [ ] F2 Public catalog on HTTPS with share links, hosted on Cloudflare Pages (decided 2026-11-20)
 - [ ] F3 `lumin add`: copy a component's source, tests and credits into a project
 - [ ] F4 Studio: the playground graduated to an app, over the scene document (needs a decision on which studio)
 - [ ] F5 Token interchange: W3C design tokens and Figma variables in and out
