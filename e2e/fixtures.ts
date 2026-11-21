@@ -59,4 +59,22 @@ export async function settledBuilds(host: Locator, attribute = "data-builds"): P
   return last;
 }
 
+/** Where the run draws: the WebGPU lane (`bun run e2e:webgpu`, a real GPU) or software WebGL, which is every other run and CI. */
+const onWebGPULane = process.env["LTS_WEBGPU_LANE"] === "1";
+
+/** The backends a viewport may report in this run: only `webgpu` on the WebGPU lane, where a fallback is a failure; `webgpu` or `webgl2` elsewhere. */
+const allowedRenderers: readonly string[] = onWebGPULane ? ["webgpu"] : ["webgpu", "webgl2"];
+
+/**
+ * The viewport's `<canvas>` says which backend drew it: its `data-renderer` is one of `allowed`, which is
+ * the lane's own list unless a test passes another. It waits for the attribute and fails on a canvas that never gets one, which is
+ * how a viewport still on a classic `WebGLRenderer` is caught, and on one that reports a backend the lane does not allow. An explicit `allowed` wins
+ * over the lane's list: the strict golden and stills lanes draw on a real GPU and are not the WebGPU lane, so their specs pass `["webgpu"]`.
+ * `timeout` is how long it waits for the attribute (20 s, the first frame of a viewport). Returns what it read.
+ */
+export async function expectRenderer(locator: Locator, allowed: readonly string[] = allowedRenderers, timeout = 20_000): Promise<string> {
+  await expect(locator, "data-renderer: the viewport says which backend drew it").toHaveAttribute("data-renderer", new RegExp(`^(${allowed.join("|")})$`), { timeout });
+  return String(await locator.getAttribute("data-renderer"));
+}
+
 export { expect };

@@ -5,11 +5,14 @@ import { Canvas, useFrame, useThree, type CanvasProps } from "@react-three/fiber
 import { useEffect, useMemo } from "react";
 import { useReducedMotion } from "./motion.js";
 import { WebGPURenderer } from "three/webgpu";
+import { rendererReadout } from "@hedronite/lts-scene/renderer";
 
 /**
  * A React Three Fiber canvas on three's WebGPURenderer: WebGPU where the browser has it, WebGL 2 where
  * it doesn't. TSL surface shaders (`@hedronite/lts-shaders`) and screen effects need it; material
- * presets and every other adapter work on it too.
+ * presets and every other adapter work on it too. Once the renderer has started the canvas carries `data-renderer`, `webgpu` or `webgl2`,
+ * read from the renderer (`rendererReadout`), so a test can tell which backend drew it. Pair it with `WebGPUStudioEnvironment`, which lights
+ * a scene as the root `StudioEnvironment` does on the WebGL renderer.
  */
 export function WebGPUCanvas(props: Omit<CanvasProps, "gl">) {
   return (
@@ -20,6 +23,7 @@ export function WebGPUCanvas(props: Omit<CanvasProps, "gl">) {
         if (!(canvas instanceof HTMLCanvasElement)) throw new Error("WebGPUCanvas needs a DOM canvas");
         const renderer = new WebGPURenderer({ canvas, antialias: true, alpha: true });
         await renderer.init();
+        rendererReadout(renderer);
         return renderer;
       }}
     />

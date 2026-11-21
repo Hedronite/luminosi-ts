@@ -10,7 +10,7 @@ import { useThree, type ThreeElements } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
 import { useEffectMaterial, type ShaderParams } from "./effectMaterial.js";
 import { PMREMGenerator, type WebGLRenderer } from "three";
-import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+import { bakeStudioRoom } from "./studioRoom.js";
 
 type GroupProps = Omit<ThreeElements["group"], "args" | "children" | "ref" | "object">;
 
@@ -57,18 +57,13 @@ export function PrimitiveMesh({ primitive: id, material = "satin", shader, shade
 
 /** A prefiltered studio room, from WebGL's PMREM generator. */
 function studioTexture(gl: WebGLRenderer) {
-  const room = new RoomEnvironment();
-  const pmrem = new PMREMGenerator(gl);
-  const target = pmrem.fromScene(room, 0.04);
-  room.dispose();
-  pmrem.dispose();
-  return target;
+  return bakeStudioRoom(new PMREMGenerator(gl));
 }
 
 /**
  * A procedural studio room as the scene's environment, for reflections on metal, glass and glossy
  * surfaces. Nothing is fetched. Freed on unmount. For the WebGPU renderer (`WebGPUCanvas`) use
- * `WebGPUStudioEnvironment` from `@hedronite/lts-adapters/webgpu`.
+ * `WebGPUStudioEnvironment` from `@hedronite/lts-adapters/webgpu`: it bakes the same room (`studioRoom.ts`).
  */
 export function StudioEnvironment() {
   const gl = useThree((state) => state.gl);
