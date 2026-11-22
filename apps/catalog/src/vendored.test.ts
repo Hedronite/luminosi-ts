@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatBytes, packFromSet, resolveLink } from "./vendored";
+import { commitUrl, formatBytes, mergePolicies, packFromSet, policyTitles, resolveLink, shortCommit } from "./vendored";
 
 describe("resolveLink", () => {
   const repo = "https://github.com/jakubkrehel/skills";
@@ -39,4 +39,32 @@ it("formats sizes", () => {
   expect(formatBytes(36 * 1024)).toBe("36 KB");
   expect(formatBytes(91.4 * 1024 * 1024)).toBe("91 MB");
   expect(formatBytes(2.2 * 1024 * 1024)).toBe("2.2 MB");
+});
+
+it("links a source at its own commit, never at a branch", () => {
+  expect(commitUrl({ repo: "https://github.com/coreui/coreui-icons", commit: "88d1cfc47fc3cc84114de2a01b04db11a941bdf9" })).toBe(
+    "https://github.com/coreui/coreui-icons/tree/88d1cfc47fc3cc84114de2a01b04db11a941bdf9",
+  );
+  expect(shortCommit("88d1cfc47fc3cc84114de2a01b04db11a941bdf9")).toBe("88d1cfc4");
+});
+it("names every class of the license gate in words", () => {
+  expect(policyTitles).toEqual({
+    adopt: "adoptable",
+    "adopt-with-attribution": "adoptable with attribution",
+    "showcase-only": "showcase only",
+    forbidden: "not adoptable",
+  });
+});
+
+it("merges policy rows with the same class and license, adding their files", () => {
+  expect(
+    mergePolicies([
+      { class: "adopt-with-attribution", spdx: "MIT", fileCount: 30 },
+      { class: "adopt", spdx: "MIT", fileCount: 3 },
+      { class: "adopt-with-attribution", spdx: "MIT", fileCount: 763 },
+    ]),
+  ).toEqual([
+    { class: "adopt-with-attribution", spdx: "MIT", fileCount: 793 },
+    { class: "adopt", spdx: "MIT", fileCount: 3 },
+  ]);
 });

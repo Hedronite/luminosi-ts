@@ -1,6 +1,49 @@
+import type { PolicyClass } from "@hedronite/lts-core";
+
 /** What the Open source view shows: other people's open-source material vendored under assets/vendor. */
 
 export type VendorKind = "icons" | "components" | "demos" | "engines" | "skills";
+
+/** The words the Open source view uses for each class of the license gate (`tools/vendor/src/policy.ts`). */
+export const policyTitles: Readonly<Record<PolicyClass, string>> = {
+  adopt: "adoptable",
+  "adopt-with-attribution": "adoptable with attribution",
+  "showcase-only": "showcase only",
+  forbidden: "not adoptable",
+};
+
+/** A source on the page: the repository, and the commit its folder was taken at. */
+export interface VendorSource {
+  readonly repo: string;
+  readonly commit: string;
+}
+
+/** The repository at that exact commit, not at a branch: `https://github.com/owner/repo/tree/<40-hex>`. */
+export const commitUrl = (source: VendorSource): string => `${source.repo}/tree/${source.commit}`;
+
+/** A commit as the credit lines show it. */
+export const shortCommit = (commit: string): string => commit.slice(0, 8);
+
+/** One policy class and license, with every row that names it added up. */
+export interface PolicySummary {
+  readonly class: PolicyClass;
+  readonly spdx: string;
+  readonly fileCount: number;
+}
+
+/**
+ * A folder's policy rows, merged by class and license: a folder may name one class and license twice (a
+ * second set of paths), and the page shows it once with the two counts added.
+ */
+export function mergePolicies(policies: readonly { readonly class: PolicyClass; readonly spdx: string; readonly fileCount: number }[]): readonly PolicySummary[] {
+  const merged = new Map<string, PolicySummary>();
+  for (const policy of policies) {
+    const key = `${policy.class}:${policy.spdx}`;
+    const seen = merged.get(key);
+    merged.set(key, { class: policy.class, spdx: policy.spdx, fileCount: (seen?.fileCount ?? 0) + policy.fileCount });
+  }
+  return [...merged.values()];
+}
 
 /** A Markdown file from a vendored folder; `path` is relative to that folder. Its text loads separately (vendor-pages). */
 export interface VendorPage {
