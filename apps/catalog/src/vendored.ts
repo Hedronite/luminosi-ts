@@ -24,6 +24,27 @@ export const commitUrl = (source: VendorSource): string => `${source.repo}/tree/
 /** A commit as the credit lines show it. */
 export const shortCommit = (commit: string): string => commit.slice(0, 8);
 
+/** One policy class and license, with every row that names it added up. */
+export interface PolicySummary {
+  readonly class: PolicyClass;
+  readonly spdx: string;
+  readonly fileCount: number;
+}
+
+/**
+ * A folder's policy rows, merged by class and license: a folder may name one class and license twice (a
+ * second set of paths), and the page shows it once with the two counts added.
+ */
+export function mergePolicies(policies: readonly { readonly class: PolicyClass; readonly spdx: string; readonly fileCount: number }[]): readonly PolicySummary[] {
+  const merged = new Map<string, PolicySummary>();
+  for (const policy of policies) {
+    const key = `${policy.class}:${policy.spdx}`;
+    const seen = merged.get(key);
+    merged.set(key, { class: policy.class, spdx: policy.spdx, fileCount: (seen?.fileCount ?? 0) + policy.fileCount });
+  }
+  return [...merged.values()];
+}
+
 /** A Markdown file from a vendored folder; `path` is relative to that folder. Its text loads separately (vendor-pages). */
 export interface VendorPage {
   readonly path: string;

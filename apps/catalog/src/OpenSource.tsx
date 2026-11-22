@@ -1,3 +1,5 @@
+/* eslint-disable jsx-a11y/no-redundant-roles -- every list here is a flex column (list-style removed), and a flex list
+   loses its list semantics in VoiceOver without an explicit role, which the rule would call redundant */
 import type { AssetMeta } from "@hedronite/lts-core";
 import { iconPacks } from "@hedronite/lts-icons/packs";
 import { ChevronLeft, ExternalLink } from "@hedronite/lts-icons/react";
@@ -6,7 +8,7 @@ import { vendored } from "./generated/vendor";
 import { vendorProvenance } from "./generated/vendorProvenance";
 import { Markdown } from "./Markdown";
 import { registry } from "./registry";
-import { commitUrl, formatBytes, kindTitles, packFromSet, policyTitles, shortCommit, type VendorEntry, type VendorItem, type VendorKind, type VendorPage } from "./vendored";
+import { commitUrl, formatBytes, kindTitles, mergePolicies, packFromSet, policyTitles, shortCommit, type VendorEntry, type VendorItem, type VendorKind, type VendorPage } from "./vendored";
 
 const kinds: readonly VendorKind[] = ["icons", "components", "demos", "engines", "skills"];
 
@@ -171,12 +173,12 @@ function Folder({ entry, go, onBrowsePack, onOpenAsset }: { readonly entry: Vend
           <>
             <dt className="text-fg-muted">License id</dt>
             <dd data-testid="folder-license-id">
-              {provenance.license} · {String(provenance.totalFiles)} files
+              {provenance.license} · {String(provenance.totalFiles)} files, not counting license and credit files
             </dd>
             <dt className="text-fg-muted">Policy</dt>
             <dd>
-              <ul data-testid="folder-policies" className="flex flex-col gap-0.5">
-                {provenance.policies.map((policy) => (
+              <ul data-testid="folder-policies" role="list" className="flex flex-col gap-0.5">
+                {mergePolicies(provenance.policies).map((policy) => (
                   <li key={`${policy.class}:${policy.spdx}`}>
                     {policyTitles[policy.class]} · {policy.spdx} · {String(policy.fileCount)} {policy.fileCount === 1 ? "file" : "files"}
                   </li>
@@ -188,7 +190,7 @@ function Folder({ entry, go, onBrowsePack, onOpenAsset }: { readonly entry: Vend
               {provenance.sources.length === 0 ? (
                 <span>No repository: {provenance.keptReason ?? "the folder stays in the repo"}</span>
               ) : (
-                <ul className="flex flex-col gap-0.5">
+                <ul role="list" className="flex flex-col gap-0.5">
                   {provenance.sources.map((source) => (
                     <li key={source.repo} className="min-w-0 break-words">
                       <a href={commitUrl(source)} className="text-fg underline decoration-accent decoration-2 underline-offset-2" rel="noreferrer">
@@ -202,9 +204,13 @@ function Folder({ entry, go, onBrowsePack, onOpenAsset }: { readonly entry: Vend
             <dt className="text-fg-muted">Changes</dt>
             <dd data-testid="folder-transformations">
               {provenance.transformations.length === 0 ? (
-                <span>None: the folder is upstream as published.</span>
+                <span>
+                  {provenance.fetched
+                    ? "None: the folder is upstream as published."
+                    : "None recorded: copied from the site's published bundle, not from a commit."}
+                </span>
               ) : (
-                <ul className="flex flex-col gap-0.5">
+                                <ul role="list" className="flex flex-col gap-0.5">
                   {provenance.transformations.map((change) => (
                     <li key={`${change.kind}:${change.paths.join(",")}`}>
                       <span className="font-mono text-xs">{change.kind}</span> — {change.reason}
@@ -288,6 +294,7 @@ function Folder({ entry, go, onBrowsePack, onOpenAsset }: { readonly entry: Vend
                     <a
                       href={`${provenance?.sources.find((source) => source.commit === meta.origin?.commit)?.repo ?? entry.sourceUrl}/tree/${meta.origin.commit}`}
                       className="text-fg underline decoration-accent decoration-2 underline-offset-2"
+                      aria-label={`${meta.name} at commit ${shortCommit(meta.origin.commit)}`}
                       rel="noreferrer"
                     >
                       {shortCommit(meta.origin.commit)}
@@ -296,7 +303,7 @@ function Folder({ entry, go, onBrowsePack, onOpenAsset }: { readonly entry: Vend
                   </span>
                 )}
                 {meta.origin?.transformations === undefined ? null : (
-                  <ul className="flex flex-col gap-0.5 text-sm text-fg-muted">
+                  <ul role="list" className="flex flex-col gap-0.5 text-sm text-fg-muted">
                     {meta.origin.transformations.map((change) => (
                       <li key={change}>{change}</li>
                     ))}
@@ -455,3 +462,4 @@ function Reader({
     </article>
   );
 }
+/* eslint-enable jsx-a11y/no-redundant-roles -- back to the rule for the rest of the file */

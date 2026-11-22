@@ -50,7 +50,8 @@ test("a fetched folder shows its pin: commit link, license id, class, changes, a
   await expect(page.getByTestId("folder-policies")).toContainText("adoptable with attribution");
   await expect(page.getByTestId("folder-policies")).toContainText("CC-BY-4.0 · 562 files");
   await expect(page.getByTestId("folder-policies")).toContainText("MIT · 1 file");
-  await expect(page.getByTestId("folder-license-id")).toContainText("563 files");
+  // The raw-file count is labelled: it leaves out the license and credit files the bigger index size counts.
+  await expect(page.getByTestId("folder-license-id")).toContainText("563 files, not counting license and credit files");
   await expect(page.getByTestId("folder-transformations")).toContainText("include");
   await expect(page.getByTestId("folder-transformations")).toContainText("the build and demo code");
   await expect(page.getByTestId("folder-vendored")).toContainText("Fetched by pin");
@@ -65,6 +66,7 @@ test("the kept folder says it is kept, and names no repository", async ({ page }
   await expect(page.getByTestId("folder-sources")).toContainText("No repository");
   await expect(page.getByTestId("folder-sources")).toContainText("isocons.app");
   await expect(page.getByTestId("folder-license-id")).toContainText("6037 files");
+  await expect(page.getByTestId("folder-transformations")).toContainText("None recorded: copied from the site's published bundle, not from a commit.");
   await expect(page.getByTestId("folder-sources").getByRole("link")).toHaveCount(0);
 });
 test("a folder with several repositories links each one at its own commit", async ({ page }) => {
@@ -77,16 +79,27 @@ test("a folder with several repositories links each one at its own commit", asyn
   // Three repositories laid out as three subfolders of one: the layout is a transformation of its own.
   await expect(page.getByTestId("folder-transformations")).toContainText("layout");
   await expect(page.getByTestId("folder-transformations")).toContainText("Three repositories laid out as three subfolders");
+  await expect(page.getByTestId("folder-policies").getByRole("listitem")).toHaveCount(1);
 });
 test("a ported asset carries its origin's commit, license and changes under its folder", async ({ page }) => {
   await page.goto("/?view=open-source&set=codevember-2026");
   const library = page.getByRole("region", { name: "In the library" });
   const card = library.getByRole("listitem").filter({ hasText: "Soap film" });
   await expect(card).toContainText("from 07/src/Balloon.tsx");
-  await expect(card.getByRole("link", { name: "4df8e67a" })).toHaveAttribute(
-    "href",
-    "https://github.com/ttillberg/codevember-2026/tree/4df8e67ab6584b3c354f06f0f9ce9a4348f82dbe",
-  );
+  // The link's accessible name says what it is and contains its visible text.
+  const commitLink = card.getByRole("link", { name: "Soap film at commit 4df8e67a" });
+  await expect(commitLink).toHaveAttribute("href", "https://github.com/ttillberg/codevember-2026/tree/4df8e67ab6584b3c354f06f0f9ce9a4348f82dbe");
+  await expect(commitLink).toContainText("4df8e67a");
   await expect(card).toContainText("MIT");
   await expect(card).toContainText("standalone surface shader");
+});
+test("policy rows with the same class and license are shown once, their files added up", async ({ page }) => {
+  await page.goto("/?view=open-source&set=threert");
+  const policies = page.getByTestId("folder-policies");
+  // ThreeRT names adoptable-with-attribution MIT twice (30 and 763 files): one row, 793 files.
+  const mit = policies.getByRole("listitem").filter({ hasText: "MIT" });
+  await expect(mit.filter({ hasText: "793 files" })).toHaveCount(1);
+  const rows = await policies.getByRole("listitem").allTextContents();
+  expect(rows.filter((row) => row.includes("793 files"))).toHaveLength(1);
+  expect(rows.some((row) => row.includes("30 files"))).toBe(false);
 });

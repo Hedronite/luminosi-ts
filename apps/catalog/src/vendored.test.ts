@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { commitUrl, formatBytes, packFromSet, policyTitles, resolveLink, shortCommit } from "./vendored";
+import { commitUrl, formatBytes, mergePolicies, packFromSet, policyTitles, resolveLink, shortCommit } from "./vendored";
 
 describe("resolveLink", () => {
   const repo = "https://github.com/jakubkrehel/skills";
@@ -54,4 +54,17 @@ it("names every class of the license gate in words", () => {
     "showcase-only": "showcase only",
     forbidden: "not adoptable",
   });
+});
+
+it("merges policy rows with the same class and license, adding their files", () => {
+  expect(
+    mergePolicies([
+      { class: "adopt-with-attribution", spdx: "MIT", fileCount: 30 },
+      { class: "adopt", spdx: "MIT", fileCount: 3 },
+      { class: "adopt-with-attribution", spdx: "MIT", fileCount: 763 },
+    ]),
+  ).toEqual([
+    { class: "adopt-with-attribution", spdx: "MIT", fileCount: 793 },
+    { class: "adopt", spdx: "MIT", fileCount: 3 },
+  ]);
 });
