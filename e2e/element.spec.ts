@@ -258,7 +258,7 @@ test("it draws no frames while fully out of view, and draws again when it return
   await page.evaluate(() => {
     window.scrollTo(0, 2_500);
   });
-  await page.waitForTimeout(500);
+  await stops(host, 500, 15_000);
   await holdsStill(host, 800);
   await page.evaluate(() => {
     window.scrollTo(0, 0);
@@ -346,3 +346,26 @@ test("twenty cycles of disconnecting and connecting leave the renderer holding w
   // Connected again, each time, it built the scene again: its builds never went down and rose with every cycle.
   expect(await count(page.locator("#inline"), "builds")).toBeGreaterThan(20);
 });
+
+// Kept at the end of the file so that adding or changing it moves no test's line, which e2e/shards/plan.json names.
+/**
+ * The frame counter stops: it holds one value for `quietMs` straight, within `boundMs`. A page under load reports "out of view" late, so a fixed wait after the
+ * scroll is a guess; this waits for the stop itself, and a loop that never stops fails here, at the bound, rather than passing or failing by timing.
+ */
+async function stops(host: Locator, quietMs: number, boundMs: number): Promise<void> {
+  let last = -1;
+  let since = Date.now();
+  await expect
+    .poll(
+      async () => {
+        const now = await count(host, "frames");
+        if (now !== last) {
+          last = now;
+          since = Date.now();
+        }
+        return Date.now() - since >= quietMs;
+      },
+      { message: "the frame counter should stop once the element is out of view", timeout: boundMs, intervals: [100] },
+    )
+    .toBe(true);
+}
