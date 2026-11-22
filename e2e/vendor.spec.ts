@@ -43,3 +43,43 @@ test("the CRT screen effect credits ThreeUI", async ({ page }) => {
   await expect(dialog).toContainText("Adopted from");
   await expect(dialog).toContainText("src/shaders/crt/crtShaders.ts");
 });
+test("a fetched folder shows its pin: commit link, license id, class, changes, and that it is fetched", async ({ page }) => {
+  await page.goto("/?view=open-source&set=coreui-icons");
+  const credit = page.getByTestId("folder-credit");
+  await expect(page.getByTestId("folder-license-id")).toHaveText("CC-BY-4.0 AND MIT");
+  await expect(page.getByTestId("folder-policies")).toContainText("adoptable with attribution");
+  await expect(page.getByTestId("folder-policies")).toContainText("CC-BY-4.0");
+  await expect(page.getByTestId("folder-transformations")).toContainText("svg/free/*.svg");
+  await expect(page.getByTestId("folder-vendored")).toContainText("Fetched by pin");
+  // The commit link is upstream at that commit, never a branch.
+  const source = page.getByTestId("folder-sources").getByRole("link");
+  await expect(source).toHaveAttribute("href", "https://github.com/coreui/coreui-icons/tree/88d1cfc47fc3cc84114de2a01b04db11a941bdf9");
+  await expect(credit).toContainText("88d1cfc4");
+});
+test("the kept folder says it is kept, and names no repository", async ({ page }) => {
+  await page.goto("/?view=open-source&set=isocons");
+  await expect(page.getByTestId("folder-vendored")).toContainText("Kept in the repo");
+  await expect(page.getByTestId("folder-sources")).toContainText("No repository");
+  await expect(page.getByTestId("folder-sources")).toContainText("isocons.app");
+  await expect(page.getByTestId("folder-sources").getByRole("link")).toHaveCount(0);
+});
+test("a folder with several repositories links each one at its own commit", async ({ page }) => {
+  await page.goto("/?view=open-source&set=techartist");
+  const links = page.getByTestId("folder-sources").getByRole("link");
+  await expect(links).toHaveCount(3);
+  await expect(links.filter({ hasText: "geometry-in-flux" })).toHaveAttribute("href", "https://github.com/iamtechartist/geometry-in-flux/tree/da187f6316c7ee18b8f1b60bbb5363be2aec40c2");
+  await expect(links.filter({ hasText: "bioluminescence" })).toHaveAttribute("href", "https://github.com/iamtechartist/bioluminescence/tree/2dc70cfd855704c1a8385f606e82f41505fdd5e9");
+  await expect(links.filter({ hasText: "Threejs-3D-Webpage" })).toHaveAttribute("href", "https://github.com/iamtechartist/Threejs-3D-Webpage/tree/d827a2a409abc44ff35b4965e3d3aadfbe66278a");
+});
+test("a ported asset carries its origin's commit, license and changes under its folder", async ({ page }) => {
+  await page.goto("/?view=open-source&set=codevember-2026");
+  const library = page.getByRole("region", { name: "In the library" });
+  const card = library.getByRole("listitem").filter({ hasText: "Soap film" });
+  await expect(card).toContainText("from 07/src/Balloon.tsx");
+  await expect(card.getByRole("link", { name: "4df8e67a" })).toHaveAttribute(
+    "href",
+    "https://github.com/ttillberg/codevember-2026/tree/4df8e67ab6584b3c354f06f0f9ce9a4348f82dbe",
+  );
+  await expect(card).toContainText("MIT");
+  await expect(card).toContainText("standalone surface shader");
+});

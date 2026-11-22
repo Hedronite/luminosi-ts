@@ -3,9 +3,10 @@ import { iconPacks } from "@hedronite/lts-icons/packs";
 import { ChevronLeft, ExternalLink } from "@hedronite/lts-icons/react";
 import { useEffect, useState } from "react";
 import { vendored } from "./generated/vendor";
+import { vendorProvenance } from "./generated/vendorProvenance";
 import { Markdown } from "./Markdown";
 import { registry } from "./registry";
-import { formatBytes, kindTitles, packFromSet, type VendorEntry, type VendorItem, type VendorKind, type VendorPage } from "./vendored";
+import { commitUrl, formatBytes, kindTitles, packFromSet, policyTitles, shortCommit, type VendorEntry, type VendorItem, type VendorKind, type VendorPage } from "./vendored";
 
 const kinds: readonly VendorKind[] = ["icons", "components", "demos", "engines", "skills"];
 
@@ -132,6 +133,7 @@ function Back({ label, onClick }: { readonly label: string; readonly onClick: ()
 }
 
 function Folder({ entry, go, onBrowsePack, onOpenAsset }: { readonly entry: VendorEntry; readonly go: (place: Place) => void; readonly onBrowsePack: (packId: string) => void; readonly onOpenAsset: OpenAsset }) {
+  const provenance = vendorProvenance[entry.id];
   const packs = packsOf(entry);
   const adopted = adoptedFrom(entry.id);
   return (
@@ -165,6 +167,61 @@ function Folder({ entry, go, onBrowsePack, onOpenAsset }: { readonly entry: Vend
         <dd>
           {String(entry.files)} files, {formatBytes(entry.bytes)}
         </dd>
+        {provenance === undefined ? null : (
+          <>
+            <dt className="text-fg-muted">License id</dt>
+            <dd data-testid="folder-license-id">{provenance.license}</dd>
+            <dt className="text-fg-muted">Policy</dt>
+            <dd>
+              <ul data-testid="folder-policies" className="flex flex-col gap-0.5">
+                {provenance.policies.map((policy) => (
+                  <li key={`${policy.class}:${policy.spdx}`}>
+                    {policyTitles[policy.class]} · {policy.spdx}
+                    {policy.files.length === 0 ? (
+                      <span className="text-fg-muted"> (every path no other row names)</span>
+                    ) : (
+                      <span className="font-mono text-xs text-fg-muted"> ({policy.files.join(", ")})</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </dd>
+            <dt className="text-fg-muted">Sources</dt>
+            <dd data-testid="folder-sources">
+              {provenance.sources.length === 0 ? (
+                <span>No repository: {provenance.keptReason ?? "the folder stays in the repo"}</span>
+              ) : (
+                <ul className="flex flex-col gap-0.5">
+                  {provenance.sources.map((source) => (
+                    <li key={source.repo} className="min-w-0 break-words">
+                      <a href={commitUrl(source)} className="text-fg underline decoration-accent decoration-2 underline-offset-2" rel="noreferrer">
+                        {source.repo.replace(/^https:\/\//, "")} at {shortCommit(source.commit)}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </dd>
+            <dt className="text-fg-muted">Changes</dt>
+            <dd data-testid="folder-transformations">
+              {provenance.transformations.length === 0 ? (
+                <span>None: the folder is upstream as published.</span>
+              ) : (
+                <ul className="flex flex-col gap-0.5">
+                  {provenance.transformations.map((change) => (
+                    <li key={`${change.kind}:${change.paths.join(",")}`}>
+                      <span className="font-mono text-xs">{change.kind}</span> {change.paths.join(", ")} — {change.reason}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </dd>
+            <dt className="text-fg-muted">Vendored</dt>
+            <dd data-testid="folder-vendored">
+              {provenance.fetched ? "Fetched by pin" : "Kept in the repo"}, {provenance.vendoredOn}, reviewed by {provenance.reviewer}
+            </dd>
+          </>
+        )}
       </dl>
 
       <div className="mt-4 flex flex-wrap gap-2">
@@ -228,6 +285,26 @@ function Folder({ entry, go, onBrowsePack, onOpenAsset }: { readonly entry: Vend
                   {meta.name} <span className="font-normal text-fg-muted">({meta.kind})</span>
                 </button>
                 <span className="break-all font-mono text-xs text-fg-muted">from {meta.origin?.path}</span>
+                {meta.origin?.commit === undefined ? null : (
+                  <span className="break-all text-xs text-fg-muted">
+                    at{" "}
+                    <a
+                      href={`${provenance?.sources.find((source) => source.commit === meta.origin?.commit)?.repo ?? entry.sourceUrl}/tree/${meta.origin.commit}`}
+                      className="text-fg underline decoration-accent decoration-2 underline-offset-2"
+                      rel="noreferrer"
+                    >
+                      {shortCommit(meta.origin.commit)}
+                    </a>
+                    {meta.origin.license === undefined ? null : ` · ${meta.origin.license}`}
+                  </span>
+                )}
+                {meta.origin?.transformations === undefined ? null : (
+                  <ul className="flex flex-col gap-0.5 text-sm text-fg-muted">
+                    {meta.origin.transformations.map((change) => (
+                      <li key={change}>{change}</li>
+                    ))}
+                  </ul>
+                )}
                 {meta.origin?.note === undefined ? null : <span className="text-sm text-fg-muted">{meta.origin.note}</span>}
               </li>
             ))}

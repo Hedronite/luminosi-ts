@@ -1,6 +1,28 @@
+import type { PolicyClass } from "@hedronite/lts-core";
+
 /** What the Open source view shows: other people's open-source material vendored under assets/vendor. */
 
 export type VendorKind = "icons" | "components" | "demos" | "engines" | "skills";
+
+/** The words the Open source view uses for each class of the license gate (`tools/vendor/src/policy.ts`). */
+export const policyTitles: Readonly<Record<PolicyClass, string>> = {
+  adopt: "adoptable",
+  "adopt-with-attribution": "adoptable with attribution",
+  "showcase-only": "showcase only",
+  forbidden: "not adoptable",
+};
+
+/** A source on the page: the repository, and the commit its folder was taken at. */
+export interface VendorSource {
+  readonly repo: string;
+  readonly commit: string;
+}
+
+/** The repository at that exact commit, not at a branch: `https://github.com/owner/repo/tree/<40-hex>`. */
+export const commitUrl = (source: VendorSource): string => `${source.repo}/tree/${source.commit}`;
+
+/** A commit as the credit lines show it. */
+export const shortCommit = (commit: string): string => commit.slice(0, 8);
 
 /** A Markdown file from a vendored folder; `path` is relative to that folder. Its text loads separately (vendor-pages). */
 export interface VendorPage {
