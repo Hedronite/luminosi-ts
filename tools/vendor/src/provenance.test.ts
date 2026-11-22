@@ -16,7 +16,7 @@ const folders = readdirSync(vendorDir, { withFileTypes: true })
 
 interface Carrier {
   readonly id: string;
-  readonly origin: { readonly vendor: string; readonly relation: string; readonly path: string; readonly commit?: string | undefined; readonly license: string } | undefined;
+  readonly origin: { readonly vendor: string; readonly relation: string; readonly path: string; readonly commit?: string | undefined; readonly license?: string | undefined; readonly transformations?: readonly string[] | undefined } | undefined;
 }
 const carriers: readonly Carrier[] = [
   ...Object.entries(screenEffectInfo).map(([id, info]) => ({ id: `effect ${id}`, origin: info.origin })),
@@ -51,6 +51,10 @@ describe("an adopted asset's origin", () => {
       return;
     }
     expect(pin.sources.map((source) => source.commit)).toContain(origin.commit);
+  });
+  it.each(adopted.map((carrier) => [carrier.id, carrier.origin] as const))("%s carries its license and what it changed", (_id, origin) => {
+    expect(origin.license, `${origin.vendor}/${origin.path} has no license`).toBeDefined();
+    expect((origin.transformations ?? []).length, `${origin.vendor}/${origin.path} says nothing of what changed`).toBeGreaterThan(0);
   });
   it.each(adopted.map((carrier) => [carrier.id, carrier.origin] as const))("%s is under the license its path gets", (_id, origin) => {
     const pin = readPin(vendorDir, origin.vendor);

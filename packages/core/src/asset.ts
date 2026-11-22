@@ -79,9 +79,9 @@ export const assetOriginSchema = z
     /** The pinned commit the port came from; absent only when its folder has none (a kept, version-pinned folder). */
     commit: z.string().regex(/^[0-9a-f]{40}$/, "a full 40-hex commit").optional(),
     /** The license the ported path is under, as its folder's pin states it (an SPDX id or expression). */
-    license: z.string().min(1),
+    license: z.string().min(1).optional(),
     /** What the port changed, one sentence each: a TSL rewrite, a trimmed API, a moved uniform. */
-    transformations: z.array(z.string().min(1)).min(1).readonly(),
+    transformations: z.array(z.string().min(1)).min(1).readonly().optional(),
     /** What was taken and what was changed, in a sentence. */
     note: z.string().min(1).optional(),
   })
