@@ -7,7 +7,7 @@ import { copyFile, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { verifyFolder } from "./fetch.js";
 import { firstUrl, humanize, parseCredit, parseDemoReadme, parseFrontMatter, sourcePins, vendorCreditLine, type Credit } from "./parse.js";
-import { digestOf, provenanceOf, readPin, type Pin } from "./pin.js";
+import { digestOf, filesUnder, hashed, matchesGlob, provenanceOf, readPin, type Pin } from "./pin.js";
 import { classify } from "./policy.js";
 import { cacheDirFor, resolveVendor } from "./resolve.js";
 import type { PolicyClass, VendorCredit, VendorCreditRecord, VendorProvenance } from "@hedronite/lts-core";
@@ -303,23 +303,30 @@ const CLASS_ORDER: readonly PolicyClass[] = ["adopt", "adopt-with-attribution", 
 const licenseExpression = (pin: Pin): string =>
   [...new Set((pin.licenses ?? []).map((entry) => (entry.spdx.includes(" ") ? `(${entry.spdx})` : entry.spdx)))].join(" AND ");
 /** The classes a folder's licenses come to, one row per class and license, most permissive first. */
-function policyRows(pin: Pin): readonly VendorProvenance["policies"][number][] {
-  const rows = (pin.licenses ?? []).map((entry) => ({
-    class: classify(entry.spdx).class,
-    spdx: entry.spdx,
-    files: entry.paths ?? [],
-  }));
+/** The files a pin's hash covers in a folder's raw copy: what its licenses are counted over. */
+const countedFiles = (rawDir: string, pin: Pin): readonly string[] => filesUnder(rawDir).filter((path) => hashed(path, pin.kept));
+/** The classes and counts a folder's licenses come to, one row per class and license, most permissive first. */
+function policyRows(pin: Pin, files: readonly string[]): readonly VendorProvenance["policies"][number][] {
+  const rows = (pin.licenses ?? []).map((entry) => {
+    const paths = entry.paths ?? [];
+    const fileCount =
+      entry.remainder === true ? 0 : files.filter((file) => paths.some((pattern) => matchesGlob(pattern, file))).length;
+    return { class: classify(entry.spdx).class, spdx: entry.spdx, files: paths, fileCount };
+  });
+  const named = rows.reduce((sum, row) => sum + row.fileCount, 0);
+  for (const row of rows) if (row.files.length === 0) row.fileCount = files.length - named;
   return rows.sort(
     (a, b) => CLASS_ORDER.indexOf(a.class) - CLASS_ORDER.indexOf(b.class) || a.spdx.localeCompare(b.spdx),
   );
 }
 /** Where a folder came from and what was done to it, as its pin and its folder state them. */
-function provenanceOfPin(pin: Pin, where: string): VendorProvenance {
+function provenanceOfPin(pin: Pin, where: string, rawDir: string): VendorProvenance {
   const provenance = provenanceOf(pin, where);
   return {
     license: provenance.license,
     licenseIds: licenseExpression(pin) === "" ? [] : [...new Set((pin.licenses ?? []).map((entry) => entry.spdx))],
-    policies: policyRows(pin),
+    policies: policyRows(pin, countedFiles(rawDir, pin)),
+    totalFiles: countedFiles(rawDir, pin).length,
     fetched: !pin.kept,
     ...(pin.kept ? { keptReason: pin.keptReason } : {}),
     transformations: [...provenance.transformations],
@@ -335,7 +342,7 @@ async function vendorProvenanceOf(): Promise<Readonly<Record<string, VendorProve
     ids.map((id): readonly [string, VendorProvenance] => {
       const pin = readPin(vendorDir, id);
       if (pin === undefined) throw new Error(`assets/vendor/${id}: no vendor.json pin`);
-      return [id, provenanceOfPin(pin, `assets/vendor/${id}/vendor.json`)];
+      return [id, provenanceOfPin(pin, `assets/vendor/${id}/vendor.json`, rawOf(id).dir)];
     }),
   );
 }
@@ -358,12 +365,13 @@ async function vendorCreditsOf(): Promise<Readonly<Record<string, VendorCreditRe
       const where = `assets/vendor/${id}/CREDIT.md`;
       const line = vendorCreditLine(parseCredit(await readFile(join(vendorDir, id, "CREDIT.md"), "utf8"), where), where);
       const pin = readPin(vendorDir, id);
+      if (pin === undefined) throw new Error(`assets/vendor/${id}: no vendor.json pin`);
       return [
         id,
         {
           ...line,
-          ...(pin === undefined || pin.kept ? {} : { commit: pin.sources[0]?.commit }),
-          licenseId: pin === undefined ? "NOASSERTION" : licenseExpression(pin),
+          sources: pin.kept ? [] : pin.sources.map((source) => ({ repo: source.source, commit: source.commit })),
+          licenseId: licenseExpression(pin),
         },
       ];
     }),

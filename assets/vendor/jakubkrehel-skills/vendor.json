@@ -28,7 +28,7 @@
         "README.md",
         "LICENSE"
       ],
-      "reason": "A subset of upstream, kept as published: the skills, the readme and the license."
+      "reason": "A subset of upstream: the published skills, the readme and the license; the site is not vendored."
     }
   ],
   "vendoredOn": "2026-08",

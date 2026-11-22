@@ -49,7 +49,7 @@ export type LicenseEntry = z.infer<typeof licenseEntrySchema>;
 /** One change a folder makes to upstream: paths kept as published, paths left out, or a file edited after vendoring. */
 const transformationSchema = z
   .strictObject({
-    kind: z.enum(["exclude", "include", "overlay"]),
+    kind: z.enum(["exclude", "include", "layout", "overlay"]),
     paths: z.array(globText).min(1),
     reason: z.string().min(1),
   })

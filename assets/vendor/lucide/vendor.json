@@ -120,7 +120,7 @@
         "icons/*.svg",
         "LICENSE"
       ],
-      "reason": "A subset of upstream, kept as published: the icon SVGs and the license."
+      "reason": "A subset of upstream: the published icon SVGs and the license; the repository's site, docs and tooling are not vendored."
     }
   ],
   "vendoredOn": "2026-08",

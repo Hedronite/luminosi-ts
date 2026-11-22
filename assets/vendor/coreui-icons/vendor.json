@@ -34,7 +34,7 @@
         "README.md",
         "LICENSE"
       ],
-      "reason": "A subset of upstream, kept as published: the free SVG set, its readme and its license."
+      "reason": "A subset of upstream: the published free icons, the readme and the license; the build and demo code are not vendored."
     }
   ],
   "vendoredOn": "2026-08",

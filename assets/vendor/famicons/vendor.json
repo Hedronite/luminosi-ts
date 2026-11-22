@@ -28,7 +28,7 @@
         "readme.md",
         "LICENSE"
       ],
-      "reason": "A subset of upstream, kept as published: the SVGs, the readme and the license."
+      "reason": "A subset of upstream: the published SVGs, the readme and the license; the generator and demos are not vendored."
     }
   ],
   "vendoredOn": "2026-08",

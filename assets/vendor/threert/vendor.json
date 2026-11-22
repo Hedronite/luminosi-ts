@@ -63,12 +63,24 @@
     {
       "kind": "exclude",
       "paths": [
-        "site/",
-        "showcase/showroom/assets/*.glb",
+        "site/"
+      ],
+      "reason": "Valve map media: the site ships a game's map assets, which are not ours to copy."
+    },
+    {
+      "kind": "exclude",
+      "paths": [
+        "showcase/showroom/assets/*.glb"
+      ],
+      "reason": "CC BY models without per-model attribution: the models are left out rather than credited wrongly."
+    },
+    {
+      "kind": "exclude",
+      "paths": [
         ".github/",
         ".claude/"
       ],
-      "reason": "The website, the showcase's glTF models, the harness folders and GitHub configuration are left out; the engine, its packages and the docs are kept."
+      "reason": "Tooling folders: CI and assistant configuration that the folder does not use."
     }
   ],
   "vendoredOn": "2026-11-16",

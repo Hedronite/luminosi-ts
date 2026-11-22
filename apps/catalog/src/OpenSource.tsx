@@ -170,18 +170,15 @@ function Folder({ entry, go, onBrowsePack, onOpenAsset }: { readonly entry: Vend
         {provenance === undefined ? null : (
           <>
             <dt className="text-fg-muted">License id</dt>
-            <dd data-testid="folder-license-id">{provenance.license}</dd>
+            <dd data-testid="folder-license-id">
+              {provenance.license} · {String(provenance.totalFiles)} files
+            </dd>
             <dt className="text-fg-muted">Policy</dt>
             <dd>
               <ul data-testid="folder-policies" className="flex flex-col gap-0.5">
                 {provenance.policies.map((policy) => (
                   <li key={`${policy.class}:${policy.spdx}`}>
-                    {policyTitles[policy.class]} · {policy.spdx}
-                    {policy.files.length === 0 ? (
-                      <span className="text-fg-muted"> (every path no other row names)</span>
-                    ) : (
-                      <span className="font-mono text-xs text-fg-muted"> ({policy.files.join(", ")})</span>
-                    )}
+                    {policyTitles[policy.class]} · {policy.spdx} · {String(policy.fileCount)} {policy.fileCount === 1 ? "file" : "files"}
                   </li>
                 ))}
               </ul>
@@ -210,7 +207,7 @@ function Folder({ entry, go, onBrowsePack, onOpenAsset }: { readonly entry: Vend
                 <ul className="flex flex-col gap-0.5">
                   {provenance.transformations.map((change) => (
                     <li key={`${change.kind}:${change.paths.join(",")}`}>
-                      <span className="font-mono text-xs">{change.kind}</span> {change.paths.join(", ")} — {change.reason}
+                      <span className="font-mono text-xs">{change.kind}</span> — {change.reason}
                     </li>
                   ))}
                 </ul>

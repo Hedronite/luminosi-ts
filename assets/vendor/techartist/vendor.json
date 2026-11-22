@@ -26,7 +26,17 @@
     }
   ],
   "license": "MIT",
-  "transformations": [],
+  "transformations": [
+    {
+      "kind": "layout",
+      "paths": [
+        "bioluminescence",
+        "geometry-in-flux",
+        "threejs-3d-webpage"
+      ],
+      "reason": "Three repositories laid out as three subfolders of one folder, each under its source's name."
+    }
+  ],
   "vendoredOn": "2026-08-21",
   "reviewer": "VirtualMachinist"
 }

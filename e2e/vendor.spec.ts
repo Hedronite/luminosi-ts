@@ -46,10 +46,13 @@ test("the CRT screen effect credits ThreeUI", async ({ page }) => {
 test("a fetched folder shows its pin: commit link, license id, class, changes, and that it is fetched", async ({ page }) => {
   await page.goto("/?view=open-source&set=coreui-icons");
   const credit = page.getByTestId("folder-credit");
-  await expect(page.getByTestId("folder-license-id")).toHaveText("CC-BY-4.0 AND MIT");
+  await expect(page.getByTestId("folder-license-id")).toContainText("CC-BY-4.0 AND MIT");
   await expect(page.getByTestId("folder-policies")).toContainText("adoptable with attribution");
-  await expect(page.getByTestId("folder-policies")).toContainText("CC-BY-4.0");
-  await expect(page.getByTestId("folder-transformations")).toContainText("svg/free/*.svg");
+  await expect(page.getByTestId("folder-policies")).toContainText("CC-BY-4.0 · 562 files");
+  await expect(page.getByTestId("folder-policies")).toContainText("MIT · 1 file");
+  await expect(page.getByTestId("folder-license-id")).toContainText("563 files");
+  await expect(page.getByTestId("folder-transformations")).toContainText("include");
+  await expect(page.getByTestId("folder-transformations")).toContainText("the build and demo code");
   await expect(page.getByTestId("folder-vendored")).toContainText("Fetched by pin");
   // The commit link is upstream at that commit, never a branch.
   const source = page.getByTestId("folder-sources").getByRole("link");
@@ -61,6 +64,7 @@ test("the kept folder says it is kept, and names no repository", async ({ page }
   await expect(page.getByTestId("folder-vendored")).toContainText("Kept in the repo");
   await expect(page.getByTestId("folder-sources")).toContainText("No repository");
   await expect(page.getByTestId("folder-sources")).toContainText("isocons.app");
+  await expect(page.getByTestId("folder-license-id")).toContainText("6037 files");
   await expect(page.getByTestId("folder-sources").getByRole("link")).toHaveCount(0);
 });
 test("a folder with several repositories links each one at its own commit", async ({ page }) => {
@@ -70,6 +74,9 @@ test("a folder with several repositories links each one at its own commit", asyn
   await expect(links.filter({ hasText: "geometry-in-flux" })).toHaveAttribute("href", "https://github.com/iamtechartist/geometry-in-flux/tree/da187f6316c7ee18b8f1b60bbb5363be2aec40c2");
   await expect(links.filter({ hasText: "bioluminescence" })).toHaveAttribute("href", "https://github.com/iamtechartist/bioluminescence/tree/2dc70cfd855704c1a8385f606e82f41505fdd5e9");
   await expect(links.filter({ hasText: "Threejs-3D-Webpage" })).toHaveAttribute("href", "https://github.com/iamtechartist/Threejs-3D-Webpage/tree/d827a2a409abc44ff35b4965e3d3aadfbe66278a");
+  // Three repositories laid out as three subfolders of one: the layout is a transformation of its own.
+  await expect(page.getByTestId("folder-transformations")).toContainText("layout");
+  await expect(page.getByTestId("folder-transformations")).toContainText("Three repositories laid out as three subfolders");
 });
 test("a ported asset carries its origin's commit, license and changes under its folder", async ({ page }) => {
   await page.goto("/?view=open-source&set=codevember-2026");
