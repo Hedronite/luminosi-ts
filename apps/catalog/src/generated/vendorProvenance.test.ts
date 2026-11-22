@@ -51,7 +51,7 @@ function matches(pattern: string, path: string): boolean {
 function rawFiles(folder: string, pin: Pin): readonly string[] {
   const dir = pin.kept ? join(vendorDir, folder) : join(cacheDir, folder);
   if (!existsSync(dir)) throw new Error(`assets/vendor/${folder}'s raw files are not fetched: run \`bun run vendor:fetch ${folder}\``);
-  return readdirSync(dir, { recursive: true })
+  return readdirSync(dir, { recursive: true, encoding: "utf8" })
     .map((path) => path.split("\\").join("/"))
     .filter((path) => statSync(join(dir, path)).isFile());
 }
