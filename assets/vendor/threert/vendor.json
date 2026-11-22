@@ -57,5 +57,32 @@
       "spdx": "MIT",
       "remainder": true
     }
-  ]
+  ],
+  "license": "CC0-1.0 AND LicenseRef-PublicDomain AND LicenseRef-ThirdPartyScreenshots AND (MIT OR Apache-2.0) AND Apache-2.0 AND MIT",
+  "transformations": [
+    {
+      "kind": "exclude",
+      "paths": [
+        "site/"
+      ],
+      "reason": "Valve map media: the site ships a game's map assets, which are not ours to copy."
+    },
+    {
+      "kind": "exclude",
+      "paths": [
+        "showcase/showroom/assets/*.glb"
+      ],
+      "reason": "CC BY models without per-model attribution: the models are left out rather than credited wrongly."
+    },
+    {
+      "kind": "exclude",
+      "paths": [
+        ".github/",
+        ".claude/"
+      ],
+      "reason": "Tooling folders: CI and assistant configuration that the folder does not use."
+    }
+  ],
+  "vendoredOn": "2026-11-16",
+  "reviewer": "VirtualMachinist"
 }

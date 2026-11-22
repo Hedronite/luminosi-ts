@@ -24,5 +24,25 @@
       "spdx": "MIT",
       "remainder": true
     }
-  ]
+  ],
+  "license": "LicenseRef-PublicDomain AND MIT",
+  "transformations": [
+    {
+      "kind": "exclude",
+      "paths": [
+        "08/public/logos/"
+      ],
+      "reason": "Third-party trademarks: logos of other products, left out rather than copied."
+    },
+    {
+      "kind": "exclude",
+      "paths": [
+        ".github/",
+        ".claude/"
+      ],
+      "reason": "Tooling folders: CI and assistant configuration that the folder does not use."
+    }
+  ],
+  "vendoredOn": "2026-11-16",
+  "reviewer": "VirtualMachinist"
 }

@@ -2,6 +2,8 @@
 // says which license covers which paths; this table says what each license permits; `lumin adopt` and `lumin adopt-skill` refuse what it forbids.
 import { matchesGlob, type LicenseEntry, type Pin } from "./pin.js";
 
+export { matchesGlob };
+
 export type PolicyClass = "adopt" | "adopt-with-attribution" | "showcase-only" | "forbidden";
 
 export interface PolicyEntry {

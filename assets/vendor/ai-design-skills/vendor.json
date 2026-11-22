@@ -18,5 +18,19 @@
       "spdx": "MIT",
       "remainder": true
     }
-  ]
+  ],
+  "license": "MIT",
+  "transformations": [
+    {
+      "kind": "include",
+      "paths": [
+        "skills/landing-page-design/**",
+        "README.md",
+        "LICENSE"
+      ],
+      "reason": "A subset of upstream: only the published skill, its readme and its license; the repository's site and tooling are not vendored."
+    }
+  ],
+  "vendoredOn": "2026-11-15",
+  "reviewer": "VirtualMachinist"
 }

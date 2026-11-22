@@ -22,5 +22,23 @@
       "spdx": "MIT",
       "remainder": true
     }
-  ]
+  ],
+  "license": "MIT",
+  "transformations": [
+    {
+      "kind": "include",
+      "paths": [
+        "packages/duotone/src/**",
+        "packages/editor/src/**",
+        "packages/light/src/**",
+        "packages/regular/src/**",
+        "packages/solid/src/**",
+        "readme.md",
+        "LICENSE"
+      ],
+      "reason": "A subset of upstream: five published style packages, the readme and the license; the rest of the monorepo is not vendored."
+    }
+  ],
+  "vendoredOn": "2026-08",
+  "reviewer": "VirtualMachinist"
 }

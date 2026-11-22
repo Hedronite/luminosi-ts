@@ -46,6 +46,54 @@ const licenseEntrySchema = z
   })
   .refine((entry) => (entry.paths === undefined) !== (entry.remainder === undefined), "an entry names `paths` or is the `remainder`, not both and not neither");
 export type LicenseEntry = z.infer<typeof licenseEntrySchema>;
+/** One change a folder makes to upstream: paths kept as published, paths left out, or a file edited after vendoring. */
+const transformationSchema = z
+  .strictObject({
+    kind: z.enum(["exclude", "include", "layout", "overlay"]),
+    paths: z.array(globText).min(1),
+    reason: z.string().min(1),
+  })
+  .readonly();
+export type PinTransformation = z.infer<typeof transformationSchema>;
+/** Where a folder came from and who vouched for it, beside what it holds. */
+const provenanceFields = {
+  /** The folder's license as one SPDX expression (distinct ids joined with AND). */
+  license: z.string().min(1).optional(),
+  transformations: z.array(transformationSchema).optional(),
+  /** YYYY-MM, or YYYY-MM-DD where the folder's CREDIT.md gives the day. */
+  vendoredOn: z
+    .string()
+    .regex(/^\d{4}-\d{2}(?:-\d{2})?$/, "YYYY-MM or YYYY-MM-DD")
+    .optional(),
+  reviewer: z
+    .string()
+    .regex(/^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9]))*$/, "a GitHub login")
+    .optional(),
+};
+/** What a pin says of where a folder came from: all four fields, as every real pin carries them. */
+export interface Provenance {
+  readonly license: string;
+  readonly transformations: readonly PinTransformation[];
+  readonly vendoredOn: string;
+  readonly reviewer: string;
+}
+/**
+ * A pin's provenance, insisting it is all there. The schema allows a pin without it (the resolver and the fetch read
+ * pins that predate provenance), but the generator and the check call this, so a folder missing any of the four fails.
+ */
+export function provenanceOf(pin: Pin, where: string): Provenance {
+  const missing = (["license", "transformations", "vendoredOn", "reviewer"] as const).filter((field) => pin[field] === undefined);
+  if (missing.length > 0) throw new Error(`${where}: no ${missing.join(", ")}`);
+  if (pin.license === undefined || pin.transformations === undefined || pin.vendoredOn === undefined || pin.reviewer === undefined) {
+    throw new Error(`${where}: incomplete provenance`);
+  }
+  return {
+    license: pin.license,
+    transformations: pin.transformations,
+    vendoredOn: pin.vendoredOn,
+    reviewer: pin.reviewer,
+  };
+}
 
 const fetchable = z
   .strictObject({
@@ -56,6 +104,7 @@ const fetchable = z
     overlay: z.array(relativePath).min(1).optional(),
     contentHash: sha256Hex,
     licenses: z.array(licenseEntrySchema).min(1).optional(),
+    ...provenanceFields,
   })
   .superRefine((pin, context) => {
     if (pin.sources.length === 1) return;
@@ -75,6 +124,7 @@ const kept = z.strictObject({
   version: z.string().min(1).optional(),
   contentHash: sha256Hex,
   licenses: z.array(licenseEntrySchema).min(1).optional(),
+  ...provenanceFields,
 });
 
 export const pinSchema = z.discriminatedUnion("kept", [fetchable, kept]);

@@ -6,13 +6,17 @@
 import { copyFile, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { verifyFolder } from "./fetch.js";
-import { firstUrl, humanize, parseCredit, parseDemoReadme, parseFrontMatter, sourcePins, vendorCreditLine, type Credit, type VendorCreditLine } from "./parse.js";
-import { digestOf, readPin, type Pin } from "./pin.js";
+import { firstUrl, humanize, parseCredit, parseDemoReadme, parseFrontMatter, sourcePins, vendorCreditLine, type Credit } from "./parse.js";
+import { digestOf, filesUnder, hashed, matchesGlob, provenanceOf, readPin, type Pin } from "./pin.js";
+import { classify } from "./policy.js";
 import { cacheDirFor, resolveVendor } from "./resolve.js";
+import type { PolicyClass, VendorCredit, VendorCreditRecord, VendorProvenance } from "@hedronite/lts-core";
 
 const root = resolve(import.meta.dirname, "../../..");
 const vendorDir = join(root, "assets/vendor");
 const outFile = join(root, "apps/catalog/src/generated/vendor.ts");
+/** Where each folder came from and what was changed: what the Open source view shows of it (G5). */
+const provenanceFile = join(root, "apps/catalog/src/generated/vendorProvenance.ts");
 /** Each folder's credit, in the core package: the credit data a scene's code carries, so it never reads assets/vendor. */
 const creditsFile = join(root, "packages/core/src/generated/vendorCredits.ts");
 /** Each folder's pages in their own module, so the catalog loads one folder's Markdown at a time. */
@@ -207,6 +211,7 @@ async function entries() {
       const credit = parseCredit(await readFile(join(dir, "CREDIT.md"), "utf8"), where);
       const pin = readPin(vendorDir, id);
       if (pin === undefined) throw new Error(`assets/vendor/${id}: no vendor.json pin`);
+      provenanceOf(pin, `assets/vendor/${id}/vendor.json`);
       const disagreements = creditProblems(id, pin, credit);
       if (disagreements.length > 0) throw new Error(disagreements.join("; "));
       const raw = rawOf(id);
@@ -293,34 +298,117 @@ function renderPages(entry: Entry): string {
   ].join("\n");
 }
 
-/** The credit of every vendored folder, by folder id, in the order of the ids. */
-async function vendorCreditsOf(): Promise<Readonly<Record<string, VendorCreditLine>>> {
+const CLASS_ORDER: readonly PolicyClass[] = ["adopt", "adopt-with-attribution", "showcase-only", "forbidden"];
+/** A pin's distinct license ids, as one SPDX expression: several ids apply to different parts, so they are ANDed. */
+const licenseExpression = (pin: Pin): string =>
+  [...new Set((pin.licenses ?? []).map((entry) => (entry.spdx.includes(" ") ? `(${entry.spdx})` : entry.spdx)))].join(" AND ");
+/** The classes a folder's licenses come to, one row per class and license, most permissive first. */
+/** The files a pin's hash covers in a folder's raw copy: what its licenses are counted over. */
+const countedFiles = (rawDir: string, pin: Pin): readonly string[] => filesUnder(rawDir).filter((path) => hashed(path, pin.kept));
+/** The classes and counts a folder's licenses come to, one row per class and license, most permissive first. */
+function policyRows(pin: Pin, files: readonly string[]): readonly VendorProvenance["policies"][number][] {
+  const rows = (pin.licenses ?? []).map((entry) => {
+    const paths = entry.paths ?? [];
+    const fileCount =
+      entry.remainder === true ? 0 : files.filter((file) => paths.some((pattern) => matchesGlob(pattern, file))).length;
+    return { class: classify(entry.spdx).class, spdx: entry.spdx, files: paths, fileCount };
+  });
+  const named = rows.reduce((sum, row) => sum + row.fileCount, 0);
+  for (const row of rows) if (row.files.length === 0) row.fileCount = files.length - named;
+  return rows.sort(
+    (a, b) => CLASS_ORDER.indexOf(a.class) - CLASS_ORDER.indexOf(b.class) || a.spdx.localeCompare(b.spdx),
+  );
+}
+/** Where a folder came from and what was done to it, as its pin and its folder state them. */
+function provenanceOfPin(pin: Pin, where: string, rawDir: string): VendorProvenance {
+  const provenance = provenanceOf(pin, where);
+  return {
+    license: provenance.license,
+    licenseIds: licenseExpression(pin) === "" ? [] : [...new Set((pin.licenses ?? []).map((entry) => entry.spdx))],
+    policies: policyRows(pin, countedFiles(rawDir, pin)),
+    totalFiles: countedFiles(rawDir, pin).length,
+    fetched: !pin.kept,
+    ...(pin.kept ? { keptReason: pin.keptReason } : {}),
+    transformations: [...provenance.transformations],
+    sources: pin.kept ? [] : pin.sources.map((source) => ({ repo: source.source, commit: source.commit })),
+    vendoredOn: provenance.vendoredOn,
+    reviewer: provenance.reviewer,
+  };
+}
+/** The provenance of every vendored folder, by folder id, in the order of the ids. */
+async function vendorProvenanceOf(): Promise<Readonly<Record<string, VendorProvenance>>> {
+  const ids = (await readdir(vendorDir, { withFileTypes: true })).filter((e) => e.isDirectory()).map((e) => e.name).sort();
+  return Object.fromEntries(
+    ids.map((id): readonly [string, VendorProvenance] => {
+      const pin = readPin(vendorDir, id);
+      if (pin === undefined) throw new Error(`assets/vendor/${id}: no vendor.json pin`);
+      return [id, provenanceOfPin(pin, `assets/vendor/${id}/vendor.json`, rawOf(id).dir)];
+    }),
+  );
+}
+/** The provenance module: where each folder came from, what its licenses are and what was changed. */
+function renderProvenance(provenance: Readonly<Record<string, VendorProvenance>>): string {
+  return [
+    "// Generated by tools/vendor from the pins of assets/vendor. Do not edit; run `bun run vendor`.",
+    "// Where each folder came from, its licenses and classes, its transformations and its sources.",
+    'import type { VendorProvenance } from "@hedronite/lts-core";',
+    "",
+    `export const vendorProvenance: Readonly<Record<string, VendorProvenance>> = ${JSON.stringify(provenance, null, 2)};`,
+    "",
+  ].join("\n");
+}
+/** The credit of every vendored folder, by folder id, in the order of the ids, with its pin's commit and license id. */
+async function vendorCreditsOf(): Promise<Readonly<Record<string, VendorCreditRecord>>> {
   const ids = (await readdir(vendorDir, { withFileTypes: true })).filter((e) => e.isDirectory()).map((e) => e.name).sort();
   const lines = await Promise.all(
-    ids.map(async (id): Promise<readonly [string, VendorCreditLine]> => {
+    ids.map(async (id): Promise<readonly [string, VendorCreditRecord]> => {
       const where = `assets/vendor/${id}/CREDIT.md`;
-      return [id, vendorCreditLine(parseCredit(await readFile(join(vendorDir, id, "CREDIT.md"), "utf8"), where), where)];
+      const line = vendorCreditLine(parseCredit(await readFile(join(vendorDir, id, "CREDIT.md"), "utf8"), where), where);
+      const pin = readPin(vendorDir, id);
+      if (pin === undefined) throw new Error(`assets/vendor/${id}: no vendor.json pin`);
+      return [
+        id,
+        {
+          ...line,
+          sources: pin.kept ? [] : pin.sources.map((source) => ({ repo: source.source, commit: source.commit })),
+          licenseId: licenseExpression(pin),
+        },
+      ];
     }),
   );
   return Object.fromEntries(lines);
 }
 
-/** The credits module: one `VendorCredit` per folder, from its CREDIT.md. */
-function renderCredits(credits: Readonly<Record<string, VendorCreditLine>>): string {
+/** The credits module: each folder's credit as its CREDIT.md states it, and the record with the pin's commit and license id. */
+function renderCredits(credits: Readonly<Record<string, VendorCreditRecord>>): string {
+  const plain = Object.fromEntries(
+    Object.entries(credits).map(([id, record]): [string, VendorCredit] => {
+      const { work, source, pin, license, licenseUrl, credit } = record;
+      return [id, { work, source, pin, license, ...(licenseUrl === undefined ? {} : { licenseUrl }), credit }];
+    }),
+  );
   return [
-    "// Generated by tools/vendor from the CREDIT.md of each vendored folder. Do not edit; run `bun run vendor`.",
+    "// Generated by tools/vendor from the CREDIT.md of each vendored folder and its pin. Do not edit; run `bun run vendor`.",
     "// The credit of each vendored folder, by folder id, so a scene's code can carry it without reading the vendor tree.",
-    'import type { VendorCredit } from "../credits.js";',
+    "// `vendorCreditRecords` is the same with the pin's commit and the folder's license id, for the Open source view.",
+    'import type { VendorCredit, VendorCreditRecord } from "../credits.js";',
     "",
-    `export const vendorCredits: Readonly<Record<string, VendorCredit>> = ${JSON.stringify(credits, null, 2)};`,
+    `export const vendorCredits: Readonly<Record<string, VendorCredit>> = ${JSON.stringify(plain, null, 2)};`,
+    "",
+    `export const vendorCreditRecords: Readonly<Record<string, VendorCreditRecord>> = ${JSON.stringify(credits, null, 2)};`,
     "",
   ].join("\n");
 }
 
 /** Every generated file: path → content. */
-function renderAll(all: readonly Entry[], credits: Readonly<Record<string, VendorCreditLine>>): ReadonlyMap<string, string> {
+function renderAll(
+  all: readonly Entry[],
+  credits: Readonly<Record<string, VendorCreditRecord>>,
+  provenance: Readonly<Record<string, VendorProvenance>>,
+): ReadonlyMap<string, string> {
   return new Map([
     [outFile, renderIndex(all)],
+    [provenanceFile, renderProvenance(provenance)],
     [creditsFile, renderCredits(credits)],
     ...all.filter((entry) => pagesOf(entry).length > 0).map((entry): [string, string] => [join(pagesDir, `${entry.id}.ts`), renderPages(entry)]),
   ]);
@@ -335,7 +423,7 @@ const [command = ""] = process.argv.slice(2);
 if (command === "generate" || command === "check") {
   let files: ReadonlyMap<string, string>;
   try {
-    files = renderAll(await entries(), await vendorCreditsOf());
+    files = renderAll(await entries(), await vendorCreditsOf(), await vendorProvenanceOf());
   } catch (error: unknown) {
     console.error(error instanceof Error ? error.message : String(error));
     process.exit(1);

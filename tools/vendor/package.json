@@ -21,6 +21,9 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@hedronite/lts-core": "workspace:*",
+    "@hedronite/lts-postfx": "workspace:*",
+    "@hedronite/lts-shaders": "workspace:*",
     "vitest": "catalog:"
   }
 }

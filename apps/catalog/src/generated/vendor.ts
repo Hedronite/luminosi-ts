@@ -64,14 +64,14 @@ export const vendored: readonly VendorEntry[] = [
     "kind": "icons",
     "what": "Lucide icons (1,808 SVGs)",
     "source": "https://github.com/lucide-icons/lucide (`6f56b8f1f665ce64c41506033b66ca67e2bc7724`)",
-    "license": "ISC (`LICENSE`)",
+    "license": "ISC (`LICENSE`); MIT for the Feather-derived icons",
     "credit": "Lucide Icons and contributors",
     "pulled": "2026-08",
     "sourceUrl": "https://github.com/lucide-icons/lucide",
     "repo": "https://github.com/lucide-icons/lucide",
     "packPrefix": "lucide",
     "files": 1810,
-    "bytes": 734190,
+    "bytes": 734225,
     "items": []
   },
   {

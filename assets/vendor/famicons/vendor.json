@@ -18,5 +18,19 @@
       "spdx": "MIT",
       "remainder": true
     }
-  ]
+  ],
+  "license": "MIT",
+  "transformations": [
+    {
+      "kind": "include",
+      "paths": [
+        "src/svg/*.svg",
+        "readme.md",
+        "LICENSE"
+      ],
+      "reason": "A subset of upstream: the published SVGs, the readme and the license; the generator and demos are not vendored."
+    }
+  ],
+  "vendoredOn": "2026-08",
+  "reviewer": "VirtualMachinist"
 }

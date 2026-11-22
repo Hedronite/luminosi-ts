@@ -1,4 +1,4 @@
-import type { OriginRelation } from "@hedronite/lts-core";
+import type { AssetOrigin } from "@hedronite/lts-core";
 import { z } from "zod";
 
 const hex = z.string().regex(/^#[0-9a-f]{6}$/i);
@@ -91,7 +91,7 @@ export interface EffectInfo {
   /** The day it joined the library (YYYY-MM-DD). Default: 2026-11-15, when the first shaders landed. */
   readonly added?: string;
   /** Set when it was ported from open-source work in assets/vendor. */
-  readonly origin?: { readonly vendor: string; readonly relation: OriginRelation; readonly path: string; readonly note: string };
+  readonly origin?: AssetOrigin;
 }
 
 export const effectInfo: Record<EffectId, EffectInfo> = {
@@ -110,6 +110,12 @@ export const effectInfo: Record<EffectId, EffectInfo> = {
       vendor: "codevember-2026",
       relation: "ported",
       path: "07/src/Balloon.tsx",
+      commit: "4df8e67ab6584b3c354f06f0f9ce9a4348f82dbe",
+      license: "MIT",
+      transformations: [
+        "The film was taken out of the balloon scene as a standalone surface shader.",
+        "It was rewritten in TSL, with its thickness swirl and iridescence exposed as parameters.",
+      ],
       note: "The soap film from Hollow's balloon (a thin-film rainbow set by a swirling thickness that thins toward the rim, over a pale sheen) for any surface, without the paint; a key-light glint stands in for its studio map.",
     },
   },
