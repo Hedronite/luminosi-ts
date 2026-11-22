@@ -17,7 +17,12 @@ import { goldenPath } from "./scenes/emitted.js";
 import { roundTrip, type Fixture } from "./scenes/fixtures.js";
 
 const root = join(import.meta.dirname, "..");
-const scratch = mkdtempSync(join(tmpdir(), "lts-render-spec-"));
+// Made before the tests of a worker's turn and removed after them, not once when the file is loaded: a worker that ran one test of this file and is given another
+// later has run the file's afterAll in between (see e2e/hooks.spec.ts).
+let scratch = "";
+test.beforeAll(() => {
+  scratch = mkdtempSync(join(tmpdir(), "lts-render-spec-"));
+});
 test.afterAll(() => {
   rmSync(scratch, { recursive: true, force: true });
 });

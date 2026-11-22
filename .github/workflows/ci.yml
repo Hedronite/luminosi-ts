@@ -155,11 +155,15 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('bun.lock') }}
       - run: bun install --frozen-lockfile
       - run: bun run build
+      # Playwright lists the specs only after a build (they import built packages), so the plan is checked here, once, and not in `static`.
+      - if: matrix.shard == 1
+        run: bun run shards:check
       - if: steps.browsers.outputs.cache-hit != 'true'
         run: bunx playwright install --with-deps chromium
       - if: steps.browsers.outputs.cache-hit == 'true'
         run: bunx playwright install-deps chromium
-      - run: bunx playwright test --shard=${{ matrix.shard }}/6
+      - name: Run this shard's tests (the list is in e2e/shards/plan.json)
+        run: bunx playwright test $(bun e2e/shards/plan.ts args ${{ matrix.shard }})
       - if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -265,7 +269,8 @@ jobs:
         run: bunx playwright install --with-deps chromium
       - if: steps.browsers.outputs.cache-hit == 'true'
         run: bunx playwright install-deps chromium
-      - run: bunx playwright test --shard=${{ matrix.shard }}/6
+      - name: Run this shard's tests (the list is in e2e/shards/plan.json)
+        run: bunx playwright test $(bun e2e/shards/plan.ts args ${{ matrix.shard }})
         env:
           E2E_CATALOG_URL: http://localhost:4180
           E2E_SITE_URL: http://localhost:4181

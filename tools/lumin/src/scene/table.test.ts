@@ -37,7 +37,7 @@ describe("the table", () => {
   it("answers an input that is not its own with a usage envelope, never a throw", async () => {
     for (const operation of operations) {
       // eslint-disable-next-line no-await-in-loop -- one row at a time, so a failure names it
-      expect(await operation.run(7, { resolve: () => undefined, ids: () => [], files: { read: () => ({ ok: false, failure: { kind: "failed", error: "no" } }), write: () => ({ ok: false, failure: { kind: "failed", error: "no" } }) }, stdin: () => Promise.resolve({ ok: false, failure: { kind: "failed", error: "no" } }) })).toMatchObject({ ok: false, kind: "usage", exit: 2, command: `scene ${operation.name}` });
+      expect(await operation.run(7, { resolve: () => undefined, ids: () => [], files: { read: () => ({ ok: false, failure: { kind: "failed", error: "no" } }), write: () => ({ ok: false, failure: { kind: "failed", error: "no" } }), writeBytes: () => ({ ok: false, failure: { kind: "failed", error: "no" } }), exists: () => ({ ok: false, failure: { kind: "failed", error: "no" } }) }, stdin: () => Promise.resolve({ ok: false, failure: { kind: "failed", error: "no" } }) })).toMatchObject({ ok: false, kind: "usage", exit: 2, command: `scene ${operation.name}` });
     }
   });
 });

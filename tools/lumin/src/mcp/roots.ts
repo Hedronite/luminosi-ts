@@ -4,7 +4,7 @@
 // it never echoes the path, and it tells nothing about what lies beyond the roots.
 import { lstatSync, realpathSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, normalize, relative, sep } from "node:path";
-import { diskFiles, type Failure, type Files, type Outcome } from "../scene/io.js";
+import { diskFiles, writeBytesInFolder, type Failure, type Files, type Outcome } from "../scene/io.js";
 
 /** The one answer for a path that is not inside a root: the same words for every such path, and none of the path's. */
 export const NO_ROOT: Failure = { kind: "no_root", error: "that path is not inside a root this server was started with (--root); a path is read and written under a root only" };
@@ -97,6 +97,18 @@ export function rootFiles(roots: readonly string[], allowWrite: boolean): Files 
       if (!allowWrite) return bad(WRITE_NOT_ALLOWED);
       const at = locate(roots, path, "write");
       return at.ok ? diskFiles.write(at.value.real, text, force) : at;
+    },
+    // Judged again at the moment of writing, whatever was judged before: a path that was inside a root when a tool was called and is a link out of it now is `no_root`.
+    // What is opened is then the resolved file, without following a link, so a link put there between the judging and the opening is refused too.
+    writeBytes(path, bytes, force) {
+      if (!allowWrite) return bad(WRITE_NOT_ALLOWED);
+      const at = locate(roots, path, "write");
+      return at.ok ? writeBytesInFolder(at.value.real, bytes, force) : at;
+    },
+    exists(path) {
+      if (!allowWrite) return bad(WRITE_NOT_ALLOWED);
+      const at = locate(roots, path, "write");
+      return at.ok ? diskFiles.exists(at.value.real) : at;
     },
   };
 }

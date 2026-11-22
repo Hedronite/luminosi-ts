@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { creditsFor, decodeScene, type Scene } from "@hedronite/lts-scene";
 import { toCanonicalJson, toTsx, toVanilla } from "@hedronite/lts-scene/emit";
 import fc from "fast-check";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, describe, expect, it } from "vitest";
 import { editsOf, resolve, scenes, sceneOf } from "../../../../packages/scene/src/arbitrary.js";
 import { root } from "../commands.js";
 import type { Envelope } from "../envelope.js";
@@ -16,12 +16,35 @@ import { operationNamed } from "./table.js";
 
 const ctx = await nodeContext();
 const scratch = mkdtempSync(join(tmpdir(), "lts-w7-ops-"));
+
+// The fixtures every test here reads are a copy, kept read-only, so no test can change what the next one reads; each file is hashed once, when this file
+// is loaded, and held to that hash after every test, and the repository's own fixtures are held to theirs.
+const fixtureSource = join(root, "packages/scene/fixtures");
+const fixtureCopy = join(scratch, "fixtures");
+const hashesOf = (dir: string): readonly string[] =>
+  readdirSync(dir, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => join(entry.parentPath, entry.name))
+    .sort()
+    .map((path) => `${path.slice(dir.length)} ${createHash("sha256").update(readFileSync(path)).digest("hex")}`);
+const sourceHashes = hashesOf(fixtureSource);
+cpSync(fixtureSource, fixtureCopy, { recursive: true });
+const copyHashes = hashesOf(fixtureCopy);
+for (const entry of readdirSync(fixtureCopy, { recursive: true, withFileTypes: true })) if (entry.isFile()) chmodSync(join(entry.parentPath, entry.name), 0o444);
+const unchanged = (now: readonly string[], then: readonly string[], what: string): void => {
+  if (now.join("\n") !== then.join("\n")) throw new Error(`${what}: the fixtures are not as they were when this file loaded`);
+};
+afterEach(() => {
+  unchanged(hashesOf(fixtureCopy), copyHashes, "a test changed the fixtures");
+});
 afterAll(() => {
+  const changed = hashesOf(fixtureSource).join("\n") !== sourceHashes.join("\n") || copyHashes.join("\n") !== sourceHashes.join("\n");
   rmSync(scratch, { recursive: true, force: true });
+  if (changed) throw new Error("the repository's fixtures changed, or the copy was not them");
 });
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
-const fixture = (name: string): string => join(root, "packages/scene/fixtures", `${name}.json`);
+const fixture = (name: string): string => join(fixtureCopy, `${name}.json`);
 const textOf = (name: string): string => readFileSync(fixture(name), "utf8");
 const objectOf = (text: string): Record<string, unknown> => {
   const parsed: unknown = JSON.parse(text);
@@ -266,13 +289,8 @@ describe("patch(A, diff(A, B).ops) is B", () => {
 
 describe("patch", () => {
   const hierarchy = fixture("transform-hierarchy");
-  /** A patch, held to leave the fixture every test here shares exactly as it was, whatever it was asked for. */
-  const patched = async (input: Record<string, unknown>): Promise<Envelope> => {
-    const before = sha(hierarchy);
-    const result = await call("patch", input);
-    expect(sha(hierarchy)).toBe(before);
-    return result;
-  };
+  /** A patch. That none leaves a fixture changed is held by the hashes taken when this file loaded, after every test. */
+  const patched = (input: Record<string, unknown>): Promise<Envelope> => call("patch", input);
   const secondNode = (): string => {
     return String(recordsOf(objectOf(textOf("transform-hierarchy"))["nodes"])[1]?.["id"]);
   };
@@ -318,7 +336,8 @@ describe("patch", () => {
     const ops = [{ op: "setInk", ink: "emissive" }];
     const first = await patched( { document: hierarchy, ops, out });
     expect(first).toMatchObject({ ok: true, data: { applied: 1, out } });
-    expect(first.ok && isRecord(first.data) ? first.data : {}).not.toHaveProperty("document");
+    expect(first.ok).toBe(true);
+    expect(data(first)).not.toHaveProperty("document");
     expect(objectOf(readFileSync(out, "utf8"))).toMatchObject({ ink: "emissive" });
     expect(await patched( { document: hierarchy, ops, out })).toMatchObject({ ok: false, kind: "exists" });
     expect(await patched( { document: hierarchy, ops: [{ op: "setInk", ink: "glass" }], out, force: true })).toMatchObject({ ok: true });
@@ -366,7 +385,7 @@ describe("credits", () => {
 
   it("is read-only: it writes nothing", async () => {
     const files: string[] = [];
-    const watching: Context = { ...ctx, files: { read: (path) => ctx.files.read(path), write: (path) => { files.push(path); return { ok: false, failure: { kind: "failed", error: "no" } }; } } };
+    const watching: Context = { ...ctx, files: { read: (path) => ctx.files.read(path), write: (path) => { files.push(path); return { ok: false, failure: { kind: "failed", error: "no" } }; }, writeBytes: (path) => { files.push(path); return { ok: false, failure: { kind: "failed", error: "no" } }; }, exists: () => ({ ok: true, value: false }) } };
     await call("credits", { document: creditedDocument() }, watching);
     expect(files).toEqual([]);
   });
@@ -381,7 +400,12 @@ describe("export", () => {
     const tsx = data(await call("export", { document: fixture("primitives-in-materials"), as: "tsx" }));
     expect(String(tsx["text"])).toContain("PrimitiveMesh");
     expect(tsx["bytes"]).toBe(Buffer.byteLength(String(tsx["text"])));
-    expect(String(data(await call("export", { document: fixture("primitives-in-materials"), as: "vanilla" }))["text"])).toContain("createScene".length > 0 ? "" : "");
+    const vanilla = String(data(await call("export", { document: fixture("primitives-in-materials"), as: "vanilla" }))["text"]);
+    expect(vanilla).toBe(toVanilla(await sceneOfDocument(objectOf(textOf("primitives-in-materials")))));
+    // The module of three's own classes, with no React in it: what makes it the vanilla export and not the TSX.
+    expect(vanilla).toContain("WebGPURenderer");
+    expect(vanilla).toContain("createMaterial");
+    expect(vanilla).not.toMatch(/\breact\b/i);
     const link = String(data(await call("export", { document: fixture("transform-hierarchy"), as: "link" }))["text"]);
     const opened = await decodeScene(link);
     expect(opened.ok && toCanonicalJson(opened.scene)).toBe(textOf("transform-hierarchy"));

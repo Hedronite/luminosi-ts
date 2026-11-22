@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
@@ -115,9 +115,67 @@ describe("writing", () => {
     expect(failureOf(rootFiles(roots, true).write("no-such-folder/new.json", "x", false))).toEqual({ kind: "failed", error: "the folder for that file does not exist" });
   });
 
+  it("does not make a folder for bytes either, new or forced (the command line does; a root's files never)", () => {
+    const files = rootFiles(roots, true);
+    const png = Uint8Array.from([0x89, 0x50, 0x4e, 0x47]);
+    expect(failureOf(files.writeBytes("no-such-folder/new.png", png, false))).toEqual({ kind: "failed", error: "the folder for that file does not exist" });
+    expect(failureOf(files.writeBytes("no-such-folder/deeper/new.png", png, true))).toMatchObject({ kind: "failed" });
+    expect(existsSync(join(root, "no-such-folder"))).toBe(false);
+  });
+
   it("replaces, through a link that stays inside, the file it leads to", () => {
     expect(rootFiles(roots, true).write("link-inside.json", "through", true)).toEqual({ ok: true, value: 7 });
     expect(readFileSync(join(root, "a.json"), "utf8")).toBe("through");
+  });
+});
+
+describe("writing bytes, and looking for a path, under a root", () => {
+  const png = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 1, 2, 3]);
+  const secret = (): string => readFileSync(join(beyond, "secret.json"), "utf8");
+
+  it("writes nothing and looks at nothing without --allow-write", () => {
+    expect(failureOf(rootFiles(roots, false).writeBytes("fresh.png", png, false))).toEqual(WRITE_NOT_ALLOWED);
+    expect(failureOf(rootFiles(roots, false).exists("a.json"))).toEqual(WRITE_NOT_ALLOWED);
+    expect(() => readFileSync(join(root, "fresh.png"))).toThrow();
+  });
+
+  it("makes a new file under a root, refuses one that is there, and replaces it only with force", () => {
+    const files = rootFiles(roots, true);
+    expect(files.writeBytes("docs/new.png", png, false)).toEqual({ ok: true, value: png.length });
+    expect(readFileSync(join(root, "docs/new.png"))).toEqual(Buffer.from(png));
+    expect(failureOf(files.writeBytes("docs/new.png", Uint8Array.from([1]), false))).toMatchObject({ kind: "exists" });
+    expect(files.writeBytes(join(root, "docs/new.png"), Uint8Array.from([1, 2]), true)).toEqual({ ok: true, value: 2 });
+    expect(readFileSync(join(root, "docs/new.png"))).toEqual(Buffer.from([1, 2]));
+  });
+
+  it("refuses a path out of every root, by `..`, through a link to a folder, or through a link to a file, and writes nothing there", () => {
+    const files = rootFiles(roots, true);
+    const paths = ["../beyond/out.png", "link-dir/out.png", "link-file.json", "dangling.json", join(beyond, "out.png")];
+    expect(paths.map((path) => failureOf(files.writeBytes(path, png, true)))).toEqual(paths.map(() => NO_ROOT));
+    expect(paths.map((path) => failureOf(files.writeBytes(path, png, false)))).toEqual(paths.map(() => NO_ROOT));
+    expect(() => readFileSync(join(beyond, "out.png"))).toThrow();
+    expect(secret()).toBe('{"secret":3}');
+  });
+
+  it("judges the path at the moment of writing: a link out of the root put at the path after it was looked at is refused, new or forced", () => {
+    const files = rootFiles(roots, true);
+    for (const force of [false, true]) {
+      const name = force ? "late-forced.png" : "late.png";
+      expect(files.exists(name)).toEqual({ ok: true, value: false });
+      symlinkSync(join(beyond, "secret.json"), join(root, name));
+      expect(failureOf(files.writeBytes(name, png, force))).toEqual(NO_ROOT);
+      expect(secret()).toBe('{"secret":3}');
+      rmSync(join(root, name));
+    }
+  });
+
+  it("looks for a path under a root, and says nothing of one outside it", () => {
+    const files = rootFiles(roots, true);
+    expect(files.exists("a.json")).toEqual({ ok: true, value: true });
+    expect(files.exists("docs/none.png")).toEqual({ ok: true, value: false });
+    expect(failureOf(files.exists("../beyond/secret.json"))).toEqual(NO_ROOT);
+    expect(failureOf(files.exists("link-file.json"))).toEqual(NO_ROOT);
+    expect(failureOf(files.exists("no-such-folder/x.png"))).toEqual({ kind: "failed", error: "the folder for that file does not exist" });
   });
 });
 
