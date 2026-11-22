@@ -54,120 +54,142 @@
         "5": 174,
         "6": 156
       }
+    },
+    {
+      "run": "44955494532",
+      "shardSeconds": {
+        "1": 186,
+        "2": 84,
+        "3": 282,
+        "4": 306,
+        "5": 204,
+        "6": 114
+      }
+    },
+    {
+      "run": "44956788190",
+      "shardSeconds": {
+        "1": 120,
+        "2": 78,
+        "3": 210,
+        "4": 234,
+        "5": 180,
+        "6": 120
+      }
     }
   ],
   "locations": {
     "e2e/a11y.spec.ts:156": {
       "seconds": 58,
-      "runs": 5
+      "runs": 7
     },
     "e2e/a11y.spec.ts:190": {
       "seconds": 11.1,
-      "runs": 5
+      "runs": 7
     },
     "e2e/a11y.spec.ts:212": {
       "seconds": 7.6,
-      "runs": 5
+      "runs": 7
     },
     "e2e/a11y.spec.ts:249": {
       "seconds": 8.9,
-      "runs": 5
+      "runs": 7
     },
     "e2e/a11y.spec.ts:277": {
       "seconds": 43.1,
-      "runs": 5
+      "runs": 7
     },
     "e2e/a11y.spec.ts:326": {
       "seconds": 32.3,
-      "runs": 5
+      "runs": 7
     },
     "e2e/a11y.spec.ts:362": {
       "seconds": 25.2,
-      "runs": 5
+      "runs": 7
     },
     "e2e/a11y.spec.ts:384": {
       "seconds": 59.4,
-      "runs": 5
+      "runs": 7
     },
     "e2e/a11y.spec.ts:410": {
       "seconds": 15.3,
-      "runs": 5
+      "runs": 7
     },
     "e2e/a11y.spec.ts:417": {
       "seconds": 5.4,
-      "runs": 5
+      "runs": 7
     },
     "e2e/catalog.spec.ts:118": {
       "seconds": 2.4,
-      "runs": 5
+      "runs": 7
     },
     "e2e/catalog.spec.ts:133": {
       "seconds": 4.9,
-      "runs": 5
+      "runs": 7
     },
     "e2e/catalog.spec.ts:157": {
       "seconds": 0.3,
-      "runs": 5
+      "runs": 7
     },
     "e2e/catalog.spec.ts:163": {
       "seconds": 3.2,
-      "runs": 5
+      "runs": 7
     },
     "e2e/catalog.spec.ts:172": {
-      "seconds": 2.2,
-      "runs": 5
+      "seconds": 2.6,
+      "runs": 7
     },
     "e2e/catalog.spec.ts:182": {
       "seconds": 0.4,
-      "runs": 5
+      "runs": 7
     },
     "e2e/catalog.spec.ts:192": {
-      "seconds": 2.1,
-      "runs": 5
+      "seconds": 2.9,
+      "runs": 7
     },
     "e2e/catalog.spec.ts:21": {
       "seconds": 0.7,
-      "runs": 5
+      "runs": 7
     },
     "e2e/catalog.spec.ts:211": {
-      "seconds": 3.8,
-      "runs": 5
+      "seconds": 3.1,
+      "runs": 7
     },
     "e2e/catalog.spec.ts:223": {
       "seconds": 2.5,
-      "runs": 5
+      "runs": 7
     },
     "e2e/catalog.spec.ts:231": {
-      "seconds": 8.8,
-      "runs": 5
+      "seconds": 11.6,
+      "runs": 7
     },
     "e2e/catalog.spec.ts:264": {
-      "seconds": 22.5,
-      "runs": 5
+      "seconds": 27.3,
+      "runs": 7
     },
     "e2e/catalog.spec.ts:287": {
-      "seconds": 19,
-      "runs": 5
+      "seconds": 22,
+      "runs": 7
     },
     "e2e/catalog.spec.ts:302": {
       "seconds": 5.6,
-      "runs": 5
+      "runs": 7
     },
     "e2e/catalog.spec.ts:311": {
-      "seconds": 1.5,
-      "runs": 5
+      "seconds": 2.4,
+      "runs": 7
     },
     "e2e/catalog.spec.ts:319": {
-      "seconds": 4.3,
-      "runs": 5
+      "seconds": 5.8,
+      "runs": 7
     },
     "e2e/catalog.spec.ts:32": {
       "seconds": 0.5,
-      "runs": 5
+      "runs": 7
     },
     "e2e/catalog.spec.ts:371": {
-      "seconds": 2.5,
-      "runs": 5
+      "seconds": 4.3,
+      "runs": 7
     },
     "e2e/catalog.spec.ts:383": {
       "seconds": 0.5,
@@ -182,8 +204,8 @@
       "runs": 5
     },
     "e2e/catalog.spec.ts:41": {
-      "seconds": 0.5,
-      "runs": 5
+      "seconds": 0.6,
+      "runs": 7
     },
     "e2e/catalog.spec.ts:419": {
       "seconds": 1.8,
@@ -197,6 +219,10 @@
       "seconds": 3.2,
       "runs": 5
     },
+    "e2e/catalog.spec.ts:462": {
+      "seconds": 0.8,
+      "runs": 2
+    },
     "e2e/catalog.spec.ts:466": {
       "seconds": 0.3,
       "runs": 5
@@ -205,393 +231,429 @@
       "seconds": 0.6,
       "runs": 5
     },
+    "e2e/catalog.spec.ts:474": {
+      "seconds": 4.3,
+      "runs": 2
+    },
     "e2e/catalog.spec.ts:48": {
       "seconds": 0.8,
-      "runs": 5
+      "runs": 7
+    },
+    "e2e/catalog.spec.ts:480": {
+      "seconds": 17.6,
+      "runs": 2
     },
     "e2e/catalog.spec.ts:489": {
       "seconds": 28.8,
       "runs": 5
     },
+    "e2e/catalog.spec.ts:497": {
+      "seconds": 1.8,
+      "runs": 2
+    },
+    "e2e/catalog.spec.ts:510": {
+      "seconds": 2.1,
+      "runs": 2
+    },
+    "e2e/catalog.spec.ts:532": {
+      "seconds": 0.9,
+      "runs": 2
+    },
+    "e2e/catalog.spec.ts:543": {
+      "seconds": 3.6,
+      "runs": 2
+    },
+    "e2e/catalog.spec.ts:557": {
+      "seconds": 0.2,
+      "runs": 2
+    },
+    "e2e/catalog.spec.ts:563": {
+      "seconds": 0.9,
+      "runs": 2
+    },
+    "e2e/catalog.spec.ts:580": {
+      "seconds": 38.2,
+      "runs": 2
+    },
     "e2e/effects.spec.ts:104": {
-      "seconds": 79.7,
-      "runs": 5
+      "seconds": 82,
+      "runs": 7
     },
     "e2e/effects.spec.ts:125": {
-      "seconds": 16.4,
-      "runs": 5
+      "seconds": 17.6,
+      "runs": 7
     },
     "e2e/effects.spec.ts:14": {
       "seconds": 21,
-      "runs": 5
+      "runs": 7
     },
     "e2e/effects.spec.ts:142": {
       "seconds": 18.8,
-      "runs": 5
+      "runs": 7
     },
     "e2e/effects.spec.ts:153": {
       "seconds": 28.3,
-      "runs": 5
+      "runs": 7
     },
     "e2e/effects.spec.ts:168": {
-      "seconds": 20.3,
-      "runs": 5
+      "seconds": 21.8,
+      "runs": 7
     },
     "e2e/effects.spec.ts:189": {
       "seconds": 16.6,
-      "runs": 5
+      "runs": 7
     },
     "e2e/effects.spec.ts:227": {
-      "seconds": 37.1,
-      "runs": 5
+      "seconds": 44.2,
+      "runs": 7
     },
     "e2e/effects.spec.ts:253": {
       "seconds": 21.6,
-      "runs": 5
+      "runs": 7
     },
     "e2e/effects.spec.ts:268": {
-      "seconds": 11.6,
-      "runs": 5
+      "seconds": 13.9,
+      "runs": 7
     },
     "e2e/effects.spec.ts:313": {
-      "seconds": 9.1,
-      "runs": 5
+      "seconds": 12.3,
+      "runs": 7
     },
     "e2e/effects.spec.ts:330": {
-      "seconds": 9.3,
-      "runs": 5
+      "seconds": 8.2,
+      "runs": 7
     },
     "e2e/effects.spec.ts:45": {
-      "seconds": 12.8,
-      "runs": 5
+      "seconds": 15.1,
+      "runs": 7
     },
     "e2e/effects.spec.ts:60": {
-      "seconds": 17.3,
-      "runs": 5
+      "seconds": 18.5,
+      "runs": 7
     },
     "e2e/effects.spec.ts:80": {
-      "seconds": 6.6,
-      "runs": 5
+      "seconds": 6.8,
+      "runs": 7
     },
     "e2e/element.spec.ts:119": {
-      "seconds": 3.3,
-      "runs": 5
+      "seconds": 4.1,
+      "runs": 7
     },
     "e2e/element.spec.ts:146": {
       "seconds": 10.4,
-      "runs": 5
+      "runs": 7
     },
     "e2e/element.spec.ts:179": {
       "seconds": 9.9,
-      "runs": 5
+      "runs": 7
     },
     "e2e/element.spec.ts:205": {
       "seconds": 0.4,
-      "runs": 5
+      "runs": 7
     },
     "e2e/element.spec.ts:242": {
       "seconds": 0.9,
-      "runs": 5
+      "runs": 7
     },
     "e2e/element.spec.ts:253": {
       "seconds": 6.9,
-      "runs": 5
+      "runs": 7
     },
     "e2e/element.spec.ts:270": {
-      "seconds": 4.1,
-      "runs": 5
+      "seconds": 4.7,
+      "runs": 7
     },
     "e2e/element.spec.ts:307": {
-      "seconds": 60,
-      "runs": 3
+      "seconds": 66,
+      "runs": 5
     },
     "e2e/element.spec.ts:68": {
-      "seconds": 8.3,
-      "runs": 5
+      "seconds": 3.9,
+      "runs": 7
     },
     "e2e/element.spec.ts:98": {
-      "seconds": 13.1,
-      "runs": 5
+      "seconds": 13.5,
+      "runs": 7
     },
     "e2e/fixtures.spec.ts:13": {
       "seconds": 1.2,
-      "runs": 5
+      "runs": 7
     },
     "e2e/fixtures.spec.ts:19": {
       "seconds": 1.2,
-      "runs": 5
+      "runs": 7
     },
     "e2e/fixtures.spec.ts:27": {
       "seconds": 0.9,
-      "runs": 5
+      "runs": 7
     },
     "e2e/fixtures.spec.ts:7": {
       "seconds": 2.9,
-      "runs": 5
+      "runs": 7
     },
     "e2e/golden/metrics.spec.ts:23": {
       "seconds": 0.1,
-      "runs": 5
+      "runs": 7
     },
     "e2e/golden/metrics.spec.ts:29": {
       "seconds": 0,
-      "runs": 5
+      "runs": 7
     },
     "e2e/golden/metrics.spec.ts:37": {
       "seconds": 0.1,
-      "runs": 5
+      "runs": 7
     },
     "e2e/golden/metrics.spec.ts:46": {
       "seconds": 0,
-      "runs": 5
+      "runs": 7
     },
     "e2e/golden/metrics.spec.ts:61": {
       "seconds": 0,
-      "runs": 5
+      "runs": 7
     },
     "e2e/looks.spec.ts:103": {
-      "seconds": 15.9,
-      "runs": 5
+      "seconds": 21.1,
+      "runs": 7
     },
     "e2e/looks.spec.ts:111": {
-      "seconds": 24.8,
-      "runs": 5
+      "seconds": 27,
+      "runs": 7
     },
     "e2e/looks.spec.ts:65": {
       "seconds": 28.4,
-      "runs": 5
+      "runs": 7
     },
     "e2e/looks.spec.ts:85": {
-      "seconds": 11.7,
-      "runs": 5
+      "seconds": 11.8,
+      "runs": 7
     },
     "e2e/looks.spec.ts:91": {
       "seconds": 11.8,
-      "runs": 5
+      "runs": 7
     },
     "e2e/looks.spec.ts:97": {
       "seconds": 11.8,
-      "runs": 5
+      "runs": 7
     },
     "e2e/mcp/render.spec.ts:40": {
       "seconds": 31.7,
-      "runs": 5
+      "runs": 7
     },
     "e2e/mcp/render.spec.ts:86": {
       "seconds": 0.5,
-      "runs": 5
+      "runs": 7
     },
     "e2e/memory.spec.ts:124": {
-      "seconds": 57.9,
-      "runs": 5
+      "seconds": 59.5,
+      "runs": 7
     },
     "e2e/offscreen.spec.ts:22": {
-      "seconds": 11,
-      "runs": 5
+      "seconds": 12.2,
+      "runs": 7
     },
     "e2e/offscreen.spec.ts:44": {
       "seconds": 14.9,
-      "runs": 5
+      "runs": 7
     },
     "e2e/offscreen.spec.ts:57": {
       "seconds": 9.8,
-      "runs": 5
+      "runs": 7
     },
     "e2e/panel.spec.ts:136": {
-      "seconds": 16.9,
-      "runs": 5
+      "seconds": 17.4,
+      "runs": 7
     },
     "e2e/panel.spec.ts:165": {
       "seconds": 12.1,
-      "runs": 5
+      "runs": 7
     },
     "e2e/panel.spec.ts:187": {
-      "seconds": 11.9,
-      "runs": 5
+      "seconds": 12.2,
+      "runs": 7
     },
     "e2e/panel.spec.ts:227": {
       "seconds": 34.5,
-      "runs": 5
+      "runs": 7
     },
     "e2e/panel.spec.ts:260": {
-      "seconds": 3,
-      "runs": 5
+      "seconds": 3.6,
+      "runs": 7
     },
     "e2e/panel.spec.ts:289": {
-      "seconds": 127.3,
-      "runs": 5
+      "seconds": 125.3,
+      "runs": 7
     },
     "e2e/panel.spec.ts:321": {
       "seconds": 11.4,
-      "runs": 5
+      "runs": 7
     },
     "e2e/panel.spec.ts:337": {
-      "seconds": 24.4,
-      "runs": 5
+      "seconds": 23.6,
+      "runs": 7
     },
     "e2e/panel.spec.ts:61": {
-      "seconds": 4.2,
-      "runs": 5
+      "seconds": 4.5,
+      "runs": 7
     },
     "e2e/panel.spec.ts:80": {
-      "seconds": 25.2,
-      "runs": 5
+      "seconds": 24,
+      "runs": 7
     },
     "e2e/playground.spec.ts:142": {
-      "seconds": 0.7,
-      "runs": 5
+      "seconds": 0.9,
+      "runs": 7
     },
     "e2e/playground.spec.ts:154": {
       "seconds": 5.2,
-      "runs": 5
+      "runs": 7
     },
     "e2e/playground.spec.ts:171": {
-      "seconds": 11.8,
-      "runs": 5
+      "seconds": 11,
+      "runs": 7
     },
     "e2e/playground.spec.ts:197": {
-      "seconds": 7.7,
-      "runs": 5
+      "seconds": 8.2,
+      "runs": 7
     },
     "e2e/playground.spec.ts:213": {
       "seconds": 14.2,
-      "runs": 5
+      "runs": 7
     },
     "e2e/playground.spec.ts:239": {
-      "seconds": 2.5,
-      "runs": 5
+      "seconds": 4.8,
+      "runs": 7
     },
     "e2e/playground.spec.ts:247": {
       "seconds": 5.5,
-      "runs": 5
+      "runs": 7
     },
     "e2e/playground.spec.ts:279": {
       "seconds": 11.6,
-      "runs": 5
+      "runs": 7
     },
     "e2e/playground.spec.ts:298": {
       "seconds": 9.7,
-      "runs": 5
+      "runs": 7
     },
     "e2e/playground.spec.ts:323": {
       "seconds": 11.4,
-      "runs": 5
+      "runs": 7
     },
     "e2e/playground.spec.ts:404": {
-      "seconds": 9.7,
-      "runs": 5
+      "seconds": 10,
+      "runs": 7
     },
     "e2e/playground.spec.ts:425": {
       "seconds": 9.2,
-      "runs": 5
+      "runs": 7
     },
     "e2e/playground.spec.ts:452": {
-      "seconds": 9.4,
-      "runs": 5
+      "seconds": 10.6,
+      "runs": 7
     },
     "e2e/playground.spec.ts:474": {
       "seconds": 10.1,
-      "runs": 5
+      "runs": 7
     },
     "e2e/playground.spec.ts:48": {
       "seconds": 7.5,
-      "runs": 5
+      "runs": 7
     },
     "e2e/playground.spec.ts:496": {
-      "seconds": 12,
-      "runs": 5
+      "seconds": 12.6,
+      "runs": 7
     },
     "e2e/playground.spec.ts:506": {
-      "seconds": 15.8,
-      "runs": 5
+      "seconds": 18.2,
+      "runs": 7
     },
     "e2e/playground.spec.ts:553": {
       "seconds": 4.3,
-      "runs": 5
+      "runs": 7
     },
     "e2e/playground.spec.ts:79": {
-      "seconds": 4.5,
-      "runs": 5
+      "seconds": 3.7,
+      "runs": 7
     },
     "e2e/posters.spec.ts:41": {
       "seconds": 4.7,
-      "runs": 5
+      "runs": 7
     },
     "e2e/posters.spec.ts:9": {
-      "seconds": 3.9,
-      "runs": 5
+      "seconds": 4.5,
+      "runs": 7
     },
     "e2e/render.spec.ts:104": {
-      "seconds": 7.8,
-      "runs": 5
+      "seconds": 6.9,
+      "runs": 7
     },
     "e2e/render.spec.ts:112": {
-      "seconds": 6.9,
-      "runs": 5
+      "seconds": 8,
+      "runs": 7
     },
     "e2e/render.spec.ts:133": {
       "seconds": 30.8,
-      "runs": 5
+      "runs": 7
     },
     "e2e/render.spec.ts:148": {
-      "seconds": 23.4,
-      "runs": 5
+      "seconds": 23.6,
+      "runs": 7
     },
     "e2e/render.spec.ts:192": {
       "seconds": 26.5,
-      "runs": 5
+      "runs": 7
     },
     "e2e/render.spec.ts:76": {
-      "seconds": 56.4,
-      "runs": 5
+      "seconds": 55,
+      "runs": 7
     },
     "e2e/render.spec.ts:89": {
-      "seconds": 23.6,
-      "runs": 5
+      "seconds": 23.8,
+      "runs": 7
     },
     "e2e/review.spec.ts:13": {
       "seconds": 18.6,
-      "runs": 5
+      "runs": 7
     },
     "e2e/scenes/memory.spec.ts:7": {
       "seconds": 0,
-      "runs": 5
+      "runs": 7
     },
     "e2e/scenes/stale.spec.ts:11": {
       "seconds": 0,
-      "runs": 5
+      "runs": 7
     },
     "e2e/scenes/stale.spec.ts:17": {
       "seconds": 0,
-      "runs": 5
+      "runs": 7
     },
     "e2e/scenes/stale.spec.ts:22": {
       "seconds": 0,
-      "runs": 5
+      "runs": 7
     },
     "e2e/scenes/stale.spec.ts:32": {
       "seconds": 0,
-      "runs": 5
+      "runs": 7
     },
     "e2e/site.spec.ts:117": {
-      "seconds": 5.9,
-      "runs": 2
+      "seconds": 5,
+      "runs": 4
     },
     "e2e/site.spec.ts:129": {
-      "seconds": 14.4,
-      "runs": 2
+      "seconds": 13.8,
+      "runs": 4
     },
     "e2e/site.spec.ts:14": {
       "seconds": 0,
       "runs": 3
     },
     "e2e/site.spec.ts:156": {
-      "seconds": 4,
-      "runs": 2
+      "seconds": 5,
+      "runs": 4
     },
     "e2e/site.spec.ts:171": {
-      "seconds": 7.3,
-      "runs": 2
+      "seconds": 4,
+      "runs": 4
     },
     "e2e/site.spec.ts:22": {
       "seconds": 0.3,
@@ -599,19 +661,19 @@
     },
     "e2e/site.spec.ts:28": {
       "seconds": 0.3,
-      "runs": 2
+      "runs": 4
     },
     "e2e/site.spec.ts:33": {
       "seconds": 6.3,
       "runs": 3
     },
     "e2e/site.spec.ts:35": {
-      "seconds": 0.1,
-      "runs": 2
+      "seconds": 0,
+      "runs": 4
     },
     "e2e/site.spec.ts:54": {
-      "seconds": 2.1,
-      "runs": 2
+      "seconds": 2,
+      "runs": 4
     },
     "e2e/site.spec.ts:63": {
       "seconds": 1.1,
@@ -623,31 +685,31 @@
     },
     "e2e/snippets.spec.ts:3": {
       "seconds": 0.4,
-      "runs": 5
+      "runs": 7
     },
     "e2e/solids.spec.ts:19": {
       "seconds": 16.8,
-      "runs": 5
+      "runs": 7
     },
     "e2e/solids.spec.ts:6": {
-      "seconds": 2.3,
-      "runs": 5
+      "seconds": 0.7,
+      "runs": 7
     },
     "e2e/vendor.spec.ts:15": {
       "seconds": 1,
-      "runs": 5
+      "runs": 7
     },
     "e2e/vendor.spec.ts:28": {
-      "seconds": 1,
-      "runs": 5
+      "seconds": 0.9,
+      "runs": 7
     },
     "e2e/vendor.spec.ts:3": {
-      "seconds": 0.8,
-      "runs": 5
+      "seconds": 0.9,
+      "runs": 7
     },
     "e2e/vendor.spec.ts:40": {
       "seconds": 0.5,
-      "runs": 5
+      "runs": 7
     }
   }
 }
