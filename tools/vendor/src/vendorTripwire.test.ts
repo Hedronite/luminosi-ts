@@ -11,7 +11,7 @@ const root = resolve(import.meta.dirname, "../../..");
 
 /** Every extension a package or an app keeps code, styles or markup in. */
 const sourceExtensions = new Set([".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs", ".astro", ".css", ".scss", ".html", ".vue", ".svelte", ".mdx"]);
-const skippedFolders = new Set(["node_modules", "dist", ".turbo", ".astro", "coverage", "test-results", "playwright-report", "vendor-pages"]);
+const skippedFolders = new Set(["node_modules", "dist", ".turbo", ".astro", "coverage", "test-results", "playwright-report", "vendor-pages", "generated"]);
 
 const sourcesIn = (dir: string): readonly string[] =>
   readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {

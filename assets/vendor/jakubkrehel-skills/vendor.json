@@ -18,5 +18,19 @@
       "spdx": "MIT",
       "remainder": true
     }
-  ]
+  ],
+  "license": "MIT",
+  "transformations": [
+    {
+      "kind": "include",
+      "paths": [
+        "skills/**",
+        "README.md",
+        "LICENSE"
+      ],
+      "reason": "A subset of upstream, kept as published: the skills, the readme and the license."
+    }
+  ],
+  "vendoredOn": "2026-08",
+  "reviewer": "VirtualMachinist"
 }

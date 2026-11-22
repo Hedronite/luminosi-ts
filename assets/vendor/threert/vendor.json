@@ -57,5 +57,20 @@
       "spdx": "MIT",
       "remainder": true
     }
-  ]
+  ],
+  "license": "CC0-1.0 AND LicenseRef-PublicDomain AND LicenseRef-ThirdPartyScreenshots AND (MIT OR Apache-2.0) AND Apache-2.0 AND MIT",
+  "transformations": [
+    {
+      "kind": "exclude",
+      "paths": [
+        "site/",
+        "showcase/showroom/assets/*.glb",
+        ".github/",
+        ".claude/"
+      ],
+      "reason": "The website, the showcase's glTF models, the harness folders and GitHub configuration are left out; the engine, its packages and the docs are kept."
+    }
+  ],
+  "vendoredOn": "2026-11-16",
+  "reviewer": "VirtualMachinist"
 }

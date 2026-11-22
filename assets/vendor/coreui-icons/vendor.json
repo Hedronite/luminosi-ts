@@ -24,5 +24,19 @@
       "spdx": "MIT",
       "remainder": true
     }
-  ]
+  ],
+  "license": "CC-BY-4.0 AND MIT",
+  "transformations": [
+    {
+      "kind": "include",
+      "paths": [
+        "svg/free/*.svg",
+        "README.md",
+        "LICENSE"
+      ],
+      "reason": "A subset of upstream, kept as published: the free SVG set, its readme and its license."
+    }
+  ],
+  "vendoredOn": "2026-08",
+  "reviewer": "VirtualMachinist"
 }

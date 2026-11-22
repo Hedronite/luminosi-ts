@@ -1,4 +1,4 @@
-import type { OriginRelation } from "@hedronite/lts-core";
+import type { AssetOrigin } from "@hedronite/lts-core";
 import { z } from "zod";
 
 /**
@@ -84,7 +84,7 @@ export interface ScreenEffectInfo {
   /** The day it joined the library (YYYY-MM-DD). Default: 2026-11-15, when the first effects landed. */
   readonly added?: string;
   /** Set when it was ported from open-source work in assets/vendor. */
-  readonly origin?: { readonly vendor: string; readonly relation: OriginRelation; readonly path: string; readonly note: string };
+  readonly origin?: AssetOrigin;
 }
 
 export const screenEffectInfo: Record<ScreenEffectId, ScreenEffectInfo> = {
@@ -103,6 +103,12 @@ export const screenEffectInfo: Record<ScreenEffectId, ScreenEffectInfo> = {
       vendor: "threeui",
       relation: "ported",
       path: "src/shaders/crt/crtShaders.ts",
+      commit: "02f9835e60ef8f0cac7907810aa223b7d414db1b",
+      license: "MIT",
+      transformations: [
+        "Upstream's GLSL was rewritten as TSL, so one shader runs on the WebGPU and WebGL 2 renderers.",
+        "It is driven by the stage's pointer and clock rather than upstream's scroll state.",
+      ],
       note: "The tube from ThreeUI's CRT background (barrel glass, RGB split, scan lines, aperture grille, rolling bar, vignette) as a TSL pass over any scene, tinted by the look's inks; its boot text is left behind.",
     },
   },

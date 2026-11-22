@@ -24,5 +24,19 @@
       "spdx": "MIT",
       "remainder": true
     }
-  ]
+  ],
+  "license": "LicenseRef-PublicDomain AND MIT",
+  "transformations": [
+    {
+      "kind": "exclude",
+      "paths": [
+        "08/public/logos/",
+        ".github/",
+        ".claude/"
+      ],
+      "reason": "The day 08 logos, the harness folders and GitHub configuration are left out; every day's source and notes are kept."
+    }
+  ],
+  "vendoredOn": "2026-11-16",
+  "reviewer": "VirtualMachinist"
 }

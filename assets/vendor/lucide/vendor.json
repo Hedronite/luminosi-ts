@@ -111,5 +111,18 @@
       "spdx": "ISC",
       "remainder": true
     }
-  ]
+  ],
+  "license": "MIT AND ISC",
+  "transformations": [
+    {
+      "kind": "include",
+      "paths": [
+        "icons/*.svg",
+        "LICENSE"
+      ],
+      "reason": "A subset of upstream, kept as published: the icon SVGs and the license."
+    }
+  ],
+  "vendoredOn": "2026-08",
+  "reviewer": "VirtualMachinist"
 }

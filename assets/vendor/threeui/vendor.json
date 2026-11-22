@@ -29,5 +29,17 @@
       "spdx": "MIT",
       "remainder": true
     }
-  ]
+  ],
+  "license": "OFL-1.1 AND MIT",
+  "transformations": [
+    {
+      "kind": "overlay",
+      "paths": [
+        "README.md"
+      ],
+      "reason": "Its README is edited here: upstream links are wikilinks in this repository."
+    }
+  ],
+  "vendoredOn": "2026-08-26",
+  "reviewer": "VirtualMachinist"
 }
