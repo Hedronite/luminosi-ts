@@ -24,6 +24,17 @@ A ported asset carries `origin` (`{ vendor, path, note }`), so the catalog credi
 | [`ai-design-skills`](ai-design-skills/) | The landing-page-design agent skill | https://github.com/elayadesign/ai-design-skills (`456d9e0d`) | MIT (`LICENSE`) | Elaya | 2026-11-15 |
 | [`jakubkrehel-skills`](jakubkrehel-skills/) | Interface agent skills (better-ui, better-typography, better-colors, interface-review and more) | https://github.com/jakubkrehel/skills (`267330e1`) | MIT (`LICENSE`) | Jakub Krehel (jakub.kr, interfaces.dev) | 2026-08 |
 
+## Fetching
+A folder's raw upstream is not in this repository: it is fetched at the pin into a cache. Run
+`bun run vendor:fetch` (or `lumin vendor fetch [FOLDER…]`) once in a fresh clone, before `icons:packs:check`,
+`vendor:check`, or any test that reads a folder. The cache is `.vendor/<folder>/` at the repository root,
+gitignored, or `$LTS_VENDOR_CACHE/<folder>/` when that variable is set. `bun run vendor:fetch` checks each
+folder's content hash after fetching it, and `lumin vendor verify` recomputes every cached hash offline.
+
+What stays in this tree, and ships: `CREDIT.md`, the folder's license-bearing files (`LICENSE*`, `NOTICE*`,
+`COPYING*`, `*LICENSES*.md`, `THIRD_PARTY_NOTICES*`) at their own paths, the pin `vendor.json`, and any kept
+folder (`isocons`). Nothing is ever fetched by a test, a build or a check.
+
 ## Pins
 
 Every `CREDIT.md` pins its folder on the `Source` line, so the folder can be reproduced and checked against upstream:

@@ -2,10 +2,14 @@
 //   bun tools/lumin/src/cli.ts <command> [args] [--flag=value]
 // The lumin skills (.agents/skills/lumin*) wrap this with Nushell. See SKILL.md there.
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { boundaries, budgets, check, iconPacks, kinds, list, newIcon, packages, root, search, show } from "./commands.js";
 import { fail, ok, type Envelope } from "./envelope.js";
+
+/** The file commands, loaded on demand: they read built packages, and `vendor` must work in a fresh clone. */
+const commands = () => import("./commands.js");
+/** The repository root: this file sits three levels down. */
+const root = resolve(import.meta.dirname, "../../..");
 
 const usage = "commands: kinds | scene validate|diff|patch|export|render (a scene document: lumin scene, or the lumin-scene skill) | mcp [--root PATH]... [--allow-write] [--allow-render] (the scene and asset tools over stdio, for an MCP client) | list [--kind --package --tag --limit --newest] | search QUERY [--kind --limit] | show ID | packages | icon-packs | budgets | boundaries [--package] | check [--only a,b --keep-going] | new-icon ID --name N --tags a,b (--svg FILE | --stdin) [--dry-run] | new-object ID (--from-image IMG | --from-workspace DIR) [--name N --tags a,b --dry-run] | review-object --spec FILE --reference IMG [--out DIR --look L --yaw D --pitch D] | study VENDOR[/PATH] [--limit] | adopt VENDOR/PATH --as KIND --id ID [--name N --dry-run] | adopt-skill VENDOR/SKILL-DIR [--dry-run --force] | vendor fetch [FOLDER...] [--force] | vendor verify [FOLDER...] | ui-facts FILE... | ui-render --url URL [--views a,b] (for the lumin-ui skill)";
 
@@ -61,23 +65,24 @@ async function run(argv: readonly string[]): Promise<Envelope> {
   const csv = (value: string | undefined): readonly string[] => (value ?? "").split(",").map((s) => s.trim()).filter((s) => s !== "");
   switch (command) {
     case "kinds":
-      return kinds();
+      return (await commands()).kinds();
     case "list":
-      return list({ ...(values.kind === undefined ? {} : { kind: values.kind }), ...(values.package === undefined ? {} : { package: values.package }), ...(values.tag === undefined ? {} : { tag: values.tag }), ...(limit === undefined ? {} : { limit }), newest: values.newest === true });
+      return (await commands()).list({ ...(values.kind === undefined ? {} : { kind: values.kind }), ...(values.package === undefined ? {} : { package: values.package }), ...(values.tag === undefined ? {} : { tag: values.tag }), ...(limit === undefined ? {} : { limit }), newest: values.newest === true });
     case "search":
-      return search(positionals.join(" "), { ...(values.kind === undefined ? {} : { kind: values.kind }), ...(limit === undefined ? {} : { limit }) });
+      return (await commands()).search(positionals.join(" "), { ...(values.kind === undefined ? {} : { kind: values.kind }), ...(limit === undefined ? {} : { limit }) });
     case "show":
-      return positionals[0] === undefined ? fail("show", "usage", "show needs an asset id") : show(positionals[0]);
+      if (positionals[0] === undefined) return fail("show", "usage", "show needs an asset id");
+      return (await commands()).show(positionals[0]);
     case "packages":
-      return packages();
+      return (await commands()).packages();
     case "icon-packs":
-      return iconPacks();
+      return (await commands()).iconPacks();
     case "budgets":
-      return budgets();
+      return (await commands()).budgets();
     case "boundaries":
-      return boundaries(values.package);
+      return (await commands()).boundaries(values.package);
     case "check":
-      return check({ only: csv(values.only), keepGoing: values["keep-going"] === true });
+      return (await commands()).check({ only: csv(values.only), keepGoing: values["keep-going"] === true });
     case "new-icon": {
       const id = positionals[0];
       if (id === undefined) return fail("new-icon", "usage", "new-icon needs an id");
@@ -85,7 +90,7 @@ async function run(argv: readonly string[]): Promise<Envelope> {
       if (values.stdin === true) svg = await readStdin();
       else if (values.svg !== undefined) svg = readFileSync(values.svg, "utf8");
       else return fail("new-icon", "usage", "pass the SVG with --svg FILE or --stdin");
-      return newIcon(id, { name: values.name ?? "", tags: csv(values.tags), svg, dryRun: values["dry-run"] === true });
+      return (await commands()).newIcon(id, { name: values.name ?? "", tags: csv(values.tags), svg, dryRun: values["dry-run"] === true });
     }
     case "new-object": {
       const id = positionals[0];

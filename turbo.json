@@ -3,6 +3,8 @@
   // Files at the root that every task reads: the compiler options every tsconfig extends, the root manifest and the lockfile.
   // Turborepo hashes each package's own files; without these a change to one of them replays a cached pass.
   "globalDependencies": ["tsconfig.base.json", "tsconfig.json", "package.json", "bun.lock"],
+  // The vendored cache can live outside the clone; the tasks that read it must see where.
+  "globalPassThroughEnv": ["LTS_VENDOR_CACHE"],
   "tasks": {
     "build": { "dependsOn": ["^build"], "outputs": ["dist/**"] },
     // Builds depend on their package's files and the packages they build on, except the asset pipeline: it reads the

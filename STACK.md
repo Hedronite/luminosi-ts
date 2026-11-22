@@ -283,6 +283,9 @@ after `init()`, and the e2e specs hold each viewport to it with `expectRenderer`
   WebGLRenderer`, on the `WebGLRenderer` identifier at all, and on any plain React Three Fiber `<Canvas>`
   (the one allowed is `postfx.tsx`, where `WebGPUCanvas` itself is defined and always passes the WebGPU
   `gl`).
+- **Vendored raw files.** They are not in the tree. `bun run vendor:fetch` writes each folder's upstream at
+  its pin into `.vendor/` (gitignored, or `$LTS_VENDOR_CACHE`), and `icons:packs`, `vendor` and the tests
+  that read a folder go through the resolver in `tools/vendor/src/resolve.ts`.
 - **The lanes.** The default run and CI draw with software WebGL, so the WebGPU renderer reports `webgl2`
   there; `bun run e2e:webgpu` on a GPU machine holds every viewport to `webgpu` (STACK.md, "The WebGPU
   lane").
