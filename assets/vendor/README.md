@@ -43,3 +43,20 @@ Every `CREDIT.md` pins its folder on the `Source` line, so the folder can be rep
 - **A version and a hash,** when upstream has no repository or publishes no archive: `v2.1, ` followed by `sha256:` and 64 hex digits, in backticks. The hash is of the folder as vendored: the sha256 of its files' `sha256  path` lines, sorted by path, with `CREDIT.md` and `.DS_Store` left out.
 
 `bun run vendor:check` fails for a folder whose source line has neither, and recomputes the hash of a version-and-hash pin. It cannot reach upstream, so a commit pin is checked for form only: to check one, clone upstream and compare each file's blob id (`git hash-object` here, `git ls-tree` there) at that commit. After a deliberate change to a pinned folder, pin it again.
+
+## License gate
+
+A folder keeping its upstream license does not mean every file in it can be copied into a package: a license may ask for a credit, allow a file to be shown and nothing more, or forbid it. The policy table in [`tools/vendor/src/policy.ts`](../../tools/vendor/src/policy.ts) says what each license permits, in one of four classes:
+
+| Class | What it allows |
+|---|---|
+| adopt | Copy and port freely: a public-domain dedication (CC0 1.0, a work in the public domain). |
+| adopt with attribution | Copy and port, with the license's condition kept: the notice travels with the copy (MIT, ISC, Apache 2.0, BSD), or a credit, the license named and the changes stated (CC BY 4.0). `lumin adopt` then makes the credit header required, not a courtesy. |
+| showcase only | Shown and studied here, never copied into a package: font software (SIL OFL 1.1, as the library ships and ports no fonts) and pictures of other people's scenes. |
+| forbidden | Never copied: a copyleft or non-commercial license, and any license the table does not know. |
+
+A folder's `vendor.json` carries `licenses`, which describe the folder path by path: each entry gives an SPDX license and either the paths it covers (globs) or `remainder` for everything else, and every file of the folder falls under exactly one entry. A folder under one license has a single `remainder` entry; a mixed folder (`threert`, `threeui`, `techartist`) also names the paths under other licenses, so the License column of the table above says what the folder mostly is and the `licenses` say what each file is. In an expression `OR` takes the more permissive class and `AND` the more restrictive. A test of `bun run test` fails a folder whose `licenses` leave a file uncovered or cover one twice, name a license the table does not know, or name paths that match no file.
+
+`lumin adopt` and `lumin adopt-skill` read the rule for every file they would copy. A file under a showcase-only or forbidden license, or under none, refuses the whole command with `license_gate`, naming the file and the rule that applied, and copies nothing. Showcase-only material stays open for `lumin study` and for reading.
+
+An asset's `origin` says how it relates to its folder. A work that is `ported` or `adopted` copies upstream files, so each path must be one the policy lets be copied. A work only `inspired` by another copies no code: it passes unless the path is forbidden outright.
