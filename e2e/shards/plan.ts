@@ -137,8 +137,14 @@ export function planFor(locations: readonly string[], timings: Timings, shards: 
 /** Every test location (`e2e/file.spec.ts:line`) Playwright runs in the default project, from its own listing. */
 function listed(): readonly string[] {
   const run = spawnSync("bunx", ["playwright", "test", "--list", "--reporter=json"], { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
-  if (run.error !== undefined || run.status !== 0) throw new Error(`playwright --list failed: ${run.error?.message ?? run.stderr}`);
+  if (run.error !== undefined) throw new Error(`playwright --list failed: ${run.error.message}`);
   const found: unknown = JSON.parse(run.stdout);
+  if (run.status !== 0) {
+    // Playwright reports a spec it cannot load (a package that is not built yet, for one) in the listing's `errors`, with nothing on stderr.
+    const errors: unknown = isRecord(found) ? found["errors"] : undefined;
+    const said = (Array.isArray(errors) ? errors : []).map((error) => (isRecord(error) && typeof error["message"] === "string" ? error["message"].split("\n")[0] : "")).join("; ");
+    throw new Error(`playwright --list failed: ${said === "" ? run.stderr : said} (the specs import built packages: run bun run build first)`);
+  }
   const places = new Set<string>();
   const visit = (suite: unknown): void => {
     if (!isRecord(suite)) return;

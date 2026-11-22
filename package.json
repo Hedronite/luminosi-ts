@@ -61,7 +61,7 @@
     "e2e:scenes": "bun run scenes:check && bun run scenes:plants && bun run build && LTS_SCENES=1 playwright test",
     "e2e:scenes:loose": "bun run build && LTS_SCENES_LOOSE=1 playwright test",
     "forge:test": "cd tools/img-to-object/upstream && python3 -m unittest discover -s forge/tests -p 'test_*.py' && cd .. && python3 -m unittest discover -s tests",
-    "check": "bun run icons:check && bun run icons:packs:check && bun run vendor:check && bun run shards:check && bun run solids:check && bun run typecheck && bun run build && bun run objects:check && bun run looks:check && bun run validate && bun run test && bun run lint && bun run boundaries && bun run knip && bun run forge:test && bun run e2e",
+    "check": "bun run icons:check && bun run icons:packs:check && bun run vendor:check && bun run solids:check && bun run typecheck && bun run build && bun run shards:check && bun run objects:check && bun run looks:check && bun run validate && bun run test && bun run lint && bun run boundaries && bun run knip && bun run forge:test && bun run e2e",
     "icons": "bun run --filter tool-icons generate",
     "icons:check": "bun run --filter tool-icons check",
     "validate": "bun run --filter tool-assets validate",

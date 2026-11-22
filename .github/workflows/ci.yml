@@ -51,7 +51,6 @@ jobs:
       - run: bun run icons:check
       - run: bun run icons:packs:check
       - run: bun run vendor:check
-      - run: bun run shards:check
       - run: bun run solids:check
       - run: bun run typecheck
       - run: bun run lint
@@ -156,6 +155,9 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('bun.lock') }}
       - run: bun install --frozen-lockfile
       - run: bun run build
+      # Playwright lists the specs only after a build (they import built packages), so the plan is checked here, once, and not in `static`.
+      - if: matrix.shard == 1
+        run: bun run shards:check
       - if: steps.browsers.outputs.cache-hit != 'true'
         run: bunx playwright install --with-deps chromium
       - if: steps.browsers.outputs.cache-hit == 'true'
