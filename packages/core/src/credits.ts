@@ -53,7 +53,7 @@ export type PolicyClass = z.infer<typeof policyClassSchema>;
 /** One change a vendored folder makes to upstream: paths kept as published, paths left out, or a file edited after. */
 export const transformationSchema = z
   .object({
-    kind: z.enum(["exclude", "include", "overlay"]),
+    kind: z.enum(["exclude", "include", "layout", "overlay"]),
     /** The paths or globs it names, as the pin states them. */
     paths: z.array(z.string().min(1)).min(1).readonly(),
     reason: z.string().min(1),
@@ -67,6 +67,8 @@ export const licensePolicyRowSchema = z
     spdx: z.string().min(1),
     /** The declared paths or globs; empty means every path no other row covers. */
     files: z.array(z.string().min(1)).readonly(),
+    /** How many of the folder's files this row covers. */
+    fileCount: z.number().int().nonnegative(),
   })
   .readonly();
 /** Where a vendored folder came from and what was done to it (generated/vendorProvenance.ts, for the Open source view). */
@@ -77,6 +79,8 @@ export const vendorProvenanceSchema = z
     licenseIds: z.array(z.string().min(1)).min(1).readonly(),
     /** One row per class and license, most permissive first. */
     policies: z.array(licensePolicyRowSchema).min(1).readonly(),
+    /** How many files the folder holds, as its pin counts them. */
+    totalFiles: z.number().int().nonnegative(),
     fetched: z.boolean(),
     keptReason: z.string().min(1).optional(),
     transformations: z.array(transformationSchema).readonly(),
@@ -92,8 +96,10 @@ export type VendorProvenance = z.infer<typeof vendorProvenanceSchema>;
 /** A folder's credit as its generated data carries it: the CREDIT.md line plus the pin's commit and license id. */
 export const vendorCreditRecordSchema = vendorCreditFields
   .extend({
-    /** The pinned commit, when the folder is fetched by commit. */
-    commit: z.string().min(1).optional(),
+    /** Every source the folder came from, at its pinned commit; empty for a kept folder. */
+    sources: z
+      .array(z.object({ repo: address, commit: z.string().regex(/^[0-9a-f]{40}$/) }).readonly())
+      .readonly(),
     /** The folder's license as one SPDX expression. */
     licenseId: z.string().min(1),
   })

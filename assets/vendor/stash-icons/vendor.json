@@ -36,7 +36,7 @@
         "readme.md",
         "LICENSE"
       ],
-      "reason": "A subset of upstream, kept as published: five style packages, the readme and the license."
+      "reason": "A subset of upstream: five published style packages, the readme and the license; the rest of the monorepo is not vendored."
     }
   ],
   "vendoredOn": "2026-08",

@@ -37,7 +37,7 @@
       "paths": [
         "README.md"
       ],
-      "reason": "Its README is edited here: upstream links are wikilinks in this repository."
+      "reason": "Its README is edited here: upstream links are wikilinks in this repository, which the catalog's page view resolves."
     }
   ],
   "vendoredOn": "2026-08-26",

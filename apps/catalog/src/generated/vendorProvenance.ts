@@ -12,9 +12,11 @@ export const vendorProvenance: Readonly<Record<string, VendorProvenance>> = {
       {
         "class": "adopt-with-attribution",
         "spdx": "MIT",
-        "files": []
+        "files": [],
+        "fileCount": 2
       }
     ],
+    "totalFiles": 2,
     "fetched": true,
     "transformations": [
       {
@@ -24,7 +26,7 @@ export const vendorProvenance: Readonly<Record<string, VendorProvenance>> = {
           "README.md",
           "LICENSE"
         ],
-        "reason": "A subset of upstream, kept as published: only this skill, its readme and its license are vendored."
+        "reason": "A subset of upstream: only the published skill, its readme and its license; the repository's site and tooling are not vendored."
       }
     ],
     "sources": [
@@ -48,24 +50,33 @@ export const vendorProvenance: Readonly<Record<string, VendorProvenance>> = {
         "spdx": "LicenseRef-PublicDomain",
         "files": [
           "06/blender/src/*"
-        ]
+        ],
+        "fileCount": 7
       },
       {
         "class": "adopt-with-attribution",
         "spdx": "MIT",
-        "files": []
+        "files": [],
+        "fileCount": 248
       }
     ],
+    "totalFiles": 255,
     "fetched": true,
     "transformations": [
       {
         "kind": "exclude",
         "paths": [
-          "08/public/logos/",
+          "08/public/logos/"
+        ],
+        "reason": "Third-party trademarks: logos of other products, left out rather than copied."
+      },
+      {
+        "kind": "exclude",
+        "paths": [
           ".github/",
           ".claude/"
         ],
-        "reason": "The day 08 logos, the harness folders and GitHub configuration are left out; every day's source and notes are kept."
+        "reason": "Tooling folders: CI and assistant configuration that the folder does not use."
       }
     ],
     "sources": [
@@ -89,14 +100,17 @@ export const vendorProvenance: Readonly<Record<string, VendorProvenance>> = {
         "spdx": "CC-BY-4.0",
         "files": [
           "svg/**"
-        ]
+        ],
+        "fileCount": 562
       },
       {
         "class": "adopt-with-attribution",
         "spdx": "MIT",
-        "files": []
+        "files": [],
+        "fileCount": 1
       }
     ],
+    "totalFiles": 563,
     "fetched": true,
     "transformations": [
       {
@@ -106,7 +120,7 @@ export const vendorProvenance: Readonly<Record<string, VendorProvenance>> = {
           "README.md",
           "LICENSE"
         ],
-        "reason": "A subset of upstream, kept as published: the free SVG set, its readme and its license."
+        "reason": "A subset of upstream: the published free icons, the readme and the license; the build and demo code are not vendored."
       }
     ],
     "sources": [
@@ -127,9 +141,11 @@ export const vendorProvenance: Readonly<Record<string, VendorProvenance>> = {
       {
         "class": "adopt-with-attribution",
         "spdx": "MIT",
-        "files": []
+        "files": [],
+        "fileCount": 1343
       }
     ],
+    "totalFiles": 1343,
     "fetched": true,
     "transformations": [
       {
@@ -139,7 +155,7 @@ export const vendorProvenance: Readonly<Record<string, VendorProvenance>> = {
           "readme.md",
           "LICENSE"
         ],
-        "reason": "A subset of upstream, kept as published: the SVGs, the readme and the license."
+        "reason": "A subset of upstream: the published SVGs, the readme and the license; the generator and demos are not vendored."
       }
     ],
     "sources": [
@@ -160,9 +176,11 @@ export const vendorProvenance: Readonly<Record<string, VendorProvenance>> = {
       {
         "class": "adopt-with-attribution",
         "spdx": "CC-BY-4.0",
-        "files": []
+        "files": [],
+        "fileCount": 6037
       }
     ],
+    "totalFiles": 6037,
     "fetched": false,
     "keptReason": "isocons.app publishes a bundle on its site, no repository and no archive, so there is nothing to fetch by commit: the files stay here, and the hash is of the folder as vendored.",
     "transformations": [],
@@ -179,9 +197,11 @@ export const vendorProvenance: Readonly<Record<string, VendorProvenance>> = {
       {
         "class": "adopt-with-attribution",
         "spdx": "MIT",
-        "files": []
+        "files": [],
+        "fileCount": 58
       }
     ],
+    "totalFiles": 58,
     "fetched": true,
     "transformations": [
       {
@@ -191,7 +211,7 @@ export const vendorProvenance: Readonly<Record<string, VendorProvenance>> = {
           "README.md",
           "LICENSE"
         ],
-        "reason": "A subset of upstream, kept as published: the skills, the readme and the license."
+        "reason": "A subset of upstream: the published skills, the readme and the license; the site is not vendored."
       }
     ],
     "sources": [
@@ -213,7 +233,8 @@ export const vendorProvenance: Readonly<Record<string, VendorProvenance>> = {
       {
         "class": "adopt-with-attribution",
         "spdx": "ISC",
-        "files": []
+        "files": [],
+        "fileCount": 1719
       },
       {
         "class": "adopt-with-attribution",
@@ -308,9 +329,11 @@ export const vendorProvenance: Readonly<Record<string, VendorProvenance>> = {
           "icons/x.svg",
           "icons/zoom-in.svg",
           "icons/zoom-out.svg"
-        ]
+        ],
+        "fileCount": 89
       }
     ],
+    "totalFiles": 1808,
     "fetched": true,
     "transformations": [
       {
@@ -319,7 +342,7 @@ export const vendorProvenance: Readonly<Record<string, VendorProvenance>> = {
           "icons/*.svg",
           "LICENSE"
         ],
-        "reason": "A subset of upstream, kept as published: the icon SVGs and the license."
+        "reason": "A subset of upstream: the published icon SVGs and the license; the repository's site, docs and tooling are not vendored."
       }
     ],
     "sources": [
@@ -340,9 +363,11 @@ export const vendorProvenance: Readonly<Record<string, VendorProvenance>> = {
       {
         "class": "adopt-with-attribution",
         "spdx": "MIT",
-        "files": []
+        "files": [],
+        "fileCount": 1242
       }
     ],
+    "totalFiles": 1242,
     "fetched": true,
     "transformations": [
       {
@@ -356,7 +381,7 @@ export const vendorProvenance: Readonly<Record<string, VendorProvenance>> = {
           "readme.md",
           "LICENSE"
         ],
-        "reason": "A subset of upstream, kept as published: five style packages, the readme and the license."
+        "reason": "A subset of upstream: five published style packages, the readme and the license; the rest of the monorepo is not vendored."
       }
     ],
     "sources": [
@@ -377,11 +402,23 @@ export const vendorProvenance: Readonly<Record<string, VendorProvenance>> = {
       {
         "class": "adopt-with-attribution",
         "spdx": "MIT",
-        "files": []
+        "files": [],
+        "fileCount": 6
       }
     ],
+    "totalFiles": 6,
     "fetched": true,
-    "transformations": [],
+    "transformations": [
+      {
+        "kind": "layout",
+        "paths": [
+          "bioluminescence",
+          "geometry-in-flux",
+          "threejs-3d-webpage"
+        ],
+        "reason": "Three repositories laid out as three subfolders of one folder, each under its source's name."
+      }
+    ],
     "sources": [
       {
         "repo": "https://github.com/iamtechartist/geometry-in-flux",
@@ -416,40 +453,46 @@ export const vendorProvenance: Readonly<Record<string, VendorProvenance>> = {
         "files": [
           "showcase/museum/assets/**",
           "showcase/daylight-home/assets/**"
-        ]
+        ],
+        "fileCount": 23
       },
       {
         "class": "adopt",
         "spdx": "LicenseRef-PublicDomain",
         "files": [
           "showcase/moon-phases/assets/**"
-        ]
+        ],
+        "fileCount": 3
       },
       {
         "class": "adopt-with-attribution",
         "spdx": "Apache-2.0",
         "files": [
           "renderer/third_party/parry3d/**"
-        ]
+        ],
+        "fileCount": 347
       },
       {
         "class": "adopt-with-attribution",
         "spdx": "MIT",
         "files": [
           "tools/city/**"
-        ]
+        ],
+        "fileCount": 30
       },
       {
         "class": "adopt-with-attribution",
         "spdx": "MIT",
-        "files": []
+        "files": [],
+        "fileCount": 763
       },
       {
         "class": "adopt-with-attribution",
         "spdx": "MIT OR Apache-2.0",
         "files": [
           "renderer/third_party/glamx/**"
-        ]
+        ],
+        "fileCount": 14
       },
       {
         "class": "showcase-only",
@@ -457,20 +500,34 @@ export const vendorProvenance: Readonly<Record<string, VendorProvenance>> = {
         "files": [
           "docs/img/**",
           "docs/images/**"
-        ]
+        ],
+        "fileCount": 51
       }
     ],
+    "totalFiles": 1231,
     "fetched": true,
     "transformations": [
       {
         "kind": "exclude",
         "paths": [
-          "site/",
-          "showcase/showroom/assets/*.glb",
+          "site/"
+        ],
+        "reason": "Valve map media: the site ships a game's map assets, which are not ours to copy."
+      },
+      {
+        "kind": "exclude",
+        "paths": [
+          "showcase/showroom/assets/*.glb"
+        ],
+        "reason": "CC BY models without per-model attribution: the models are left out rather than credited wrongly."
+      },
+      {
+        "kind": "exclude",
+        "paths": [
           ".github/",
           ".claude/"
         ],
-        "reason": "The website, the showcase's glTF models, the harness folders and GitHub configuration are left out; the engine, its packages and the docs are kept."
+        "reason": "Tooling folders: CI and assistant configuration that the folder does not use."
       }
     ],
     "sources": [
@@ -492,7 +549,8 @@ export const vendorProvenance: Readonly<Record<string, VendorProvenance>> = {
       {
         "class": "adopt-with-attribution",
         "spdx": "MIT",
-        "files": []
+        "files": [],
+        "fileCount": 287
       },
       {
         "class": "showcase-only",
@@ -506,9 +564,11 @@ export const vendorProvenance: Readonly<Record<string, VendorProvenance>> = {
           "public/landing-pages/meng-to-sketchbook/instrument-serif-italic.woff2",
           "public/landing-pages/meng-to-sketchbook/newsreader.woff2",
           "src/shaders/fonts/fragment-mono.woff2"
-        ]
+        ],
+        "fileCount": 8
       }
     ],
+    "totalFiles": 295,
     "fetched": true,
     "transformations": [
       {
@@ -516,7 +576,7 @@ export const vendorProvenance: Readonly<Record<string, VendorProvenance>> = {
         "paths": [
           "README.md"
         ],
-        "reason": "Its README is edited here: upstream links are wikilinks in this repository."
+        "reason": "Its README is edited here: upstream links are wikilinks in this repository, which the catalog's page view resolves."
       }
     ],
     "sources": [

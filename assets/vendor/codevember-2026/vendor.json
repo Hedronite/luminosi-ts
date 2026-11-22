@@ -30,11 +30,17 @@
     {
       "kind": "exclude",
       "paths": [
-        "08/public/logos/",
+        "08/public/logos/"
+      ],
+      "reason": "Third-party trademarks: logos of other products, left out rather than copied."
+    },
+    {
+      "kind": "exclude",
+      "paths": [
         ".github/",
         ".claude/"
       ],
-      "reason": "The day 08 logos, the harness folders and GitHub configuration are left out; every day's source and notes are kept."
+      "reason": "Tooling folders: CI and assistant configuration that the folder does not use."
     }
   ],
   "vendoredOn": "2026-11-16",

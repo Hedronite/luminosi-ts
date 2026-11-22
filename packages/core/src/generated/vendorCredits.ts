@@ -92,7 +92,12 @@ export const vendorCreditRecords: Readonly<Record<string, VendorCreditRecord>> =
     "pin": "456d9e0d",
     "license": "MIT",
     "credit": "Elaya",
-    "commit": "456d9e0d3e2d84c748bb143c6ca3d90c45e16213",
+    "sources": [
+      {
+        "repo": "https://github.com/elayadesign/ai-design-skills",
+        "commit": "456d9e0d3e2d84c748bb143c6ca3d90c45e16213"
+      }
+    ],
     "licenseId": "MIT"
   },
   "codevember-2026": {
@@ -101,7 +106,12 @@ export const vendorCreditRecords: Readonly<Record<string, VendorCreditRecord>> =
     "pin": "4df8e67a",
     "license": "MIT",
     "credit": "Theo Tillberg",
-    "commit": "4df8e67ab6584b3c354f06f0f9ce9a4348f82dbe",
+    "sources": [
+      {
+        "repo": "https://github.com/ttillberg/codevember-2026",
+        "commit": "4df8e67ab6584b3c354f06f0f9ce9a4348f82dbe"
+      }
+    ],
     "licenseId": "LicenseRef-PublicDomain AND MIT"
   },
   "coreui-icons": {
@@ -111,7 +121,12 @@ export const vendorCreditRecords: Readonly<Record<string, VendorCreditRecord>> =
     "license": "Icons CC-BY-4.0; fonts OFL-1.1; code MIT",
     "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
     "credit": "CoreUI (coreui.io)",
-    "commit": "88d1cfc47fc3cc84114de2a01b04db11a941bdf9",
+    "sources": [
+      {
+        "repo": "https://github.com/coreui/coreui-icons",
+        "commit": "88d1cfc47fc3cc84114de2a01b04db11a941bdf9"
+      }
+    ],
     "licenseId": "CC-BY-4.0 AND MIT"
   },
   "famicons": {
@@ -120,7 +135,12 @@ export const vendorCreditRecords: Readonly<Record<string, VendorCreditRecord>> =
     "pin": "e702639cfe08c6ff087d25b34c57540c1f63c1e3",
     "license": "MIT",
     "credit": "Family",
-    "commit": "e702639cfe08c6ff087d25b34c57540c1f63c1e3",
+    "sources": [
+      {
+        "repo": "https://github.com/familyjs/famicons",
+        "commit": "e702639cfe08c6ff087d25b34c57540c1f63c1e3"
+      }
+    ],
     "licenseId": "MIT"
   },
   "isocons": {
@@ -130,6 +150,7 @@ export const vendorCreditRecords: Readonly<Record<string, VendorCreditRecord>> =
     "license": "CC-BY-4.0",
     "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
     "credit": "Isometric Icons by isocons.app (leyeConnect and meandchimso)",
+    "sources": [],
     "licenseId": "CC-BY-4.0"
   },
   "jakubkrehel-skills": {
@@ -138,7 +159,12 @@ export const vendorCreditRecords: Readonly<Record<string, VendorCreditRecord>> =
     "pin": "267330e1adfc66a718fb65fa6918c1f06d0a689e",
     "license": "MIT",
     "credit": "Jakub Krehel (jakub.kr, interfaces.dev)",
-    "commit": "267330e1adfc66a718fb65fa6918c1f06d0a689e",
+    "sources": [
+      {
+        "repo": "https://github.com/jakubkrehel/skills",
+        "commit": "267330e1adfc66a718fb65fa6918c1f06d0a689e"
+      }
+    ],
     "licenseId": "MIT"
   },
   "lucide": {
@@ -147,7 +173,12 @@ export const vendorCreditRecords: Readonly<Record<string, VendorCreditRecord>> =
     "pin": "6f56b8f1f665ce64c41506033b66ca67e2bc7724",
     "license": "ISC; MIT for the Feather-derived icons",
     "credit": "Lucide Icons and contributors",
-    "commit": "6f56b8f1f665ce64c41506033b66ca67e2bc7724",
+    "sources": [
+      {
+        "repo": "https://github.com/lucide-icons/lucide",
+        "commit": "6f56b8f1f665ce64c41506033b66ca67e2bc7724"
+      }
+    ],
     "licenseId": "MIT AND ISC"
   },
   "stash-icons": {
@@ -156,7 +187,12 @@ export const vendorCreditRecords: Readonly<Record<string, VendorCreditRecord>> =
     "pin": "44091b180904469d27cf9fa218b4bd0f4c1f9310",
     "license": "MIT",
     "credit": "Pingback LLC",
-    "commit": "44091b180904469d27cf9fa218b4bd0f4c1f9310",
+    "sources": [
+      {
+        "repo": "https://github.com/stash-ui/icons",
+        "commit": "44091b180904469d27cf9fa218b4bd0f4c1f9310"
+      }
+    ],
     "licenseId": "MIT"
   },
   "techartist": {
@@ -165,7 +201,20 @@ export const vendorCreditRecords: Readonly<Record<string, VendorCreditRecord>> =
     "pin": "geometry-in-flux: da187f6316c7ee18b8f1b60bbb5363be2aec40c2, bioluminescence: 2dc70cfd855704c1a8385f606e82f41505fdd5e9, Threejs-3D-Webpage: d827a2a409abc44ff35b4965e3d3aadfbe66278a",
     "license": "MIT",
     "credit": "Techartist",
-    "commit": "da187f6316c7ee18b8f1b60bbb5363be2aec40c2",
+    "sources": [
+      {
+        "repo": "https://github.com/iamtechartist/geometry-in-flux",
+        "commit": "da187f6316c7ee18b8f1b60bbb5363be2aec40c2"
+      },
+      {
+        "repo": "https://github.com/iamtechartist/bioluminescence",
+        "commit": "2dc70cfd855704c1a8385f606e82f41505fdd5e9"
+      },
+      {
+        "repo": "https://github.com/iamtechartist/Threejs-3D-Webpage",
+        "commit": "d827a2a409abc44ff35b4965e3d3aadfbe66278a"
+      }
+    ],
     "licenseId": "MIT"
   },
   "threert": {
@@ -174,7 +223,12 @@ export const vendorCreditRecords: Readonly<Record<string, VendorCreditRecord>> =
     "pin": "8cb4e9b1",
     "license": "MIT; patched dependencies under their own licenses (glamx: MIT or Apache-2.0; parry3d: its own license); the city tool is from jeantimex's tokyo (MIT); the Poly Haven models are CC0",
     "credit": "Meshy LLC",
-    "commit": "8cb4e9b146fd5406b43624b49ab85709ace33e6f",
+    "sources": [
+      {
+        "repo": "https://github.com/meshy-dev/ThreeRT",
+        "commit": "8cb4e9b146fd5406b43624b49ab85709ace33e6f"
+      }
+    ],
     "licenseId": "CC0-1.0 AND LicenseRef-PublicDomain AND LicenseRef-ThirdPartyScreenshots AND (MIT OR Apache-2.0) AND Apache-2.0 AND MIT"
   },
   "threeui": {
@@ -183,7 +237,12 @@ export const vendorCreditRecords: Readonly<Record<string, VendorCreditRecord>> =
     "pin": "02f9835e60ef8f0cac7907810aa223b7d414db1b",
     "license": "MIT; fonts OFL-1.1; bundled assets and third-party code under their own notices",
     "credit": "Meng To / ThreeUI",
-    "commit": "02f9835e60ef8f0cac7907810aa223b7d414db1b",
+    "sources": [
+      {
+        "repo": "https://github.com/MengTo/threeui",
+        "commit": "02f9835e60ef8f0cac7907810aa223b7d414db1b"
+      }
+    ],
     "licenseId": "OFL-1.1 AND MIT"
   }
 };
