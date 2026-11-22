@@ -204,7 +204,7 @@ Small slices left open by earlier waves, each its own PR.
 - [x] Headroom: no CI unit test near the 5 s default, lint passes under Node's default heap as four runs over disjoint files, and the playground tests live in their own spec and wait on the stage's counters, not on timers, so they hold under load (#71)
 - [x] Effect, island and memory counters: every effects stage publishes `data-effect-builds` (the render-target textures its screen-effect pipeline has ever held), the site island publishes `data-builds`, and every catalog stage and the island publish `data-geometries`, `data-textures` and `data-targets` from the renderer's memory report (#70)
 - [x] Playground memory guard: `e2e/memory.spec.ts` opens, undoes, redoes and removes five times over, in the default project and in the WebGPU lane, and fails when the renderer's geometry, texture or render-target count after any cycle differs from the first, including a case of transmission glass under screen effects (#77)
-- [ ] CI shards balanced by run time, not by file count
+- [x] CI shards balanced by run time, not by file count: the e2e and container-e2e shards run the tests listed for them in `e2e/shards/plan.json` (balanced from the run times of CI runs on main, regenerated with `bun run shards:plan`, checked by `shards:check` in the e2e job), and a spec that makes a folder at load for its afterAll to remove fails `e2e/hooks.spec.ts` (#95)
 - [ ] Icon packs as data: each pack is a data entry the catalog and `lumin` read, not code
 
 ---

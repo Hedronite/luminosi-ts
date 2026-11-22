@@ -9,14 +9,23 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "@playwright/test";
 import { decodePng } from "../../tools/stills/src/png.js";
+import { ran } from "./spawn.js";
 
-const bun = (args: readonly string[], options: SpawnSyncOptionsWithStringEncoding): SpawnSyncReturns<string> => spawnSync("bun", args, options);
+/** Every child this spec starts, read through `ran`: a spawn that did not run throws with its error code, message and the machine's state, and never reads an empty `stdout`. */
+const bun = (args: readonly string[], options: SpawnSyncOptionsWithStringEncoding): SpawnSyncReturns<string> => ran(spawnSync("bun", args, options), `bun ${args.map((arg) => (arg.includes("/") ? "<path>" : arg)).join(" ")}`, options);
 
 const root = join(import.meta.dirname, "../..");
 const cli = join(root, "tools/lumin/src/cli.ts");
-const base = realpathSync(mkdtempSync(join(tmpdir(), "lts-mcp-render-")));
-const home = join(base, "home");
-cpSync(join(root, "packages/scene/fixtures"), home, { recursive: true });
+// The folder these tests work in is made before the tests of a worker's turn and removed after them, and not once when the file is loaded: a worker that
+// finishes one test of this file and is given another one later runs the file's afterAll in between, so a folder made at load would be gone for the second test
+// (a spawn in a folder that is not there fails with a bare ENOENT, which once read as a missing program).
+let base = "";
+let home = "";
+test.beforeAll(() => {
+  base = realpathSync(mkdtempSync(join(tmpdir(), "lts-mcp-render-")));
+  home = join(base, "home");
+  cpSync(join(root, "packages/scene/fixtures"), home, { recursive: true });
+});
 test.afterAll(() => {
   rmSync(base, { recursive: true, force: true });
 });
