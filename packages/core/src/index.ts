@@ -32,7 +32,7 @@ export {
   type VendorProvenance,
 } from "./credits.js";
 export { lookCredits } from "./generated/lookCredits.js";
-export { vendorCredits } from "./generated/vendorCredits.js";
+export { vendorCreditRecords, vendorCredits } from "./generated/vendorCredits.js";
 export {
   compareDescriptors,
   createDescriptorRegistry,

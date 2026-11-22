@@ -11,7 +11,9 @@ const root = resolve(import.meta.dirname, "../../..");
 
 /** Every extension a package or an app keeps code, styles or markup in. */
 const sourceExtensions = new Set([".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs", ".astro", ".css", ".scss", ".html", ".vue", ".svelte", ".mdx"]);
-const skippedFolders = new Set(["node_modules", "dist", ".turbo", ".astro", "coverage", "test-results", "playwright-report", "vendor-pages", "generated"]);
+const skippedFolders = new Set(["node_modules", "dist", ".turbo", ".astro", "coverage", "test-results", "playwright-report", "vendor-pages"]);
+/** Generated provenance data names the pinned globs as data (its transformations), so it is not a reader of the tree. */
+const PROVENANCE = "apps/catalog/src/generated/vendorProvenance.ts";
 
 const sourcesIn = (dir: string): readonly string[] =>
   readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -77,11 +79,13 @@ describe("the tripwire", () => {
   });
 });
 
-const shipped = ["packages", "apps"].flatMap((group) =>
-  readdirSync(join(root, group), { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .flatMap((entry) => sourcesIn(join(root, group, entry.name))),
-);
+const shipped = ["packages", "apps"]
+  .flatMap((group) =>
+    readdirSync(join(root, group), { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .flatMap((entry) => sourcesIn(join(root, group, entry.name))),
+  )
+  .filter((file) => relative(root, file) !== PROVENANCE);
 
 describe("the vendor tree", () => {
   it("is looked for in every kind of source the packages and apps keep", () => {

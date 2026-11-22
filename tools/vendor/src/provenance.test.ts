@@ -46,11 +46,10 @@ describe("an adopted asset's origin", () => {
   it.each(adopted.map((carrier) => [carrier.id, carrier.origin] as const))("%s names its folder's pinned commit", (_id, origin) => {
     const pin = readPin(vendorDir, origin.vendor);
     if (pin === undefined) throw new Error(`${origin.vendor} has no pin`);
-    if (pin.kept) {
-      expect(origin.commit, `${origin.vendor} is kept: its origin names no commit`).toBeUndefined();
-      return;
-    }
-    expect(pin.sources.map((source) => source.commit)).toContain(origin.commit);
+    const agrees = pin.kept
+      ? origin.commit === undefined
+      : pin.sources.some((source) => source.commit === origin.commit);
+    expect(agrees, `${origin.vendor} names ${String(origin.commit)}, its pin names ${pin.kept ? "no commit (kept)" : pin.sources.map((source) => source.commit).join(", ")}`).toBe(true);
   });
   it.each(adopted.map((carrier) => [carrier.id, carrier.origin] as const))("%s carries its license and what it changed", (_id, origin) => {
     expect(origin.license, `${origin.vendor}/${origin.path} has no license`).toBeDefined();
