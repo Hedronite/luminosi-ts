@@ -14,22 +14,67 @@ const cacheDir = ((): string => {
   return given === undefined || given === "" ? join(root, ".vendor") : given;
 })();
 
+interface License {
+  readonly spdx: string;
+  readonly paths?: readonly string[];
+  readonly remainder?: boolean;
+}
 interface Pin {
   readonly kept: boolean;
   readonly keptReason?: string;
-  readonly sources?: readonly { readonly source: string; readonly commit: string }[];
-  readonly transformations: readonly { readonly kind: string; readonly paths: readonly string[]; readonly reason: string }[];
+  readonly sources: readonly { readonly source: string; readonly commit: string }[];
+  readonly transformations: readonly string[];
   readonly vendoredOn: string;
   readonly reviewer: string;
-  readonly licenses: readonly { readonly spdx: string; readonly paths?: readonly string[]; readonly remainder?: boolean }[];
+  readonly licenses: readonly License[];
 }
+
+const field = (source: object, name: string): unknown => Reflect.get(source, name);
+const array = (value: unknown): readonly unknown[] => (Array.isArray(value) ? value : []);
+const strings = (value: unknown): readonly string[] =>
+  array(value).filter((item): item is string => typeof item === "string");
+const objects = (value: unknown): readonly object[] =>
+  array(value).filter((item): item is object => typeof item === "object" && item !== null);
 
 const folders = readdirSync(vendorDir, { withFileTypes: true })
   .filter((entry) => entry.isDirectory())
   .map((entry) => entry.name)
   .sort();
 
-const pinOf = (folder: string): Pin => JSON.parse(readFileSync(join(vendorDir, folder, "vendor.json"), "utf8")) as Pin;
+/** A pin's fields as this check reads them, narrowed from the file rather than asserted. */
+function readPin(folder: string): Pin {
+  const json: unknown = JSON.parse(readFileSync(join(vendorDir, folder, "vendor.json"), "utf8"));
+  if (typeof json !== "object" || json === null) throw new Error(`${folder}/vendor.json: not an object`);
+  const keptReason = field(json, "keptReason");
+  const licenses = objects(field(json, "licenses")).flatMap((entry): License[] => {
+    const spdx = field(entry, "spdx");
+    if (typeof spdx !== "string") return [];
+    const paths = field(entry, "paths");
+    return [
+      {
+        spdx,
+        ...(paths === undefined ? {} : { paths: strings(paths) }),
+        ...(field(entry, "remainder") === true ? { remainder: true } : {}),
+      },
+    ];
+  });
+  return {
+    kept: field(json, "kept") === true,
+    ...(typeof keptReason === "string" ? { keptReason } : {}),
+    sources: objects(field(json, "sources")).flatMap((source) => {
+      const commit = field(source, "commit");
+      const repo = field(source, "source");
+      return typeof commit === "string" && typeof repo === "string" ? [{ source: repo, commit }] : [];
+    }),
+    transformations: objects(field(json, "transformations")).flatMap((change) => {
+      const kind = field(change, "kind");
+      return typeof kind === "string" ? [kind] : [];
+    }),
+    vendoredOn: String(field(json, "vendoredOn")),
+    reviewer: String(field(json, "reviewer")),
+    licenses,
+  };
+}
 
 /** A glob as the pins write them: `*` any run but a slash, `?` one such character, `**` any run of folders, `dir/` a folder. */
 function matches(pattern: string, path: string): boolean {
@@ -60,30 +105,37 @@ function rawFiles(folder: string, pin: Pin): readonly string[] {
 const expression = (pin: Pin): string =>
   [...new Set(pin.licenses.map((entry) => (entry.spdx.includes(" ") ? `(${entry.spdx})` : entry.spdx)))].join(" AND ");
 
+const entryOf = (folder: string): VendorProvenance => {
+  const entry = vendorProvenance[folder];
+  if (entry === undefined) throw new Error(`${folder} has no provenance`);
+  return entry;
+};
+
 describe("the generated vendor provenance", () => {
   it("has an entry for every pinned folder", () => {
     expect(Object.keys(vendorProvenance).sort()).toEqual(folders);
   });
   it.each(folders)("%s parses with the core schema", (folder) => {
     const parsed = vendorProvenanceSchema.safeParse(vendorProvenance[folder]);
-    expect(parsed.success, parsed.success ? "" : JSON.stringify(parsed.error.issues)).toBe(true);
+    if (!parsed.success) throw new Error(`${folder}: ${JSON.stringify(parsed.error.issues)}`);
+    expect(parsed.success).toBe(true);
   });
   it.each(folders)("%s carries its pin's sources, kind and license", (folder) => {
-    const pin = pinOf(folder);
-    const entry = vendorProvenance[folder] as VendorProvenance;
-    expect(entry.sources.map((source) => source.commit)).toEqual(pin.sources?.map((source) => source.commit) ?? []);
-    expect(entry.sources.map((source) => source.repo)).toEqual(pin.sources?.map((source) => source.source) ?? []);
+    const pin = readPin(folder);
+    const entry = entryOf(folder);
+    expect(entry.sources.map((source) => source.commit)).toEqual(pin.sources.map((source) => source.commit));
+    expect(entry.sources.map((source) => source.repo)).toEqual(pin.sources.map((source) => source.source));
     expect(entry.fetched).toBe(!pin.kept);
     expect(entry.keptReason).toBe(pin.keptReason);
     expect(entry.license).toBe(expression(pin));
     expect(entry.licenseIds).toEqual([...new Set(pin.licenses.map((license) => license.spdx))]);
     expect(entry.vendoredOn).toBe(pin.vendoredOn);
     expect(entry.reviewer).toBe(pin.reviewer);
-    expect(entry.transformations.map((change) => change.kind)).toEqual(pin.transformations.map((change) => change.kind));
+    expect(entry.transformations.map((change) => change.kind)).toEqual(pin.transformations);
   });
   it.each(folders)("%s has a policy row for each of its pin's licenses", (folder) => {
-    const pin = pinOf(folder);
-    const entry = vendorProvenance[folder] as VendorProvenance;
+    const pin = readPin(folder);
+    const entry = entryOf(folder);
     expect(entry.policies).toHaveLength(pin.licenses.length);
     for (const license of pin.licenses) {
       const row = entry.policies.find(
@@ -93,8 +145,8 @@ describe("the generated vendor provenance", () => {
     }
   });
   it.each(folders)("%s covers each raw file by one policy row at most, and the rest by its remainder", (folder) => {
-    const pin = pinOf(folder);
-    const entry = vendorProvenance[folder] as VendorProvenance;
+    const pin = readPin(folder);
+    const entry = entryOf(folder);
     const named = entry.policies.filter((row) => row.files.length > 0);
     const remainder = entry.policies.filter((row) => row.files.length === 0);
     expect(remainder.length).toBeLessThanOrEqual(1);
@@ -110,10 +162,10 @@ describe("the generated vendor provenance", () => {
     expect(files.length).toBeGreaterThan(0);
   });
   it.each(folders)("%s has a credit record carrying its commit and license id", (folder) => {
-    const pin = pinOf(folder);
+    const pin = readPin(folder);
     const record = vendorCreditRecords[folder];
     if (record === undefined) throw new Error(`${folder} has no credit record`);
-    expect(record.commit).toBe(pin.sources?.[0]?.commit);
+    expect(record.commit).toBe(pin.sources[0]?.commit);
     expect(record.licenseId).toBe(expression(pin));
   });
 });
