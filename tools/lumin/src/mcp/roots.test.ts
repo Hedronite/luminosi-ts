@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
@@ -113,6 +113,14 @@ describe("writing", () => {
 
   it("does not make a folder", () => {
     expect(failureOf(rootFiles(roots, true).write("no-such-folder/new.json", "x", false))).toEqual({ kind: "failed", error: "the folder for that file does not exist" });
+  });
+
+  it("does not make a folder for bytes either, new or forced (the command line does; a root's files never)", () => {
+    const files = rootFiles(roots, true);
+    const png = Uint8Array.from([0x89, 0x50, 0x4e, 0x47]);
+    expect(failureOf(files.writeBytes("no-such-folder/new.png", png, false))).toEqual({ kind: "failed", error: "the folder for that file does not exist" });
+    expect(failureOf(files.writeBytes("no-such-folder/deeper/new.png", png, true))).toMatchObject({ kind: "failed" });
+    expect(existsSync(join(root, "no-such-folder"))).toBe(false);
   });
 
   it("replaces, through a link that stays inside, the file it leads to", () => {

@@ -6,7 +6,7 @@ import fc from "fast-check";
 import { afterAll, describe, expect, it } from "vitest";
 import { root } from "../commands.js";
 import type { Envelope } from "../envelope.js";
-import { closestIds, diskFiles, jsonSyntaxError, lineAndColumn, MAX_DOCUMENT_BYTES, nodeContext, parseText, type Context } from "./io.js";
+import { closestIds, diskFiles, jsonSyntaxError, lineAndColumn, MAX_DOCUMENT_BYTES, nodeContext, parseText, writeBytesInFolder, type Context } from "./io.js";
 import { operationNamed } from "./table.js";
 
 const ctx = await nodeContext();
@@ -203,10 +203,25 @@ describe("writing bytes", () => {
     expect(readdirSync(at)).toEqual(["out.png"]);
   });
 
-  it("does not make a folder, and leaves nothing behind when it cannot write", () => {
+  it("on the command line makes the folders the file goes in, as render always did, new or forced", () => {
     const at = dir();
-    expect(diskFiles.writeBytes(join(at, "missing", "out.png"), png, false)).toMatchObject({ ok: false, failure: { kind: "failed", error: "the folder for that file does not exist" } });
-    expect(diskFiles.writeBytes(join(at, "missing", "out.png"), png, true)).toMatchObject({ ok: false, failure: { kind: "failed" } });
+    expect(diskFiles.writeBytes(join(at, "a", "b", "out.png"), png, false)).toEqual({ ok: true, value: png.length });
+    expect(readFileSync(join(at, "a", "b", "out.png"))).toEqual(Buffer.from(png));
+    expect(diskFiles.writeBytes(join(at, "c", "d", "out.png"), png, true)).toEqual({ ok: true, value: png.length });
+    expect(readdirSync(join(at, "c", "d"))).toEqual(["out.png"]);
+  });
+
+  it("says so when the folder cannot be made, and leaves nothing behind", () => {
+    const at = dir();
+    writeFileSync(join(at, "file"), "x");
+    expect(diskFiles.writeBytes(join(at, "file", "out.png"), png, false)).toMatchObject({ ok: false, failure: { kind: "failed", error: "the folder for that file could not be made" } });
+    expect(readdirSync(at)).toEqual(["file"]);
+  });
+
+  it("writeBytesInFolder (what an MCP root's files use) never makes a folder, and leaves nothing behind when it cannot write", () => {
+    const at = dir();
+    expect(writeBytesInFolder(join(at, "missing", "out.png"), png, false)).toMatchObject({ ok: false, failure: { kind: "failed", error: "the folder for that file does not exist" } });
+    expect(writeBytesInFolder(join(at, "missing", "out.png"), png, true)).toMatchObject({ ok: false, failure: { kind: "failed" } });
     expect(readdirSync(at)).toEqual([]);
   });
 

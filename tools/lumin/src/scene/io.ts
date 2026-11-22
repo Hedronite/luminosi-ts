@@ -1,7 +1,7 @@
 // Reading a scene document for the scene operations: from a path, from stdin (`-`) or given inline. Whatever the way in,
 // the document is read, migrated, parsed and checked against the registry the same way, so the way in changes nothing.
 import { randomUUID } from "node:crypto";
-import { closeSync, constants, lstatSync, openSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { closeSync, constants, lstatSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { loadDescriptors } from "@hedronite/lts-registry";
 import { assetCredit, checkRefs, lookCredit, migrate, SCENE_VERSION, SHARE_LIMITS, type RefKind, type Resolve, type Scene } from "@hedronite/lts-scene";
@@ -50,6 +50,7 @@ export interface Files {
   /**
    * Writes bytes that are not text (a PNG). A new path is made with `O_EXCL | O_NOFOLLOW`, so a link put there after the path was judged is refused
    * and never followed; with `force` a temporary file is written beside it and renamed over it, so a link at the path is replaced, not followed.
+   * On the command line the folder is made if it is not there (as `render` always did); the files of an MCP root never make one.
    */
   writeBytes(path: string, bytes: Uint8Array, force: boolean): Outcome<number>;
   /** Whether anything is at the path, a link included (a link that leads nowhere is something there). */
@@ -320,6 +321,41 @@ function notWritten(error: unknown): Outcome<never> {
   return bad("failed", "the file could not be written");
 }
 
+/**
+ * Writes bytes into a folder that is already there: a new path is made with `O_EXCL | O_NOFOLLOW`, so a link put there is refused and never followed; with `force`
+ * a temporary file is written beside it and renamed over it, so a link at the path is replaced, not followed. A missing folder is a failure, not made.
+ */
+export function writeBytesInFolder(path: string, bytes: Uint8Array, force: boolean): Outcome<number> {
+  const flags = constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL;
+  if (!force) {
+    try {
+      const file = openSync(path, flags | constants.O_NOFOLLOW, 0o666);
+      try {
+        writeFileSync(file, bytes);
+      } finally {
+        closeSync(file);
+      }
+      return good(bytes.length);
+    } catch (error) {
+      return notWritten(error);
+    }
+  }
+  const temp = join(dirname(path), `.${basename(path)}.${randomUUID()}.tmp`);
+  try {
+    const file = openSync(temp, flags, 0o666);
+    try {
+      writeFileSync(file, bytes);
+    } finally {
+      closeSync(file);
+    }
+    renameSync(temp, path);
+    return good(bytes.length);
+  } catch (error) {
+    rmSync(temp, { force: true });
+    return notWritten(error);
+  }
+}
+
 /** Files on disk, as the command line sees them. A path is never echoed in a failure beyond what the caller typed. */
 export const diskFiles: Files = {
   read(path) {
@@ -340,35 +376,14 @@ export const diskFiles: Files = {
       return notWritten(error);
     }
   },
+  // The command line makes the folder the file goes in, as `render` always did; an MCP root's files do not (`writeBytesInFolder`).
   writeBytes(path, bytes, force) {
-    const flags = constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL;
-    if (!force) {
-      try {
-        const file = openSync(path, flags | constants.O_NOFOLLOW, 0o666);
-        try {
-          writeFileSync(file, bytes);
-        } finally {
-          closeSync(file);
-        }
-        return good(bytes.length);
-      } catch (error) {
-        return notWritten(error);
-      }
-    }
-    const temp = join(dirname(path), `.${basename(path)}.${randomUUID()}.tmp`);
     try {
-      const file = openSync(temp, flags, 0o666);
-      try {
-        writeFileSync(file, bytes);
-      } finally {
-        closeSync(file);
-      }
-      renameSync(temp, path);
-      return good(bytes.length);
-    } catch (error) {
-      rmSync(temp, { force: true });
-      return notWritten(error);
+      mkdirSync(dirname(path), { recursive: true });
+    } catch {
+      return bad("failed", "the folder for that file could not be made");
     }
+    return writeBytesInFolder(path, bytes, force);
   },
   exists(path) {
     try {

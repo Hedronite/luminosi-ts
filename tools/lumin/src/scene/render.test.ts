@@ -1,10 +1,12 @@
+import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import type { Picture } from "../../../stills/src/png.js";
 import { sceneCommand } from "./command.js";
 import { deflateSync } from "node:zlib";
+import { ok } from "../envelope.js";
 import { diskFiles, nodeContext, type Files } from "./io.js";
 import { checkSide, isBlank, MAX_SIDE, renderScene, serve, type DrawFrame, type Stage } from "./render.js";
 import { rootFiles } from "../mcp/roots.js";
@@ -216,6 +218,27 @@ describe("renderScene writes through the files it is given", () => {
     expect(result).toMatchObject({ ok: true, data: { out, width: 16, height: 12, renderer: "a test renderer", frames: 2 } });
     expect(calls).toEqual(["exists", `writeBytes force=false ${String(pngOf(16, 12).length)} bytes`]);
     expect(readFileSync(out)).toEqual(pngOf(16, 12));
+  });
+
+  it("on the command line makes the nested folder --out is in, and answers with the envelope main answered with", async () => {
+    const { base, paths } = world();
+    const out = join(base, "frames", "2026", "frame.png");
+    const result = await renderScene({ document: "{}", out, width: 16, height: 12 }, paths, diskFiles, drawnAs);
+    const png = pngOf(16, 12);
+    // The envelope as it was before the write went through the files: the same fields, in the same order.
+    const before = ok("render", { out: resolve(out), width: 16, height: 12, sha256: createHash("sha256").update(png).digest("hex"), renderer: "a test renderer", frames: 2 });
+    expect(JSON.stringify(result)).toBe(JSON.stringify(before));
+    expect(readFileSync(out)).toEqual(png);
+  });
+
+  it("an MCP root's files refuse a folder that is not there, and make none", async () => {
+    const { base, paths } = world();
+    const root = join(base, "root");
+    mkdirSync(root);
+    const result = await renderScene({ document: "{}", out: join(root, "frames", "frame.png"), width: 16, height: 12 }, paths, rootFiles([root], true), drawnAs);
+    expect(result).toMatchObject({ ok: false, kind: "failed" });
+    expect(() => readFileSync(join(root, "frames", "frame.png"))).toThrow();
+    expect(() => readFileSync(join(root, "frames"))).toThrow();
   });
 
   it("with force does not ask, and writes with force", async () => {

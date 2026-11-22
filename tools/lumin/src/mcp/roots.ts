@@ -4,7 +4,7 @@
 // it never echoes the path, and it tells nothing about what lies beyond the roots.
 import { lstatSync, realpathSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, normalize, relative, sep } from "node:path";
-import { diskFiles, type Failure, type Files, type Outcome } from "../scene/io.js";
+import { diskFiles, writeBytesInFolder, type Failure, type Files, type Outcome } from "../scene/io.js";
 
 /** The one answer for a path that is not inside a root: the same words for every such path, and none of the path's. */
 export const NO_ROOT: Failure = { kind: "no_root", error: "that path is not inside a root this server was started with (--root); a path is read and written under a root only" };
@@ -103,7 +103,7 @@ export function rootFiles(roots: readonly string[], allowWrite: boolean): Files 
     writeBytes(path, bytes, force) {
       if (!allowWrite) return bad(WRITE_NOT_ALLOWED);
       const at = locate(roots, path, "write");
-      return at.ok ? diskFiles.writeBytes(at.value.real, bytes, force) : at;
+      return at.ok ? writeBytesInFolder(at.value.real, bytes, force) : at;
     },
     exists(path) {
       if (!allowWrite) return bad(WRITE_NOT_ALLOWED);
