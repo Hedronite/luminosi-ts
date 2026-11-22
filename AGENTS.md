@@ -16,6 +16,7 @@ bun run build          # tsc for packages, vite build for the catalog
 bun run test           # Vitest
 bun run icons          # regenerate packages/icons from assets/src/icons (icons:check verifies)
 bun run icons:packs    # regenerate the icon packs from assets/vendor (icons:packs:check verifies)
+bun run vendor:fetch   # fetch every vendored folder at its pin into .vendor/ (before the vendor checks; no test or build fetches)
 bun run solids         # regenerate the Archimedean solids' faces from assets/src/solids (solids:check verifies)
 bun run vendor         # regenerate the catalog's Open source view from assets/vendor (vendor:check verifies)
 bun run objects        # regenerate packages/objects from assets/src/objects, after build (objects:check verifies)
@@ -67,6 +68,10 @@ Use `nu .agents/skills/lumin/lumin.nu show <id>` before grepping packages. Witho
 ## Third-party material
 
 Open-source assets by others are welcome, as long as they're credited (Evan, 2026-11-15). `assets/vendor/` holds the larger sets as published (isocons, Lucide, CoreUI, Famicons and Stash icons, ThreeUI Community, Techartist demos, two agent-skill sets), each with its upstream license and a `CREDIT.md`. `CREDITS.md` lists everything third-party in the repo. When you add something: keep its license beside it, add a row to `CREDITS.md`, and keep its name and branding its own. Still not allowed: material without an open license (paid kits, client work, brand systems taken from other sites, product photos). The tooling ignores `assets/vendor/`; bring an asset into a package through that package's sources, with its credit: `lumin adopt` plans it, and the asset's `origin` (`{ vendor, path, note }` in its manifest) names the vendored file it came from, so the catalog credits it in its details and lists it under its folder in Open source. Take the technique, not the dressing: no third-party names, marks or text come along.
+
+Raw upstream files are not in the tree. A fresh clone runs `bun run vendor:fetch` before
+`icons:packs:check`, `vendor:check`, or a test that reads a folder; `.vendor/` is a cache and is never
+committed. Every tool finds a folder's raw files through the resolver (`tools/vendor/src/resolve.ts`).
 
 ## Package boundaries
 

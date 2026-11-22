@@ -1,6 +1,7 @@
 {
   "claudeMdExcludes": [
     "**/assets/vendor/**",
-    "**/tools/img-to-object/upstream/**"
+    "**/tools/img-to-object/upstream/**",
+    "**/.vendor/**"
   ]
 }

@@ -328,6 +328,7 @@
       "version": "0.0.0",
       "devDependencies": {
         "svgo": "catalog:",
+        "tool-vendor": "workspace:*",
         "vitest": "catalog:",
         "zod": "catalog:",
       },

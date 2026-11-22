@@ -48,16 +48,18 @@ describe("the lumin skill", () => {
 
 describe("vendored trees stay out of agent discovery", () => {
   const trees = ["assets/vendor", "tools/img-to-object/upstream"];
+  /** The fetched cache, ignored in the same places; it holds raw upstream and is never in the repository. */
+  const ignored = [...trees, ".vendor"];
 
   it("Claude Code skips CLAUDE.md files and rules under both trees (claudeMdExcludes)", () => {
     const settings: unknown = JSON.parse(read(".claude/settings.json"));
     const excludes = typeof settings === "object" && settings !== null && "claudeMdExcludes" in settings ? settings.claudeMdExcludes : undefined;
-    expect(excludes).toEqual(trees.map((tree) => `**/${tree}/**`));
+    expect(excludes).toEqual(ignored.map((tree) => `**/${tree}/**`));
   });
 
   it("Cursor is told to ignore both trees (.cursorignore)", () => {
     const lines = read(".cursorignore").split("\n").filter((line) => line.trim() !== "" && !line.startsWith("#"));
-    expect(lines).toEqual(trees.map((tree) => `${tree}/`));
+    expect(lines).toEqual(ignored.map((tree) => `${tree}/`));
   });
 
   it("no harness config folder sits inside either tree (nested skills and rules are discovered there)", () => {
