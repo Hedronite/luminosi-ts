@@ -15,6 +15,8 @@ const ShaderViewport = lazy(() => import("./ShaderViewport").then((module) => ({
 const EffectViewport = lazy(() => import("./EffectViewport").then((module) => ({ default: module.EffectViewport })));
 // The parameter panel loads only when the detail view of an asset with parameters opens.
 const ParameterPanel = lazy(() => import("./ParameterPanel"));
+// Where an asset came from: the folder's pin and what the port changed, in a chunk of its own, opened with a dialog that has an origin.
+const Provenance = lazy(() => import("./provenance/Provenance").then((module) => ({ default: module.Provenance })));
 
 const has3d = (meta: AssetMeta): boolean => meta.kind !== "icon";
 
@@ -201,6 +203,12 @@ export function DetailDialog({ meta, onClose, onStep, position }: DetailDialogPr
               </>
             )}
           </dl>
+
+          {meta.origin === undefined ? null : (
+            <Suspense fallback={null}>
+              <Provenance origin={meta.origin} />
+            </Suspense>
+          )}
 
           {snippetsFailed ? (
             <p role="alert" className="mt-6 text-sm text-fg-muted">
