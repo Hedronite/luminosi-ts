@@ -638,3 +638,21 @@ test("stepping to the next asset keeps the stage on show, so a cycle draws on on
   await expect(page.getByRole("dialog")).toContainText(/3 \/ /, { timeout: STAGE_WAIT });
   await expect(viewport.locator("canvas")).toHaveAttribute("data-kept", "yes");
 });
+test("opening another asset after the dialog closed starts a stage of its own", async ({ page }) => {
+  // The stage kept across steps is cleared when the dialog closes: an asset opened afterwards is built fresh, never drawn by the last one's canvas.
+  await page.goto("/");
+  const primitives = page.getByRole("group", { name: "Filter by kind" }).getByRole("button", { name: /^Primitives/ });
+  await primitives.click();
+  const cards = gallery(page);
+  await cards.first().click();
+  const viewport = page.getByTestId("viewport");
+  await expectRenderer(viewport.locator("canvas"));
+  await viewport.locator("canvas").evaluate((canvas) => {
+    canvas.dataset["kept"] = "yes";
+  });
+  await page.getByRole("dialog").getByRole("button", { name: "Close" }).click();
+  await expect(page.getByRole("dialog")).toBeHidden();
+  await cards.nth(1).click();
+  await expectRenderer(viewport.locator("canvas"));
+  await expect(viewport.locator("canvas")).not.toHaveAttribute("data-kept", "yes");
+});

@@ -108,12 +108,19 @@ export function DetailDialog({ meta, onClose, onStep, position }: DetailDialogPr
       return plain;
     }
   }, [descriptor, fit, overrides]);
-  // The stage the dialog last showed, kept on show while the next asset's parameters load. Unmounting it in that gap builds a renderer, and a
-  // canvas, for every asset stepped through: a cycle of the gallery's primitives then holds dozens of contexts over, which software GL answers
-  // by losing the oldest. `Subject` already keeps the old object until the new one is ready; this keeps the canvas that draws it.
-  const stage = useRef<{ readonly meta: AssetMeta; readonly values: Readonly<Record<string, unknown>>; readonly epoch: number } | undefined>(undefined);
-  if (meta !== undefined && values !== undefined) stage.current = { meta, values, epoch: watch.epoch };
-  const shown = stage.current;
+  // The stage on show is the last one whose parameters were ready, kept until the next asset's are: `Subject` keeps the old object the same
+  // way, and unmounting the stage in that gap builds a renderer, and a canvas, for every asset stepped through — a cycle of the gallery's
+  // primitives then holds dozens of contexts over, which software GL answers by losing the oldest. It is cleared whenever the dialog is closed
+  // or has no asset, so an asset opened afterwards starts a stage of its own rather than the last one's.
+  //
+  // State adjusted during render, which React's own recipe for remembering a previous render prescribes: it is a pure comparison of this render's
+  // props with the last one, so StrictMode's second render reaches the same state, and React re-renders before painting, so nothing from the
+  // discarded pass reaches the screen.
+  const [shown, setShown] = useState<{ readonly meta: AssetMeta; readonly values: Readonly<Record<string, unknown>>; readonly epoch: number } | undefined>(undefined);
+  if (meta === undefined && shown !== undefined) setShown(undefined);
+  if (meta !== undefined && values !== undefined && (shown?.meta.id !== meta.id || shown.epoch !== watch.epoch || shown.values !== values)) {
+    setShown({ meta, values, epoch: watch.epoch });
+  }
   const snippetsFailed = failed;
   const hasParameters = descriptor !== undefined && fit !== undefined && fit.shownFields(descriptor).length > 0;
 
