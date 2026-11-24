@@ -656,3 +656,66 @@ test("opening another asset after the dialog closed starts a stage of its own", 
   await expectRenderer(viewport.locator("canvas"));
   await expect(viewport.locator("canvas")).not.toHaveAttribute("data-kept", "yes");
 });
+declare global {
+  interface Window {
+    /** The stage labels this spec watched arrive; see the icon-step tests below. */
+    __stageLabels?: string[];
+  }
+}
+
+/** Records every "…, rendered in 3D." label that reaches the document from here on: a stage that lives a few frames is gone before a locator looks. */
+async function watchStageLabels(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const seen: string[] = [];
+    window.__stageLabels = seen;
+    const record = (): void => {
+      for (const node of document.querySelectorAll('[aria-label$=", rendered in 3D."]')) {
+        const label = node.getAttribute("aria-label") ?? "";
+        if (!seen.includes(label)) seen.push(label);
+      }
+    };
+    new MutationObserver(record).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["aria-label"] });
+    record();
+  });
+}
+
+/** Every stage label that arrived since `watchStageLabels`, in order. */
+async function stageLabelsSeen(page: Page): Promise<readonly string[]> {
+  return page.evaluate(() => window.__stageLabels ?? []);
+}
+
+test("a step from an icon to a 3D asset draws that asset, never the icon in a viewport", async ({ page }) => {
+  // The kept stage belongs to a 3D asset only: the icon's own meta must never reach a viewport, which would mount a 3D stage labelled with the
+  // icon under the next asset's title for as long as that asset's parameters take to load.
+  await page.goto("/?asset=pause");
+  const icon = page.getByRole("dialog", { name: "Pause" });
+  await expect(icon).toBeVisible();
+  await expect(icon.locator("#parameters-title")).toBeVisible({ timeout: STAGE_WAIT });
+  await expect(page.getByTestId("viewport")).toHaveCount(0);
+  await watchStageLabels(page);
+  await page.getByRole("button", { name: "Next asset" }).click();
+  const next = page.getByRole("dialog", { name: "Pentagonal antiprism" });
+  await expect(next).toBeVisible();
+  await expect(page.getByTestId("viewport")).toHaveAttribute("aria-label", "Pentagonal antiprism, rendered in 3D.", { timeout: STAGE_WAIT });
+  expect(await stageLabelsSeen(page)).toEqual(["Pentagonal antiprism, rendered in 3D."]);
+});
+
+test("a step through an icon and on to a 3D asset starts the next stage fresh", async ({ page }) => {
+  await page.goto("/?asset=pentagonal-antiprism");
+  const viewport = page.getByTestId("viewport");
+  await expect(viewport).toHaveAttribute("aria-label", "Pentagonal antiprism, rendered in 3D.", { timeout: STAGE_WAIT });
+  await viewport.locator("canvas").evaluate((canvas) => {
+    canvas.dataset["kept"] = "yes";
+  });
+  await page.getByRole("button", { name: "Previous asset" }).click();
+  const icon = page.getByRole("dialog", { name: "Pause" });
+  await expect(icon).toBeVisible();
+  await expect(icon.locator("#parameters-title")).toBeVisible({ timeout: STAGE_WAIT });
+  // The icon draws its own preview: the stage kept from before it is gone, not merely hidden.
+  await expect(page.getByTestId("viewport")).toHaveCount(0);
+  await watchStageLabels(page);
+  await page.getByRole("button", { name: "Next asset" }).click();
+  await expect(viewport).toHaveAttribute("aria-label", "Pentagonal antiprism, rendered in 3D.", { timeout: STAGE_WAIT });
+  expect(await stageLabelsSeen(page)).toEqual(["Pentagonal antiprism, rendered in 3D."]);
+  await expect(viewport.locator("canvas")).not.toHaveAttribute("data-kept", "yes");
+});

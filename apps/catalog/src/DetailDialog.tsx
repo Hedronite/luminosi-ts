@@ -108,17 +108,18 @@ export function DetailDialog({ meta, onClose, onStep, position }: DetailDialogPr
       return plain;
     }
   }, [descriptor, fit, overrides]);
-  // The stage on show is the last one whose parameters were ready, kept until the next asset's are: `Subject` keeps the old object the same
-  // way, and unmounting the stage in that gap builds a renderer, and a canvas, for every asset stepped through — a cycle of the gallery's
+  // The stage on show is the last 3D one whose parameters were ready, kept until the next asset's are: `Subject` keeps the old object the same
+  // way, and unmounting the stage in that gap builds a renderer, and a canvas, for every 3D asset stepped through — a cycle of the gallery's
   // primitives then holds dozens of contexts over, which software GL answers by losing the oldest. It is cleared whenever the dialog is closed
-  // or has no asset, so an asset opened afterwards starts a stage of its own rather than the last one's.
+  // or shows something that has no stage of its own (an icon), so an asset opened afterwards, or a 3D asset after an icon, starts a stage of its
+  // own rather than drawing the last one's — an icon's meta in a viewport would draw an icon in 3D under the next asset's title.
   //
   // State adjusted during render, which React's own recipe for remembering a previous render prescribes: it is a pure comparison of this render's
   // props with the last one, so StrictMode's second render reaches the same state, and React re-renders before painting, so nothing from the
   // discarded pass reaches the screen.
   const [shown, setShown] = useState<{ readonly meta: AssetMeta; readonly values: Readonly<Record<string, unknown>>; readonly epoch: number } | undefined>(undefined);
-  if (meta === undefined && shown !== undefined) setShown(undefined);
-  if (meta !== undefined && values !== undefined && (shown?.meta.id !== meta.id || shown.epoch !== watch.epoch || shown.values !== values)) {
+  if ((meta === undefined || !has3d(meta)) && shown !== undefined) setShown(undefined);
+  if (meta !== undefined && has3d(meta) && values !== undefined && (shown?.meta.id !== meta.id || shown.epoch !== watch.epoch || shown.values !== values)) {
     setShown({ meta, values, epoch: watch.epoch });
   }
   const snippetsFailed = failed;

@@ -132,7 +132,7 @@
         "e2e/vendor.spec.ts:3",
         "e2e/vendor.spec.ts:96",
         "e2e/shards/shards.spec.ts:99",
-        "e2e/catalog.spec.ts:680"
+        "e2e/catalog.spec.ts:687"
       ]
     },
     {
@@ -166,7 +166,7 @@
         "e2e/solids.spec.ts:6",
         "e2e/vendor.spec.ts:84",
         "e2e/shards/shards.spec.ts:152",
-        "e2e/catalog.spec.ts:696"
+        "e2e/catalog.spec.ts:703"
       ]
     },
     {
