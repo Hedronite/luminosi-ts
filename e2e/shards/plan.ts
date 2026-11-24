@@ -4,8 +4,11 @@
 //
 //   bun e2e/shards/plan.ts timings LOGDIR...   read the e2e shard logs of recent runs on main into timings.json (the logs are fetched with `gh api
 //                                               repos/OWNER/REPO/actions/jobs/JOB_ID/logs`, one file per shard, named RUN-e2e-SHARD.log)
-//   bun e2e/shards/plan.ts generate            write plan.json from timings.json and the tests Playwright lists now
-//   bun e2e/shards/plan.ts check               fail when plan.json is not what `generate` writes now: a test added or removed, or a hand edit
+//   bun e2e/shards/plan.ts generate [--rebalance]  write plan.json: a test keeps the shard the plan on file gives it, and only a test the plan
+//                                               does not have is placed, on the shard with the least on it. `--rebalance` plans every test from
+//                                               scratch (SPEC-wave10 G0: regenerating from scratch moved 58 tests for 4 new ones, R36)
+//   bun e2e/shards/plan.ts check               fail when plan.json is not the sticky plan now: a test added, removed or moved, or a shard whose
+//                                               seconds are not its own
 //   bun e2e/shards/plan.ts args N              the locations of shard N, for the Playwright command line
 import { spawnSync } from "node:child_process";
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
@@ -122,14 +125,113 @@ export interface Plan {
   readonly plan: readonly Shard[];
 }
 
-/** A plan for the tests that exist (`locations`), weighing each by its timing, or by the median of the timings when it has none yet. */
-export function planFor(locations: readonly string[], timings: Timings, shards: number): Plan {
+/** Each location's weight: its median timing, or, for a location no run has timed, the median of every location that has one. */
+function weighed(locations: readonly string[], timings: Timings): { readonly weights: ReadonlyMap<string, number>; readonly fallback: number } {
   const known = Object.values(timings.locations).map((entry) => entry.seconds);
   const fallback = round(median(known));
-  const weights = new Map(locations.map((place) => [place, timings.locations[place]?.seconds ?? fallback] as const));
-  const plan = balance(weights, shards);
+  return { weights: new Map(locations.map((place) => [place, timings.locations[place]?.seconds ?? fallback] as const)), fallback };
+}
+
+/** A plan's own sums, from the shards it holds: the mean of them, the slowest of them, and the longest single test no plan can beat. */
+function summarise(plan: readonly Shard[], shards: number, weights: Iterable<number>): Plan {
   const total = plan.reduce((sum, shard) => sum + shard.seconds, 0);
-  return { shards, longestSeconds: Math.max(0, ...weights.values()), mean: round(total / shards), slowest: Math.max(0, ...plan.map((shard) => shard.seconds)), plan };
+  return {
+    shards,
+    longestSeconds: Math.max(0, ...weights),
+    mean: round(total / shards),
+    slowest: Math.max(0, ...plan.map((shard) => shard.seconds)),
+    plan,
+  };
+}
+
+/** A plan for the tests that exist (`locations`), weighing each by its timing, or by the median of the timings when it has none. */
+export function planFor(locations: readonly string[], timings: Timings, shards: number): Plan {
+  const { weights } = weighed(locations, timings);
+  return summarise(balance(weights, shards), shards, weights.values());
+}
+
+/**
+ * A plan that keeps every test where the plan on file has it and places only the tests it does not have yet, each on the shard with the least
+ * on it (ties to the lowest), which is what keeps a plan from moving when tests are added (SPEC-wave10 G0, R36's follow-up). A test the file
+ * has and Playwright no longer lists is dropped. With no plan to keep — none, one for another count of shards, or `--rebalance` — every test
+ * is placed from scratch, as `planFor` does.
+ */
+export function stickyPlan(existing: Plan | undefined, locations: readonly string[], timings: Timings, shards: number): Plan {
+  const keeping = existing !== undefined && existing.shards === shards ? existing.plan : undefined;
+  if (keeping === undefined) return planFor(locations, timings, shards);
+  const { weights, fallback } = weighed(locations, timings);
+  const stillListed = new Set(locations);
+  const placed = new Set<string>();
+  const buckets = Array.from({ length: shards }, () => ({ seconds: 0, locations: new Array<string>() }));
+  for (const shard of keeping) {
+    const bucket = buckets[shard.shard - 1];
+    if (bucket === undefined) continue;
+    for (const place of shard.locations) {
+      if (!stillListed.has(place) || placed.has(place)) continue;
+      placed.add(place);
+      bucket.seconds += weights.get(place) ?? fallback;
+      bucket.locations.push(place);
+    }
+  }
+  for (const place of stillListed) {
+    if (placed.has(place)) continue;
+    let lightest = 0;
+    for (let index = 1; index < buckets.length; index += 1) if ((buckets[index]?.seconds ?? 0) < (buckets[lightest]?.seconds ?? 0)) lightest = index;
+    const bucket = buckets[lightest];
+    if (bucket === undefined) continue;
+    bucket.seconds += weights.get(place) ?? fallback;
+    bucket.locations.push(place);
+  }
+  return summarise(
+    buckets.map((bucket, index) => ({ shard: index + 1, seconds: round(bucket.seconds), locations: [...bucket.locations] })),
+    shards,
+    weights.values(),
+  );
+}
+
+/** What a new plan does to the plan on file: how many tests change shard, how many it places for the first time, and how many it drops. */
+export function movedBetween(before: Plan | undefined, after: Plan): { readonly moved: number; readonly added: number; readonly dropped: number } {
+  const was = new Map<string, number>();
+  for (const shard of before?.plan ?? []) for (const place of shard.locations) was.set(place, shard.shard);
+  const now = new Map<string, number>();
+  for (const shard of after.plan) for (const place of shard.locations) now.set(place, shard.shard);
+  let moved = 0;
+  let added = 0;
+  for (const [place, shard] of now) {
+    const before = was.get(place);
+    if (before === undefined) added += 1;
+    else if (before !== shard) moved += 1;
+  }
+  let dropped = 0;
+  for (const place of was.keys()) if (!now.has(place)) dropped += 1;
+  return { moved, added, dropped };
+}
+
+/** The first thing that makes a plan on file not the plan `wrote`, in the words of a failure, or nothing when it is that plan. */
+export function planDifference(onFile: Plan | undefined, wrote: Plan): string | undefined {
+  if (onFile === undefined) return "e2e/shards/plan.json is missing or is not a plan: run `bun run shards:plan` and commit the result";
+  if (onFile.shards !== wrote.shards) return `e2e/shards/plan.json plans ${String(onFile.shards)} shards; CI runs ${String(wrote.shards)}`;
+  const was = new Map<string, number>();
+  for (const shard of onFile.plan) for (const place of shard.locations) was.set(place, shard.shard);
+  const now = new Map<string, number>();
+  for (const shard of wrote.plan) for (const place of shard.locations) now.set(place, shard.shard);
+  for (const [place, shard] of now) {
+    const before = was.get(place);
+    if (before === undefined) return `e2e/shards/plan.json does not place ${place}, which shard ${String(shard)} runs: run \`bun run shards:plan\``;
+    if (before !== shard) return `e2e/shards/plan.json puts ${place} in shard ${String(before)}; the sticky plan gives it shard ${String(shard)}`;
+  }
+  for (const place of was.keys()) if (!now.has(place)) return `e2e/shards/plan.json still places ${place}, which Playwright no longer lists`;
+  for (const shard of wrote.plan) {
+    const said = onFile.plan.find((entry) => entry.shard === shard.shard);
+    if (said === undefined) return `e2e/shards/plan.json has no shard ${String(shard.shard)}`;
+    if (said.seconds !== shard.seconds) {
+      return `e2e/shards/plan.json says shard ${String(shard.shard)} takes ${String(said.seconds)} s; its own locations weigh ${String(shard.seconds)} s`;
+    }
+  }
+  if (onFile.mean !== wrote.mean || onFile.slowest !== wrote.slowest || onFile.longestSeconds !== wrote.longestSeconds) {
+    return "e2e/shards/plan.json's mean, slowest or longest is not the one its shards give: the file was edited by hand or is stale";
+  }
+  return undefined;
 }
 
 // ---- the command line -----------------------------------------------------------------------------------------------
@@ -173,6 +275,26 @@ function readTimings(): Timings {
 
 const text = (value: unknown): string => `${JSON.stringify(value, null, 2)}\n`;
 
+/** The plan on file, as this file writes it, or nothing when it is not there or not a plan that can be kept. */
+function readPlan(): Plan | undefined {
+  let found: unknown;
+  try {
+    found = readJson(PLAN);
+  } catch {
+    return undefined;
+  }
+  if (!isRecord(found) || !Array.isArray(found["plan"])) return undefined;
+  const { shards, longestSeconds, mean, slowest } = found;
+  if (typeof shards !== "number" || typeof longestSeconds !== "number" || typeof mean !== "number" || typeof slowest !== "number") return undefined;
+  const plan: Shard[] = [];
+  for (const entry of found["plan"]) {
+    if (!isRecord(entry) || typeof entry["shard"] !== "number" || typeof entry["seconds"] !== "number" || !Array.isArray(entry["locations"])) return undefined;
+    const locations = entry["locations"].filter((place): place is string => typeof place === "string");
+    plan.push({ shard: entry["shard"], seconds: entry["seconds"], locations });
+  }
+  return { shards, longestSeconds, mean, slowest, plan };
+}
+
 function main(argv: readonly string[]): number {
   const [command = "", ...rest] = argv;
   if (command === "timings") {
@@ -183,15 +305,24 @@ function main(argv: readonly string[]): number {
     return 0;
   }
   if (command === "generate" || command === "check") {
-    const plan = planFor(listed(), readTimings(), SHARDS);
-    const made = text(plan);
+    const rebalance = rest.includes("--rebalance");
+    if (command === "check" && rest.length > 0) {
+      console.error("usage: plan.ts generate [--rebalance] | check | args N");
+      return 2;
+    }
+    const onFile = readPlan();
+    const wrote = stickyPlan(rebalance ? undefined : onFile, listed(), readTimings(), SHARDS);
     if (command === "generate") {
-      writeFileSync(PLAN, made);
-      console.log(`${plan.plan.map((shard) => `${String(shard.shard)}: ${String(shard.seconds)} s, ${String(shard.locations.length)} tests`).join(" | ")} | mean ${String(plan.mean)} s, slowest ${String(plan.slowest)} s`);
+      writeFileSync(PLAN, text(wrote));
+      const moves = movedBetween(onFile, wrote);
+      console.log(
+        `${String(wrote.plan.reduce((count, shard) => count + shard.locations.length, 0))} tests in ${String(SHARDS)} shards${rebalance ? ", rebalanced" : ""}: mean ${String(wrote.mean)} s, slowest ${String(wrote.slowest)} s; ${String(moves.moved)} moved, ${String(moves.added)} added, ${String(moves.dropped)} dropped`,
+      );
       return 0;
     }
-    if (readFileSync(PLAN, "utf8") === made) return 0;
-    console.error("e2e/shards/plan.json is not what `bun e2e/shards/plan.ts generate` writes now: a test was added, moved or removed, or the file was edited by hand. Run it and commit the result.");
+    const said = planDifference(onFile, wrote);
+    if (said === undefined) return 0;
+    console.error(said);
     return 1;
   }
   if (command === "args") {
@@ -205,7 +336,7 @@ function main(argv: readonly string[]): number {
     console.log(places.join(" "));
     return 0;
   }
-  console.error("usage: plan.ts timings LOGDIR... | generate | check | args N");
+  console.error("usage: plan.ts timings LOGDIR... | generate [--rebalance] | check | args N");
   return 2;
 }
 

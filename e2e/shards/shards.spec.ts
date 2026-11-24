@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@playwright/test";
-import { balance, median, parseLog, planFor, SHARDS, timingsOf } from "./plan.js";
+import { balance, median, movedBetween, parseLog, planDifference, planFor, SHARDS, stickyPlan, timingsOf } from "./plan.js";
 
 // The shard plan's own arithmetic, and the plan file it wrote (e2e/shards/plan.ts). No browser: these are pure.
 
@@ -83,4 +83,69 @@ test("the plan on file holds every location once, in the shards CI runs, with su
   const mean = sums.reduce((a, b) => a + b, 0) / SHARDS;
   const longest = typeof file["longestSeconds"] === "number" ? file["longestSeconds"] : Infinity;
   expect(Math.max(...sums)).toBeLessThanOrEqual(Math.max(1.5 * mean, longest * 1.1));
+});
+// SPEC-wave10 G0: generate is sticky. A test already planned keeps its shard, and only a test the plan does not have is placed, so adding one
+// moves none of the others (R36's follow-up: 4 new tests moved 58). These are the arithmetic of that, without a build.
+test("sticky generate keeps a planned test in its shard and places a new one on the shard with the least on it", () => {
+  const timings = { runs: [], locations: { "e2e/a.spec.ts:1": { seconds: 100, runs: 1 }, "e2e/b.spec.ts:1": { seconds: 50, runs: 1 } } };
+  const first = planFor(["e2e/a.spec.ts:1", "e2e/b.spec.ts:1"], timings, 2);
+  expect(first.plan.map((shard) => shard.locations)).toEqual([["e2e/a.spec.ts:1"], ["e2e/b.spec.ts:1"]]);
+  // The new test has no timing, so it weighs the median of 100 and 50; it goes where there is less on.
+  const next = stickyPlan(first, ["e2e/a.spec.ts:1", "e2e/b.spec.ts:1", "e2e/new.spec.ts:1"], timings, 2);
+  expect(next.plan.map((shard) => shard.locations)).toEqual([["e2e/a.spec.ts:1"], ["e2e/b.spec.ts:1", "e2e/new.spec.ts:1"]]);
+  expect(next.plan.map((shard) => shard.seconds)).toEqual([100, 125]);
+  expect(movedBetween(first, next)).toEqual({ moved: 0, added: 1, dropped: 0 });
+});
+test("sticky generate keeps a shard the balance would not choose, and a test no longer listed leaves the plan", () => {
+  const timings = { runs: [], locations: { "e2e/a.spec.ts:1": { seconds: 100, runs: 1 }, "e2e/b.spec.ts:1": { seconds: 50, runs: 1 } } };
+  const handKept = {
+    shards: 2,
+    longestSeconds: 100,
+    mean: 75,
+    slowest: 100,
+    plan: [
+      { shard: 1, seconds: 50, locations: ["e2e/b.spec.ts:1"] },
+      { shard: 2, seconds: 100, locations: ["e2e/a.spec.ts:1"] },
+    ],
+  };
+  const next = stickyPlan(handKept, ["e2e/a.spec.ts:1", "e2e/b.spec.ts:1"], timings, 2);
+  expect(next.plan.map((shard) => shard.locations)).toEqual([["e2e/b.spec.ts:1"], ["e2e/a.spec.ts:1"]]);
+  expect(movedBetween(handKept, next)).toEqual({ moved: 0, added: 0, dropped: 0 });
+  const afterDrop = stickyPlan(handKept, ["e2e/a.spec.ts:1"], timings, 2);
+  expect(afterDrop.plan.map((shard) => shard.locations)).toEqual([[], ["e2e/a.spec.ts:1"]]);
+  expect(afterDrop.plan.map((shard) => shard.seconds)).toEqual([0, 100]);
+  expect(movedBetween(handKept, afterDrop)).toEqual({ moved: 0, added: 0, dropped: 1 });
+});
+test("--rebalance plans every test from scratch, as if there were no plan on file", () => {
+  const timings = { runs: [], locations: { "e2e/a.spec.ts:1": { seconds: 100, runs: 1 }, "e2e/b.spec.ts:1": { seconds: 50, runs: 1 } } };
+  const handKept = {
+    shards: 2,
+    longestSeconds: 100,
+    mean: 75,
+    slowest: 100,
+    plan: [
+      { shard: 1, seconds: 50, locations: ["e2e/b.spec.ts:1"] },
+      { shard: 2, seconds: 100, locations: ["e2e/a.spec.ts:1"] },
+    ],
+  };
+  expect(stickyPlan(handKept, ["e2e/a.spec.ts:1", "e2e/b.spec.ts:1"], timings, 2).plan[1]?.locations).toEqual(["e2e/a.spec.ts:1"]);
+  expect(stickyPlan(undefined, ["e2e/a.spec.ts:1", "e2e/b.spec.ts:1"], timings, 2)).toEqual(planFor(["e2e/a.spec.ts:1", "e2e/b.spec.ts:1"], timings, 2));
+});
+test("check names the first thing that makes the plan on file stale or hand-edited", () => {
+  const timings = { runs: [], locations: { "e2e/a.spec.ts:1": { seconds: 100, runs: 1 }, "e2e/b.spec.ts:1": { seconds: 50, runs: 1 } } };
+  const wrote = planFor(["e2e/a.spec.ts:1", "e2e/b.spec.ts:1"], timings, 2);
+  expect(planDifference(wrote, wrote)).toBeUndefined();
+  expect(planDifference(undefined, wrote)).toContain("missing");
+  const listed = ["e2e/a.spec.ts:1", "e2e/b.spec.ts:1", "e2e/new.spec.ts:1"];
+  expect(planDifference(wrote, planFor(listed, timings, 2))).toContain("does not place e2e/new.spec.ts:1");
+  expect(planDifference(wrote, planFor(["e2e/a.spec.ts:1"], timings, 2))).toContain("still places e2e/b.spec.ts:1");
+  // A location swapped between two shards by hand, with the seconds left as they were.
+  const edited = {
+    ...wrote,
+    plan: [
+      { shard: 1, seconds: wrote.plan[0]?.seconds ?? 0, locations: ["e2e/b.spec.ts:1"] },
+      { shard: 2, seconds: wrote.plan[1]?.seconds ?? 0, locations: ["e2e/a.spec.ts:1"] },
+    ],
+  };
+  expect(planDifference(edited, stickyPlan(edited, ["e2e/a.spec.ts:1", "e2e/b.spec.ts:1"], timings, 2))).toContain("its own locations weigh");
 });

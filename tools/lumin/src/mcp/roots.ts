@@ -2,7 +2,12 @@
 // followed) before it is judged, and what is judged is what is opened, so a link that leads out of a root is a path outside it. Whatever is
 // wrong with a path outside every root, the answer is the one fixed `no_root`, the same for a file that is there and one that is not:
 // it never echoes the path, and it tells nothing about what lies beyond the roots.
-import { lstatSync, realpathSync } from "node:fs";
+//
+// A write is judged again at the moment it is made, and the folder it lands in is the one that was judged: a folder replaced, between the
+// judging and the write, by a link out of the roots or by another folder, is `no_root`, and a file that lands outside every root is taken
+// away again. What is left is the moment between that last check and the write's own system call, which Node cannot close without
+// descriptor-relative calls (`openat`) it does not have (SPEC-wave9 R16's remainder, narrowed to that moment).
+import { lstatSync, realpathSync, rmSync, statSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, normalize, relative, sep } from "node:path";
 import { diskFiles, writeBytesInFolder, type Failure, type Files, type Outcome } from "../scene/io.js";
 
@@ -51,6 +56,65 @@ function nearest(path: string): string | undefined {
 /** Whether a real path is a root or lies under one. */
 const inside = (roots: readonly string[], real: string): boolean => roots.some((root) => real === root || real.startsWith(root.endsWith(sep) ? root : root + sep));
 
+/** A folder as it is on disk: its real path, and what the system knows of it, so that the folder that is there now can be told from the one that was judged. */
+interface Folder {
+  readonly real: string;
+  readonly dev: number;
+  readonly ino: number;
+}
+
+/** The folder at a path, followed through its links, as it is now: nothing when it is not a folder that is there. */
+function folderOf(path: string): Folder | undefined {
+  const found = resolved(path);
+  if (found.kind !== "real") return undefined;
+  try {
+    const stat = statSync(found.path);
+    return { real: found.path, dev: stat.dev, ino: stat.ino };
+  } catch {
+    return undefined;
+  }
+}
+
+/** What `rootFiles` calls around a write: a test's way to swap the folder in that moment, which the server never does. */
+export interface WriteGuard {
+  /** After the path is judged and before the write: the moment a folder can be swapped under the judgment. */
+  readonly before?: () => void;
+  /** After the write and before the check that follows it: the moment a folder can be swapped while the write is in flight. */
+  readonly after?: () => void;
+}
+
+/**
+ * A write that lands in the folder that was judged, or none at all: the folder is looked at again just before the write, and once more after
+ * it, and a write into a folder that is not the one judged is `no_root`. A file that landed outside every root is taken away again.
+ */
+function writeInJudgedFolder(
+  roots: readonly string[],
+  real: string,
+  guard: WriteGuard,
+  write: (path: string) => Outcome<number>,
+): Outcome<number> {
+  const judged = folderOf(dirname(real));
+  if (judged === undefined) return bad(NO_ROOT);
+  guard.before?.();
+  const now = folderOf(dirname(real));
+  if (now === undefined || now.real !== judged.real || now.dev !== judged.dev || now.ino !== judged.ino) return bad(NO_ROOT);
+  const written = write(real);
+  if (!written.ok) return written;
+  guard.after?.();
+  const after = folderOf(dirname(real));
+  const placed = resolved(real);
+  const strayed = placed.kind === "real" && !inside(roots, placed.path);
+  if (strayed) {
+    try {
+      rmSync(real, { force: true });
+    } catch {
+      // A file that is already gone, or a folder where the file was: there is nothing of ours to take away.
+    }
+  }
+  const moved = after === undefined || after.real !== judged.real || after.dev !== judged.dev || after.ino !== judged.ino;
+  return strayed || moved ? bad(NO_ROOT) : written;
+}
+
 /**
  * The place on disk of a path the client gave. A relative path is taken from the first root; an absolute one must lie under some root.
  * For a read the path is the file; for a write it is the file to create, whose folder must exist. A path that lies outside every root, by
@@ -87,7 +151,7 @@ export function locate(roots: readonly string[], given: string, mode: "read" | "
 }
 
 /** Files that stay inside the roots, and write nothing unless the server was started with `--allow-write`. What is read and written is the file on disk, by the same code as the command line's. */
-export function rootFiles(roots: readonly string[], allowWrite: boolean): Files {
+export function rootFiles(roots: readonly string[], allowWrite: boolean, guard: WriteGuard = {}): Files {
   return {
     read(path) {
       const at = locate(roots, path, "read");
@@ -96,14 +160,14 @@ export function rootFiles(roots: readonly string[], allowWrite: boolean): Files 
     write(path, text, force) {
       if (!allowWrite) return bad(WRITE_NOT_ALLOWED);
       const at = locate(roots, path, "write");
-      return at.ok ? diskFiles.write(at.value.real, text, force) : at;
+      return at.ok ? writeInJudgedFolder(roots, at.value.real, guard, (target) => diskFiles.write(target, text, force)) : at;
     },
     // Judged again at the moment of writing, whatever was judged before: a path that was inside a root when a tool was called and is a link out of it now is `no_root`.
     // What is opened is then the resolved file, without following a link, so a link put there between the judging and the opening is refused too.
     writeBytes(path, bytes, force) {
       if (!allowWrite) return bad(WRITE_NOT_ALLOWED);
       const at = locate(roots, path, "write");
-      return at.ok ? writeBytesInFolder(at.value.real, bytes, force) : at;
+      return at.ok ? writeInJudgedFolder(roots, at.value.real, guard, (target) => writeBytesInFolder(target, bytes, force)) : at;
     },
     exists(path) {
       if (!allowWrite) return bad(WRITE_NOT_ALLOWED);
