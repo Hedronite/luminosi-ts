@@ -1,8 +1,8 @@
 {
   "shards": 6,
   "longestSeconds": 125.3,
-  "mean": 306.7,
-  "slowest": 310.7,
+  "mean": 307.8,
+  "slowest": 310.8,
   "plan": [
     {
       "shard": 1,
@@ -37,7 +37,7 @@
     },
     {
       "shard": 2,
-      "seconds": 304.7,
+      "seconds": 310.8,
       "locations": [
         "e2e/a11y.spec.ts:190",
         "e2e/a11y.spec.ts:326",
@@ -65,7 +65,8 @@
         "e2e/shards/shards.spec.ts:66",
         "e2e/site.spec.ts:156",
         "e2e/snippets.spec.ts:3",
-        "e2e/shards/shards.spec.ts:89"
+        "e2e/shards/shards.spec.ts:89",
+        "e2e/catalog.spec.ts:641"
       ]
     },
     {
