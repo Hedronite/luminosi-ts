@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@playwright/test";
-import { balance, median, movedBetween, parseLog, planDifference, planFor, SHARDS, stickyPlan, timingsOf } from "./plan.js";
+import { balance, median, movedBetween, overBar, parseLog, planDifference, planFor, SHARDS, stickyPlan, timingsOf } from "./plan.js";
 
 // The shard plan's own arithmetic, and the plan file it wrote (e2e/shards/plan.ts). No browser: these are pure.
 
@@ -148,4 +148,13 @@ test("check names the first thing that makes the plan on file stale or hand-edit
     ],
   };
   expect(planDifference(edited, stickyPlan(edited, ["e2e/a.spec.ts:1", "e2e/b.spec.ts:1"], timings, 2))).toContain("its own locations weigh");
+});
+test("says when a plan is past the W9 bar: 1.5 times the mean, or the longest test plus a tenth", () => {
+  const within = { shards: 2, longestSeconds: 100, mean: 100, slowest: 140, plan: [] };
+  const past = { shards: 2, longestSeconds: 100, mean: 100, slowest: 160, plan: [] };
+  // A plan whose longest test is the whole shard is judged by that test plus a tenth, not by the mean.
+  const byTheLongest = { shards: 2, longestSeconds: 300, mean: 200, slowest: 320, plan: [] };
+  expect(overBar(within)).toBe(false);
+  expect(overBar(past)).toBe(true);
+  expect(overBar(byTheLongest)).toBe(false);
 });

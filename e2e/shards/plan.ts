@@ -144,6 +144,11 @@ function summarise(plan: readonly Shard[], shards: number, weights: Iterable<num
   };
 }
 
+/** The W9 bar (R18): no shard over 1.5 times the mean, nor over the longest test plus a tenth when that is the larger of the two. */
+export function overBar(plan: Plan): boolean {
+  return plan.slowest > Math.max(1.5 * plan.mean, plan.longestSeconds * 1.1);
+}
+
 /** A plan for the tests that exist (`locations`), weighing each by its timing, or by the median of the timings when it has none. */
 export function planFor(locations: readonly string[], timings: Timings, shards: number): Plan {
   const { weights } = weighed(locations, timings);
@@ -318,12 +323,23 @@ function main(argv: readonly string[]): number {
       console.log(
         `${String(wrote.plan.reduce((count, shard) => count + shard.locations.length, 0))} tests in ${String(SHARDS)} shards${rebalance ? ", rebalanced" : ""}: mean ${String(wrote.mean)} s, slowest ${String(wrote.slowest)} s; ${String(moves.moved)} moved, ${String(moves.added)} added, ${String(moves.dropped)} dropped`,
       );
+      // Sticky placement can only spread a new test over the shards that are already there, so a plan drifts past the bar as tests land.
+      // This is said, not failed, because a generate that refuses to write leaves CI with no plan at all; `check` is where it fails.
+      if (overBar(wrote)) console.log(`past the W9 bar: the slowest shard is ${String(wrote.slowest)} s against a mean of ${String(wrote.mean)} s; \`--rebalance\` plans every test again`);
       return 0;
     }
     const said = planDifference(onFile, wrote);
-    if (said === undefined) return 0;
-    console.error(said);
-    return 1;
+    if (said !== undefined) {
+      console.error(said);
+      return 1;
+    }
+    if (overBar(wrote)) {
+      console.error(
+        `the plan is past the W9 bar: the slowest shard is ${String(wrote.slowest)} s against a mean of ${String(wrote.mean)} s. Run \`bun run shards:plan --rebalance\` and commit the result.`,
+      );
+      return 1;
+    }
+    return 0;
   }
   if (command === "args") {
     const n = Number(rest[0]);
