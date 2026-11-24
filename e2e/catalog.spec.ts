@@ -591,3 +591,27 @@ for (const [id, name] of [
     expect(errors).toEqual([]);
   });
 }
+test("a ported asset's dialog shows where it came from, and the block is not in the gallery's own load", async ({ page }) => {
+  // The block reads the folder provenance (15 KB): it is a chunk of its own, asked for when a dialog with an origin opens, never by the gallery.
+  const asked: string[] = [];
+  page.on("request", (request) => {
+    if (/vendorProvenance-|Provenance-/.test(request.url())) asked.push(request.url());
+  });
+  await page.goto("/");
+  await expect(gallery(page).first()).toBeVisible();
+  expect(asked).toEqual([]);
+  await page.goto("/?asset=crt");
+  const dialog = page.getByRole("dialog", { name: "CRT screen" });
+  const block = dialog.getByTestId("dialog-provenance");
+  await expect(block).toBeVisible({ timeout: STAGE_WAIT });
+  expect(asked.length).toBeGreaterThan(0);
+  await expect(block.getByTestId("provenance-relation")).toContainText("Ported: rewritten for LuminosiTS");
+  // The repository at the pinned commit, not at a branch, and the commit the origin names.
+  const source = block.getByTestId("provenance-source").getByRole("link");
+  await expect(source).toContainText("MengTo/threeui at 02f9835e");
+  await expect(source).toHaveAttribute("href", "https://github.com/MengTo/threeui/tree/02f9835e60ef8f0cac7907810aa223b7d414db1b");
+  // The path's own license, then the folder's classes with their file counts (a merged row per class and license).
+  await expect(block.getByTestId("provenance-license")).toContainText("MIT · the folder: MIT, adoptable with attribution (287 files) · OFL-1.1, showcase only (8 files)");
+  await expect(block.getByTestId("provenance-folder")).toContainText("295 files, not counting license and credit files");
+  await expect(block.getByTestId("provenance-changes")).toContainText("rewritten as TSL");
+});
