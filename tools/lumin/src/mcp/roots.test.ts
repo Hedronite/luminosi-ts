@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { locate, NO_ROOT, rootFiles, WRITE_NOT_ALLOWED } from "./roots.js";
+import { locate, NO_ROOT, rootFiles, WRITE_NOT_ALLOWED, type WriteGuard } from "./roots.js";
 
 const base = realpathSync.native(mkdtempSync(join(tmpdir(), "lts-w7-roots-")));
 afterAll(() => {
@@ -185,5 +185,91 @@ describe("where a path is shown", () => {
     expect(relative.ok ? relative.value.display : "").toBe("docs/new.json");
     const absolute = locate(roots, join(root, "docs/fresh.json"), "write");
     expect(absolute.ok ? absolute.value.display : "").toBe("docs/fresh.json");
+  });
+});
+// SPEC-wave10 G0, the parent-directory remainder of R16: a write is judged, and the folder it lands in can be swapped in a moment that is a
+// race in the world and an ordinary event for a guard. What was judged is what is written, or nothing is, and what a write made is taken away
+// again only when it can be shown to be its own.
+describe("a write whose folder is swapped after the path was judged", () => {
+  const png = Uint8Array.from([0x89, 0x50, 0x4e, 0x47]);
+  /** A folder of its own under the root, and a guard that replaces it with `to` once, at the moment asked for. */
+  const swapping = (name: string, to: string, moment: "before" | "during" | "after"): WriteGuard => {
+    const folder = join(root, name);
+    mkdirSync(folder, { recursive: true });
+    let armed = true;
+    const swap = (): void => {
+      if (!armed) return;
+      armed = false;
+      rmSync(folder, { recursive: true, force: true });
+      symlinkSync(to, folder);
+    };
+    return { [moment]: swap };
+  };
+  it("is refused when the folder becomes a link out of the roots before the write or while it is in flight, and nothing of it is left outside", () => {
+    for (const moment of ["before", "after"] as const) {
+      for (const force of [false, true]) {
+        const name = `swapped-${moment}-${String(force)}`;
+        expect(rootFiles(roots, true, swapping(name, beyond, moment)).writeBytes(`${name}/out.png`, png, force)).toEqual({ ok: false, failure: NO_ROOT });
+        expect(rootFiles(roots, true, swapping(name, beyond, moment)).write(`${name}/out.json`, "{}", force)).toEqual({ ok: false, failure: NO_ROOT });
+        expect(existsSync(join(beyond, "out.png"))).toBe(false);
+        expect(existsSync(join(beyond, "out.json"))).toBe(false);
+      }
+    }
+    expect(readFileSync(join(beyond, "secret.json"), "utf8")).toBe('{"secret":3}');
+  });
+  it("takes away a file it made outside the roots, and leaves one a forced write may have replaced", () => {
+    // The swap lands between the folder being looked at and the write itself: the write lands where the folder went.
+    const name = "swapped-during-bytes";
+    expect(rootFiles(roots, true, swapping(name, beyond, "during")).writeBytes(`${name}/out.png`, png, false)).toEqual({ ok: false, failure: NO_ROOT });
+    expect(existsSync(join(beyond, "out.png"))).toBe(false);
+    // A forced write replaces what is at the path, so it cannot be shown to be the file's maker: what it wrote is left where it landed.
+    const forced = "swapped-during-forced";
+    expect(rootFiles(roots, true, swapping(forced, beyond, "during")).writeBytes(`${forced}/out.png`, png, true)).toEqual({ ok: false, failure: NO_ROOT });
+    expect(readFileSync(join(beyond, "out.png"))).toEqual(Buffer.from(png));
+    rmSync(join(beyond, "out.png"), { force: true });
+  });
+  it("answers no_root, not exists, when a swap during the write lands on a file that is already outside the roots", () => {
+    // An `exists` here would tell a client that a path beyond the roots holds a file, which the one fixed answer never does.
+    writeFileSync(join(beyond, "out.json"), "theirs");
+    writeFileSync(join(beyond, "out.png"), "existing");
+    const text = "swapped-during-taken-text";
+    expect(rootFiles(roots, true, swapping(text, beyond, "during")).write(`${text}/out.json`, "ours", false)).toEqual({ ok: false, failure: NO_ROOT });
+    expect(readFileSync(join(beyond, "out.json"), "utf8")).toBe("theirs");
+    const image = "swapped-during-taken-bytes";
+    expect(rootFiles(roots, true, swapping(image, beyond, "during")).writeBytes(`${image}/out.png`, Uint8Array.from([1, 2, 3]), false)).toEqual({
+      ok: false,
+      failure: NO_ROOT,
+    });
+    expect(readFileSync(join(beyond, "out.png"), "utf8")).toBe("existing");
+    // A forced write replaces what is at the path: still no_root, and what it wrote is left where it landed (a forced write may have replaced a file).
+    const forced = "swapped-during-taken-forced";
+    expect(rootFiles(roots, true, swapping(forced, beyond, "during")).write(`${forced}/out.json`, "ours", true)).toEqual({ ok: false, failure: NO_ROOT });
+    expect(readFileSync(join(beyond, "out.json"), "utf8")).toBe("ours");
+    rmSync(join(beyond, "out.json"), { force: true });
+    rmSync(join(beyond, "out.png"), { force: true });
+  });
+  it("leaves a file it did not make when the folder is swapped for a link out of the roots after the write", () => {
+    // A file that was outside the roots before the write, at the place the swapped folder leads to.
+    writeFileSync(join(beyond, "out.json"), "theirs");
+    const name = "swapped-after-overwrite";
+    expect(rootFiles(roots, true, swapping(name, beyond, "after")).write(`${name}/out.json`, "ours", true)).toEqual({ ok: false, failure: NO_ROOT });
+    expect(readFileSync(join(beyond, "out.json"), "utf8")).toBe("theirs");
+    rmSync(join(beyond, "out.json"), { force: true });
+  });
+  it("is refused when the folder becomes another folder inside the roots, so it is the folder judged that is written", () => {
+    const other = join(root, "swapped-inside-target");
+    mkdirSync(other, { recursive: true });
+    const name = "swapped-inside";
+    expect(rootFiles(roots, true, swapping(name, other, "before")).write(`${name}/out.json`, "{}", true)).toEqual({
+      ok: false,
+      failure: NO_ROOT,
+    });
+    expect(existsSync(join(other, "out.json"))).toBe(false);
+  });
+  it("is an ordinary write when the guard swaps nothing", () => {
+    mkdirSync(join(root, "steady"), { recursive: true });
+    const files = rootFiles(roots, true, { before: () => undefined, during: () => undefined, after: () => undefined });
+    expect(files.write("steady/out.json", "{}", false)).toEqual({ ok: true, value: 2 });
+    expect(files.writeBytes("steady/out.png", png, false)).toEqual({ ok: true, value: png.length });
   });
 });
