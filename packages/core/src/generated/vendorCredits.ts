@@ -33,6 +33,13 @@ export const vendorCredits: Readonly<Record<string, VendorCredit>> = {
     "license": "MIT",
     "credit": "Family"
   },
+  "gemini-demolab": {
+    "work": "The Gemini frontend design skill",
+    "source": "https://github.com/google-gemini/demolab",
+    "pin": "cd0c1f8540c0186ec9592af972a0700fa20909d4",
+    "license": "Apache-2.0",
+    "credit": "Google (Google Gemini) — inspired by"
+  },
   "isocons": {
     "work": "Isometric Icons: isometric SVG icons, six edge variants each, with `catalog.json`",
     "source": "https://www.isocons.app/",
@@ -54,6 +61,13 @@ export const vendorCredits: Readonly<Record<string, VendorCredit>> = {
     "pin": "6f56b8f1f665ce64c41506033b66ca67e2bc7724",
     "license": "ISC; MIT for the Feather-derived icons",
     "credit": "Lucide Icons and contributors"
+  },
+  "mengto-skills": {
+    "work": "Agent skills for motion and scroll choreography, PBR material finishes, lighting, sky and water, and two AI-design audits",
+    "source": "https://github.com/MengTo/Skills",
+    "pin": "a7f25b25e9e15e1944f9fe6d69d943f77a155ef7",
+    "license": "MIT",
+    "credit": "Meng To — inspired by"
   },
   "stash-icons": {
     "work": "Stash icons (five styles, as TSX with inline SVG)",
@@ -143,6 +157,20 @@ export const vendorCreditRecords: Readonly<Record<string, VendorCreditRecord>> =
     ],
     "licenseId": "MIT"
   },
+  "gemini-demolab": {
+    "work": "The Gemini frontend design skill",
+    "source": "https://github.com/google-gemini/demolab",
+    "pin": "cd0c1f8540c0186ec9592af972a0700fa20909d4",
+    "license": "Apache-2.0",
+    "credit": "Google (Google Gemini) — inspired by",
+    "sources": [
+      {
+        "repo": "https://github.com/google-gemini/demolab",
+        "commit": "cd0c1f8540c0186ec9592af972a0700fa20909d4"
+      }
+    ],
+    "licenseId": "Apache-2.0"
+  },
   "isocons": {
     "work": "Isometric Icons: isometric SVG icons, six edge variants each, with `catalog.json`",
     "source": "https://www.isocons.app/",
@@ -180,6 +208,20 @@ export const vendorCreditRecords: Readonly<Record<string, VendorCreditRecord>> =
       }
     ],
     "licenseId": "MIT AND ISC"
+  },
+  "mengto-skills": {
+    "work": "Agent skills for motion and scroll choreography, PBR material finishes, lighting, sky and water, and two AI-design audits",
+    "source": "https://github.com/MengTo/Skills",
+    "pin": "a7f25b25e9e15e1944f9fe6d69d943f77a155ef7",
+    "license": "MIT",
+    "credit": "Meng To — inspired by",
+    "sources": [
+      {
+        "repo": "https://github.com/MengTo/Skills",
+        "commit": "a7f25b25e9e15e1944f9fe6d69d943f77a155ef7"
+      }
+    ],
+    "licenseId": "MIT"
   },
   "stash-icons": {
     "work": "Stash icons (five styles, as TSX with inline SVG)",

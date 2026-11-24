@@ -167,6 +167,40 @@ export const vendorProvenance: Readonly<Record<string, VendorProvenance>> = {
     "vendoredOn": "2026-08",
     "reviewer": "VirtualMachinist"
   },
+  "gemini-demolab": {
+    "license": "Apache-2.0",
+    "licenseIds": [
+      "Apache-2.0"
+    ],
+    "policies": [
+      {
+        "class": "adopt-with-attribution",
+        "spdx": "Apache-2.0",
+        "files": [],
+        "fileCount": 1
+      }
+    ],
+    "totalFiles": 1,
+    "fetched": true,
+    "transformations": [
+      {
+        "kind": "include",
+        "paths": [
+          "LICENSE",
+          "skills/gemini-frontend-design/SKILL.md"
+        ],
+        "reason": "The one skill and its license; the plugin manifests for four agent tools are install instructions, not the skill."
+      }
+    ],
+    "sources": [
+      {
+        "repo": "https://github.com/google-gemini/demolab",
+        "commit": "cd0c1f8540c0186ec9592af972a0700fa20909d4"
+      }
+    ],
+    "vendoredOn": "2026-11-24",
+    "reviewer": "VirtualMachinist"
+  },
   "isocons": {
     "license": "CC-BY-4.0",
     "licenseIds": [
@@ -352,6 +386,94 @@ export const vendorProvenance: Readonly<Record<string, VendorProvenance>> = {
       }
     ],
     "vendoredOn": "2026-08",
+    "reviewer": "VirtualMachinist"
+  },
+  "mengto-skills": {
+    "license": "MIT",
+    "licenseIds": [
+      "MIT"
+    ],
+    "policies": [
+      {
+        "class": "adopt-with-attribution",
+        "spdx": "MIT",
+        "files": [],
+        "fileCount": 55
+      }
+    ],
+    "totalFiles": 55,
+    "fetched": true,
+    "transformations": [
+      {
+        "kind": "include",
+        "paths": [
+          "LICENSE",
+          "agent-skills/3d/3d-cloth-material/SKILL.md",
+          "agent-skills/3d/3d-harbour-water/SKILL.md",
+          "agent-skills/3d/3d-high-resolution-textures/REFERENCES.md",
+          "agent-skills/3d/3d-high-resolution-textures/SKILL.md",
+          "agent-skills/3d/3d-kasumidera-ultra-realism/REFERENCES.md",
+          "agent-skills/3d/3d-kasumidera-ultra-realism/SKILL.md",
+          "agent-skills/3d/3d-kasumidera-ultra-realism/references/creator-steering.md",
+          "agent-skills/3d/3d-kasumidera-ultra-realism/references/director-prompts.md",
+          "agent-skills/3d/3d-kasumidera-ultra-realism/references/frame-credits.md",
+          "agent-skills/3d/3d-kasumidera-ultra-realism/references/generation-prompts.md",
+          "agent-skills/3d/3d-kasumidera-ultra-realism/references/play-and-deliver.md",
+          "agent-skills/3d/3d-kasumidera-ultra-realism/references/scene-recipes.md",
+          "agent-skills/3d/3d-metal-material/SKILL.md",
+          "agent-skills/3d/3d-paper-material/SKILL.md",
+          "agent-skills/3d/3d-sky-background/REFERENCES.md",
+          "agent-skills/3d/3d-sky-background/SKILL.md",
+          "agent-skills/3d/3d-sky-rays/REFERENCES.md",
+          "agent-skills/3d/3d-sky-rays/SKILL.md",
+          "agent-skills/3d/3d-ultra-realistic-water/SKILL.md",
+          "agent-skills/3d/3d-ultra-realistic-water/references/creek.md",
+          "agent-skills/3d/3d-ultra-realistic-water/references/ocean.md",
+          "agent-skills/3d/3d-underwater-god-rays/SKILL.md",
+          "agent-skills/3d/3d-wood-lighting-scorecard/SKILL.md",
+          "agent-skills/3d/3d-wood-lighting-scorecard/references/rubric.md",
+          "agent-skills/3d/3d-wood-material/SKILL.md",
+          "agent-skills/3d/control-camera-lenses/SKILL.md",
+          "agent-skills/3d/light-a-threejs-workspace/SKILL.md",
+          "agent-skills/3d/relight-painted-surfaces/SKILL.md",
+          "agent-skills/ui/audit-ai-design-slop/REFERENCES.md",
+          "agent-skills/ui/audit-ai-design-slop/SKILL.md",
+          "agent-skills/ui/no-ai-design-slop/ARTICLE.md",
+          "agent-skills/ui/no-ai-design-slop/REFERENCES.md",
+          "agent-skills/ui/no-ai-design-slop/SKILL.md",
+          "agent-skills/web-design/animation-on-scroll/SKILL.md",
+          "agent-skills/web-design/animation-systems/SKILL.md",
+          "agent-skills/web-design/build-threejs-scroll-worlds/SKILL.md",
+          "agent-skills/web-design/build-threejs-scroll-worlds/references/kage-anatomy.md",
+          "agent-skills/web-design/build-threejs-scroll-worlds/references/quality-and-qa.md",
+          "agent-skills/web-design/build-threejs-scroll-worlds/references/realtime-architecture.md",
+          "agent-skills/web-design/build-threejs-scroll-worlds/references/world-bible.md",
+          "agent-skills/web-design/cinematic-gsap-lenis-motion-system/REFERENCES.md",
+          "agent-skills/web-design/cinematic-gsap-lenis-motion-system/SKILL.md",
+          "agent-skills/web-design/cinematic-scroll-storytelling/REFERENCES.md",
+          "agent-skills/web-design/cinematic-scroll-storytelling/SKILL.md",
+          "agent-skills/web-design/gsap-scrolltrigger-storytelling/SKILL.md",
+          "agent-skills/web-design/horizontal-scroll-scenes/SKILL.md",
+          "agent-skills/web-design/scroll-progress-timeline/REFERENCES.md",
+          "agent-skills/web-design/scroll-progress-timeline/SKILL.md",
+          "agent-skills/web-design/scroll-scrubbed-object-handoff/SKILL.md",
+          "agent-skills/web-design/scroll-scrubbed-visual-sequence/REFERENCES.md",
+          "agent-skills/web-design/scroll-scrubbed-visual-sequence/SKILL.md",
+          "agent-skills/web-design/scroll-scrubbed-word-reveal/REFERENCES.md",
+          "agent-skills/web-design/scroll-scrubbed-word-reveal/SKILL.md",
+          "agent-skills/web-design/scroll-world-storytelling/REFERENCES.md",
+          "agent-skills/web-design/scroll-world-storytelling/SKILL.md"
+        ],
+        "reason": "Markdown only, folder by folder: the 12 motion and scroll skills, the two AI design audits, and the material and lighting skills the port ledger records; each keeps its SKILL.md, REFERENCES.md and references/*.md, with no demo, prompt, script or image."
+      }
+    ],
+    "sources": [
+      {
+        "repo": "https://github.com/MengTo/Skills",
+        "commit": "a7f25b25e9e15e1944f9fe6d69d943f77a155ef7"
+      }
+    ],
+    "vendoredOn": "2026-11-24",
     "reviewer": "VirtualMachinist"
   },
   "stash-icons": {

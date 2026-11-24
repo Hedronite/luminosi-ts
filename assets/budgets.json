@@ -1,26 +1,68 @@
 {
   "models": {
-    "crystal-cluster-glb": { "triangles": 174, "drawCalls": 1, "brotliBytes": 4900 }
+    "crystal-cluster-glb": {
+      "triangles": 174,
+      "drawCalls": 1,
+      "brotliBytes": 4900
+    }
   },
   "bundles": {
-    "catalog-gallery": { "gzipBytes": 125700 },
-    "catalog-embed": { "gzipBytes": 322000 },
-    "catalog-3d": { "gzipBytes": 500200 },
-    "catalog-panel": { "gzipBytes": 3200 },
-    "site-island": { "gzipBytes": 2900 },
-    "scene-element": { "gzipBytes": 3100 },
-    "scene-element-3d": { "gzipBytes": 334500 }
+    "catalog-gallery": {
+      "gzipBytes": 125700
+    },
+    "catalog-embed": {
+      "gzipBytes": 322000
+    },
+    "catalog-3d": {
+      "gzipBytes": 500400
+    },
+    "catalog-panel": {
+      "gzipBytes": 3200
+    },
+    "site-island": {
+      "gzipBytes": 2900
+    },
+    "scene-element": {
+      "gzipBytes": 3100
+    },
+    "scene-element-3d": {
+      "gzipBytes": 334500
+    }
   },
-  "posters": { "perPosterBytes": 4096, "totalBytes": 80000 },
+  "posters": {
+    "perPosterBytes": 4096,
+    "totalBytes": 80000
+  },
   "objects": {
-    "crystal-cluster": { "drawCalls": 14, "triangles": 174 },
-    "framed-solid": { "drawCalls": 3, "triangles": 4836 },
-    "instanced-lattice": { "drawCalls": 1, "triangles": 1728 },
-    "dress-watch": { "drawCalls": 185, "triangles": 18428 },
-    "dress-watch-merged": { "drawCalls": 8, "triangles": 18428 },
-    "your-desk-lamp": { "drawCalls": 8, "triangles": 4224 }
+    "crystal-cluster": {
+      "drawCalls": 14,
+      "triangles": 174
+    },
+    "framed-solid": {
+      "drawCalls": 3,
+      "triangles": 4836
+    },
+    "instanced-lattice": {
+      "drawCalls": 1,
+      "triangles": 1728
+    },
+    "dress-watch": {
+      "drawCalls": 185,
+      "triangles": 18428
+    },
+    "dress-watch-merged": {
+      "drawCalls": 8,
+      "triangles": 18428
+    },
+    "your-desk-lamp": {
+      "drawCalls": 8,
+      "triangles": 4224
+    }
   },
   "goldens": {
-    "e2e-golden": { "bytes": 4700000, "perImageBytes": 560000 }
+    "e2e-golden": {
+      "bytes": 4700000,
+      "perImageBytes": 560000
+    }
   }
 }

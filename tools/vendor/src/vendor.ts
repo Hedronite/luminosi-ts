@@ -38,6 +38,8 @@ interface Folder {
   readonly days?: string;
   /** A folder of Markdown docs to read as one item. */
   readonly docs?: { readonly path: string; readonly description: string };
+  /** Where a skills folder keeps its skill folders, when they are not directly under `skills/` (a repository that groups them). */
+  readonly skillsRoot?: string;
 }
 
 const folders: Readonly<Record<string, Folder>> = {
@@ -57,6 +59,8 @@ const folders: Readonly<Record<string, Folder>> = {
   },
   "ai-design-skills": { name: "AI design skills", kind: "skills" },
   "jakubkrehel-skills": { name: "Interface skills", kind: "skills" },
+  "mengto-skills": { name: "MengTo agent skills", kind: "skills", skillsRoot: "agent-skills" },
+  "gemini-demolab": { name: "Google Gemini frontend design", kind: "skills" },
 };
 
 const KIND_ORDER: readonly Kind[] = ["icons", "components", "demos", "engines", "skills"];
@@ -90,13 +94,17 @@ async function page(folderDir: string, file: string, markdown?: string): Promise
   return { path, title: pageTitle(text, path), markdown: text.trim() };
 }
 
-async function skills(folderDir: string): Promise<readonly Item[]> {
-  const skillsDir = join(folderDir, "skills");
-  const ids = (await readdir(skillsDir, { withFileTypes: true })).filter((e) => e.isDirectory()).map((e) => e.name).sort();
+/** Every skill folder under `root` (`skills/` unless the folder says otherwise), found by its `SKILL.md`, in path order. */
+async function skills(folderDir: string, root = "skills"): Promise<readonly Item[]> {
+  const base = join(folderDir, root);
+  const found = (await walk(base)).filter((file) => basename(file) === "SKILL.md").sort();
+  const seen = new Set<string>();
   return Promise.all(
-    ids.map(async (id) => {
-      const dir = join(skillsDir, id);
-      const skillFile = join(dir, "SKILL.md");
+    found.map(async (skillFile) => {
+      const dir = dirname(skillFile);
+      const id = basename(dir);
+      if (seen.has(id)) throw new Error(`${relative(root, skillFile)}: a second skill called ${id}: ids name one card each`);
+      seen.add(id);
       const { fields, body } = parseFrontMatter(await readFile(skillFile, "utf8"));
       const description = fields.get("description");
       if (description === undefined || description === "") throw new Error(`${relative(root, skillFile)}: no description in its front matter`);
@@ -227,7 +235,7 @@ async function entries() {
       const sizes = await Promise.all(files.map(async (file) => (await stat(file)).size));
       const items =
         folder.kind === "skills"
-          ? await skills(raw.dir)
+          ? await skills(raw.dir, folder.skillsRoot)
           : folder.days !== undefined
             ? await days(raw.dir, folder.days)
             : folder.kind === "demos"
