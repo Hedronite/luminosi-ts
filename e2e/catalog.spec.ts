@@ -617,3 +617,24 @@ test("a ported asset's dialog shows where it came from, and the block is not in 
   await expect(block.getByTestId("provenance-folder")).toContainText("295 files, not counting license and credit files");
   await expect(block.getByTestId("provenance-changes")).toContainText("rewritten as TSL");
 });
+test("stepping to the next asset keeps the stage on show, so a cycle draws on one canvas", async ({ page }) => {
+  // The dialog used to unmount the stage while the next asset's parameters loaded, which builds a renderer and a canvas per asset stepped
+  // through: a cycle of the primitives then holds dozens of contexts over, and software GL answers that by losing the oldest. The mark put on
+  // the canvas is what tells the two apart: it survives a step only when the same canvas did.
+  await page.goto("/");
+  const primitives = page.getByRole("group", { name: "Filter by kind" }).getByRole("button", { name: /^Primitives/ });
+  await primitives.click();
+  await gallery(page).first().click();
+  const viewport = page.getByTestId("viewport");
+  await expectRenderer(viewport.locator("canvas"));
+  await expect(viewport.locator("canvas")).toHaveAttribute("data-renderer");
+  await viewport.locator("canvas").evaluate((canvas) => {
+    canvas.dataset["kept"] = "yes";
+  });
+  const next = page.getByRole("button", { name: "Next asset" });
+  await next.click();
+  await expect(page.getByRole("dialog")).toContainText(/2 \/ /, { timeout: STAGE_WAIT });
+  await next.click();
+  await expect(page.getByRole("dialog")).toContainText(/3 \/ /, { timeout: STAGE_WAIT });
+  await expect(viewport.locator("canvas")).toHaveAttribute("data-kept", "yes");
+});

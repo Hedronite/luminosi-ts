@@ -108,6 +108,12 @@ export function DetailDialog({ meta, onClose, onStep, position }: DetailDialogPr
       return plain;
     }
   }, [descriptor, fit, overrides]);
+  // The stage the dialog last showed, kept on show while the next asset's parameters load. Unmounting it in that gap builds a renderer, and a
+  // canvas, for every asset stepped through: a cycle of the gallery's primitives then holds dozens of contexts over, which software GL answers
+  // by losing the oldest. `Subject` already keeps the old object until the new one is ready; this keeps the canvas that draws it.
+  const stage = useRef<{ readonly meta: AssetMeta; readonly values: Readonly<Record<string, unknown>>; readonly epoch: number } | undefined>(undefined);
+  if (meta !== undefined && values !== undefined) stage.current = { meta, values, epoch: watch.epoch };
+  const shown = stage.current;
   const snippetsFailed = failed;
   const hasParameters = descriptor !== undefined && fit !== undefined && fit.shownFields(descriptor).length > 0;
 
@@ -150,16 +156,16 @@ export function DetailDialog({ meta, onClose, onStep, position }: DetailDialogPr
                   </div>
                 }
               >
-                {values === undefined ? (
+                {shown === undefined ? (
                   <div className="grid h-72 place-items-center">
                     <AssetPreview meta={meta} size={160} />
                   </div>
-                ) : meta.kind === "shader" ? (
-                  <ShaderViewport meta={meta} palette={preset.scene} params={values} epoch={watch.epoch} />
-                ) : meta.kind === "effect" ? (
-                  <EffectViewport meta={meta} palette={preset.scene} params={values} />
+                ) : shown.meta.kind === "shader" ? (
+                  <ShaderViewport meta={shown.meta} palette={preset.scene} params={shown.values} epoch={shown.epoch} />
+                ) : shown.meta.kind === "effect" ? (
+                  <EffectViewport meta={shown.meta} palette={preset.scene} params={shown.values} />
                 ) : (
-                  <Viewport meta={meta} palette={preset.scene} params={values} />
+                  <Viewport meta={shown.meta} palette={preset.scene} params={shown.values} />
                 )}
               </Suspense>
             ) : (
