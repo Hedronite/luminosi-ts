@@ -1,3 +1,5 @@
+/* eslint-disable jsx-a11y/no-redundant-roles -- the list is a flex column (list-style removed), and a flex list
+   loses its list semantics in VoiceOver without an explicit role, which the rule would call redundant */
 import type { AssetOrigin } from "@hedronite/lts-core";
 import { vendorProvenance } from "../generated/vendorProvenance";
 import { commitUrl, mergePolicies, policyTitles, shortCommit } from "../vendored";
@@ -25,9 +27,13 @@ export function Provenance({ origin }: { readonly origin: AssetOrigin }): React.
           {source === undefined ? (
             "No repository is recorded for this path in the folder's pin"
           ) : (
-            <a href={commitUrl(source)} className="break-all text-fg underline decoration-accent decoration-2 underline-offset-2">
-              {source.repo.replace(/^https?:\/\/github\.com\//, "")} at {shortCommit(source.commit)}
-            </a>
+            <>
+              <span className="break-all">{source.repo.replace(/^https?:\/\/github\.com\//, "")}</span> at{" "}
+              {/* The link is named by its commit alone: a name holding the folder id would match every "the folder" link on this dialog. */}
+              <a href={commitUrl(source)} className="text-fg underline decoration-accent decoration-2 underline-offset-2">
+                {shortCommit(source.commit)}
+              </a>
+            </>
           )}
         </dd>
         <dt className="text-fg-muted">License</dt>
@@ -69,3 +75,4 @@ export function Provenance({ origin }: { readonly origin: AssetOrigin }): React.
     </section>
   );
 }
+/* eslint-enable jsx-a11y/no-redundant-roles -- back to the rule for the rest of the file */

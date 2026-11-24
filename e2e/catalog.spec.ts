@@ -607,9 +607,11 @@ test("a ported asset's dialog shows where it came from, and the block is not in 
   expect(asked.length).toBeGreaterThan(0);
   await expect(block.getByTestId("provenance-relation")).toContainText("Ported: rewritten for LuminosiTS");
   // The repository at the pinned commit, not at a branch, and the commit the origin names.
-  const source = block.getByTestId("provenance-source").getByRole("link");
-  await expect(source).toContainText("MengTo/threeui at 02f9835e");
-  await expect(source).toHaveAttribute("href", "https://github.com/MengTo/threeui/tree/02f9835e60ef8f0cac7907810aa223b7d414db1b");
+  const source = block.getByTestId("provenance-source");
+  await expect(source).toContainText("MengTo/threeui");
+  const commit = source.getByRole("link");
+  await expect(commit).toHaveText("02f9835e");
+  await expect(commit).toHaveAttribute("href", "https://github.com/MengTo/threeui/tree/02f9835e60ef8f0cac7907810aa223b7d414db1b");
   // The path's own license, then the folder's classes with their file counts (a merged row per class and license).
   await expect(block.getByTestId("provenance-license")).toContainText("MIT · the folder: MIT, adoptable with attribution (287 files) · OFL-1.1, showcase only (8 files)");
   await expect(block.getByTestId("provenance-folder")).toContainText("295 files, not counting license and credit files");
