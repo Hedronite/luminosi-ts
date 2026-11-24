@@ -216,8 +216,21 @@ export function movedBetween(before: Plan | undefined, after: Plan): { readonly 
 export function planDifference(onFile: Plan | undefined, wrote: Plan): string | undefined {
   if (onFile === undefined) return "e2e/shards/plan.json is missing or is not a plan: run `bun run shards:plan` and commit the result";
   if (onFile.shards !== wrote.shards) return `e2e/shards/plan.json plans ${String(onFile.shards)} shards; CI runs ${String(wrote.shards)}`;
+  if (onFile.plan.length !== wrote.shards) return `e2e/shards/plan.json has ${String(onFile.plan.length)} shards, not ${String(wrote.shards)}`;
+  if (new Set(onFile.plan.map((shard) => shard.shard)).size !== onFile.plan.length) return "e2e/shards/plan.json names one shard number twice";
   const was = new Map<string, number>();
-  for (const shard of onFile.plan) for (const place of shard.locations) was.set(place, shard.shard);
+  for (const shard of onFile.plan) {
+    for (const place of shard.locations) {
+      // A duplicate in one shard runs that test twice, and one across two shards loses a shard's copy of it: both are named, not collapsed.
+      const before = was.get(place);
+      if (before !== undefined) {
+        return before === shard.shard
+          ? `e2e/shards/plan.json places ${place} twice in shard ${String(shard.shard)}: each test runs once`
+          : `e2e/shards/plan.json places ${place} in shards ${String(before)} and ${String(shard.shard)}: each test runs once`;
+      }
+      was.set(place, shard.shard);
+    }
+  }
   const now = new Map<string, number>();
   for (const shard of wrote.plan) for (const place of shard.locations) now.set(place, shard.shard);
   for (const [place, shard] of now) {
@@ -280,7 +293,29 @@ function readTimings(): Timings {
 
 const text = (value: unknown): string => `${JSON.stringify(value, null, 2)}\n`;
 
-/** The plan on file, as this file writes it, or nothing when it is not there or not a plan that can be kept. */
+/**
+ * A plan from whatever the file held, or nothing when it is not a plan: a hand-edited entry of another type, a location list with anything
+ * but strings in it, or a missing sum makes the whole file unreadable rather than being dropped quietly, so `check` refuses it instead of
+ * planning around an edit.
+ */
+export function planOf(found: unknown): Plan | undefined {
+  if (!isRecord(found) || !Array.isArray(found["plan"])) return undefined;
+  const { shards, longestSeconds, mean, slowest } = found;
+  if (typeof shards !== "number" || typeof longestSeconds !== "number" || typeof mean !== "number" || typeof slowest !== "number") return undefined;
+  const plan: Shard[] = [];
+  for (const entry of found["plan"]) {
+    if (!isRecord(entry) || typeof entry["shard"] !== "number" || typeof entry["seconds"] !== "number" || !Array.isArray(entry["locations"])) return undefined;
+    const locations: string[] = [];
+    for (const place of entry["locations"]) {
+      if (typeof place !== "string") return undefined;
+      locations.push(place);
+    }
+    plan.push({ shard: entry["shard"], seconds: entry["seconds"], locations });
+  }
+  return { shards, longestSeconds, mean, slowest, plan };
+}
+
+/** The plan on file, or nothing when it is not there or not a plan this file wrote. */
 function readPlan(): Plan | undefined {
   let found: unknown;
   try {
@@ -288,16 +323,7 @@ function readPlan(): Plan | undefined {
   } catch {
     return undefined;
   }
-  if (!isRecord(found) || !Array.isArray(found["plan"])) return undefined;
-  const { shards, longestSeconds, mean, slowest } = found;
-  if (typeof shards !== "number" || typeof longestSeconds !== "number" || typeof mean !== "number" || typeof slowest !== "number") return undefined;
-  const plan: Shard[] = [];
-  for (const entry of found["plan"]) {
-    if (!isRecord(entry) || typeof entry["shard"] !== "number" || typeof entry["seconds"] !== "number" || !Array.isArray(entry["locations"])) return undefined;
-    const locations = entry["locations"].filter((place): place is string => typeof place === "string");
-    plan.push({ shard: entry["shard"], seconds: entry["seconds"], locations });
-  }
-  return { shards, longestSeconds, mean, slowest, plan };
+  return planOf(found);
 }
 
 function main(argv: readonly string[]): number {

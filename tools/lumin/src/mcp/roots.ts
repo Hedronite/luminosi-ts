@@ -120,23 +120,26 @@ function writeInJudgedFolder(
   const existed = fileAt(real) !== undefined;
   guard.during?.();
   const written = write(real);
-  if (!written.ok) return written;
-  const created = existed ? undefined : fileAt(real);
+  const created = written.ok && !existed ? fileAt(real) : undefined;
   guard.after?.();
   const after = folderOf(dirname(real));
   const placed = resolved(real);
   const outside = placed.kind === "real" && !inside(roots, placed.path);
   const moved = after === undefined || after.real !== judged.real || after.dev !== judged.dev || after.ino !== judged.ino;
-  if (!moved && !outside) return written;
-  const here = fileAt(real);
-  if (!force && created !== undefined && here !== undefined && here.dev === created.dev && here.ino === created.ino) {
-    try {
-      rmSync(real, { force: true });
-    } catch {
-      // Nothing of ours is at the path any more: there is nothing to take away.
+  // Judged whatever the write said: a write that went where the folder went answers `no_root`, never `exists`, which would tell a client
+  // that a file beyond the roots is there.
+  if (moved || outside) {
+    const here = fileAt(real);
+    if (!force && created !== undefined && here !== undefined && here.dev === created.dev && here.ino === created.ino) {
+      try {
+        rmSync(real, { force: true });
+      } catch {
+        // Nothing of ours is at the path any more: there is nothing to take away.
+      }
     }
+    return bad(NO_ROOT);
   }
-  return bad(NO_ROOT);
+  return written;
 }
 
 /**

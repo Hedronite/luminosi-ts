@@ -228,6 +228,26 @@ describe("a write whose folder is swapped after the path was judged", () => {
     expect(readFileSync(join(beyond, "out.png"))).toEqual(Buffer.from(png));
     rmSync(join(beyond, "out.png"), { force: true });
   });
+  it("answers no_root, not exists, when a swap during the write lands on a file that is already outside the roots", () => {
+    // An `exists` here would tell a client that a path beyond the roots holds a file, which the one fixed answer never does.
+    writeFileSync(join(beyond, "out.json"), "theirs");
+    writeFileSync(join(beyond, "out.png"), "existing");
+    const text = "swapped-during-taken-text";
+    expect(rootFiles(roots, true, swapping(text, beyond, "during")).write(`${text}/out.json`, "ours", false)).toEqual({ ok: false, failure: NO_ROOT });
+    expect(readFileSync(join(beyond, "out.json"), "utf8")).toBe("theirs");
+    const image = "swapped-during-taken-bytes";
+    expect(rootFiles(roots, true, swapping(image, beyond, "during")).writeBytes(`${image}/out.png`, Uint8Array.from([1, 2, 3]), false)).toEqual({
+      ok: false,
+      failure: NO_ROOT,
+    });
+    expect(readFileSync(join(beyond, "out.png"), "utf8")).toBe("existing");
+    // A forced write replaces what is at the path: still no_root, and what it wrote is left where it landed (a forced write may have replaced a file).
+    const forced = "swapped-during-taken-forced";
+    expect(rootFiles(roots, true, swapping(forced, beyond, "during")).write(`${forced}/out.json`, "ours", true)).toEqual({ ok: false, failure: NO_ROOT });
+    expect(readFileSync(join(beyond, "out.json"), "utf8")).toBe("ours");
+    rmSync(join(beyond, "out.json"), { force: true });
+    rmSync(join(beyond, "out.png"), { force: true });
+  });
   it("leaves a file it did not make when the folder is swapped for a link out of the roots after the write", () => {
     // A file that was outside the roots before the write, at the place the swapped folder leads to.
     writeFileSync(join(beyond, "out.json"), "theirs");

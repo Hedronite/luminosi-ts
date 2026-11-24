@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@playwright/test";
-import { balance, median, movedBetween, overBar, parseLog, planDifference, planFor, SHARDS, stickyPlan, timingsOf } from "./plan.js";
+import { balance, median, movedBetween, overBar, parseLog, planDifference, planFor, planOf, SHARDS, stickyPlan, timingsOf } from "./plan.js";
 
 // The shard plan's own arithmetic, and the plan file it wrote (e2e/shards/plan.ts). No browser: these are pure.
 
@@ -157,4 +157,28 @@ test("says when a plan is past the W9 bar: 1.5 times the mean, or the longest te
   expect(overBar(within)).toBe(false);
   expect(overBar(past)).toBe(true);
   expect(overBar(byTheLongest)).toBe(false);
+});
+test("check refuses a plan that places a test twice, and a plan with an entry that is not a location at all", () => {
+  const timings = { runs: [], locations: { "e2e/a.spec.ts:1": { seconds: 100, runs: 1 }, "e2e/b.spec.ts:1": { seconds: 50, runs: 1 } } };
+  const listed = ["e2e/a.spec.ts:1", "e2e/b.spec.ts:1"];
+  const wrote = planFor(listed, timings, 2);
+  const [first, second] = wrote.plan;
+  if (first === undefined || second === undefined) throw new Error("planFor gave fewer than two shards");
+  // The same location twice in one shard runs that test twice on CI; the plan is refused, and the message names it.
+  const twice = { ...wrote, plan: [{ ...first, locations: ["e2e/a.spec.ts:1", "e2e/a.spec.ts:1"] }, second] };
+  expect(planDifference(twice, stickyPlan(twice, listed, timings, 2))).toContain("places e2e/a.spec.ts:1 twice in shard 1");
+  // The same location in two shards loses one shard's copy of it, so that is named too.
+  const across = {
+    ...wrote,
+    plan: [
+      { ...first, locations: ["e2e/a.spec.ts:1"] },
+      { ...second, locations: ["e2e/a.spec.ts:1", "e2e/b.spec.ts:1"] },
+    ],
+  };
+  expect(planDifference(across, stickyPlan(across, listed, timings, 2))).toContain("places e2e/a.spec.ts:1 in shards 1 and 2");
+  // A hand-edited entry that is not a location makes the whole file no plan, rather than being dropped and planned around.
+  expect(planOf({ ...wrote, plan: [{ ...first, locations: ["e2e/a.spec.ts:1", 12345] }, second] })).toBeUndefined();
+  expect(planOf({ ...wrote, plan: [{ ...first, locations: ["e2e/a.spec.ts:1", null] }, second] })).toBeUndefined();
+  expect(planOf(wrote)).toEqual(wrote);
+  expect(planOf({ shards: "2" })).toBeUndefined();
 });
