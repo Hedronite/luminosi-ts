@@ -727,7 +727,7 @@ export const vendored: readonly VendorEntry[] = [
     "sourceUrl": "https://github.com/MengTo/Skills",
     "repo": "https://github.com/MengTo/Skills",
     "files": 57,
-    "bytes": 370736,
+    "bytes": 370768,
     "items": [
       {
         "id": "3d-cloth-material",

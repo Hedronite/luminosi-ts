@@ -11,7 +11,7 @@ license: MIT
 
 It sits beside `mengto-skills/` rather than inside it: the generator walks a fetched folder's cache, and with no cache it walks the folder itself, so a file inside would count in one and not the other and `vendor:check` would depend on whether the cache was warm. `assets/vendor/README.md` is beside the folders for the same reason.
 
-What the material, lighting, sky and water skills of this folder teach, which roadmap slice each belongs to, and what stops a straight port. Nothing here is code: these are techniques read as data, and each becomes a Lumin technique only when its slice is built.
+What the material, lighting, sky and water skills of `mengto-skills/` teach, which roadmap slice each belongs to, and what stops a straight port. Nothing here is code: these are techniques read as data, and each becomes a Lumin technique only when its slice is built. The folder's own credit is `mengto-skills/CREDIT.md`.
 
 ## Why nothing ports as written
 
