@@ -1,8 +1,8 @@
 {
   "shards": 6,
   "longestSeconds": 125.3,
-  "mean": 305.7,
-  "slowest": 310.7,
+  "mean": 309.8,
+  "slowest": 310.9,
   "plan": [
     {
       "shard": 1,
@@ -37,7 +37,7 @@
     },
     {
       "shard": 2,
-      "seconds": 304.7,
+      "seconds": 310.8,
       "locations": [
         "e2e/a11y.spec.ts:190",
         "e2e/a11y.spec.ts:326",
@@ -65,7 +65,8 @@
         "e2e/shards/shards.spec.ts:66",
         "e2e/site.spec.ts:156",
         "e2e/snippets.spec.ts:3",
-        "e2e/shards/shards.spec.ts:89"
+        "e2e/shards/shards.spec.ts:89",
+        "e2e/catalog.spec.ts:641"
       ]
     },
     {
@@ -103,7 +104,7 @@
     },
     {
       "shard": 4,
-      "seconds": 304.7,
+      "seconds": 310.8,
       "locations": [
         "e2e/a11y.spec.ts:249",
         "e2e/catalog.spec.ts:172",
@@ -130,12 +131,13 @@
         "e2e/site.spec.ts:54",
         "e2e/vendor.spec.ts:3",
         "e2e/vendor.spec.ts:96",
-        "e2e/shards/shards.spec.ts:99"
+        "e2e/shards/shards.spec.ts:99",
+        "e2e/catalog.spec.ts:687"
       ]
     },
     {
       "shard": 5,
-      "seconds": 304.8,
+      "seconds": 310.9,
       "locations": [
         "e2e/a11y.spec.ts:277",
         "e2e/a11y.spec.ts:384",
@@ -163,12 +165,13 @@
         "e2e/solids.spec.ts:19",
         "e2e/solids.spec.ts:6",
         "e2e/vendor.spec.ts:84",
-        "e2e/shards/shards.spec.ts:152"
+        "e2e/shards/shards.spec.ts:152",
+        "e2e/catalog.spec.ts:703"
       ]
     },
     {
       "shard": 6,
-      "seconds": 304.6,
+      "seconds": 310.7,
       "locations": [
         "e2e/a11y.spec.ts:156",
         "e2e/a11y.spec.ts:212",
@@ -204,7 +207,8 @@
         "e2e/site.spec.ts:35",
         "e2e/vendor.spec.ts:40",
         "e2e/vendor.spec.ts:72",
-        "e2e/shards/shards.spec.ts:134"
+        "e2e/shards/shards.spec.ts:134",
+        "e2e/catalog.spec.ts:620"
       ]
     }
   ]
