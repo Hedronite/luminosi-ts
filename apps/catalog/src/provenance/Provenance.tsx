@@ -1,7 +1,7 @@
 import type { AssetOrigin } from "@hedronite/lts-core";
 import { vendorProvenance } from "../generated/vendorProvenance";
 import { commitUrl, mergePolicies, policyTitles, shortCommit } from "../vendored";
-import { relationWords, sourceOf } from "./provenance";
+import { relationWords, sourceOf } from "./origin";
 
 /**
  * Where an asset came from, in the asset dialog: the relation it stands in, the vendored folder's repository at the pinned commit, the

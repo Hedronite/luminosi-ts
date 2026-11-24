@@ -1,6 +1,6 @@
 import type { AssetOrigin, VendorProvenance } from "@hedronite/lts-core";
 import { describe, expect, it } from "vitest";
-import { relationWords, sourceOf } from "./provenance";
+import { relationWords, sourceOf } from "./origin";
 
 const folder: VendorProvenance = {
   license: "MIT",
