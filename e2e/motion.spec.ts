@@ -223,11 +223,13 @@ test("under reduced motion the catalog stage shows the rest pose and draws no an
   await expect(view).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
   // The rest pose is drawn and nothing steps the tracks after that. A late invalidate from the page's own data may still draw the
   // same frame, so what says nothing animates is the picture: it is the pose it started with, and time does not run.
-  await settledFrames(page, stageFrames);
+  const held = await settledFrames(page, stageFrames);
   const canvas = view.locator("canvas");
   const pose = await canvas.screenshot();
   const time = Number(await view.getAttribute("data-time"));
   await page.waitForTimeout(1_500);
+  // The R7 proof, both ways: the frame counter does not rise, and the picture is the pose it started with.
+  expect(await stageFrames(page), "no animation frames under reduced motion").toBe(held);
   expect((await canvas.screenshot()).equals(pose), "the rest pose holds under reduced motion").toBe(true);
   expect(Number(await view.getAttribute("data-time")), "time does not run under reduced motion").toBe(time);
 });
