@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { chmodSync, cpSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { creditsFor, decodeScene, migrate, removeTrack, type Scene } from "@hedronite/lts-scene";
+import { creditsFor, decodeScene, migrate, parseScene, removeTrack, type Scene } from "@hedronite/lts-scene";
 import { toCanonicalJson, toTsx, toVanilla } from "@hedronite/lts-scene/emit";
 import fc from "fast-check";
 import { afterAll, afterEach, describe, expect, it } from "vitest";
@@ -295,27 +295,29 @@ describe("patch", () => {
     return String(recordsOf(objectOf(textOf("transform-hierarchy"))["nodes"])[1]?.["id"]);
   };
 
-  it("carries motion as data: a track removed, a track added with its pose, and keyframes replaced", async () => {
-    const remove = await patched({ document: fixture("tracks"), ops: [{ op: "removeTrack", id: "orbit" }] });
-    const without = data(remove)["document"] as Record<string, unknown>;
-    expect((without["tracks"] as readonly { id: string }[]).map((track) => track.id)).toEqual(["hero-rise", "lens"]);
-    // The clip that held it is gone with it, and the pose it held is the document's own state and stays.
-    expect((without["clips"] as readonly { id: string }[]).map((clip) => clip.id)).toEqual(["hero"]);
-    expect(Object.keys(without["rest"] as Record<string, unknown>)).toContain("node.marked.rotation");
+  /** The document a patch wrote, read by the package's own parser: the test holds a `Scene`, not a cast. */
+  const docOf = (result: Envelope): Scene => sceneOf(parseScene(data(result)["document"]));
 
-    const add = await patched({
+  it("carries motion as data: a track removed, a track added with its pose, and keyframes replaced", async () => {
+    const removed = docOf(await patched({ document: fixture("tracks"), ops: [{ op: "removeTrack", id: "orbit" }] }));
+    expect(removed.tracks.map((track) => track.id)).toEqual(["hero-rise", "lens"]);
+    // The clip that held it is gone with it, and the pose it held is the document's own state and stays.
+    expect(removed.clips.map((clip) => clip.id)).toEqual(["hero"]);
+    expect(Object.keys(removed.rest)).toContain("node.marked.rotation");
+
+    const added = await patched({
       document: fixture("tracks"),
       ops: [
         { op: "setRest", target: "node.hero-title.rotation", value: [0, 1, 0] },
         { op: "addTrack", track: { id: "tilt", target: "node.hero-title.rotation", keyframes: [{ time: 0, value: [0, 0, 0], easing: "enter" }, { time: 0.5, value: [0, 1, 0] }], driver: "pointer", trigger: "hover" } },
       ],
     });
-    expect(add.ok).toBe(true);
-    const withTilt = data(add)["document"] as Record<string, unknown>;
-    expect((withTilt["tracks"] as readonly { id: string }[]).map((track) => track.id)).toContain("tilt");
+    expect(added.ok).toBe(true);
+    expect(docOf(added).tracks.map((track) => track.id)).toContain("tilt");
 
-    const retime = await patched({ document: fixture("tracks"), ops: [{ op: "setKeyframes", id: "lens", keyframes: [{ time: 0, value: 24 }] }] });
-    expect(retime.ok).toBe(true);
+    const retimed = await patched({ document: fixture("tracks"), ops: [{ op: "setKeyframes", id: "lens", keyframes: [{ time: 0, value: 24 }] }] });
+    expect(retimed.ok).toBe(true);
+    expect(docOf(retimed).tracks.find((track) => track.id === "lens")?.keyframes).toEqual([{ time: 0, value: 24 }]);
     // A path that names nothing is refused with the path, and the document is left as it was.
     const bad = await patched({ document: fixture("tracks"), ops: [{ op: "addTrack", track: { id: "x", target: "node.hero-title.speed", keyframes: [{ time: 0, value: 1 }] } }] });
     expect(bad.ok).toBe(false);

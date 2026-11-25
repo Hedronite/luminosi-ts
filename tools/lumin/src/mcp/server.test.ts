@@ -162,14 +162,14 @@ describe("the tools", () => {
 describe("a call", () => {
   it("returns the envelope as structuredContent, the same JSON on one line as content, and isError false for ok", async () => {
     const result = await callTool(reading, "scene_validate", { document: "v1.json" });
-    expect(result["structuredContent"]).toEqual({ ok: true, command: "scene validate", data: { valid: true, version: 1, issues: [] } });
+    expect(result["structuredContent"]).toEqual({ ok: true, command: "scene validate", data: { valid: true, version: 2, migratedFrom: 1, issues: [] } });
     expect(result["content"]).toEqual([{ type: "text", text: JSON.stringify(result["structuredContent"]) }]);
     expect(String(record(list(result["content"])[0])["text"])).not.toContain("\n");
     expect(result["isError"]).toBe(false);
   });
 
   it("is isError exactly when the envelope is not ok, and the failure is the same envelope the command line prints", async () => {
-    const result = await callTool(reading, "scene_validate", { document: { format: "lts-scene", version: 1, look: "no-such-look", seed: 0, nodes: [] } });
+    const result = await callTool(reading, "scene_validate", { document: { format: "lts-scene", version: 2, look: "no-such-look", seed: 0, nodes: [] } });
     expect(result["isError"]).toBe(true);
     expect(result["structuredContent"]).toMatchObject({ ok: false, command: "scene validate", kind: "invalid", exit: 1 });
     expect(record(result["structuredContent"])["ok"]).toBe(false);

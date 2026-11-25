@@ -9,7 +9,6 @@ import { addNode, removeNode, setEffects, setInk, setLights, setLook, setSurface
 import {
   easingTokens,
   inkModes,
-  parseScene,
   trackDrivers,
   trackTriggers,
   type PropertyKind,
@@ -136,7 +135,7 @@ const finite = fc.double({ min: -1e6, max: 1e6, noNaN: true, noDefaultInfinity: 
 const vec = fc.tuple(finite, finite, finite);
 
 /** A value that fits a property: a vec3 for a transform or the camera, a number for a field, anything scalar-ish for a parameter. */
-export const valueFor = (kind: PropertyKind): fc.Arbitrary<SceneTrackKeyframe["value"]> => {
+const valueFor = (kind: PropertyKind): fc.Arbitrary<SceneTrackKeyframe["value"]> => {
   switch (kind) {
     case "vec3":
       return vec;
@@ -174,7 +173,7 @@ function candidatesOf(nodes: readonly SceneNode[], effects: readonly SceneEffect
 }
 
 /** Tracks, clips and rest values over the properties this document offers, each track unique and in at most one clip. */
-const motionFor = (nodes: readonly SceneNode[], effects: readonly SceneEffect[]): fc.Arbitrary<{ readonly tracks: Scene["tracks"]; readonly clips: Scene["clips"]; readonly rest: Scene["rest"] }> => {
+const motionFor = (nodes: readonly SceneNode[], effects: readonly SceneEffect[]): fc.Arbitrary<Pick<Scene, "tracks" | "clips" | "rest">> => {
   const candidates = candidatesOf(nodes, effects);
   const keyframes = (kind: PropertyKind): fc.Arbitrary<SceneTrackKeyframe[]> =>
     fc.tuple(times, valueFor(kind), valueFor(kind), fc.option(giantEasing, { nil: undefined })).map(([at, first, second, ease]) => {
@@ -197,9 +196,11 @@ const motionFor = (nodes: readonly SceneNode[], effects: readonly SceneEffect[])
         ...(draft.driver === undefined ? {} : { driver: draft.driver }),
         ...(draft.trigger === undefined ? {} : { trigger: draft.trigger }),
       }));
-      const rest = Object.fromEntries(
-        drafted.map(({ candidate, draft }) => [candidate.target, draft.keyframes[0]?.value]),
-      ) as Scene["rest"];
+      const rest: Scene["rest"] = {};
+      for (const { candidate, draft } of drafted) {
+        const value = draft.keyframes[0]?.value;
+        if (value !== undefined) rest[candidate.target] = value;
+      }
       // Each track lands in one clip or none: the split point of the track list.
       const split = fc.nat({ max: tracks.length });
       return split.map((at) => {

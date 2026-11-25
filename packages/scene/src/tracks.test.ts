@@ -20,7 +20,7 @@ const track = (over: Partial<SceneTrack> = {}): SceneTrack => ({
 });
 
 /** The fixture with this motion, and nothing else of the fixture's own: its tracks and clips belong to the cases below. */
-const withTracks = (tracks: readonly SceneTrack[], rest: Record<string, unknown> = { [`node.${NODE}.position`]: [0, 0, 0] }): Scene => ({ ...BASE, tracks, clips: [], rest });
+const withTracks = (tracks: readonly SceneTrack[], rest: Scene["rest"] = { [`node.${NODE}.position`]: [0, 0, 0] }): Scene => ({ ...BASE, tracks: [...tracks], clips: [], rest });
 
 describe("a version 2 document with tracks", () => {
   it("reads the fixture, and its text is the canonical text", () => {
@@ -78,7 +78,8 @@ describe("a version 2 document with tracks", () => {
   it("parses through the schema, and an easing is a token rather than a curve", () => {
     const scene = withTracks([track()]);
     expect(parseScene(scene).ok).toBe(true);
-    const curve = withTracks([track({ keyframes: [{ time: 0, value: [0, 0, 0], easing: "cubic-bezier(0.4,0,0.2,1)" as never }] })]);
+    // Read as JSON: a raw curve is not a token, and the schema refuses the document rather than the type system the curve.
+    const curve = JSON.stringify({ ...withTracks([track()]), tracks: [{ id: "rise", target: `node.${NODE}.position`, keyframes: [{ time: 0, value: [0, 0, 0], easing: "cubic-bezier(0.4,0,0.2,1)" }] }] });
     expect(parseScene(curve).ok).toBe(false);
   });
 });

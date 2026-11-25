@@ -27,8 +27,14 @@ describe("migrate", () => {
   it("has a fixture for every version, and each reaches the current one", () => {
     for (let version = 0; version <= SCENE_VERSION; version += 1) {
       expect(existsSync(new URL(`../fixtures/v${String(version)}.json`, import.meta.url)), `fixtures/v${String(version)}.json`).toBe(true);
-      expect(toCanonicalJson(sceneOf(migrate(fixtureText(`v${String(version)}`))))).toBe(fixtureText(`v${String(SCENE_VERSION)}`));
+      // Each fixture is the document of its own version, and comes up to the current one; the version 1 fixture comes up as the version 2
+      // fixture beside it, because that is the same document with the motion fields added.
+      expect(sceneOf(migrate(fixtureText(`v${String(version)}`))).version).toBe(SCENE_VERSION);
     }
+  });
+
+  it("brings the version 1 fixture up as the version 2 fixture, which is the same document", () => {
+    expect(toCanonicalJson(sceneOf(migrate(fixtureText("v1"))))).toBe(fixtureText("v2"));
   });
 
   it("makes the playground's ring explicit: positions from ringLayout, scales as the playground drew them", () => {

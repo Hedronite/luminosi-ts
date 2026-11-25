@@ -256,6 +256,22 @@ export function structureIssues(scene: Scene): readonly SceneIssue[] {
       issues.push({ path: ["rest", target], code: "bad-target", message: `"${target}" names no property, so it has no rest value` });
       continue;
     }
+    if (property.node !== undefined && !nodes.has(property.node)) {
+      issues.push({ path: ["rest", target], code: "bad-target", message: `no node has the id "${property.node}"` });
+      continue;
+    }
+    if (property.effect !== undefined && !effects.has(property.effect)) {
+      issues.push({ path: ["rest", target], code: "bad-target", message: `no effect has the id "${property.effect}"` });
+      continue;
+    }
+    if (property.node !== undefined && !nodes.has(property.node)) {
+      issues.push({ path: ["rest", target], code: "bad-target", message: `no node has the id "${property.node}"` });
+      continue;
+    }
+    if (property.effect !== undefined && !effects.has(property.effect)) {
+      issues.push({ path: ["rest", target], code: "bad-target", message: `no effect has the id "${property.effect}"` });
+      continue;
+    }
     if (!valueFits(property.kind, value)) issues.push({ path: ["rest", target], code: "wrong-type", message: `the rest value of "${target}" takes a ${property.kind === "param" ? "number, string, boolean or vec3" : property.kind}` });
   }
   for (const track of scene.tracks) {

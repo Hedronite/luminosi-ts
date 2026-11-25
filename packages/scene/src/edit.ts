@@ -48,22 +48,27 @@ const anything = (): Record<string, never> => ({});
  * drives is the document's own state and stays. Every edit that can leave motion pointing at nothing runs through this, so
  * an edit never hands back a document whose tracks name a node it removed.
  */
-function withMotion(document: Scene): Scene {
-  // Read defensively: an edit may be handed a value the schema is about to refuse, and this runs before that refusal.
-  const nodes = new Map<string, SceneNode>();
-  for (const node of Array.isArray(document.nodes) ? document.nodes : []) {
-    if (typeof node === "object" && node !== null && typeof node.id === "string") nodes.set(node.id, node);
+/** The ids of a list of entries that may be anything at all: an edit can be handed a value the schema is about to refuse. */
+function idsOf(entries: readonly unknown[]): Set<string> {
+  const ids = new Set<string>();
+  for (const entry of entries) {
+    if (typeof entry !== "object" || entry === null) continue;
+    const id: unknown = Reflect.get(entry, "id");
+    if (typeof id === "string") ids.add(id);
   }
-  const effects = new Set<string>();
-  for (const effect of Array.isArray(document.effects) ? document.effects : []) {
-    if (typeof effect === "object" && effect !== null && typeof effect.id === "string") effects.add(effect.id);
-  }
+  return ids;
+}
+
+function withMotion(document: Scene, effects: readonly SceneEffect[] = document.effects): Scene {
+  const nodes = document.nodes;
+  const nodeIds = idsOf(document.nodes);
+  const effectIds = idsOf(effects);
   const stays = (track: SceneTrack): boolean => {
     const property = propertyOf(track.target);
     if (property === undefined) return true;
-    if (property.effect !== undefined) return effects.has(property.effect);
+    if (property.effect !== undefined) return effectIds.has(property.effect);
     if (property.node === undefined) return true;
-    const node = nodes.get(property.node);
+    const node = nodes.find((candidate) => candidate.id === property.node);
     if (node === undefined) return false;
     return property.param === undefined || node.surface !== undefined;
   };
@@ -73,13 +78,14 @@ function withMotion(document: Scene): Scene {
   const rest: Record<string, SceneRest[keyof SceneRest]> = {};
   for (const [target, value] of Object.entries(document.rest)) {
     const property = propertyOf(target);
-    if (property?.node !== undefined && !nodes.has(property.node)) continue;
-    if (property?.effect !== undefined && !effects.has(property.effect)) continue;
+    if (property?.node !== undefined && !nodeIds.has(property.node)) continue;
+    if (property?.effect !== undefined && !effectIds.has(property.effect)) continue;
     rest[target] = value;
   }
   const kept = new Set(tracks.map((track) => track.id));
   return {
     ...document,
+    effects: [...effects],
     tracks,
     rest,
     clips: document.clips.map((clip) => ({ ...clip, tracks: clip.tracks.filter((id) => kept.has(id)) })).filter((clip) => clip.tracks.length > 0),
@@ -172,7 +178,7 @@ export function setSurface(scene: Scene, id: string, surface: SceneSurface | und
 export function setEffects(scene: Scene, effects: readonly SceneEffect[]): SceneResult {
   // A value that is not a list never reaches `withMotion`: it goes to `read` as it came, and the schema names it.
   if (!Array.isArray(effects)) return read({ ...scene, effects });
-  return read(withMotion({ ...scene, effects: [...effects] }));
+  return read(withMotion(scene, effects));
 }
 
 /** The document printed with this ink. */

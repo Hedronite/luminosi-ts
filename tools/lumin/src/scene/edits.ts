@@ -18,7 +18,6 @@ import {
   setTransform,
   type Scene,
   type SceneResult,
-  type SceneTrack,
 } from "@hedronite/lts-scene";
 import { z } from "zod";
 import { refIssues, summary, type Context, type ReportedIssue } from "./io.js";

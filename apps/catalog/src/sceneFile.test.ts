@@ -52,7 +52,7 @@ describe("openText", () => {
   it("opens a version 0 document as one of the current version", () => {
     const old = JSON.stringify({ lightIntensity: 1.2, placements: [{ kind: "primitive", primitive: "platonic-cube", material: "satin" }] });
     const parsed: unknown = JSON.parse(outcome(openText(old, knowsAll, 8)).json ?? "null");
-    expect(parsed).toMatchObject({ version: 1, nodes: [expect.anything()], lights: { intensity: 1.2 } });
+    expect(parsed).toMatchObject({ version: 2, nodes: [expect.anything()], lights: { intensity: 1.2 } });
   });
 });
 
