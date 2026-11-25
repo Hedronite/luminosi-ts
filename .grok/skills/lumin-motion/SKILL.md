@@ -22,22 +22,21 @@ Two rules sit above everything else here:
 ## What exists today, and what this skill is written against
 
 The track document is **in the schema**: `lts-scene` version 2 carries `tracks`, `clips` and `rest`, a version 1 document comes up
-through the migration, and `lumin scene validate`, `patch` and `diff` cover tracks. Its runtime lands in G5 and its emission and
-playground in G6, so a command that only reads the document works today and one that plays it does not exist yet:
+through the migration, and `lumin scene validate`, `patch` and `diff` cover tracks. Its runtime shipped in G5 and its emission and
+playground in G6, so the whole document, its runtime, the emission and the playground work today:
 
 | Piece | State |
 |---|---|
 | `lts-scene` **v2** with `tracks`, `clips`, `rest` | **shipped** |
 | Migration from v1 documents to v2 | **shipped** |
 | `lumin scene patch` and `diff` covering tracks | **shipped** |
-| `createScene` and the `<Scene>` adapter playing tracks from an injected clock | **G5** |
-| Drivers (time, scroll, pointer) and triggers (load, hover, in-view, scroll-scrub) | **G5** |
-| Reduced motion holding the rest pose on every stage | **G5** |
-| `toTsx` and `toVanilla` emitting tracks; the playground editing them | **G6** |
-| `lumin scene` creating and patching a track with no browser | **G6** |
+| `createScene` and the `<Scene>` adapter playing tracks from an injected clock | **shipped in G5** |
+| Drivers (time, scroll, pointer) and triggers (load, hover, in-view, scroll-scrub) | **shipped in G5** |
+| Reduced motion holding the rest pose on every stage | **shipped in G5** |
+| `toTsx` and `toVanilla` emitting tracks; the playground editing them | **shipped in G6** |
+| `lumin scene` creating and patching a track with no browser | **shipped in G6** |
 
-A v1 document has no tracks: `lumin scene validate` migrates it, and the migrated document's motion is empty. Say plainly when a
-suggestion depends on a piece that has not landed: the runtime, the triggers and reduced motion (G5), the emission and the
+A v1 document has no tracks: `lumin scene validate` migrates it, and the migrated document's motion is empty. All of it is shipped: the runtime, the triggers and reduced motion (G5), the emission and the
 playground (G6).
 
 ## The shape of a track
