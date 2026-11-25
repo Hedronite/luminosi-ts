@@ -40,3 +40,8 @@ e2e/scenes/plants/
 
 # The raw upstream files of the vendored folders, fetched by their pins (bun run vendor:fetch): a cache, never committed
 .vendor/
+
+# The fixture projects the strict scene-emit tests write inside the package (out, out-bad, out-markup,
+# out-motion, out-mount), removed again by the owning file's afterAll: scratch, never committed, and
+# never seen as untracked by a review's scope (lumin-ui reads `git ls-files --others --exclude-standard`)
+tools/scene-emit/out*/
