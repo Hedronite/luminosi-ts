@@ -9,6 +9,7 @@ import { addNode, removeNode, setEffects, setInk, setLights, setLook, setSurface
 import {
   easingTokens,
   inkModes,
+  propertyOf,
   trackDrivers,
   trackTriggers,
   type PropertyKind,
@@ -68,6 +69,19 @@ export function acceptAll(scene: Scene): Resolve {
     if (surface !== undefined) note("material" in surface ? "material" : "shader", "material" in surface ? surface.material : surface.shader, surface.params);
   }
   for (const effect of scene.effects) note("effect", effect.id, effect.params);
+  // A track names a parameter of a node's surface or of an effect; the resolver takes the names the document uses, whoever names them.
+  const surfaces = new Map(scene.nodes.map((node) => [node.id, node.surface] as const));
+  for (const track of scene.tracks) {
+    const property = propertyOf(track.target);
+    if (property?.param === undefined) continue;
+    if (property.node !== undefined) {
+      const surface = surfaces.get(property.node);
+      if (surface === undefined) continue;
+      note("material" in surface ? "material" : "shader", "material" in surface ? surface.material : surface.shader, { [property.param]: undefined });
+    } else if (property.effect !== undefined) {
+      note("effect", property.effect, { [property.param]: undefined });
+    }
+  }
   return (kind, id) => {
     const names = keys.get(`${kind}/${id}`);
     return names === undefined ? undefined : { parameters: z.object(Object.fromEntries([...names].map((name) => [name, z.json().optional()]))) };
@@ -174,7 +188,8 @@ function candidatesOf(nodes: readonly SceneNode[], effects: readonly SceneEffect
 
 /** Tracks, clips and rest values over the properties this document offers, each track unique and in at most one clip. */
 const motionFor = (nodes: readonly SceneNode[], effects: readonly SceneEffect[]): fc.Arbitrary<Pick<Scene, "tracks" | "clips" | "rest">> => {
-  const candidates = candidatesOf(nodes, effects);
+  // One track drives one property: the candidates are unique by path, so no generated scene has two tracks on one path.
+  const candidates = [...new Map(candidatesOf(nodes, effects).map((candidate) => [candidate.target, candidate])).values()];
   const keyframes = (kind: PropertyKind): fc.Arbitrary<SceneTrackKeyframe[]> =>
     fc.tuple(times, valueFor(kind), valueFor(kind), fc.option(giantEasing, { nil: undefined })).map(([at, first, second, ease]) => {
       const built: SceneTrackKeyframe[] = [{ time: at[0], value: first }];

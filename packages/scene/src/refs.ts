@@ -112,13 +112,13 @@ export function checkRefs(scene: Scene, resolve: Resolve): readonly SceneIssue[]
       const [which, id] = "material" in surface ? (["material", surface.material] as const) : (["shader", surface.shader] as const);
       const found = known(which, id, [...at]);
       const names = found?.parameters === undefined ? [] : Object.keys(found.parameters.shape);
-      if (found !== undefined && names.length > 0 && !names.includes(target.param)) add(at, "unknown-param", `"${target.param}" is not a parameter of "${id}"; it has ${names.join(", ")}`);
+      if (found?.parameters !== undefined && !names.includes(target.param)) add(at, "unknown-param", `"${target.param}" is not a parameter of "${id}"${names.length === 0 ? " (it has none)" : `; it has ${names.join(", ")}`}`);
       return;
     }
     if (target.effect !== undefined) {
       const found = known("effect", target.effect, [...at]);
       const names = found?.parameters === undefined ? [] : Object.keys(found.parameters.shape);
-      if (found !== undefined && names.length > 0 && !names.includes(target.param)) add(at, "unknown-param", `"${target.param}" is not a parameter of "${target.effect}"; it has ${names.join(", ")}`);
+      if (found?.parameters !== undefined && !names.includes(target.param)) add(at, "unknown-param", `"${target.param}" is not a parameter of "${target.effect}"${names.length === 0 ? " (it has none)" : `; it has ${names.join(", ")}`}`);
     }
   });
 

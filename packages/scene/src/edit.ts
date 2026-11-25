@@ -42,11 +42,25 @@ const STRUCTURE: ReadonlySet<string> = new Set([
 /** A lookup that knows every id and takes any parameters, so that only the structure is left for `checkRefs` to find. */
 const anything = (): Record<string, never> => ({});
 
+/** No node whose surface parameters an edit has just unbound. */
+const NO_NODES: ReadonlySet<string> = new Set();
+
+/** What a node's surface parameters bind to: the surface's asset and kind, or nothing at all. A path `node.<id>.surface.params.<name>` names a parameter of that asset. */
+const surfaceAsset = (surface: unknown): string | undefined => {
+  // An edit may be handed a value of the wrong kind (a string where a surface goes); it names no asset, and `read` refuses the document.
+  if (typeof surface !== "object" || surface === null) return undefined;
+  const material: unknown = Reflect.get(surface, "material");
+  if (typeof material === "string") return `material:${material}`;
+  const shader: unknown = Reflect.get(surface, "shader");
+  return typeof shader === "string" ? `shader:${shader}` : undefined;
+};
+
 /**
  * The document with the motion of what it still has: a track whose node is gone, and the rest value that went with it, are
- * gone too; so is a track on a surface parameter of a node that now has no surface. A rest value of a property no track
- * drives is the document's own state and stays. Every edit that can leave motion pointing at nothing runs through this, so
- * an edit never hands back a document whose tracks name a node it removed.
+ * gone too; so is a track on a surface parameter of a node that now has no surface, or one its surface has just been swapped
+ * out from under (`unbound`). A rest value of a property no track drives is the document's own state and stays. Every edit
+ * that can leave motion pointing at nothing runs through this, so an edit never hands back a document whose tracks name a
+ * node it removed or a parameter that is not there.
  */
 /** The ids of a list of entries that may be anything at all: an edit can be handed a value the schema is about to refuse. */
 function idsOf(entries: readonly unknown[]): Set<string> {
@@ -59,9 +73,8 @@ function idsOf(entries: readonly unknown[]): Set<string> {
   return ids;
 }
 
-function withMotion(document: Scene, effects: readonly SceneEffect[] = document.effects): Scene {
+function withMotion(document: Scene, effects: readonly SceneEffect[] = document.effects, unbound: ReadonlySet<string> = NO_NODES): Scene {
   const nodes = document.nodes;
-  const nodeIds = idsOf(document.nodes);
   const effectIds = idsOf(effects);
   const stays = (track: SceneTrack): boolean => {
     const property = propertyOf(track.target);
@@ -70,7 +83,9 @@ function withMotion(document: Scene, effects: readonly SceneEffect[] = document.
     if (property.node === undefined) return true;
     const node = nodes.find((candidate) => candidate.id === property.node);
     if (node === undefined) return false;
-    return property.param === undefined || node.surface !== undefined;
+    if (property.param === undefined) return true;
+    // A parameter path binds to the surface's asset: a node with no surface, or one its surface was swapped out from under, has no such parameter.
+    return node.surface !== undefined && !unbound.has(property.node);
   };
   const tracks = document.tracks.filter(stays);
   // A rest value is the document's own state, not a track's: it stays when its track leaves, and goes only when what it describes is
@@ -78,7 +93,11 @@ function withMotion(document: Scene, effects: readonly SceneEffect[] = document.
   const rest: Record<string, SceneRest[keyof SceneRest]> = {};
   for (const [target, value] of Object.entries(document.rest)) {
     const property = propertyOf(target);
-    if (property?.node !== undefined && !nodeIds.has(property.node)) continue;
+    if (property?.node !== undefined) {
+      const node = nodes.find((candidate) => candidate.id === property.node);
+      if (node === undefined) continue;
+      if (property.param !== undefined && (node.surface === undefined || unbound.has(property.node))) continue;
+    }
     if (property?.effect !== undefined && !effectIds.has(property.effect)) continue;
     rest[target] = value;
   }
@@ -171,7 +190,9 @@ export function setSurface(scene: Scene, id: string, surface: SceneSurface | und
     surface === undefined
       ? { id: node.id, parent: node.parent, position: node.position, rotation: node.rotation, scale: node.scale, asset: node.asset }
       : { ...node, surface };
-  return read(withMotion({ ...scene, nodes: scene.nodes.map((candidate) => (candidate.id === id ? next : candidate)) }));
+  // A parameter path binds to the surface's asset: a different surface (or none) leaves its parameters naming nothing, and the tracks and rest that went with them go too.
+  const unbound = new Set<string>(surfaceAsset(node.surface) === surfaceAsset(surface) ? [] : [id]);
+  return read(withMotion({ ...scene, nodes: scene.nodes.map((candidate) => (candidate.id === id ? next : candidate)) }, scene.effects, unbound));
 }
 
 /** The document with this screen effect stack, in this order: each effect once. A track on an effect that left goes with it. */
@@ -201,10 +222,13 @@ export function addTrack(scene: Scene, track: SceneTrack): SceneResult {
   return read({ ...scene, tracks: [...scene.tracks, track] });
 }
 
-/** The document without the track of this id: its clip loses it, and a rest value nothing else drives goes with it. */
+/** The document without the track of this id: its clip loses it, and the rest value it held goes with it (one track drives one property). */
 export function removeTrack(scene: Scene, id: string): SceneResult {
-  if (!scene.tracks.some((track) => track.id === id)) return unknownTrack(id);
-  return read(withMotion({ ...scene, tracks: scene.tracks.filter((track) => track.id !== id) }));
+  const track = scene.tracks.find((candidate) => candidate.id === id);
+  if (track === undefined) return unknownTrack(id);
+  const next = withMotion({ ...scene, tracks: scene.tracks.filter((candidate) => candidate.id !== id) });
+  const rest = Object.fromEntries(Object.entries(next.rest).filter(([target]) => target !== track.target));
+  return read({ ...next, rest });
 }
 
 /** The track with these keyframes, and this easing token on the keyframes that name none. */
