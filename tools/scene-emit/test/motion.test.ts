@@ -86,11 +86,16 @@ describe("the emitted React code plays the document's motion", () => {
     const { renderer, Scene } = await mounted({ scroll: { progress: 0, smooth: 0, direction: 1 } });
     const node = named(renderer.scene.instance, "turntable");
     expect(node).toBeInstanceOf(Group);
-    for (const progress of [0, 0.25, 0.5, 1, 0.25]) {
+    // One progress after another, each re-rendering with the pointer and drawing a frame: a chain, not a loop, because each awaits.
+    const at = async (progresses: readonly number[]): Promise<void> => {
+      const [progress, ...rest] = progresses;
+      if (progress === undefined) return;
       await renderer.update(createElement(Scene, { scroll: { progress, smooth: progress, direction: 1 } }));
       await renderer.advanceFrames(1, 1 / 60);
       expect(node.rotation.y, `at progress ${String(progress)}`).toBeCloseTo(TURN * progress, 3);
-    }
+      await at(rest);
+    };
+    await at([0, 0.25, 0.5, 1, 0.25]);
     await renderer.unmount();
   }, 20_000);
 
