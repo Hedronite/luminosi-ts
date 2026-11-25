@@ -324,6 +324,30 @@ describe("patch", () => {
     expect(JSON.stringify(bad)).toContain("bad-target");
   });
 
+  it("creates the first track of a document that has none, with no browser", async () => {
+    const input = fixture("primitives-in-materials");
+    const id = String(recordsOf(objectOf(textOf("primitives-in-materials"))["nodes"])[0]?.["id"]);
+    const target = `node.${id}.position`;
+    const track = { id: "rise", target, keyframes: [{ time: 0, value: [0, 0, 0], easing: "enter" }, { time: 1, value: [0, 0, 0] }] };
+    const created = docOf(
+      await patched({
+        document: input,
+        ops: [
+          { op: "setRest", target, value: [0, 0, 0] },
+          { op: "addTrack", track },
+          { op: "setClip", clip: { id: "opening", tracks: ["rise"], easing: "standard" } },
+        ],
+      }),
+    );
+    expect(created.tracks.map((one) => one.id)).toEqual(["rise"]);
+    expect(created.clips.map((one) => one.id)).toEqual(["opening"]);
+    expect(created.rest).toEqual({ [target]: [0, 0, 0] });
+    // The rest value a track drives cannot be taken away (that would be `missing-rest`), and a document that never had one is refused the same way.
+    const refused = await patched({ document: input, ops: [{ op: "setRest", target, value: [0, 0, 0] }, { op: "addTrack", track }, { op: "removeRest", target }] });
+    expect(refused).toMatchObject({ ok: false, data: { index: 2, issues: [{ code: "missing-rest" }] } });
+  });
+
+
   it("diffs motion both ways, and applies what it says", () => {
     const base = sceneOf(migrate(textOf("tracks")));
     const changed = sceneOf(removeTrack(base, "orbit"));

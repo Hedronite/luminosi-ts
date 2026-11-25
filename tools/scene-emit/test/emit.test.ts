@@ -37,6 +37,26 @@ function check(dir: string, files: ReadonlyMap<string, string>): { readonly pass
   }
 }
 
+/** A document whose motion is data: a turntable that turns with the scroll and rises once on the clock, and rests level. */
+const turning = sceneSchema.parse({
+  format: "lts-scene",
+  version: 2,
+  look: "neutral",
+  seed: 0,
+  nodes: [{ id: "turntable", parent: null, position: [0, 0.6, 0], rotation: [0, 0, 0], scale: [1, 1, 1], asset: { kind: "primitive", id: "platonic-cube" }, surface: { material: "metal" } }],
+  lights: { rig: "studio", intensity: 1 },
+  environment: { kind: "studio" },
+  camera: { position: [0, 1.6, 4.4], target: [0, 0, 0], fov: 40 },
+  effects: [],
+  ink: "look",
+  tracks: [
+    { id: "turn", target: "node.turntable.rotation", keyframes: [{ time: 0, value: [0, 0, 0], easing: "linear" }, { time: 4, value: [0, 6.2832, 0], easing: "linear" }], driver: "scroll", trigger: "scroll-scrub" },
+    { id: "rise", target: "node.turntable.position", keyframes: [{ time: 0, value: [0, 0, 0], easing: "linear" }, { time: 1, value: [0, 0.6, 0], easing: "linear" }], driver: "time", trigger: "load" },
+  ],
+  clips: [{ id: "turn-clip", tracks: ["turn"] }, { id: "rise-clip", tracks: ["rise"] }],
+  rest: { "node.turntable.rotation": [0, 0, 0], "node.turntable.position": [0, 0, 0] },
+});
+
 /** Every `fixtures/*.json`, as a current document (an older one is migrated first). */
 function documents() {
   return readdirSync(fixtures)
@@ -53,7 +73,7 @@ describe("emitted code", () => {
   // Each way of writing a scene is checked by a compiler run of its own, and each planted id by one, so no test holds more than one run: a run
   // loads the types of three.js and the packages before it checks a line, and that is most of what it costs.
   it("type-checks for every fixture document, as React", () => {
-    const files = new Map(documents().map(([name, scene]) => [`${name}.tsx`, toTsx(scene)] as const));
+    const files = new Map([...documents().map(([name, scene]) => [`${name}.tsx`, toTsx(scene)] as const), ["motion.tsx", toTsx(turning)] as const]);
     expect(files.size).toBeGreaterThanOrEqual(6);
     const run = check(good, files);
     expect(run.output).toBe("");
@@ -61,7 +81,7 @@ describe("emitted code", () => {
   }, 30_000);
 
   it("type-checks for every fixture document, as plain three.js", () => {
-    const files = new Map(documents().map(([name, scene]) => [`${name}.vanilla.ts`, toVanilla(scene)] as const));
+    const files = new Map([...documents().map(([name, scene]) => [`${name}.vanilla.ts`, toVanilla(scene)] as const), ["motion.vanilla.ts", toVanilla(turning)] as const]);
     expect(files.size).toBeGreaterThanOrEqual(6);
     const run = check(good, files);
     expect(run.output).toBe("");

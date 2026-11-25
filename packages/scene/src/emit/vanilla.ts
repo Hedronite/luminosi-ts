@@ -1,5 +1,5 @@
 import type { Scene, SceneNode } from "../schema.js";
-import { assetScale, creditExport, creditHeader, forest, importLine, literal, lookSource, names, num, type Entry, type EmitOptions } from "./common.js";
+import { assetScale, creditExport, creditHeader, forest, hasMotion, importLine, literal, lookSource, motionSource, names, num, type Entry, type EmitOptions } from "./common.js";
 
 const isShader = (node: SceneNode): boolean => node.surface !== undefined && "shader" in node.surface;
 
@@ -65,6 +65,7 @@ function nodes(entries: readonly Entry[]): readonly string[] {
  */
 export function toVanilla(scene: Scene, options: EmitOptions = {}): string {
   const credits = options.credits ?? [];
+  const motion = hasMotion(scene);
   const entries = forest(scene);
   const look = lookSource(scene.look);
   const drawn = entries.map(({ node }) => node);
@@ -90,12 +91,13 @@ export function toVanilla(scene: Scene, options: EmitOptions = {}): string {
     importLine(names([...(primitives || framed ? ["createPolyhedronGeometry"] : []), "createStudioLights", "disposeObject"].sort()), "@hedronite/lts-primitives/three"),
     importLine(shaders ? "{ createEffect, type EffectClock }" : "{ type EffectClock }", "@hedronite/lts-shaders/three"),
     importLine(names(look.values, look.types), "@hedronite/lts-tokens"),
-    importLine(names(["Group", ...(primitives ? ["Mesh"] : []), "PerspectiveCamera", "Scene", "Vector2"].sort()), "three"),
+    importLine(names(["Group", ...(primitives ? ["Mesh"] : []), "PerspectiveCamera", "Scene", "Vector2"].sort(), motion ? ["Object3D"] : []), "three"),
     importLine("{ RoomEnvironment }", "three/examples/jsm/environments/RoomEnvironment.js"),
     importLine("{ PMREMGenerator, type WebGPURenderer }", "three/webgpu"),
     "",
     ...look.lines,
     ...(credits.length === 0 ? [] : ["", ...creditExport(credits)]),
+    ...(motion ? ["", ...motionSource(scene)] : []),
     ...(objects ? ["", "const objects = new Map(descriptors.map((descriptor) => [descriptor.meta.id, descriptor]));"] : []),
     "",
     "export interface Options {",
@@ -112,6 +114,7 @@ export function toVanilla(scene: Scene, options: EmitOptions = {}): string {
     "  readonly ready: Promise<void>;",
     "  /** Draws a frame. The camera's aspect follows the renderer's size at each call. */",
     "  readonly render: (delta: number) => void;",
+    ...(motion ? ["  /** One step of the document's motion: the seconds since the last, and what the drivers read. */", "  readonly advance: (seconds: number, input?: MotionInput) => void;"] : []),
     "  readonly dispose: () => void;",
     "}",
     "",
@@ -143,6 +146,22 @@ export function toVanilla(scene: Scene, options: EmitOptions = {}): string {
     "  const root = new Group();",
     "  scene.add(root);",
     ...nodes(entries),
+    ...(motion
+      ? [
+          "",
+          "  // The document's motion: its tracks stepped by the caller's clock and written onto the groups above and the camera.",
+          `  const byName = new Map<string, Object3D>([${entries.map(({ node }, at) => `[${JSON.stringify(node.id)}, n${String(at)}]`).join(", ")}]);`,
+          "  const motion = motionRuntime(options.reducedMotion === true);",
+          "  const motionTargets: MotionTargets = {",
+          "    object: (id) => byName.get(id),",
+          "    cameraPosition: (x, y, z) => { camera.position.set(x, y, z); },",
+          "    cameraTarget: (x, y, z) => { camera.lookAt(x, y, z); },",
+          "    cameraFov: (fov) => { camera.fov = fov; camera.updateProjectionMatrix(); },",
+          "  };",
+          "  // The rest pose: what the scene shows before anything steps it, and all it shows under reduced motion.",
+          "  motionApply(motion.values, motionTargets);",
+        ]
+      : []),
     "",
     ...(effects ? [`  const effects = new ScreenEffects(renderer, scene, camera, ${stack}, { palette, reducedMotion: options.reducedMotion === true${ink} });`] : []),
     "  return {",
@@ -157,6 +176,7 @@ export function toVanilla(scene: Scene, options: EmitOptions = {}): string {
     "      }",
     ...(effects ? ["      effects.setSize();", "      effects.render(delta);"] : ["      renderer.render(scene, camera);"]),
     "    },",
+    ...(motion ? ["    advance: (seconds: number, input: MotionInput = {}) => {", "      motion.step(seconds, input);", "      motionApply(motion.values, motionTargets);", "    },"] : []),
     "    dispose: () => {",
     "      controller.abort();",
     "      scene.remove(root);",

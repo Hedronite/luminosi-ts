@@ -55,6 +55,16 @@ const elementFrames = async (page: Page): Promise<number> => Number(await host(p
 const viewport = (page: Page) => page.getByTestId("playground-viewport");
 const stageFrames = async (page: Page): Promise<number> => Number(await viewport(page).getAttribute("data-frames"));
 /** Opens the catalog on the playground and hands it `turning` as a scene file, so the stage plays a document that carries tracks. */
+/** The first node's id in a document's JSON export, for a test that edits it by path. */
+const firstNodeId = (json: string): string => {
+  const parsed: unknown = JSON.parse(json);
+  const nodes = typeof parsed === "object" && parsed !== null && "nodes" in parsed && Array.isArray(parsed.nodes) ? parsed.nodes : [];
+  const first: unknown = nodes[0];
+  const id = typeof first === "object" && first !== null && "id" in first ? first.id : undefined;
+  if (typeof id !== "string") throw new Error("the document has no node");
+  return id;
+};
+
 const atTurning = async (page: Page): Promise<void> => {
   await page.goto("/?view=playground");
   await page.getByLabel("Open scene").setInputFiles(turningFile());
@@ -117,6 +127,79 @@ test("a hover track plays on the element while the pointer is over it, and rests
   expect(settled.equals(rest), "the rest pose came back when the pointer left").toBe(true);
 });
 
+
+test("the same scene draws the same frame twice: frame N of a pointer-driven document", async ({ page }) => {
+  /** Opens the page, puts the pointer at three quarters across the stage, and returns frame N: the pose the pointer names. */
+  const frame = async (): Promise<Buffer> => {
+    await page.goto("/element.html?only=pointed");
+    const element = page.locator("lts-scene#pointed");
+    await expect(element).toHaveAttribute("data-state", "ready", { timeout: STAGE_WAIT });
+    const canvas = element.locator("canvas");
+    await expectRenderer(canvas);
+    const box = await element.boundingBox();
+    if (box === null) throw new Error("the element has no box");
+    // x = 0.5 over the stage, so the pointer-driven track holds a pose of its own rather than the rest one.
+    await page.mouse.move(box.x + box.width * 0.75, box.y + box.height / 2);
+    await page.waitForTimeout(600);
+    return canvas.screenshot();
+  };
+  const first = await frame();
+  const second = await frame();
+  expect(first.equals(second), "the same scene, at the same frame, twice").toBe(true);
+});
+
+
+test("the playground adds a track through its own panel, and the document carries it", async ({ page }) => {
+  await page.goto("/?view=playground");
+  const panel = page.getByRole("region", { name: "Tracks" });
+  await expect(panel).toBeVisible();
+  const exported = page.getByRole("region", { name: "JSON export" }).locator("code");
+  const id = firstNodeId((await exported.textContent()) ?? "");
+  const addTrack = panel.getByRole("group", { name: "Add a track" });
+  await addTrack.getByLabel("Id", { exact: true }).fill("rise");
+  await addTrack.getByLabel("Target", { exact: true }).fill(`node.${id}.position`);
+  await addTrack.getByRole("button", { name: "Add track" }).click();
+  await expect(exported).toContainText('"id": "rise"');
+  await expect(exported).toContainText(`"target": "node.${id}.position"`);
+  // The panel takes it away again, and the document follows.
+  await panel.getByRole("button", { name: "Track rise Remove" }).click();
+  await expect(exported).not.toContainText('"id": "rise"');
+  await expect(viewport(page)).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
+});
+
+test("a paused playground stage steps nothing, even when it redraws on demand", async ({ page }) => {
+  await page.goto("/?view=playground");
+  await page.getByLabel("Open scene").setInputFiles(turningFile());
+  await expect(page.getByRole("list", { name: "Scene" }).getByRole("listitem")).toHaveCount(1);
+  const view = viewport(page);
+  const canvas = view.locator("canvas");
+  await expectRenderer(canvas);
+  await expect(view).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
+  await expect.poll(async () => Number(await view.getAttribute("data-time")), { message: "the stage runs", timeout: STAGE_WAIT }).toBeGreaterThan(0.3);
+  await page.getByRole("button", { name: "Pause motion" }).click();
+  await expect(page.getByRole("button", { name: "Resume motion" })).toBeVisible();
+  // A paused stage stops drawing: once the counter holds, the picture on screen is the pose the tracks stopped at.
+  const frames = await settledFrames(page, stageFrames);
+  const held = Number(await view.getAttribute("data-time"));
+  // The reference frame is taken with the pointer off the stage, so the pause button's own hover is not in the picture.
+  await page.mouse.move(2, 2);
+  await page.waitForTimeout(600);
+  const before = await canvas.screenshot();
+  // Point at the stage: it draws on demand, a frame for the pointer, and nothing may step (R9).
+  const box = await view.boundingBox();
+  if (box === null) throw new Error("the stage has no box");
+  await page.mouse.move(box.x + box.width * 0.4, box.y + box.height * 0.5);
+  await expect.poll(async () => Number(await view.getAttribute("data-frames")), { message: "a paused stage still draws for a pointer", timeout: STAGE_WAIT }).toBeGreaterThan(frames);
+  await page.waitForTimeout(1_200);
+  expect(Number(await view.getAttribute("data-time")), "time does not move while the stage is paused").toBe(held);
+  expect((await canvas.screenshot()).equals(before), "the tracks did not step while the stage was paused").toBe(true);
+  // Orbiting is the stage's own and may redraw it; time still does not move.
+  await view.focus();
+  await page.keyboard.press("ArrowRight");
+  await page.waitForTimeout(1_200);
+  expect(Number(await view.getAttribute("data-time")), "an orbit does not move time either").toBe(held);
+});
+
 test("the catalog stage plays a document's tracks from its own loop", async ({ page }) => {
   await atTurning(page);
   const view = viewport(page);
@@ -138,11 +221,17 @@ test("under reduced motion the catalog stage shows the rest pose and draws no an
   const view = viewport(page);
   await expectRenderer(view.locator("canvas"));
   await expect(view).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
-  // The rest pose is drawn; nothing steps the document's tracks after that, so the counter holds.
+  // The rest pose is drawn and nothing steps the tracks after that. A late invalidate from the page's own data may still draw the
+  // same frame, so what says nothing animates is the picture: it is the pose it started with, and time does not run.
+  const held = await settledFrames(page, stageFrames);
+  const canvas = view.locator("canvas");
+  const pose = await canvas.screenshot();
+  const time = Number(await view.getAttribute("data-time"));
   await page.waitForTimeout(1_500);
-  const held = await stageFrames(page);
-  await page.waitForTimeout(1_500);
+  // The R7 proof, both ways: the frame counter does not rise, and the picture is the pose it started with.
   expect(await stageFrames(page), "no animation frames under reduced motion").toBe(held);
+  expect((await canvas.screenshot()).equals(pose), "the rest pose holds under reduced motion").toBe(true);
+  expect(Number(await view.getAttribute("data-time")), "time does not run under reduced motion").toBe(time);
 });
 
 test("the catalog stage draws no frames out of view, and draws again when it returns", async ({ page }) => {

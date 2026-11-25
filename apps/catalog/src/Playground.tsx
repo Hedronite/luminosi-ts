@@ -19,6 +19,7 @@ import { usePlaceable, type Placeable } from "./placeable";
 import { Controls, GpuCounts, StageClock, StageFrame, useMotion } from "./scene";
 import { describeIssue, fileNameFor, linkFor, openFile, openLink, sceneParam, stemOf, type Opened } from "./sceneFile";
 import { useShaderClock } from "./shaderClock";
+import { TrackPanel } from "./tracks/TrackPanel";
 import { TransformPanel } from "./TransformPanel";
 import { useCredits } from "./useCredits";
 
@@ -495,7 +496,7 @@ export function Playground() {
                       onClick={() => {
                         setSelected(node.id);
                       }}
-                      className="rounded border border-line px-2 py-0.5 text-xs hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-accent aria-pressed:bg-surface-raised aria-pressed:font-medium"
+                      className="min-h-6 rounded border border-line px-2 py-0.5 text-xs hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-accent aria-pressed:bg-surface-raised aria-pressed:font-medium"
                     >
                       Edit
                     </button>
@@ -505,7 +506,7 @@ export function Playground() {
                       onClick={() => {
                         commit(removeNode(doc, node.id));
                       }}
-                      className="rounded p-1 hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-accent"
+                      className="min-h-6 min-w-6 rounded p-1 hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-accent"
                     >
                       <Close size={16} />
                     </button>
@@ -587,6 +588,8 @@ export function Playground() {
               }}
             />
           </label>
+
+          <TrackPanel doc={doc} commit={commit} />
         </div>
 
         <div className="flex min-w-0 flex-col gap-4">
@@ -608,6 +611,7 @@ export function Playground() {
                   <Scene
                     doc={shown}
                     palette={preset.scene}
+                    paused={motion.paused}
                     onRoot={(root) => {
                       built.current = root;
                     }}

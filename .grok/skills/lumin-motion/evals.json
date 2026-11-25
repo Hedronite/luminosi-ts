@@ -61,7 +61,7 @@
     {
       "id": "what-landed-when",
       "prompt": "Can I write a track into a scene document today?",
-      "answer": "Yes: tracks are the v2 document, shipped in G4; the runtime and its triggers land in G5; emission and the playground in G6. A v1 document has no tracks and must not pretend to.",
+      "answer": "Yes: tracks are the v2 document, shipped in G4; the runtime and its triggers shipped in G5; emission and the playground shipped in G6. A v1 document has no tracks and must not pretend to.",
       "must": ["G4", "G5", "G6", "v1"]
     }
   ]
