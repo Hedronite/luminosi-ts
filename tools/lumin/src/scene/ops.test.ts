@@ -301,9 +301,9 @@ describe("patch", () => {
   it("carries motion as data: a track removed, a track added with its pose, and keyframes replaced", async () => {
     const removed = docOf(await patched({ document: fixture("tracks"), ops: [{ op: "removeTrack", id: "orbit" }] }));
     expect(removed.tracks.map((track) => track.id)).toEqual(["hero-rise", "lens"]);
-    // The clip that held it is gone with it, and the pose it held is the document's own state and stays.
+    // The clip that held it is gone with it, and so is the rest value it held: one track drives one property.
     expect(removed.clips.map((clip) => clip.id)).toEqual(["hero"]);
-    expect(Object.keys(removed.rest)).toContain("node.marked.rotation");
+    expect(Object.keys(removed.rest)).not.toContain("node.marked.rotation");
 
     const added = await patched({
       document: fixture("tracks"),

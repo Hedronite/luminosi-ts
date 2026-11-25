@@ -7,7 +7,7 @@
     {
       "id": "hero-entrance",
       "prompt": "The hero title should rise in when the page loads and settle. What do you set?",
-      "answer": "A time-driven track on hero-title.position, from [0, 24, 0] to [0, 0, 0] over 0.8 s with the enter token, then settle, plus an opacity track 0 to 1; load trigger. Supporting copy 120 ms later over 0.6 s, the action last. Rest pose is position [0, 0, 0], opacity 1.",
+      "answer": "A time-driven track on node.hero-title.position, from [0, 24, 0] to [0, 0, 0] over 0.8 s with the enter token, then settle, plus an opacity track 0 to 1; load trigger. Supporting copy 120 ms later over 0.6 s, the action last. Rest pose is position [0, 0, 0], opacity 1.",
       "must": ["load trigger", "24 px", "0.80 s", "settle", "rest pose"]
     },
     {
@@ -48,8 +48,8 @@
     },
     {
       "id": "bad-property-path",
-      "prompt": "An agent wrote a track with target hero-title.y, or hero-title.transform.position. What happens?",
-      "answer": "Either is refused with the path it could not resolve: a node has position, rotation and scale, so hero-title.position is a path and a component or a transform segment is not one (until G4 ships a component syntax, if it does).",
+      "prompt": "An agent wrote a track with target node.hero-title.y, or node.hero-title.transform.position. What happens?",
+      "answer": "Either is refused with the path it could not resolve: a node has position, rotation and scale, so node.hero-title.position is a path, and a component or a transform segment is not one.",
       "must": ["refused", "property path", "each a vec3"]
     },
     {
@@ -61,7 +61,7 @@
     {
       "id": "what-landed-when",
       "prompt": "Can I write a track into a scene document today?",
-      "answer": "Not yet: tracks are the v2 document, which lands in G4; the runtime and its triggers in G5; emission and the playground in G6. A v1 document has no tracks and must not pretend to.",
+      "answer": "Yes: tracks are the v2 document, shipped in G4; the runtime and its triggers land in G5; emission and the playground in G6. A v1 document has no tracks and must not pretend to.",
       "must": ["G4", "G5", "G6", "v1"]
     }
   ]

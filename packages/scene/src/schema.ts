@@ -215,13 +215,14 @@ export function structureIssues(scene: Scene): readonly SceneIssue[] {
         code: "bad-target",
         message: `"${track.target}" names no property: a track drives node.<id>.position|rotation|scale, node.<id>.surface.params.<name>, effect.<id>.params.<name>, or camera.position|target|fov`,
       });
-    } else if (property.node !== undefined) {
-      const node = nodes.get(property.node);
-      if (node === undefined) issues.push({ path: targetPath, code: "bad-target", message: `no node has the id "${property.node}"` });
-      else if (property.param !== undefined && node.surface === undefined) issues.push({ path: targetPath, code: "bad-target", message: `the node "${property.node}" has no surface, so it has no parameters` });
-      else targets.set(track.target, property);
+    } else if (property.node !== undefined && !nodes.has(property.node)) {
+      issues.push({ path: targetPath, code: "bad-target", message: `no node has the id "${property.node}"` });
+    } else if (property.node !== undefined && property.param !== undefined && nodes.get(property.node)?.surface === undefined) {
+      issues.push({ path: targetPath, code: "bad-target", message: `the node "${property.node}" has no surface, so it has no parameters` });
     } else if (property.effect !== undefined && !effects.has(property.effect)) {
       issues.push({ path: targetPath, code: "bad-target", message: `no effect has the id "${property.effect}"` });
+    } else if (targets.has(track.target)) {
+      issues.push({ path: targetPath, code: "bad-target", message: `"${track.target}" is already driven by another track: one track drives one property` });
     } else {
       targets.set(track.target, property);
     }
@@ -260,12 +261,8 @@ export function structureIssues(scene: Scene): readonly SceneIssue[] {
       issues.push({ path: ["rest", target], code: "bad-target", message: `no node has the id "${property.node}"` });
       continue;
     }
-    if (property.effect !== undefined && !effects.has(property.effect)) {
-      issues.push({ path: ["rest", target], code: "bad-target", message: `no effect has the id "${property.effect}"` });
-      continue;
-    }
-    if (property.node !== undefined && !nodes.has(property.node)) {
-      issues.push({ path: ["rest", target], code: "bad-target", message: `no node has the id "${property.node}"` });
+    if (property.node !== undefined && property.param !== undefined && nodes.get(property.node)?.surface === undefined) {
+      issues.push({ path: ["rest", target], code: "bad-target", message: `the node "${property.node}" has no surface, so it has no parameters` });
       continue;
     }
     if (property.effect !== undefined && !effects.has(property.effect)) {

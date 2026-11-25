@@ -1,13 +1,16 @@
+import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { acceptAll, fixtureScene, fixtureText, sceneOf } from "./arbitrary.js";
-import { addTrack, removeNode, removeTrack, setRest, setTrackKeyframes } from "./edit.js";
+import { acceptAll, fixtureScene, fixtureText, resolve, scenes, sceneOf } from "./arbitrary.js";
+import { addTrack, removeNode, removeTrack, setRest, setSurface, setTrackKeyframes } from "./edit.js";
 import { migrate } from "./migrate.js";
 import { checkRefs } from "./refs.js";
-import { parseScene, structureIssues, type Scene, type SceneTrack } from "./schema.js";
+import { parseScene, structureIssues, type Scene, type SceneNode, type SceneTrack } from "./schema.js";
 
 const BASE = fixtureScene("tracks");
 /** The node the tracks in these tests drive: the first one in the fixture. */
 const NODE = BASE.nodes[0]?.id ?? "";
+/** The first node of the fixture, as a starting point for the surface cases. */
+const FIRST: SceneNode = BASE.nodes[0] ?? (() => { throw new Error("the fixture has no node"); })();
 
 const track = (over: Partial<SceneTrack> = {}): SceneTrack => ({
   id: "rise",
@@ -82,6 +85,34 @@ describe("a version 2 document with tracks", () => {
     const curve = JSON.stringify({ ...withTracks([track()]), tracks: [{ id: "rise", target: `node.${NODE}.position`, keyframes: [{ time: 0, value: [0, 0, 0], easing: "cubic-bezier(0.4,0,0.2,1)" }] }] });
     expect(parseScene(curve).ok).toBe(false);
   });
+
+  it("refuses two tracks that drive one property path, at the second", () => {
+    const scene = withTracks([track({ id: "one" }), track({ id: "two" })]);
+    expect(structureIssues(scene)).toContainEqual(expect.objectContaining({ path: ["tracks", 1, "target"], code: "bad-target" }));
+    expect(parseScene(scene).ok).toBe(false);
+  });
+
+  it("lets a rest value stand for a property no track drives yet, but not for one that is not there", () => {
+    const orphan: Scene = { ...withTracks([]), rest: { [`node.${NODE}.rotation`]: [0, 0, 0] } };
+    expect(parseScene(orphan).ok).toBe(true);
+    const surfaceless: Scene = { ...withTracks([]), rest: { [`node.${NODE}.surface.params.roughness`]: 0.5 } };
+    expect(structureIssues(surfaceless)).toContainEqual(expect.objectContaining({ path: ["rest", `node.${NODE}.surface.params.roughness`], code: "bad-target" }));
+  });
+
+  it("checks a track's parameter against the asset even when the asset declares none", () => {
+    const ball: SceneNode = { ...FIRST, id: "ball", surface: { material: "metal" } };
+    const scene: Scene = { ...withTracks([]), nodes: [ball], tracks: [track({ target: "node.ball.surface.params.totallyFake" })], rest: { "node.ball.surface.params.totallyFake": 1 } };
+    expect(checkRefs(scene, resolve)).toContainEqual(expect.objectContaining({ code: "unknown-param", path: ["tracks", 0, "target"] }));
+  });
+
+  it("never makes a scene whose tracks share one property path", () => {
+    fc.assert(
+      fc.property(scenes, (scene) => {
+        const targets = scene.tracks.map((one) => one.target);
+        expect(new Set(targets).size).toBe(targets.length);
+      }),
+    );
+  });
 });
 
 describe("the edits of motion", () => {
@@ -97,10 +128,11 @@ describe("the edits of motion", () => {
     expect(removeTrack(removed, "rise")).toMatchObject({ ok: false, issues: [{ code: "unknown-track" }] });
   });
 
-  it("keeps a rest value when its track goes, and drops a node's motion with the node", () => {
+  it("takes the rest value with its track, and a node's motion with the node", () => {
     const base = withTracks([track()]);
     const removed = sceneOf(removeTrack(base, "rise"));
-    expect(removed.rest).toEqual(base.rest);
+    expect(removed.tracks).toEqual([]);
+    expect(removed.rest).toEqual({});
     const gone = sceneOf(removeNode(base, base.nodes[0]?.id ?? ""));
     expect(gone.tracks).toEqual([]);
     expect(gone.rest).toEqual({});
@@ -118,5 +150,26 @@ describe("the edits of motion", () => {
     const scene = { ...base, effects: [], tracks: [] };
     const issues = checkRefs({ ...scene, tracks: [track({ target: "camera.fov" })] }, acceptAll(scene));
     expect(issues).toEqual([]);
+  });
+
+  it("takes a surface's track and rest value with the surface that goes", () => {
+    const ball: SceneNode = { ...FIRST, id: "ball", surface: { shader: "toon", params: { bands: 3 } } };
+    const base: Scene = { ...withTracks([track({ id: "bands", target: "node.ball.surface.params.bands", keyframes: [{ time: 0, value: 3 }, { time: 1, value: 5 }] })], { "node.ball.surface.params.bands": 3 }), nodes: [ball] };
+    expect(parseScene(base).ok).toBe(true);
+    const bare = sceneOf(setSurface(base, "ball", undefined));
+    expect(bare.tracks).toEqual([]);
+    expect(bare.rest).toEqual({});
+  });
+
+  it("unbinds a surface's parameter path when the surface is swapped for another", () => {
+    const ball: SceneNode = { ...FIRST, id: "ball", surface: { shader: "toon", params: { bands: 3 } } };
+    const base: Scene = { ...withTracks([track({ id: "bands", target: "node.ball.surface.params.bands", keyframes: [{ time: 0, value: 3 }, { time: 1, value: 5 }] })], { "node.ball.surface.params.bands": 3 }), nodes: [ball] };
+    const swapped = sceneOf(setSurface(base, "ball", { material: "metal" }));
+    expect(swapped.tracks).toEqual([]);
+    expect(swapped.rest).toEqual({});
+    // The same surface with other parameters keeps the path: it is the same parameter the path names.
+    const retuned = sceneOf(setSurface(base, "ball", { shader: "toon", params: { bands: 5 } }));
+    expect(retuned.tracks.map((one) => one.id)).toEqual(["bands"]);
+    expect(retuned.rest).toEqual({ "node.ball.surface.params.bands": 3 });
   });
 });

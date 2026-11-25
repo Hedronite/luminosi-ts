@@ -17,7 +17,8 @@ const levels = (documents: readonly Scene[]): number[] => documents.map((documen
 
 /** A document with no negative zero in it: `JSON.stringify` writes -0 as 0, and a history is held as the objects themselves. */
 const plain = (scene: Scene): Scene => {
-  const result = parseScene(JSON.parse(toCanonicalJson(scene).replaceAll("-0,", "0,").replaceAll("-0]", "0]")));
+  // A replacer, not text replacement: -0 can end an object or an array as well as precede a comma, and a "-0" inside a string is a string.
+  const result = parseScene(JSON.parse(JSON.stringify(scene, (_key, value: unknown) => (Object.is(value, -0) ? 0 : value))));
   if (!result.ok) throw new Error(JSON.stringify(result.issues));
   return result.scene;
 };

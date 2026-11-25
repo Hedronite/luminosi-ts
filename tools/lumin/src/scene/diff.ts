@@ -168,10 +168,10 @@ function motionOps(a: Scene, b: Scene): { readonly leaving: readonly Op[]; reado
       .filter((target) => !Object.hasOwn(b.rest, target))
       .map((target): Op => ({ op: "removeRest", target })),
   ];
+  // Every rest value of `b` is set again, not only the ones that differ: `removeTrack` takes the rest value it held with it, so a
+  // track that leaves while its pose stays would otherwise lose that pose between the two halves of the diff.
   const arriving: Op[] = [
-    ...Object.entries(b.rest)
-      .filter(([target, value]) => !Object.hasOwn(a.rest, target) || !equal(a.rest[target], value))
-      .map(([target, value]): Op => ({ op: "setRest", target, value })),
+    ...Object.entries(b.rest).map(([target, value]): Op => ({ op: "setRest", target, value })),
     ...b.tracks.map((track): Op => ({ op: "addTrack", track })),
     ...b.clips.map((clip): Op => ({ op: "setClip", clip })),
   ];
