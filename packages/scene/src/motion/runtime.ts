@@ -5,10 +5,8 @@ import type { Scene, SceneTrack } from "../schema.js";
 import type { ScrollState } from "./conductor.js";
 import { asTrackValue, clipEasingOf, spanOf, valueAt, type TrackValue } from "./evaluate.js";
 
-/** What the runtime reads each step. Everything but the seconds is optional: a scene with no scroll track does not need a scroll. */
+/** What the runtime reads each step: the scroll the conductor measured, the pointer, and whether the stage is seen or hovered. */
 export interface MotionInput {
-  /** Seconds since the stage started: the injected clock, never the wall clock. */
-  readonly time: number;
   readonly scroll?: ScrollState;
   readonly pointer?: { readonly x: number; readonly y: number };
   readonly hovered?: boolean;
@@ -40,98 +38,141 @@ export interface MotionRuntime {
 interface Played {
   /** Seconds of clip time, for a time-driven track. */
   clock: number;
-  /** 0 to 1 for a scrubbed track. */
+  /** 0 to 1 for a scrubbed or pointer-driven track. */
   progress: number;
-  /** Whether the track has started (its trigger fired) and not ended. */
+  /** Whether the track is playing now. */
   started: boolean;
-  /** Whether an in-view trigger has already fired, for the once-by-default rule. */
-  fired: boolean;
+  /** Whether it has played out and holds its last keyframe. A track that has not started, or has been left, holds its rest value. */
+  done: boolean;
+  /** Whether the `load` trigger has fired: once, on the first step. */
+  loaded: boolean;
+  /** What the step before saw, for the two triggers that start on an edge: entering the viewport, and the pointer arriving. */
+  wasInView: boolean;
+  wasHovered: boolean;
 }
 
 const same = (a: TrackValue | undefined, b: TrackValue | undefined): boolean =>
   Array.isArray(a) && Array.isArray(b) ? a[0] === b[0] && a[1] === b[1] && a[2] === b[2] : a === b;
 
 /**
- * The runtime of one document. A track starts by its trigger: `load` on the first step, `hover` while the pointer is over the stage and
- * back to its rest pose when it leaves, `in-view` when the stage is seen (once, unless the id is in `replay`), and `scroll-scrub` from
- * the scroll's damped progress, so scrolling back plays it back. A time-driven track ends at its last keyframe and holds it.
+ * The runtime of one document. A track starts by its trigger: `load` on the first step, `hover` on every arrival of the pointer and back
+ * to its rest pose when it leaves, `in-view` when the stage is seen (once, unless its id, or its clip's, is in `replay`), and `scroll-scrub`
+ * from the scroll's damped progress, so scrolling back plays it back. A track on the clock — a `time` driver — ends at its last keyframe
+ * and holds it; a `scroll` or `pointer` track follows its input both ways and holds its rest value when it has none. Under reduced motion
+ * nothing starts and nothing moves: every animated property holds its rest value.
  */
 export function createMotion(scene: Scene, options: MotionOptions = {}): MotionRuntime {
   const replay = new Set(options.replay ?? []);
   const reduced = options.reducedMotion === true;
-  const played = new Map<string, Played>(scene.tracks.map((track) => [track.id, { clock: 0, progress: 0, started: false, fired: false }] as const));
+  /** Whether the track, or the clip it is in, was asked to play again when it is seen again. */
+  const replays = (track: SceneTrack): boolean => replay.has(track.id) || scene.clips.some((clip) => clip.tracks.includes(track.id) && replay.has(clip.id));
+  const played = new Map<string, Played>(scene.tracks.map((track) => [track.id, { clock: 0, progress: 0, started: false, done: false, loaded: false, wasInView: false, wasHovered: false }] as const));
   const values = new Map<string, TrackValue>();
   for (const track of scene.tracks) {
     const rest = asTrackValue(scene.rest[track.target]);
     if (rest !== undefined) values.set(track.target, rest);
   }
-  let elapsed = 0;
   let last: MotionFrame = { values, changed: false };
 
-  const startOf = (track: SceneTrack, state: Played, input: MotionInput): boolean => {
-    if (reduced) return false;
-    switch (track.trigger ?? "load") {
-      case "load":
-        return true;
-      case "hover":
-        return input.hovered === true;
-      case "in-view": {
-        if (input.inView !== true) return false;
-        if (state.fired && !replay.has(track.id) && !scene.clips.some((clip) => clip.tracks.includes(track.id) && replay.has(clip.id))) return false;
-        return true;
-      }
-      case "scroll-scrub":
-        return input.scroll !== undefined;
-    }
-  };
-
   const step = (seconds: number, input: Partial<Omit<MotionInput, "time">> = {}): MotionFrame => {
+    // Under reduced motion nothing starts and nothing moves: every animated property holds the rest value it was given.
+    if (reduced) return last;
     const dt = Math.max(0, seconds);
-    elapsed += dt;
-    const full: MotionInput = { time: elapsed, ...input };
     let changed = false;
+    /** The value of one property, set only when it is not the one it already holds. */
+    const put = (target: string, value: TrackValue | undefined): void => {
+      if (value === undefined || same(values.get(target), value)) return;
+      values.set(target, value);
+      changed = true;
+    };
     for (const track of scene.tracks) {
       const state = played.get(track.id);
       if (state === undefined) continue;
+      const target = track.target;
+      const rest = asTrackValue(scene.rest[target]);
       const driver = track.driver ?? "time";
       const span = spanOf(track);
-      const fires = startOf(track, state, full);
+      const ease = clipEasingOf(scene, track);
       if (driver === "scroll") {
-        // A scrub follows progress whether or not it has "started": there is no time of its own to run out.
-        const progress = full.scroll?.smooth ?? 0;
-        const next = Math.min(1, Math.max(0, progress));
-        state.progress = next;
-        state.started = fires && next > 0;
-        const value = valueAt(track, next * span, clipEasingOf(scene, track));
-        if (!same(values.get(track.target), value)) {
-          values.set(track.target, value);
-          changed = true;
+        // A scrub follows the scroll's damped progress both ways, and holds its rest value when there is no scroll to read.
+        if (input.scroll === undefined) {
+          state.started = false;
+          put(target, rest);
+          continue;
         }
+        const across = Math.min(1, Math.max(0, input.scroll.smooth));
+        state.progress = across;
+        state.started = true;
+        put(target, valueAt(track, across * span, ease));
         continue;
       }
-      const again = replay.has(track.id) || scene.clips.some((clip) => clip.tracks.includes(track.id) && replay.has(clip.id));
-      if (track.trigger === "hover" && full.hovered !== true) state.started = false;
-      if (fires && (!state.fired || again)) {
+      if (driver === "pointer") {
+        // The pointer's x, -1 to 1 across the stage, maps over the track's span, both ways; with no pointer over the stage it rests.
+        if (input.pointer === undefined) {
+          state.started = false;
+          put(target, rest);
+          continue;
+        }
+        const across = Math.min(1, Math.max(0, (input.pointer.x + 1) / 2));
+        state.progress = across;
         state.started = true;
-        state.fired = true;
-        state.clock = 0;
+        put(target, valueAt(track, across * span, ease));
+        continue;
+      }
+      // A track on the clock: its trigger decides when it starts.
+      switch (track.trigger ?? "load") {
+        case "hover": {
+          const over = input.hovered === true;
+          if (over && !state.wasHovered) {
+            state.started = true;
+            state.done = false;
+            state.clock = 0;
+          }
+          if (!over) {
+            state.started = false;
+            state.done = false;
+          }
+          state.wasHovered = over;
+          break;
+        }
+        case "in-view": {
+          const seen = input.inView === true;
+          const again = replays(track);
+          if (seen && !state.wasInView && !state.started && (!state.done || again)) {
+            state.started = true;
+            state.done = false;
+            state.clock = 0;
+          }
+          if (!seen && again) {
+            state.started = false;
+            state.done = false;
+          }
+          state.wasInView = seen;
+          break;
+        }
+        case "load":
+        case "scroll-scrub": {
+          // A track on the clock starts on the first step, whatever its trigger says.
+          if (!state.loaded) {
+            state.loaded = true;
+            state.started = true;
+            state.clock = 0;
+          }
+          break;
+        }
       }
       if (!state.started) {
-        const rest = asTrackValue(scene.rest[track.target]);
-        if (rest !== undefined && !same(values.get(track.target), rest)) {
-          values.set(track.target, rest);
-          changed = true;
-        }
+        // A track that has played out holds its last keyframe; one that has not started, or has been left, holds its rest value.
+        put(target, state.done ? valueAt(track, span, ease) : rest);
         continue;
       }
-      state.clock += driver === "pointer" ? dt * (Math.abs(full.pointer?.x ?? 0) + Math.abs(full.pointer?.y ?? 0)) : dt;
-      const at = Math.min(state.clock, span);
-      const value = valueAt(track, at, clipEasingOf(scene, track));
-      if (!same(values.get(track.target), value)) {
-        values.set(track.target, value);
-        changed = true;
+      state.clock += dt;
+      if (state.clock >= span) {
+        state.clock = span;
+        state.started = false;
+        state.done = true;
       }
-      if (driver === "time" && at >= span) state.started = false;
+      put(target, valueAt(track, Math.min(state.clock, span), ease));
     }
     last = { values, changed };
     return last;

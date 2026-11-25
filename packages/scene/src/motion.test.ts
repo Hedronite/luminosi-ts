@@ -199,3 +199,85 @@ describe("the runtime", () => {
     expect(restY).toBeCloseTo(0, 6);
   });
 });
+
+/** A track that climbs from 0 to 5 over half a second on the clock, with no easing: the arithmetic of the tests below is exact. */
+const climb = (over: Partial<SceneTrack> = {}): SceneTrack => ({
+  id: "climb",
+  target: `node.${NODE}.position`,
+  keyframes: [
+    { time: 0, value: [0, 0, 0], easing: "linear" },
+    { time: 0.5, value: [0, 5, 0], easing: "linear" },
+  ],
+  driver: "time",
+  trigger: "load",
+  ...over,
+});
+
+describe("the runtime's triggers and drivers", () => {
+  const rest: Scene["rest"] = { [`node.${NODE}.position`]: [0, 0, 0] };
+  const yOf = (motion: MotionRuntime): number => vec3At(motion, `node.${NODE}.position`)[1];
+
+  it("holds a finished time track at its last keyframe instead of snapping back to rest", () => {
+    const motion = createMotion(base([climb()], rest));
+    motion.step(0.25);
+    expect(yOf(motion)).toBeCloseTo(2.5, 6);
+    motion.step(0.25);
+    expect(yOf(motion)).toBeCloseTo(5, 6);
+    const after = motion.step(0.25);
+    expect(yOf(motion)).toBeCloseTo(5, 6);
+    expect(after.changed).toBe(false);
+    expect(motion.moving).toBe(false);
+  });
+
+  it("starts a hover track on every arrival of the pointer, and returns it to rest when it leaves", () => {
+    const motion = createMotion(base([climb({ id: "lift", trigger: "hover" })], rest));
+    motion.step(0.5, { hovered: false });
+    expect(yOf(motion)).toBe(0);
+    motion.step(0.25, { hovered: true });
+    expect(yOf(motion)).toBeCloseTo(2.5, 6);
+    motion.step(0.25, { hovered: false });
+    expect(yOf(motion)).toBe(0);
+    motion.step(0.25, { hovered: true });
+    expect(yOf(motion)).toBeCloseTo(2.5, 6);
+  });
+
+  it("plays an in-view track across many frames without restarting it, and re-arms only when asked to replay", () => {
+    const once = createMotion(base([climb({ id: "reveal", trigger: "in-view" })], rest));
+    for (let frame = 0; frame < 6; frame += 1) once.step(0.1, { inView: true });
+    expect(yOf(once)).toBeCloseTo(5, 6);
+    once.step(0.1, { inView: true });
+    expect(yOf(once)).toBeCloseTo(5, 6);
+    once.step(0.1, { inView: false });
+    once.step(0.1, { inView: true });
+    expect(yOf(once)).toBeCloseTo(5, 6);
+
+    const again = createMotion(base([climb({ id: "reveal", trigger: "in-view" })], rest), { replay: ["reveal"] });
+    for (let frame = 0; frame < 6; frame += 1) again.step(0.1, { inView: true });
+    expect(yOf(again)).toBeCloseTo(5, 6);
+    again.step(0.1, { inView: false });
+    again.step(0.1, { inView: true });
+    expect(yOf(again)).toBeCloseTo(1, 6);
+  });
+
+  it("maps the pointer over the track's span both ways, and reports nothing when the pointer is still", () => {
+    const leaning = climb({ id: "lean", driver: "pointer", trigger: "load", keyframes: [{ time: 0, value: [0, 0, 0], easing: "linear" }, { time: 2, value: [0, 8, 0], easing: "linear" }] });
+    const motion = createMotion(base([leaning], rest));
+    motion.step(0.1);
+    expect(yOf(motion)).toBe(0);
+    motion.step(0.1, { pointer: { x: 0, y: 0 } });
+    expect(yOf(motion)).toBeCloseTo(4, 6);
+    expect(motion.step(0.1, { pointer: { x: 0, y: 0 } }).changed).toBe(false);
+    motion.step(0.1, { pointer: { x: 1, y: 0 } });
+    expect(yOf(motion)).toBeCloseTo(8, 6);
+    motion.step(0.1, { pointer: { x: -1, y: 0 } });
+    expect(yOf(motion)).toBeCloseTo(0, 6);
+  });
+
+  it("holds every driver at its rest value under reduced motion, the scroll and the pointer among them", () => {
+    const motion = createMotion(base([climb({ id: "sweep", driver: "scroll", trigger: "scroll-scrub" }), climb({ id: "lean", driver: "pointer" }), climb({ id: "lift", trigger: "hover" })], rest), { reducedMotion: true });
+    const frame = motion.step(1, { scroll: { progress: 0.5, smooth: 0.5, direction: 1 }, pointer: { x: 1, y: 0 }, hovered: true, inView: true });
+    expect(frame.changed).toBe(false);
+    expect(yOf(motion)).toBe(0);
+    expect(motion.moving).toBe(false);
+  });
+});

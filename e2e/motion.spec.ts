@@ -1,15 +1,14 @@
-// D7b in a real browser: the scene element and the catalog stage play a document's tracks from their own loop clock, hold
-// the rest pose and draw no animation frames under reduced motion, and draw none while they are out of view. Every claim
-// here is read from the stage's own frame counter, and the motion itself is data: the documents below carry the tracks.
+// D7b in a real browser: the scene element and the catalog stage play a document's tracks from their own loop clock, hold the
+// rest pose and draw no animation frames under reduced motion, and draw none while they are out of view. Every claim here is
+// read from the stage's own frame counter or from its own picture, and the motion itself is data: the documents below carry it.
 import type { Page } from "@playwright/test";
-import { encodeScene, type Scene } from "@hedronite/lts-scene";
 import { expect, expectRenderer, test } from "./fixtures.js";
 
 /** How long a stage may take to draw: every wait below is on the stage's own counter, and this is only the ceiling. */
 const STAGE_WAIT = 20_000;
 
-/** A document whose motion is data: one solid that spins, and bobs as it turns. A spin and a bob, both as tracks. */
-const turning: Scene = {
+/** A document whose motion is data: one solid that spins with the scroll and rises once on the clock. */
+const turning = {
   format: "lts-scene",
   version: 2,
   look: "neutral",
@@ -28,8 +27,12 @@ const turning: Scene = {
   rest: { "node.turning.rotation": [0, 0, 0], "node.turning.position": [0, 0, 0] },
 };
 
-const host = (page: Page) => page.locator("lts-scene#moving");
-const elementFrames = async (page: Page): Promise<number> => Number(await host(page).getAttribute("data-frames"));
+/** The document above as the playground's Open scene input takes it: a scene file of its own, so nothing here imports a built package. */
+const turningFile = (): { readonly name: string; readonly mimeType: string; readonly buffer: Buffer } => ({
+  name: "turning.lts-scene.json",
+  mimeType: "application/json",
+  buffer: Buffer.from(JSON.stringify(turning), "utf8"),
+});
 
 /**
  * A stage's frame count once it has held still for `holds` samples, `quiet` ms apart: the counter is written on a timer,
@@ -45,12 +48,16 @@ async function settledFrames(page: Page, read: (page: Page) => Promise<number>, 
   return sample(await read(page), 0);
 }
 
+const host = (page: Page) => page.locator("lts-scene#moving");
+const elementFrames = async (page: Page): Promise<number> => Number(await host(page).getAttribute("data-frames"));
+
 /** The catalog stage: the playground's viewport, where the `<Scene>` adapter plays the opened document. */
 const viewport = (page: Page) => page.getByTestId("playground-viewport");
 const stageFrames = async (page: Page): Promise<number> => Number(await viewport(page).getAttribute("data-frames"));
-/** Opens the catalog on a shared link to `turning`, so the stage plays a document that carries tracks. */
+/** Opens the catalog on the playground and hands it `turning` as a scene file, so the stage plays a document that carries tracks. */
 const atTurning = async (page: Page): Promise<void> => {
-  await page.goto(`/?view=playground&scene=${await encodeScene(turning)}`);
+  await page.goto("/?view=playground");
+  await page.getByLabel("Open scene").setInputFiles(turningFile());
   await expect(page.getByRole("list", { name: "Scene" }).getByRole("listitem")).toHaveCount(1);
 };
 
@@ -88,6 +95,26 @@ test("an element out of view draws no frames, and draws again when it returns", 
     window.scrollTo(0, 0);
   });
   await expect.poll(() => elementFrames(page), { message: "frames again once it is back", timeout: STAGE_WAIT }).toBeGreaterThan(away);
+});
+
+test("a hover track plays on the element while the pointer is over it, and rests when it leaves", async ({ page }) => {
+  await page.goto("/element.html?only=hovering");
+  const element = page.locator("lts-scene#hovering");
+  await expect(element).toHaveAttribute("data-state", "ready", { timeout: STAGE_WAIT });
+  const canvas = element.locator("canvas");
+  await expectRenderer(canvas);
+  await page.waitForTimeout(400);
+  const rest = await canvas.screenshot();
+  // The pointer arrives: the document's hover track starts, lifts the solid and holds it there.
+  await element.hover();
+  await page.waitForTimeout(1_200);
+  const lifted = await canvas.screenshot();
+  expect(lifted.equals(rest), "the hover track moved what the element draws").toBe(false);
+  // The pointer leaves: the track is back at its rest pose, and the picture is the one it started with.
+  await page.mouse.move(4, 4);
+  await page.waitForTimeout(1_200);
+  const settled = await canvas.screenshot();
+  expect(settled.equals(rest), "the rest pose came back when the pointer left").toBe(true);
 });
 
 test("the catalog stage plays a document's tracks from its own loop", async ({ page }) => {

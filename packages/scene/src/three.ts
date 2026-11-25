@@ -23,8 +23,8 @@ export type NodeParams = NonNullable<SceneNode["asset"]["params"]>;
 
 /** What `advance` takes besides the seconds: the scroll the conductor measured, the pointer and whether the stage is seen or hovered. */
 export interface MotionReading {
-  readonly scroll?: MotionInput["scroll"];
-  readonly pointer?: MotionInput["pointer"];
+  readonly scroll?: NonNullable<MotionInput["scroll"]>;
+  readonly pointer?: NonNullable<MotionInput["pointer"]>;
   readonly hovered?: boolean;
   readonly inView?: boolean;
 }
@@ -92,13 +92,13 @@ export interface SceneHandle {
    */
   readonly effectTargets?: () => readonly string[];
   /**
-   * Present when the document has tracks: one step of the motion, given the seconds since the last step and what the drivers read. It
-   * writes the transforms and the camera; a parameter track is G6's. Returns whether anything moved, so a stage drawing on demand knows
-   * whether it needs a frame.
+   * One step of the document's motion, given the seconds since the last step and what the drivers read. It writes the transforms and the
+   * camera; a parameter track is G6's. Returns whether anything moved — false when the document has no tracks, and false under reduced
+   * motion — so a stage drawing on demand knows whether it needs a frame.
    */
-  readonly advance?: (seconds: number, reading?: MotionReading) => boolean;
-  /** Present with tracks: the values as they stand, by property path (the rest pose before the first step). */
-  readonly motionValues?: () => ReadonlyMap<string, TrackValue>;
+  readonly advance: (seconds: number, reading?: MotionReading) => boolean;
+  /** The values as they stand, by property path (the rest pose before the first step); empty when the document has no tracks. */
+  readonly motionValues: () => ReadonlyMap<string, TrackValue>;
   /** Frees every geometry, material, texture, shader and pass the scene built, and stops builds that are under way. */
   dispose(): void;
 }
@@ -457,8 +457,10 @@ export function createScene(initial: SceneDocument, options: SceneOptions = {}):
     }
   };
   // --- motion: the document's tracks, stepped by the caller's clock ---
-  /** The runtime of the document's tracks, or none when it has no tracks. Rebuilt when `update` brings tracks. */
-  const motion = modeOf(doc);
+  /** The runtime of the document's tracks, or none when it has no tracks. Rebuilt when `update` brings tracks, or changes them. */
+  let motion = modeOf(doc);
+  /** The values of a document with no tracks: nothing to write. */
+  const NO_VALUES: ReadonlyMap<string, TrackValue> = new Map();
   function modeOf(document: SceneDocument): ReturnType<typeof createMotion> | undefined {
     if (document.tracks.length === 0) return undefined;
     return createMotion(document, { reducedMotion: options.motion?.reducedMotion ?? reducedMotion, ...(options.motion?.replay === undefined ? {} : { replay: options.motion.replay }) });
@@ -489,6 +491,8 @@ export function createScene(initial: SceneDocument, options: SceneOptions = {}):
       }
     }
   };
+  // The rest pose, written before the first step: what a fresh scene shows, and all a reduced-motion stage ever shows.
+  writeMotion();
 
   const handle: SceneHandle = {
     root,
@@ -533,20 +537,20 @@ export function createScene(initial: SceneDocument, options: SceneOptions = {}):
       explicitLook = true;
       recolor(palette);
     },
-    ...(motion === undefined
-      ? {}
-      : {
-          advance: (seconds: number, reading: MotionReading = {}) => {
-            const frame = motion.step(seconds, { ...(reading.scroll === undefined ? {} : { scroll: reading.scroll }), ...(reading.pointer === undefined ? {} : { pointer: reading.pointer }), ...(reading.hovered === undefined ? {} : { hovered: reading.hovered }), ...(reading.inView === undefined ? {} : { inView: reading.inView }) });
-            writeMotion();
-            return frame.changed;
-          },
-          motionValues: () => motion.values,
-        }),
+    advance: (seconds: number, reading: MotionReading = {}) => {
+      if (motion === undefined) return false;
+      const frame = motion.step(seconds, reading);
+      writeMotion();
+      return frame.changed;
+    },
+    motionValues: () => motion?.values ?? NO_VALUES,
     update(next) {
       if (disposed) return Promise.reject(new Error("the scene is disposed"));
       const own = explicitLook ? undefined : lookOf(next.look);
       const work = apply(next);
+      // The document's motion follows it: a document that brings tracks, or changes them, plays them from the next step.
+      motion = modeOf(next);
+      writeMotion();
       if (own !== undefined && own !== look) recolor(own);
       return settle(work);
     },

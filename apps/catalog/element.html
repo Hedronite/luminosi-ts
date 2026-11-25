@@ -34,6 +34,11 @@
           {"format":"lts-scene","version":2,"look":"neutral","seed":0,"nodes":[{"id":"solid","parent":null,"position":[0,0.6,0],"rotation":[0,0,0],"scale":[1,1,1],"asset":{"kind":"primitive","id":"platonic-octahedron"},"surface":{"material":"metal"}}],"lights":{"rig":"studio","intensity":1},"environment":{"kind":"studio"},"camera":{"position":[0,1,6],"target":[0,0,0],"fov":35},"effects":[],"ink":"look","tracks":[{"id":"rise","target":"node.solid.position","keyframes":[{"time":0,"value":[0,0.6,0],"easing":"enter"},{"time":1,"value":[0,0,0],"easing":"settle"}],"driver":"time","trigger":"load"}],"clips":[{"id":"hero","tracks":["rise"]}],"rest":{"node.solid.position":[0,0,0]}}
         </script>
       </lts-scene>
+      <lts-scene id="hovering" alt="A solid that lifts while the pointer is over it" poster="/element/poster.svg">
+        <script type="application/json">
+          {"format":"lts-scene","version":2,"look":"neutral","seed":0,"nodes":[{"id":"lifted","parent":null,"position":[0,0,0],"rotation":[0,0,0],"scale":[1,1,1],"asset":{"kind":"primitive","id":"platonic-cube"},"surface":{"material":"metal"}}],"lights":{"rig":"studio","intensity":1},"environment":{"kind":"studio"},"camera":{"position":[0,1.6,4.4],"target":[0,0,0],"fov":40},"effects":[],"ink":"look","tracks":[{"id":"lift","target":"node.lifted.position","keyframes":[{"time":0,"value":[0,0,0],"easing":"linear"},{"time":0.4,"value":[0,0.5,0],"easing":"linear"}],"driver":"time","trigger":"hover"}],"clips":[{"id":"lift-clip","tracks":["lift"],"easing":"linear"}],"rest":{"node.lifted.position":[0,0,0]}}
+        </script>
+      </lts-scene>
       <lts-scene id="eager" alt="Three solids, eager" poster="/element/poster.svg" src="/element/solids.json" loading="eager" look="hedronite"></lts-scene>
       <div class="spacer" aria-hidden="true"></div>
       <lts-scene id="far" alt="Three solids, far down the page" poster="/element/poster.svg" src="/element/solids.json"></lts-scene>
