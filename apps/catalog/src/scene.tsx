@@ -5,6 +5,7 @@ import { MathUtils, Spherical, Vector3, type Object3D } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { buildsOf, effectBuildsOf, memoryOf, noteBuilds } from "./builds";
 
+
 /** What a stage tells a viewer who cannot drag: the keys, then the pointer. Read as the stage's description. */
 const keyHelp = "Arrow keys orbit, + and - zoom, 0 resets the view. Drag to rotate, scroll to zoom.";
 
@@ -215,6 +216,12 @@ export interface Motion {
   readonly canPause: boolean;
   readonly paused: boolean;
   readonly toggle: () => void;
+  /**
+   * Stops the stage's loop now, if it has one: the store's frame loop is switched to demand and its pending frames are dropped in the
+   * click itself. The `frameloop` prop takes effect a commit later, and a loop that is still running draws a frame in between — one that
+   * a paused stage must not draw.
+   */
+  readonly holdRef: RefObject<(() => void) | null>;
 }
 
 /**
@@ -224,10 +231,29 @@ export interface Motion {
 export function useMotion(animated: boolean): Motion {
   const reduced = useReducedMotion();
   const [paused, setPaused] = useState(false);
+  const holdRef = useRef<(() => void) | null>(null);
   const toggle = useCallback(() => {
     setPaused((current) => !current);
   }, []);
-  return { still: reduced || (animated && paused), canPause: animated && !reduced, paused, toggle };
+  return { still: reduced || (animated && paused), canPause: animated && !reduced, paused, toggle, holdRef };
+}
+
+/**
+ * Installs the stage's synchronous pause, from inside the canvas where the frame loop lives: `motion.holdRef` switches the store to
+ * demand and drops the frames it had pending, so the loop stops in the pause click rather than one commit later.
+ */
+export function StageHold({ holdRef }: { readonly holdRef: RefObject<(() => void) | null> }) {
+  const store = useStore();
+  useEffect(() => {
+    holdRef.current = () => {
+      store.getState().setFrameloop("demand");
+      store.getState().internal.frames = 0;
+    };
+    return () => {
+      holdRef.current = null;
+    };
+  }, [holdRef, store]);
+  return null;
 }
 
 /**
@@ -256,7 +282,11 @@ export function StageFrame({ group, motion, label, className, testId, children }
       {motion.canPause ? (
         <button
           type="button"
-          onClick={motion.toggle}
+          onClick={() => {
+            // Hold first: the pause has to take effect while this click is still running, or the loop draws one more frame.
+            if (!motion.paused) motion.holdRef.current?.();
+            motion.toggle();
+          }}
           className="absolute right-2 top-2 min-h-8 rounded-lg border border-line bg-surface px-3 text-sm text-fg hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           {motion.paused ? "Resume motion" : "Pause motion"}

@@ -16,7 +16,7 @@ import { usePreset } from "./look";
 import { MaterialLineup } from "./MaterialLineup";
 import { stageFrameloop, useStageShown, WakeOnShow } from "./onscreen";
 import { usePlaceable, type Placeable } from "./placeable";
-import { Controls, GpuCounts, StageClock, StageFrame, useMotion } from "./scene";
+import { Controls, GpuCounts, StageClock, StageFrame, StageHold, useMotion } from "./scene";
 import { describeIssue, fileNameFor, linkFor, openFile, openLink, sceneParam, stemOf, type Opened } from "./sceneFile";
 import { useShaderClock } from "./shaderClock";
 import { TrackPanel } from "./tracks/TrackPanel";
@@ -606,6 +606,7 @@ export function Playground() {
               <WebGPUCanvas frameloop={stageFrameloop(onscreen, !animated || motion.still)} dpr={[1, 2]} camera={{ position: [0, 2.2, 5.5], fov: 40 }}>
                 <WakeOnShow shown={onscreen} />
                 <Controls keys={host} />
+                <StageHold holdRef={motion.holdRef} />
                 <StageClock clockRef={clock} running={animated && !motion.still} writeShaderTime={writeShaderTime} />
                 <EffectClockProvider clock={shaderClock}>
                   <Scene

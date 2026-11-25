@@ -7,7 +7,7 @@ import { useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { BoxGeometry, MeshBasicMaterial, SphereGeometry } from "three/webgpu";
 import { stageFrameloop, useStageShown, WakeOnShow } from "./onscreen";
-import { Controls, GpuCounts, StageClock, StageFrame, useMotion } from "./scene";
+import { Controls, GpuCounts, StageClock, StageFrame, StageHold, useMotion } from "./scene";
 import { useShaderClock } from "./shaderClock";
 
 // A smooth sphere: effects that read the surface's turn (toon bands, refraction, rims) need smooth normals.
@@ -69,6 +69,7 @@ export function ShaderViewport({ meta, palette, params, epoch }: { readonly meta
         <WakeOnShow shown={shown} />
         <StudioLights />
         <Controls keys={group} />
+        <StageHold holdRef={motion.holdRef} />
         <StageClock clockRef={clock} running={!motion.still} writeShaderTime={writeShaderTime} />
         {isEffectId(meta.id) && effectInfo[meta.id].seeThrough === true ? <Backdrop palette={palette} /> : null}
         <EffectClockProvider clock={shaderClock}>
