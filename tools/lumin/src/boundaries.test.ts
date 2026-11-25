@@ -247,7 +247,7 @@ function lexFile(source: string, isTsx: boolean): LexedFile {
       continue;
     }
     // Regex literal (when `/` cannot be division)
-    if (ch === "/" && canStartRegex) {
+    if (ch === "/" && canStartRegex && !(isTsx && (source[i - 1] === "<" || next === ">"))) {
       ident = "";
       pushBlank("/", true);
       i += 1;
@@ -334,7 +334,14 @@ function lexFile(source: string, isTsx: boolean): LexedFile {
         canStartRegex = REGEX_KEYWORDS.has(ident);
         ident = "";
       }
-      if (REGEX_BEFORE.has(ch)) canStartRegex = true;
+      if ((ch === "+" && next === "+") || (ch === "-" && next === "-")) {
+        codeOnly.push(ch, next);
+        codeWithStrings.push(ch, next);
+        i += 2;
+        canStartRegex = false;
+        continue;
+      }
+      if (REGEX_BEFORE.has(ch) && !(isTsx && ch === "<")) canStartRegex = true;
       else if (ch === ")" || ch === "]") canStartRegex = false;
       else if (ch === "}" && stack.length === 1) canStartRegex = true;
     }
@@ -353,7 +360,7 @@ export function findRawColorLiterals(packagesRoot: string): string[] {
   for (const file of packageSourceFiles(packagesRoot)) {
     const rel = file.slice(packagesRoot.length + 1);
     const source = readFileSync(file, "utf8");
-    const lexed = lexFile(source, file.endsWith(".tsx"));
+    const lexed = lexFile(source, file.endsWith(".tsx") || file.endsWith(".jsx"));
     const fileHits: { readonly at: number; readonly text: string }[] = [];
     for (const seg of lexed.strings) {
       for (const match of seg.text.matchAll(HEX_IN_STRING)) {
@@ -432,9 +439,26 @@ describe("raw color literal tripwire", () => {
         '  border: 1px solid #ff0000;',
         '  color: rgb(255, 0, 0);',
         '  background: #000;`; export const afterTpl = 0xff0000;',
+        'export function postIncDec(i: number) { return i++ / 2 + i-- / 2 + 0xff0000; }',
       ].join("\n") + "\n",
     );
-    writeFileSync(join(tree, "packages/sample/src/jsx.tsx"), "export const View = () => <p>Don't {0xff0000}</p>;\n");
+    writeFileSync(
+      join(tree, "packages/sample/src/jsx.tsx"),
+      [
+        "export const View = () => <p>Don't {0xff0000}</p>;",
+        'export const AfterBoldHex = () => <p><b>x</b>{"#ff0000"}</p>;',
+        "export const AfterBoldInt = () => <p><b>x</b>{0xff0000}</p>;",
+        'export const AfterBoldRgb = () => <p><b>x</b>{"rgb(255, 0, 0)"}</p>;',
+        'export const AfterBoldSink = () => <p><b>x</b><span style={{ color: "red" }} /></p>;',
+        'export const AfterBr = () => <p><br />{"#ff0000"}</p>;',
+        "export const MultiLine = () => (",
+        "  <div>",
+        "    <b>multi</b>",
+        '    <span>{"#ff0000"}</span>',
+        "  </div>",
+        ");",
+      ].join("\n") + "\n",
+    );
     writeFileSync(join(tree, "packages/sample/src/b.js"), 'export const jsHex = "#ff0000";\n');
     writeFileSync(join(tree, "packages/sample/src/c.mts"), 'export const mtsInt = 0x112233;\n');
     writeFileSync(join(tree, "packages/sample/scripts/zz.ts"), 'export const rootHex = "#ff0000";\n');
@@ -469,9 +493,16 @@ describe("raw color literal tripwire", () => {
       "sample/src/a.ts:29: rgb(",
       "sample/src/a.ts:30: #000",
       "sample/src/a.ts:30: 0xff0000",
+      "sample/src/a.ts:31: 0xff0000",
       "sample/src/b.js:1: #ff0000",
       "sample/src/c.mts:1: 0x112233",
       "sample/src/jsx.tsx:1: 0xff0000",
+      "sample/src/jsx.tsx:2: #ff0000",
+      "sample/src/jsx.tsx:3: 0xff0000",
+      "sample/src/jsx.tsx:4: rgb(",
+      'sample/src/jsx.tsx:5: color: "red"',
+      "sample/src/jsx.tsx:6: #ff0000",
+      "sample/src/jsx.tsx:10: #ff0000",
       "scene/src/arbitrary.ts:1: 0xff0000",
       "scene/src/arbitrary.ts:2: 0xff0000",
     ]);
