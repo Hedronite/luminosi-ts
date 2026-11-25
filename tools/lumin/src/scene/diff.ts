@@ -1,5 +1,5 @@
 // What changed between two scene documents, keyed by node id, and the edit operations that make the change.
-import type { Scene, SceneEffect, SceneNode } from "@hedronite/lts-scene";
+import type { Scene, SceneClip, SceneEffect, SceneNode, SceneTrack } from "@hedronite/lts-scene";
 import type { Op } from "./edits.js";
 
 type Path = readonly (string | number)[];
@@ -126,6 +126,58 @@ function nodeOps(a: Scene, b: Scene): Op[] {
   return ops;
 }
 
+/** Tracks, matched by id: a change of what a track drives, or of its driver or trigger, is said by removing it and adding it again. */
+function trackChanges(a: readonly SceneTrack[], b: readonly SceneTrack[], out: Change[]): void {
+  const before = new Map(a.map((track) => [track.id, track] as const));
+  const after = new Map(b.map((track) => [track.id, track] as const));
+  for (const id of [...new Set([...before.keys(), ...after.keys()])].sort(byCode)) {
+    const was = before.get(id);
+    const now = after.get(id);
+    if (was === undefined) out.push({ path: ["tracks", id], kind: "added", after: now });
+    else if (now === undefined) out.push({ path: ["tracks", id], kind: "removed", before: was });
+    else walk(was, now, ["tracks", id], out);
+  }
+}
+
+/** Clips, matched by id. */
+function clipChanges(a: readonly SceneClip[], b: readonly SceneClip[], out: Change[]): void {
+  const before = new Map(a.map((clip) => [clip.id, clip] as const));
+  const after = new Map(b.map((clip) => [clip.id, clip] as const));
+  for (const id of [...new Set([...before.keys(), ...after.keys()])].sort(byCode)) {
+    const was = before.get(id);
+    const now = after.get(id);
+    if (was === undefined) out.push({ path: ["clips", id], kind: "added", after: now });
+    else if (now === undefined) out.push({ path: ["clips", id], kind: "removed", before: was });
+    else walk(was, now, ["clips", id], out);
+  }
+}
+
+/**
+ * The motion operations, in two halves with the node operations between them. When any of the motion differs, it is replaced whole —
+ * every clip of `a`, every track of `a`, and every rest value `b` does not have leave; then `b`'s rest values, `b`'s tracks and `b`'s clips
+ * arrive in `b`'s own order. Nothing is matched piecemeal because `addTrack` and `setClip` append: a track that stayed while one was
+ * replaced would sit in a different place, and the document would differ from `b` by its order alone.
+ */
+function motionOps(a: Scene, b: Scene): { readonly leaving: readonly Op[]; readonly arriving: readonly Op[] } {
+  const unchanged = equal(a.tracks, b.tracks) && equal(a.clips, b.clips) && equal(a.rest, b.rest);
+  if (unchanged) return { leaving: [], arriving: [] };
+  const leaving: Op[] = [
+    ...a.clips.map((clip): Op => ({ op: "removeClip", id: clip.id })),
+    ...a.tracks.map((track): Op => ({ op: "removeTrack", id: track.id })),
+    ...Object.keys(a.rest)
+      .filter((target) => !Object.hasOwn(b.rest, target))
+      .map((target): Op => ({ op: "removeRest", target })),
+  ];
+  const arriving: Op[] = [
+    ...Object.entries(b.rest)
+      .filter(([target, value]) => !Object.hasOwn(a.rest, target) || !equal(a.rest[target], value))
+      .map(([target, value]): Op => ({ op: "setRest", target, value })),
+    ...b.tracks.map((track): Op => ({ op: "addTrack", track })),
+    ...b.clips.map((clip): Op => ({ op: "setClip", clip })),
+  ];
+  return { leaving, arriving };
+}
+
 /** The sections of a document the edit operations have no word for. */
 const INEXPRESSIBLE: ReadonlySet<string> = new Set(["format", "version", "seed", "environment", "camera"]);
 
@@ -153,7 +205,17 @@ export function diffScenes(a: Scene, b: Scene): Diff {
   walk(a.environment, b.environment, ["environment"], changes);
   walk(a.camera, b.camera, ["camera"], changes);
   effectChanges(a.effects, b.effects, changes);
+  trackChanges(a.tracks, b.tracks, changes);
+  clipChanges(a.clips, b.clips, changes);
+  walk(a.rest, b.rest, ["rest"], changes);
   walk(a.ink, b.ink, ["ink"], changes);
   const unexpressed = changes.filter((change) => INEXPRESSIBLE.has(String(change.path[0]))).map((change) => change.path);
-  return { same: changes.length === 0, complete: unexpressed.length === 0, changes, ops: [...sceneOps(a, b), ...nodeOps(a, b)], unexpressed };
+  const motion = motionOps(a, b);
+  return {
+    same: changes.length === 0,
+    complete: unexpressed.length === 0,
+    changes,
+    ops: [...motion.leaving, ...sceneOps(a, b), ...nodeOps(a, b), ...motion.arriving],
+    unexpressed,
+  };
 }

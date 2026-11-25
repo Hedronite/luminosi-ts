@@ -72,7 +72,10 @@ describe("emitted code", () => {
   const planted = () =>
     sceneSchema.parse({
       format: "lts-scene",
-      version: 1,
+      version: 2,
+      tracks: [],
+      clips: [],
+      rest: {},
       look: "neutral",
       seed: 0,
       nodes: [

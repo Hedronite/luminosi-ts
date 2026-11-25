@@ -1,6 +1,6 @@
 import type { AssetKind, Credit } from "@hedronite/lts-core";
 import type { z } from "zod";
-import type { Scene, SceneIssue } from "./schema.js";
+import { propertyOf, type Scene, type SceneIssue } from "./schema.js";
 
 /** What a reference can point at. Looks are named by id like the rest, though a look takes no parameters. */
 export type RefKind = Extract<AssetKind, "primitive" | "object" | "material" | "shader" | "effect"> | "look";
@@ -98,6 +98,28 @@ export function checkRefs(scene: Scene, resolve: Resolve): readonly SceneIssue[]
     if (members.some((member) => reported.has(member))) return;
     for (const member of members) reported.add(member);
     add(["nodes", index, "parent"], "cycle", `"${node.id}" is its own ancestor`);
+  });
+
+  // A track that drives a parameter asks the registry whether the asset has that parameter, the same way a node's own parameters do.
+  scene.tracks.forEach((track, index) => {
+    const target = propertyOf(track.target);
+    if (target === undefined || target.param === undefined) return;
+    const at: Path = ["tracks", index, "target"];
+    if (target.node !== undefined) {
+      const node = scene.nodes.find((candidate) => candidate.id === target.node);
+      const surface = node?.surface;
+      if (surface === undefined) return;
+      const [which, id] = "material" in surface ? (["material", surface.material] as const) : (["shader", surface.shader] as const);
+      const found = known(which, id, [...at]);
+      const names = found?.parameters === undefined ? [] : Object.keys(found.parameters.shape);
+      if (found !== undefined && names.length > 0 && !names.includes(target.param)) add(at, "unknown-param", `"${target.param}" is not a parameter of "${id}"; it has ${names.join(", ")}`);
+      return;
+    }
+    if (target.effect !== undefined) {
+      const found = known("effect", target.effect, [...at]);
+      const names = found?.parameters === undefined ? [] : Object.keys(found.parameters.shape);
+      if (found !== undefined && names.length > 0 && !names.includes(target.param)) add(at, "unknown-param", `"${target.param}" is not a parameter of "${target.effect}"; it has ${names.join(", ")}`);
+    }
   });
 
   const seen = new Set<string>();

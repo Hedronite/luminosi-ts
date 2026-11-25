@@ -49,21 +49,32 @@ const anything = (): Record<string, never> => ({});
  * an edit never hands back a document whose tracks name a node it removed.
  */
 function withMotion(document: Scene): Scene {
-  const nodes = new Map(document.nodes.map((node) => [node.id, node] as const));
+  // Read defensively: an edit may be handed a value the schema is about to refuse, and this runs before that refusal.
+  const nodes = new Map<string, SceneNode>();
+  for (const node of Array.isArray(document.nodes) ? document.nodes : []) {
+    if (typeof node === "object" && node !== null && typeof node.id === "string") nodes.set(node.id, node);
+  }
+  const effects = new Set<string>();
+  for (const effect of Array.isArray(document.effects) ? document.effects : []) {
+    if (typeof effect === "object" && effect !== null && typeof effect.id === "string") effects.add(effect.id);
+  }
   const stays = (track: SceneTrack): boolean => {
     const property = propertyOf(track.target);
-    if (property === undefined || property.node === undefined) return true;
+    if (property === undefined) return true;
+    if (property.effect !== undefined) return effects.has(property.effect);
+    if (property.node === undefined) return true;
     const node = nodes.get(property.node);
     if (node === undefined) return false;
     return property.param === undefined || node.surface !== undefined;
   };
   const tracks = document.tracks.filter(stays);
-  const driven = new Set(tracks.map((track) => track.target));
+  // A rest value is the document's own state, not a track's: it stays when its track leaves, and goes only when what it describes is
+  // gone. (A diff that replaces a track removes it and adds it again, and the pose has to survive that.)
   const rest: Record<string, SceneRest[keyof SceneRest]> = {};
   for (const [target, value] of Object.entries(document.rest)) {
     const property = propertyOf(target);
     if (property?.node !== undefined && !nodes.has(property.node)) continue;
-    if (document.tracks.some((track) => track.target === target) && !driven.has(target)) continue;
+    if (property?.effect !== undefined && !effects.has(property.effect)) continue;
     rest[target] = value;
   }
   const kept = new Set(tracks.map((track) => track.id));
@@ -159,6 +170,8 @@ export function setSurface(scene: Scene, id: string, surface: SceneSurface | und
 
 /** The document with this screen effect stack, in this order: each effect once. A track on an effect that left goes with it. */
 export function setEffects(scene: Scene, effects: readonly SceneEffect[]): SceneResult {
+  // A value that is not a list never reaches `withMotion`: it goes to `read` as it came, and the schema names it.
+  if (!Array.isArray(effects)) return read({ ...scene, effects });
   return read(withMotion({ ...scene, effects: [...effects] }));
 }
 

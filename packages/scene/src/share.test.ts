@@ -76,7 +76,7 @@ describe("a link", () => {
   it("opens a link made from a version 0 document, the playground's old JSON, as a document of the current version", async () => {
     const result = await decodeScene(await linkOf(fixtureText("v0")));
     expect(result).toEqual(migrate(fixtureText("v0")));
-    expect(result.ok && result.scene.version).toBe(1);
+    expect(result.ok && result.scene.version).toBe(2);
     expect(result.ok && result.scene.nodes.map((node) => node.id).slice(0, 2)).toEqual(["node-1", "node-2"]);
   });
 

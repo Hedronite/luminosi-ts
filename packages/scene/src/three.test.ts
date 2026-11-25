@@ -360,9 +360,14 @@ describe("update", () => {
 
 describe("the fixtures", () => {
   // Every document of the current version the package ships, held to the real registry (the schema tests use a small stand-in catalog).
+  // Older versions are read by the migration tests, not here: this holds the documents that are the current version.
   const names = readdirSync(new URL("../fixtures/", import.meta.url))
-    .filter((file) => file.endsWith(".json") && file !== "v0.json")
-    .map((file) => file.replace(/\.json$/, ""));
+    .filter((file) => file.endsWith(".json"))
+    .map((file) => file.replace(/\.json$/, ""))
+    .filter((name) => {
+      const header: unknown = JSON.parse(readFileSync(new URL(`../fixtures/${name}.json`, import.meta.url), "utf8"));
+      return typeof header === "object" && header !== null && "version" in header && header.version === 2;
+    });
 
   it("are there", () => {
     expect(names.length).toBeGreaterThanOrEqual(4);

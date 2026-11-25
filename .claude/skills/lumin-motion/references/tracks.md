@@ -1,25 +1,81 @@
 # Tracks: the v2 scene document
 
-The contract these notes are written against lands in G4. Until then a document is v1 and has no tracks; this file is the
-shape the code will accept, so a scene can be designed in it now.
+The schema these notes describe is the one the package ships: `lts-scene` version 2.
 
-**Provisional until G4 (R4).** A v1 node has `position`, `rotation` and `scale`, each a vec3; there is no `transform` segment
-and no component syntax. The path form below — `<node id>.<property>`, with a vec3 animated whole — is a proposal for v2. G4
-replaces this file's examples with the shipped schema and parses every one of them with the v2 parser; where v2 differs, the
-examples follow v2.
+The schema is shipped: `SCENE_VERSION` is 2, `parseScene` reads exactly what this file shows, and every example here is parsed by the
+v2 parser in the skill's test. A v1 node has `position`, `rotation` and `scale`, each a vec3, and a track drives one of them whole: there
+is no `transform` segment and no component syntax.
 
 ## A document, version 2
 
-```jsonc
+```json
 {
+  "format": "lts-scene",
   "version": 2,
-  "look": "hedron",
-  "nodes": [ /* as in v1: position, rotation and scale, each a vec3 */ ],
-  "tracks": [
-    { "id": "hero-rise", "target": "hero-title.position", "keyframes": [ { "time": 0, "value": [0, 24, 0] } ], "driver": "time", "trigger": "load" }
+  "look": "neutral",
+  "seed": 0,
+  "nodes": [
+    {
+      "id": "hero-title",
+      "parent": null,
+      "position": [0, 2, 0],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "asset": {
+        "kind": "primitive",
+        "id": "platonic-cube"
+      },
+      "surface": {
+        "material": "metal"
+      }
+    }
   ],
-  "clips": [ { "id": "hero", "tracks": ["hero-rise"], "easing": "standard" } ],
-  "rest": { "hero-title.position": [0, 0, 0] }
+  "lights": {
+    "rig": "studio",
+    "intensity": 1
+  },
+  "environment": {
+    "kind": "studio"
+  },
+  "camera": {
+    "target": [0, 0, 0],
+    "position": [0, 1, 6],
+    "fov": 35
+  },
+  "effects": [],
+  "ink": "look",
+  "tracks": [
+    {
+      "id": "hero-rise",
+      "target": "node.hero-title.position",
+      "keyframes": [
+        {
+          "time": 0,
+          "value": [0, 2, 0],
+          "easing": "enter"
+        },
+        {
+          "time": 0.8,
+          "value": [0, 0, 0],
+          "easing": "settle"
+        }
+      ],
+      "driver": "time",
+      "trigger": "load"
+    }
+  ],
+  "clips": [
+    {
+      "tracks": [
+        "hero-rise"
+      ],
+      "id": "hero",
+      "easing": "standard"
+    }
+  ],
+  "rest": {
+    "node.hero-title.position": [0, 0, 0]
+  }
 }
 ```
 
@@ -40,9 +96,9 @@ a v2 document with no tracks renders exactly as v1 did.
   its own.
 - **Values are the property's own type**: a vec3 for `position`, `rotation` or `scale`, a number for a scalar, a color token
   name for an ink. A value of the wrong type is refused with the keyframe's index and the target path.
-- **A property path is checked against the node.** `hero-title.position` names a property the node has. A path that names
-  none of its properties, or a segment it does not have (a `transform` segment, or a component of a vec3 while the vec3 is
-  animated whole), is refused with the path it could not resolve.
+- **A property path is checked against the document.** `node.hero-title.position` names a property the node has. A path that names a
+  node that is not there, a parameter on a node with no surface, an effect that is not there, or a segment no node has (a `transform`
+  segment, or a component of a vec3) is refused with the path it could not resolve: `bad-target`.
 - **One track drives one property.** Two tracks on one path are refused: a scene with two answers for one value is a bug,
   not a blend.
 
@@ -69,8 +125,8 @@ type: `[0, 0, 0]` for a vec3, a number for a scalar, an ink token name for a col
 
 ## Editing and diffing
 
-`lumin scene patch` (G4 adds tracks to its operations) applies the package's edit operations all or nothing, and `lumin
-scene diff` compares two documents by node id and track id. A patch that adds a track with a bad path is refused with the
+`lumin scene patch` applies the package's edit operations all or nothing — `addTrack`, `removeTrack`, `setKeyframes`, `setRest`,
+`removeRest`, `setClip`, `removeClip` — and `lumin scene diff` compares two documents by node id, track id and clip id. A patch that adds a track with a bad path is refused with the
 path, and the document is left as it was.
 
 ## Migrating a version 1 document

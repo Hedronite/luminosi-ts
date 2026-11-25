@@ -42,7 +42,10 @@ vi.mock("@hedronite/lts-scene/three", () => ({
 
 const doc: SceneDocument = {
   format: "lts-scene",
-  version: 1,
+  version: 2,
+  tracks: [],
+  clips: [],
+  rest: {},
   look: "neutral",
   seed: 1,
   nodes: [],

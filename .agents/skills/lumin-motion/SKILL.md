@@ -21,62 +21,111 @@ Two rules sit above everything else here:
 
 ## What exists today, and what this skill is written against
 
-The track document is **not in the schema yet** — the D7a contract lands in this wave's G4, its runtime in G5, its
-emission and playground in G6. This skill is written against that contract so that scenes, reviews and prompts are
-written in the same terms before the code arrives. Where a command is marked, it is not there yet:
+The track document is **in the schema**: `lts-scene` version 2 carries `tracks`, `clips` and `rest`, a version 1 document comes up
+through the migration, and `lumin scene validate`, `patch` and `diff` cover tracks. Its runtime lands in G5 and its emission and
+playground in G6, so a command that only reads the document works today and one that plays it does not exist yet:
 
 | Piece | State |
 |---|---|
-| `lts-scene` **v2** with `tracks`, `clips`, `rest` | **G4** |
-| Migration from v1 documents to v2 | **G4** |
-| `lumin scene patch` and `diff` covering tracks | **G4** |
+| `lts-scene` **v2** with `tracks`, `clips`, `rest` | **shipped** |
+| Migration from v1 documents to v2 | **shipped** |
+| `lumin scene patch` and `diff` covering tracks | **shipped** |
 | `createScene` and the `<Scene>` adapter playing tracks from an injected clock | **G5** |
 | Drivers (time, scroll, pointer) and triggers (load, hover, in-view, scroll-scrub) | **G5** |
 | Reduced motion holding the rest pose on every stage | **G5** |
 | `toTsx` and `toVanilla` emitting tracks; the playground editing them | **G6** |
 | `lumin scene` creating and patching a track with no browser | **G6** |
 
-Until G4, a v1 document has no tracks: do not invent one in a document you expect `lumin scene validate` to accept, and
-say plainly when a suggestion depends on a G4-to-G6 piece.
+A v1 document has no tracks: `lumin scene validate` migrates it, and the migrated document's motion is empty. Say plainly when a
+suggestion depends on a piece that has not landed: the runtime, the triggers and reduced motion (G5), the emission and the
+playground (G6).
 
 ## The shape of a track
 
-A track is a property path, keyframes and an easing token. A clip groups tracks. A rest pose is the value each animated
-property holds when nothing is driving it.
+A track is a property path, its keyframes, and the easing tokens between them. A clip groups tracks. A rest pose is the value each
+animated property holds when nothing is driving it. This document is a complete scene: a version 2 `lts-scene` document with one
+entrance, and the parser reads it as shown.
 
-```jsonc
+```json
 {
+  "format": "lts-scene",
   "version": 2,
+  "look": "neutral",
+  "seed": 0,
+  "nodes": [
+    {
+      "id": "hero-title",
+      "parent": null,
+      "position": [0, 2, 0],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "asset": {
+        "kind": "primitive",
+        "id": "platonic-cube"
+      },
+      "surface": {
+        "material": "metal"
+      }
+    }
+  ],
+  "lights": {
+    "rig": "studio",
+    "intensity": 1
+  },
+  "environment": {
+    "kind": "studio"
+  },
+  "camera": {
+    "target": [0, 0, 0],
+    "position": [0, 1, 6],
+    "fov": 35
+  },
+  "effects": [],
+  "ink": "look",
   "tracks": [
     {
       "id": "hero-rise",
-      "target": "hero-title.position",          // a node id and one of its properties
+      "target": "node.hero-title.position",
       "keyframes": [
-        { "time": 0,   "value": [0, 24, 0], "easing": "enter" },
-        { "time": 0.8, "value": [0, 0, 0],  "easing": "settle" }
+        {
+          "time": 0,
+          "value": [0, 2, 0],
+          "easing": "enter"
+        },
+        {
+          "time": 0.8,
+          "value": [0, 0, 0],
+          "easing": "settle"
+        }
       ],
       "driver": "time",
       "trigger": "load"
     }
   ],
-  "clips": [{ "id": "hero", "tracks": ["hero-rise"] }],
-  "rest": { "hero-title.position": [0, 0, 0] }
+  "clips": [
+    {
+      "tracks": [
+        "hero-rise"
+      ],
+      "id": "hero",
+      "easing": "standard"
+    }
+  ],
+  "rest": {
+    "node.hero-title.position": [0, 0, 0]
+  }
 }
 ```
 
-- **Times are seconds in the clip's own time**, not frames: the clock decides how fast they are played, and a scrubbed
-  track is mapped from progress, never from the wall clock.
-- **A property path is checked when the document is read.** A path the node does not have is refused with that path, not
-  silently ignored.
-- **Provisional until G4 (R4):** a v1 node has `position`, `rotation` and `scale` as vec3 values; the path syntax here
-  (a node id and a property, the vec3 animated whole) is this skill's proposal for v2, not shipped yet. G4 replaces every
-  example in this skill with the shipped schema and parses each one with the v2 parser; if v2 addresses a component of a
-  vector, the examples and this note change with it.
-- **A track with no `easing` on a keyframe** takes the token the clip names; a clip with none takes `standard`.
-- **A comment in JSON is not JSON.** The block above is `jsonc` for readability; the document itself holds no comments.
-
-The full contract — property paths, value types, how a clip and a rest pose interact, and what a migration does to a v1
-document — is in [references/tracks.md](references/tracks.md).
+- **Times are seconds in the clip's own time**, not frames: the clock decides how fast they are played, and a scrubbed track is mapped
+  from progress, never from the wall clock.
+- **A property path is checked when the document is read** against the document itself: a node has `position`, `rotation` and `scale`, each a vec3, and a track drives one of them whole. a node that is not there, a surface parameter on
+  a node with no surface, an effect that is not there, or a field a property does not have is refused with the path, not ignored. The
+  paths are `node.<id>.position|rotation|scale` (a vec3), `node.<id>.surface.params.<name>`, `effect.<id>.params.<name>` and
+  `camera.position|target` (a vec3) or `camera.fov` (a number).
+- **Every animated property has a rest value**, and a rest value's type is the property's: a track without one is refused.
+- **The easing is a token** — `enter`, `exit`, `settle`, `standard` or `linear` — never a raw curve.
+- **`driver` and `trigger` are data** in G4 (G5 reads them): `time`, `scroll`, `pointer`; and `load`, `hover`, `in-view`, `scroll-scrub`.
 
 ## Drivers: what moves a track
 

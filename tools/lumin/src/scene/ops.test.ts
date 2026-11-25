@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { chmodSync, cpSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { creditsFor, decodeScene, type Scene } from "@hedronite/lts-scene";
+import { creditsFor, decodeScene, migrate, removeTrack, type Scene } from "@hedronite/lts-scene";
 import { toCanonicalJson, toTsx, toVanilla } from "@hedronite/lts-scene/emit";
 import fc from "fast-check";
 import { afterAll, afterEach, describe, expect, it } from "vitest";
@@ -97,8 +97,8 @@ const call = async (operation: string, input: Record<string, unknown>, context: 
 
 describe("validate", () => {
   it("is valid for the fixtures, and says a version 0 document was migrated", async () => {
-    expect(await call("validate", { document: fixture("v1") })).toEqual({ ok: true, command: "scene validate", data: { valid: true, version: 1, issues: [] } });
-    expect(await call("validate", { document: fixture("v0") })).toEqual({ ok: true, command: "scene validate", data: { valid: true, version: 1, migratedFrom: 0, issues: [] } });
+    expect(await call("validate", { document: fixture("v1") })).toEqual({ ok: true, command: "scene validate", data: { valid: true, version: 2, migratedFrom: 1, issues: [] } });
+    expect(await call("validate", { document: fixture("v0") })).toEqual({ ok: true, command: "scene validate", data: { valid: true, version: 2, migratedFrom: 0, issues: [] } });
   });
 
   describe("names each planted fault by its path, with the closest ids for an unknown one", () => {
@@ -295,6 +295,45 @@ describe("patch", () => {
     return String(recordsOf(objectOf(textOf("transform-hierarchy"))["nodes"])[1]?.["id"]);
   };
 
+  it("carries motion as data: a track removed, a track added with its pose, and keyframes replaced", async () => {
+    const remove = await patched({ document: fixture("tracks"), ops: [{ op: "removeTrack", id: "orbit" }] });
+    const without = data(remove)["document"] as Record<string, unknown>;
+    expect((without["tracks"] as readonly { id: string }[]).map((track) => track.id)).toEqual(["hero-rise", "lens"]);
+    // The clip that held it is gone with it, and the pose it held is the document's own state and stays.
+    expect((without["clips"] as readonly { id: string }[]).map((clip) => clip.id)).toEqual(["hero"]);
+    expect(Object.keys(without["rest"] as Record<string, unknown>)).toContain("node.marked.rotation");
+
+    const add = await patched({
+      document: fixture("tracks"),
+      ops: [
+        { op: "setRest", target: "node.hero-title.rotation", value: [0, 1, 0] },
+        { op: "addTrack", track: { id: "tilt", target: "node.hero-title.rotation", keyframes: [{ time: 0, value: [0, 0, 0], easing: "enter" }, { time: 0.5, value: [0, 1, 0] }], driver: "pointer", trigger: "hover" } },
+      ],
+    });
+    expect(add.ok).toBe(true);
+    const withTilt = data(add)["document"] as Record<string, unknown>;
+    expect((withTilt["tracks"] as readonly { id: string }[]).map((track) => track.id)).toContain("tilt");
+
+    const retime = await patched({ document: fixture("tracks"), ops: [{ op: "setKeyframes", id: "lens", keyframes: [{ time: 0, value: 24 }] }] });
+    expect(retime.ok).toBe(true);
+    // A path that names nothing is refused with the path, and the document is left as it was.
+    const bad = await patched({ document: fixture("tracks"), ops: [{ op: "addTrack", track: { id: "x", target: "node.hero-title.speed", keyframes: [{ time: 0, value: 1 }] } }] });
+    expect(bad.ok).toBe(false);
+    expect(JSON.stringify(bad)).toContain("bad-target");
+  });
+
+  it("diffs motion both ways, and applies what it says", () => {
+    const base = sceneOf(migrate(textOf("tracks")));
+    const changed = sceneOf(removeTrack(base, "orbit"));
+    const forward = diffScenes(base, changed);
+    expect(forward.complete).toBe(true);
+    expect(forward.ops).toContainEqual({ op: "removeTrack", id: "orbit" });
+    expect(sceneOf(applyOps(base, forward.ops, ctx)).tracks.map((track) => track.id)).toEqual(["hero-rise", "lens"]);
+    const back = diffScenes(changed, base);
+    expect(back.complete).toBe(true);
+    expect(back.ops).toContainEqual({ op: "addTrack", track: base.tracks.find((track) => track.id === "orbit") });
+  });
+
   it("applies the edits in order and gives the document", async () => {
     const result = await patched( { document: hierarchy, ops: [{ op: "setInk", ink: "accent" }, { op: "setLights", change: { intensity: 2 } }, { op: "setTransform", id: secondNode(), change: { position: [1, 2, 3] } }] });
     const patchedDocument = data(result)["document"];
@@ -393,7 +432,7 @@ describe("credits", () => {
 
 describe("export", () => {
   it("gives canonical JSON equal to the fixture's own text, which is in that form", async () => {
-    expect(data(await call("export", { document: fixture("v1"), as: "json" }))["text"]).toBe(textOf("v1"));
+    expect(data(await call("export", { document: fixture("v1"), as: "json" }))["text"]).toBe(textOf("v2"));
   });
 
   it("gives React code, a vanilla module and a link that opens as the document", async () => {

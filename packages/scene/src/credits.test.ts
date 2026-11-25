@@ -21,7 +21,7 @@ const crediting = (credits: Readonly<Record<string, Credit>>): Resolve => {
 const node = (id: string, extra: Partial<SceneNode> = {}): SceneNode => ({ id, parent: null, position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1], asset: { kind: "primitive", id: "platonic-cube" }, surface: { material: "metal" }, ...extra });
 
 const sceneOf = (extra: Partial<Scene> = {}): Scene =>
-  sceneSchema.parse({ format: "lts-scene", version: 1, look: "neutral", seed: 0, nodes: [node("a")], lights: { rig: "studio", intensity: 1 }, environment: { kind: "studio" }, camera: { position: [0, 2, 5], target: [0, 0, 0], fov: 40 }, effects: [], ink: "look", ...extra });
+  sceneSchema.parse({ format: "lts-scene", version: 2, tracks: [], clips: [], rest: {}, look: "neutral", seed: 0, nodes: [node("a")], lights: { rig: "studio", intensity: 1 }, environment: { kind: "studio" }, camera: { position: [0, 2, 5], target: [0, 0, 0], fov: 40 }, effects: [], ink: "look", ...extra });
 
 const made = (subject: string, kind: Credit["kind"]): Credit => ({ subject, kind, relation: "adopted", work: `Work of ${subject}`, source: "https://example.com/work", pin: "abc123", license: "MIT", credit: "Someone", path: "src/work.ts" });
 

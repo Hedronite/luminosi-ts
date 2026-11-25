@@ -35,14 +35,16 @@
     "kind": "studio"
   },
   "camera": {
-    "position": [0, 1, 6],
     "target": [0, 0, 0],
+    "position": [0, 1, 6],
     "fov": 35
   },
   "effects": [],
   "ink": "look",
   "tracks": [
     {
+      "id": "hero-rise",
+      "target": "node.hero-title.position",
       "keyframes": [
         {
           "time": 0,
@@ -56,11 +58,11 @@
         }
       ],
       "driver": "time",
-      "trigger": "load",
-      "id": "hero-rise",
-      "target": "node.hero-title.position"
+      "trigger": "load"
     },
     {
+      "id": "orbit",
+      "target": "node.marked.rotation",
       "keyframes": [
         {
           "time": 0,
@@ -72,11 +74,11 @@
         }
       ],
       "driver": "scroll",
-      "trigger": "scroll-scrub",
-      "id": "orbit",
-      "target": "node.marked.rotation"
+      "trigger": "scroll-scrub"
     },
     {
+      "id": "lens",
+      "target": "camera.fov",
       "keyframes": [
         {
           "time": 0,
@@ -89,9 +91,7 @@
         }
       ],
       "driver": "time",
-      "trigger": "in-view",
-      "id": "lens",
-      "target": "camera.fov"
+      "trigger": "in-view"
     }
   ],
   "clips": [
@@ -100,8 +100,8 @@
         "hero-rise",
         "lens"
       ],
-      "easing": "standard",
-      "id": "hero"
+      "id": "hero",
+      "easing": "standard"
     },
     {
       "tracks": [

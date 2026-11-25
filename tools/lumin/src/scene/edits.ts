@@ -1,5 +1,25 @@
 // The package's edit operations as data: the format `patch` reads and `diff` writes. Each is one call of a function of `@hedronite/lts-scene`.
-import { addNode, removeNode, sceneSchema, setEffects, setInk, setLights, setLook, setSurface, setTransform, type Scene, type SceneResult } from "@hedronite/lts-scene";
+import {
+  addNode,
+  addTrack,
+  removeClip,
+  removeRest,
+  setClip,
+  removeNode,
+  removeTrack,
+  sceneSchema,
+  setRest,
+  setEffects,
+  setInk,
+  setLights,
+  setLook,
+  setSurface,
+  setTrackKeyframes,
+  setTransform,
+  type Scene,
+  type SceneResult,
+  type SceneTrack,
+} from "@hedronite/lts-scene";
 import { z } from "zod";
 import { refIssues, summary, type Context, type ReportedIssue } from "./io.js";
 
@@ -18,12 +38,20 @@ const opSchema = z.discriminatedUnion("op", [
   z.strictObject({ op: z.literal("setInk"), ink: sceneSchema.shape.ink }),
   z.strictObject({ op: z.literal("setLights"), change: sceneSchema.shape.lights.partial() }),
   z.strictObject({ op: z.literal("setLook"), look: sceneSchema.shape.look }),
+  // Motion, as data: a track added or removed whole, its keyframes replaced, and a rest value set.
+  z.strictObject({ op: z.literal("addTrack"), track: sceneSchema.shape.tracks.element }),
+  z.strictObject({ op: z.literal("removeTrack"), id: sceneSchema.shape.tracks.element.shape.id }),
+  z.strictObject({ op: z.literal("setKeyframes"), id: sceneSchema.shape.tracks.element.shape.id, keyframes: sceneSchema.shape.tracks.element.shape.keyframes }),
+  z.strictObject({ op: z.literal("setRest"), target: z.string().min(1), value: z.json() }),
+  z.strictObject({ op: z.literal("removeRest"), target: z.string().min(1) }),
+  z.strictObject({ op: z.literal("setClip"), clip: sceneSchema.shape.clips.element }),
+  z.strictObject({ op: z.literal("removeClip"), id: sceneSchema.shape.clips.element.shape.id }),
 ]);
 
 export type Op = z.output<typeof opSchema>;
 
 /** The names of the operations, in the order of the package's edit module. */
-export const opNames = ["addNode", "removeNode", "setTransform", "setSurface", "setEffects", "setInk", "setLights", "setLook"] as const;
+export const opNames = ["addNode", "removeNode", "setTransform", "setSurface", "setEffects", "setInk", "setLights", "setLook", "addTrack", "removeTrack", "setKeyframes", "setRest", "removeRest", "setClip", "removeClip"] as const;
 
 /** One operation applied to a document: the package function of that name. */
 function applyOp(scene: Scene, op: Op): SceneResult {
@@ -48,6 +76,20 @@ function applyOp(scene: Scene, op: Op): SceneResult {
     }
     case "setLook":
       return setLook(scene, op.look);
+    case "addTrack":
+      return addTrack(scene, op.track);
+    case "removeTrack":
+      return removeTrack(scene, op.id);
+    case "setKeyframes":
+      return setTrackKeyframes(scene, op.id, op.keyframes);
+    case "setRest":
+      return setRest(scene, op.target, op.value);
+    case "removeRest":
+      return removeRest(scene, op.target);
+    case "setClip":
+      return setClip(scene, op.clip);
+    case "removeClip":
+      return removeClip(scene, op.id);
   }
 }
 
