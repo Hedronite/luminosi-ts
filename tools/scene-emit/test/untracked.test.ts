@@ -17,7 +17,7 @@ const here = fileURLToPath(new URL(".", import.meta.url));
 const pkg = join(here, "..");
 const root = join(pkg, "..", "..");
 const scratch = ["out", "out-bad", "out-markup", "out-motion", "out-mount"] as const;
-const own = `out-untracked-${process.pid}`;
+const own = `out-untracked-${String(process.pid)}`;
 
 const git = (args: readonly string[]) => spawnSync("git", [...args], { cwd: root, encoding: "utf8" });
 
