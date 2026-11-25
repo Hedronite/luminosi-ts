@@ -191,10 +191,15 @@ export const keeps = (source: Pick<PinSource, "include" | "exclude">, path: stri
 // ---- the content hash ------------------------------------------------------------------------------------------------
 
 /**
- * A license-bearing file (the policy of a folder's own licenses): it stays in the repository at its own path, whatever its depth, and the hash leaves it out.
- * LICENSE*, NOTICE*, COPYING*, *LICENSES*.md and THIRD_PARTY_NOTICES*, by the file's own name.
+ * A license-bearing file (the policy of a folder's own licenses): it stays in the repository at its own path, whatever its depth, and the hash
+ * leaves it out. By the file's own name, upper case and as a word anywhere in it: `LICENSE`, `LICENSE-three.txt`, `Three-LICENSE.txt`,
+ * `Font-LICENSE.txt`, `THIRD_PARTY_NOTICES.md`, `ASSET-LICENSES.md`, `THIRD-PARTY-COPYRIGHT.md`. A name in lower case (`license.txt`,
+ * `src/licenses.ts`) is a document about licensing, not a license file, and a name that only holds those letters inside a word (`LICENSING`) is
+ * neither.
  */
-export const isLicenseBearing = (path: string): boolean => /^(?:LICENSE|NOTICE|COPYING|THIRD_PARTY_NOTICES)|^[^/]*LICENSES[^/]*\.md$/.test(path.slice(path.lastIndexOf("/") + 1));
+const licenseName = /(?:^|[^A-Za-z])(?:LICEN[CS]ES?|NOTICES?|COPYING|COPYRIGHT)(?:[^A-Za-z]|$)/;
+
+export const isLicenseBearing = (path: string): boolean => licenseName.test(path.slice(path.lastIndexOf("/") + 1));
 
 /** Whether the hash covers a file of a folder: not CREDIT.md or vendor.json (the folder's own), not .DS_Store, and, for a fetchable folder, not a license-bearing file. */
 export function hashed(path: string, isKept: boolean): boolean {
