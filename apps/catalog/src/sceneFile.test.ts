@@ -8,7 +8,10 @@ const node = (id: string, primitive = "platonic-cube"): SceneNode => ({ id, pare
 
 const scene = (count: number): Scene => ({
   format: "lts-scene",
-  version: 1,
+  version: 2,
+  tracks: [],
+  clips: [],
+  rest: {},
   look: "neutral",
   seed: 0,
   nodes: Array.from({ length: count }, (_, index) => node(`node-${String(index + 1)}`)),

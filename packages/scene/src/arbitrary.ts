@@ -3,9 +3,24 @@
 import { readFileSync } from "node:fs";
 import fc from "fast-check";
 import { z } from "zod";
+import { migrate } from "./migrate.js";
 import type { RefKind, Resolve } from "./refs.js";
 import { addNode, removeNode, setEffects, setInk, setLights, setLook, setSurface, setTransform, type TransformChange } from "./edit.js";
-import { inkModes, parseScene, type Scene, type SceneEffect, type SceneLook, type SceneNode, type SceneResult, type SceneSurface } from "./schema.js";
+import {
+  easingTokens,
+  inkModes,
+  parseScene,
+  trackDrivers,
+  trackTriggers,
+  type PropertyKind,
+  type Scene,
+  type SceneEffect,
+  type SceneLook,
+  type SceneNode,
+  type SceneResult,
+  type SceneSurface,
+  type SceneTrackKeyframe,
+} from "./schema.js";
 
 const none = z.object({});
 
@@ -114,35 +129,119 @@ const nodes = fc
 /** Screen effect stacks the small catalog takes: each effect once, in any order. */
 const effectStacks: fc.Arbitrary<SceneEffect[]> = fc.shuffledSubarray([{ id: "dither", params: { cell: 4 } }, { id: "grain" }]);
 
+const giantEasing = fc.constantFrom(...easingTokens);
+const driver = fc.constantFrom(...trackDrivers);
+const trigger = fc.constantFrom(...trackTriggers);
+const finite = fc.double({ min: -1e6, max: 1e6, noNaN: true, noDefaultInfinity: true });
+const vec = fc.tuple(finite, finite, finite);
+
+/** A value that fits a property: a vec3 for a transform or the camera, a number for a field, anything scalar-ish for a parameter. */
+export const valueFor = (kind: PropertyKind): fc.Arbitrary<SceneTrackKeyframe["value"]> => {
+  switch (kind) {
+    case "vec3":
+      return vec;
+    case "number":
+      return number;
+    case "param":
+      return fc.oneof(finite, fc.string({ maxLength: 12 }), fc.boolean(), vec);
+  }
+};
+
+/** Three keyframe times in order from zero, not a value the canonical text would write differently. */
+const times = fc.tuple(fc.constant(0), fc.double({ min: 0.001, max: 50, noNaN: true }), fc.double({ min: 0.002, max: 100, noNaN: true }));
+/** A target a document's own fields offer a track: a real path, and the kind of value it takes. */
+interface Candidate {
+  readonly target: string;
+  readonly kind: PropertyKind;
+}
+
+/** The properties this document can animate: its nodes' transforms, the parameters its own surfaces and effects take, and the camera. */
+function candidatesOf(nodes: readonly SceneNode[], effects: readonly SceneEffect[]): readonly Candidate[] {
+  const found: Candidate[] = [];
+  for (const node of nodes) for (const field of ["position", "rotation", "scale"] as const) found.push({ target: `node.${node.id}.${field}`, kind: "vec3" });
+  for (const node of nodes) {
+    const surface = node.surface;
+    if (surface === undefined || !("shader" in surface)) continue;
+    // The small catalog's one parameterised shader; a parameter the resolver would not know is not a target.
+    if (surface.shader === "toon") found.push({ target: `node.${node.id}.surface.params.bands`, kind: "param" });
+  }
+  for (const effect of effects) {
+    if (effect.id === "dither") found.push({ target: "effect.dither.params.cell", kind: "param" });
+    if (effect.id === "grain") found.push({ target: "effect.grain.params.amount", kind: "param" });
+  }
+  found.push({ target: "camera.position", kind: "vec3" }, { target: "camera.target", kind: "vec3" }, { target: "camera.fov", kind: "number" });
+  return found;
+}
+
+/** Tracks, clips and rest values over the properties this document offers, each track unique and in at most one clip. */
+const motionFor = (nodes: readonly SceneNode[], effects: readonly SceneEffect[]): fc.Arbitrary<{ readonly tracks: Scene["tracks"]; readonly clips: Scene["clips"]; readonly rest: Scene["rest"] }> => {
+  const candidates = candidatesOf(nodes, effects);
+  const keyframes = (kind: PropertyKind): fc.Arbitrary<SceneTrackKeyframe[]> =>
+    fc.tuple(times, valueFor(kind), valueFor(kind), fc.option(giantEasing, { nil: undefined })).map(([at, first, second, ease]) => {
+      const built: SceneTrackKeyframe[] = [{ time: at[0], value: first }];
+      built.push({ time: at[1], value: second, ...(ease === undefined ? {} : { easing: ease }) });
+      return built;
+    });
+  return fc
+    .uniqueArray(
+      fc.constantFrom(...candidates).chain((candidate) =>
+        fc.record({ keyframes: keyframes(candidate.kind), driver: fc.option(driver, { nil: undefined }), trigger: fc.option(trigger, { nil: undefined }), easing: fc.option(giantEasing, { nil: undefined }) }).map((draft) => ({ candidate, draft })),
+      ),
+      { maxLength: Math.min(4, candidates.length), selector: (entry) => entry.candidate.target },
+    )
+    .chain((drafted) => {
+      const tracks: Scene["tracks"] = drafted.map(({ candidate, draft }, index) => ({
+        id: `track-${String(index)}`,
+        target: candidate.target,
+        keyframes: draft.keyframes,
+        ...(draft.driver === undefined ? {} : { driver: draft.driver }),
+        ...(draft.trigger === undefined ? {} : { trigger: draft.trigger }),
+      }));
+      const rest = Object.fromEntries(
+        drafted.map(({ candidate, draft }) => [candidate.target, draft.keyframes[0]?.value]),
+      ) as Scene["rest"];
+      // Each track lands in one clip or none: the split point of the track list.
+      const split = fc.nat({ max: tracks.length });
+      return split.map((at) => {
+        const clips: Scene["clips"] = [];
+        const first = tracks.slice(0, at);
+        const second = tracks.slice(at);
+        if (first.length > 0) clips.push({ id: "clip-a", tracks: first.map((track) => track.id) });
+        if (second.length > 0) clips.push({ id: "clip-b", tracks: second.map((track) => track.id) });
+        return { tracks, clips, rest };
+      });
+    });
+};
+
 /** Valid documents that pass `checkRefs` against `resolve`. */
-export const scenes: fc.Arbitrary<Scene> = fc.record({
-  format: fc.constant("lts-scene" as const),
-  version: fc.constant(1 as const),
-  look: fc.oneof(
-    fc.constant("neutral"),
-    fc.record({ base: hex, accent: hex, metal: hex, glass: hex, emissive: hex }),
-  ),
-  seed: fc.nat(),
-  nodes,
-  lights: fc.record({ rig: fc.constant("studio" as const), intensity: fc.double({ min: 0, max: 10, noNaN: true }) }),
-  environment: fc.constant({ kind: "studio" as const }),
-  camera: fc.record({ position: vec3, target: vec3, fov: fc.double({ min: 1, max: 179, noNaN: true }) }),
-  effects: effectStacks,
-  ink: fc.constantFrom(...inkModes),
-});
+export const scenes: fc.Arbitrary<Scene> = fc
+  .record({
+    format: fc.constant("lts-scene" as const),
+    version: fc.constant(2 as const),
+    look: fc.oneof(fc.constant("neutral"), fc.record({ base: hex, accent: hex, metal: hex, glass: hex, emissive: hex })),
+    seed: fc.nat(),
+    nodes,
+    lights: fc.record({ rig: fc.constant("studio" as const), intensity: fc.double({ min: 0, max: 10, noNaN: true }) }),
+    environment: fc.constant({ kind: "studio" as const }),
+    camera: fc.record({ position: vec3, target: vec3, fov: fc.double({ min: 1, max: 179, noNaN: true }) }),
+    effects: effectStacks,
+    ink: fc.constantFrom(...inkModes),
+  })
+  .chain((document) => motionFor(document.nodes, document.effects).map((motion) => ({ ...document, ...motion })));
 
 /** The text of a fixture file. */
 export const fixtureText = (name: string): string => readFileSync(new URL(`../fixtures/${name}.json`, import.meta.url), "utf8");
 
-/** A fixture of the current version, read. */
+/** A fixture of the current version, read: a version 1 fixture comes up through the migration. */
 export function fixtureScene(name: string): Scene {
-  const result = parseScene(fixtureText(name));
+  const result = migrate(fixtureText(name));
   if (!result.ok) throw new Error(`fixture ${name}: ${JSON.stringify(result.issues)}`);
   return result.scene;
 }
 
 /** Every fixture of the current version. */
-export const currentFixtures = ["v1", "primitives-in-materials", "framed-solid-shader", "object-effects-ink", "transform-hierarchy"] as const;
+/** The fixtures of the current version. `v1` is not one: it is the document the migration brings up. */
+export const currentFixtures = ["primitives-in-materials", "framed-solid-shader", "object-effects-ink", "transform-hierarchy", "tracks"] as const;
 
 /** The scene of a result, or a thrown error naming its issues: for a test that expects the document to read. */
 export function sceneOf(result: SceneResult): Scene {

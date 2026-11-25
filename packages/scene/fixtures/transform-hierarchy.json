@@ -1,6 +1,6 @@
 {
   "format": "lts-scene",
-  "version": 1,
+  "version": 2,
   "look": "neutral",
   "seed": 0,
   "nodes": [
@@ -74,5 +74,8 @@
     "fov": 40
   },
   "effects": [],
-  "ink": "look"
+  "ink": "look",
+  "tracks": [],
+  "clips": [],
+  "rest": {}
 }

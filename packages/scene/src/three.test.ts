@@ -26,7 +26,7 @@ const satin = (palette: ScenePalette): string => new Color(palette[materialPrese
 
 const scene = (nodes: SceneNode[], over: Partial<SceneDocument> = {}): SceneDocument => ({
   format: "lts-scene",
-  version: 1,
+  version: 2,
   look: "neutral",
   seed: 1,
   nodes,
@@ -35,6 +35,9 @@ const scene = (nodes: SceneNode[], over: Partial<SceneDocument> = {}): SceneDocu
   camera: { position: [0, 1, 6], target: [0, 0, 0], fov: 35 },
   effects: [],
   ink: "look",
+  tracks: [],
+  clips: [],
+  rest: {},
   ...over,
 });
 

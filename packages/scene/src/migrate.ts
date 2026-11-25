@@ -78,7 +78,18 @@ const steps: readonly { readonly from: number; readonly up: (document: unknown) 
       return { ok: false, issues: issuesOf(parsed.error) };
     },
   },
+  {
+    from: 1,
+    // A version 1 document is version 2 with no motion at all. The fields are replaced rather than spread over: a document that
+    // carried its own (it could not, under version 1) would not be the one being migrated.
+    up: (document) => (typeof document === "object" && document !== null && !Array.isArray(document) ? { ok: true, next: fromV1({ ...document }) } : { ok: false, issues: [{ path: [], code: "wrong-type", message: "a scene document is an object" }] }),
+  },
 ];
+
+/** A version 1 document as version 2: the motion fields are there and empty, so a scene with no motion reads and draws as it did. */
+function fromV1(old: Record<string, unknown>): Record<string, unknown> {
+  return { ...old, version: 2, tracks: [], clips: [], rest: {} };
+}
 
 /** The version of a document: its `version` when it declares the format, 0 when it declares neither (the playground's JSON), nothing otherwise. */
 function versionOf(value: unknown): number | undefined {
