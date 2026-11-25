@@ -8,7 +8,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef, useState, type RefObject } from "react";
 import type { Group, Object3D } from "three";
 import { noteEffectTargets } from "./builds";
-import { Controls, GpuCounts, StageClock, StageFrame, useMotion } from "./scene";
+import { Controls, GpuCounts, StageClock, StageFrame, StageHold, useMotion } from "./scene";
 import { stageFrameloop, useStageShown, WakeOnShow } from "./onscreen";
 import { buildStage, repaintStage, type StageSubject, type StageSurface } from "./stage";
 import { useShaderClock } from "./shaderClock";
@@ -109,6 +109,7 @@ export function EffectStage({ effects, palette, subject = framedDodecahedron, su
         <WebGPUStudioEnvironment />
         <StudioLights />
         <Controls keys={own} />
+        <StageHold holdRef={motion.holdRef} />
         <StageClock clockRef={clock} running={!motion.still} writeShaderTime={writeShaderTime} />
         <Subject subject={subject} surface={surface} palette={palette} still={motion.still} clock={clock} shaderClock={shaderClock} />
         {effects.length === 0 ? null : <ScreenEffectsPass effects={effects} palette={palette} onPipeline={noteTargets} {...(monochrome === undefined ? {} : { monochrome })} />}
