@@ -31,6 +31,12 @@ export interface SceneProps {
   readonly onEffectTargets?: (ids: readonly string[]) => void;
 }
 
+/** Where the pointer is for the document's tracks: -1 to 1 on each axis, and whether it is over the stage. The lens keeps a 0-to-1 copy of its own. */
+interface MotionPointer {
+  pointer?: { readonly x: number; readonly y: number };
+  hovered: boolean;
+}
+
 /** A property check, not an instanceof: this entry must not import three's WebGPU build. */
 const isWebGPURenderer = (gl: unknown): gl is WebGPURenderer => typeof gl === "object" && gl !== null && "isWebGPURenderer" in gl;
 
@@ -49,6 +55,7 @@ export function Scene({ doc, palette, reducedMotion, onRoot, onEffectTargets }: 
   const clock = useContext(EffectClockContext);
   const preferred = useReducedMotion();
   const still = reducedMotion ?? preferred;
+  const motionPointer = useRef<MotionPointer>({ hovered: false });
 
   // The state says "there is a scene now" (and draws it); the ref is the live one, which the effects below read, so that none
   // of them reaches a scene a rebuild just freed.
@@ -67,7 +74,7 @@ export function Scene({ doc, palette, reducedMotion, onRoot, onEffectTargets }: 
 
   useEffect(() => {
     const { doc: first, palette: look } = latest.current;
-    const made = createScene(first, { ...(look === undefined ? {} : { palette: look }), ...(renderer === undefined ? {} : { renderer }), ...(clock === undefined ? {} : { clock }), reducedMotion: still });
+    const made = createScene(first, { ...(look === undefined ? {} : { palette: look }), ...(renderer === undefined ? {} : { renderer }), ...(clock === undefined ? {} : { clock }), reducedMotion: still, motion: { reducedMotion: still } });
     live.current = made;
     latest.current.onRoot?.(made.root);
     setHandle(made);
@@ -125,11 +132,15 @@ export function Scene({ doc, palette, reducedMotion, onRoot, onEffectTargets }: 
     let timer: ReturnType<typeof setTimeout> | undefined;
     const move = (event: PointerEvent): void => {
       const rect = element.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return;
       live.current?.setPointer?.({ x: (event.clientX - rect.left) / rect.width, y: (event.clientY - rect.top) / rect.height });
+      // The tracks read the same pointer the other way round: -1 to 1 from the stage's centre, with the stage seen and hovered.
+      motionPointer.current = { pointer: { x: ((event.clientX - rect.left) / rect.width) * 2 - 1, y: ((event.clientY - rect.top) / rect.height) * 2 - 1 }, hovered: true };
       invalidate();
     };
     const leave = (): void => {
       live.current?.setPointer?.(null);
+      motionPointer.current = { hovered: false };
       invalidate();
     };
     const up = (event: PointerEvent): void => {
@@ -153,7 +164,14 @@ export function Scene({ doc, palette, reducedMotion, onRoot, onEffectTargets }: 
   // A positive priority takes over rendering from React Three Fiber, so only a scene that draws itself asks for it.
   useFrame((_, delta) => {
     // A long gap (a hidden tab, a paused stage) is one short step, not a jump through the intro and the sweep.
-    live.current?.render?.(Math.min(delta, 0.1));
+    const step = Math.min(delta, 0.1);
+    // The document own tracks, stepped by the render loop clock rather than the wall clock; held for a stage that asked for reduced motion.
+    // The pointer and the hover come from the same listeners that feed the lens, in the tracks' own -1-to-1 reading.
+    if (!still) {
+      const where = motionPointer.current;
+      live.current?.advance(step, { inView: true, ...(where.pointer === undefined ? {} : { pointer: where.pointer }), hovered: where.hovered });
+    }
+    live.current?.render?.(step);
   }, renderer === undefined ? 0 : 1);
 
   return handle === undefined || renderer !== undefined ? null : <primitive object={handle.root} dispose={null} />;

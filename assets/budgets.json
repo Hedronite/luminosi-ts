@@ -5,11 +5,11 @@
   "bundles": {
     "catalog-gallery": { "gzipBytes": 125700 },
     "catalog-embed": { "gzipBytes": 322000 },
-    "catalog-3d": { "gzipBytes": 502400 },
+    "catalog-3d": { "gzipBytes": 503600 },
     "catalog-panel": { "gzipBytes": 3200 },
     "site-island": { "gzipBytes": 2900 },
     "scene-element": { "gzipBytes": 3100 },
-    "scene-element-3d": { "gzipBytes": 334500 }
+    "scene-element-3d": { "gzipBytes": 335800 }
   },
   "posters": { "perPosterBytes": 4096, "totalBytes": 80000 },
   "objects": {

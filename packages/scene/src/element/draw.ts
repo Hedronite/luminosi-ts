@@ -93,7 +93,7 @@ export async function mount(options: MountOptions): Promise<MountResult> {
 
   // The shaders read this clock, which moves while the scene runs and stays at 0 for the rest pose.
   const clock = createEffectClock(0);
-  const handle = createScene(doc, { renderer, clock, reducedMotion: options.reduced, ...(palette === undefined ? {} : { palette }) });
+  const handle = createScene(doc, { renderer, clock, reducedMotion: options.reduced, motion: { reducedMotion: options.reduced }, ...(palette === undefined ? {} : { palette }) });
   const seen = builds.get(host) ?? new Set<string>();
   builds.set(host, seen);
 
@@ -104,6 +104,22 @@ export async function mount(options: MountOptions): Promise<MountResult> {
   let reduced = options.reduced;
   let disposed: boolean = false;
   const hasEffects = doc.effects.length > 0;
+  /** Where the pointer is over the stage, -1 to 1 on each axis, and whether it is over it: what a pointer or a hover track reads. */
+  let pointer: { readonly x: number; readonly y: number } | undefined;
+  let hovered = false;
+  const onPointerMove = (event: PointerEvent): void => {
+    const box = host.getBoundingClientRect();
+    if (box.width === 0 || box.height === 0) return;
+    pointer = { x: ((event.clientX - box.left) / box.width) * 2 - 1, y: ((event.clientY - box.top) / box.height) * 2 - 1 };
+    hovered = true;
+  };
+  const onPointerLeave = (): void => {
+    pointer = undefined;
+    hovered = false;
+  };
+  host.addEventListener("pointermove", onPointerMove, { passive: true });
+  host.addEventListener("pointerdown", onPointerMove, { passive: true });
+  host.addEventListener("pointerleave", onPointerLeave);
 
   const publish = (): void => {
     noteBuilds(handle.root, seen);
@@ -116,6 +132,9 @@ export async function mount(options: MountOptions): Promise<MountResult> {
     host.dataset["programs"] = String(memory.programs);
   };
   const draw = (delta: number): void => {
+    // The motion is stepped by this loop own clock, never the wall clock, and never under reduced motion: the rest pose is the first frame.
+    // The pointer and the hover it reads come from this element's own listeners, -1 to 1 across the stage.
+    if (!reduced) handle.advance(delta, { inView: visible, ...(pointer === undefined ? {} : { pointer }), hovered });
     handle.render?.(delta);
     frames += 1;
   };
@@ -125,6 +144,9 @@ export async function mount(options: MountOptions): Promise<MountResult> {
     raf = 0;
     clearInterval(timer);
     globalThis.document.removeEventListener("visibilitychange", sync);
+    host.removeEventListener("pointermove", onPointerMove);
+    host.removeEventListener("pointerdown", onPointerMove);
+    host.removeEventListener("pointerleave", onPointerLeave);
     handle.dispose();
     const left = memoryOf(renderer);
     void renderer.dispose();
@@ -176,7 +198,8 @@ export async function mount(options: MountOptions): Promise<MountResult> {
   return {
     ok: true,
     mounted: {
-      rebuildOnMotionChange: hasEffects,
+      // A document that moves is built again when the reduced-motion setting changes, so the rest pose it shows is the built one.
+      rebuildOnMotionChange: hasEffects || doc.tracks.length > 0,
       reveal: () => {
         canvas.style.visibility = "visible";
       },

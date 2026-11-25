@@ -1,12 +1,12 @@
 {
   "shards": 6,
   "longestSeconds": 125.3,
-  "mean": 309.8,
-  "slowest": 310.9,
+  "mean": 316.9,
+  "slowest": 317,
   "plan": [
     {
       "shard": 1,
-      "seconds": 310.7,
+      "seconds": 316.8,
       "locations": [
         "e2e/a11y.spec.ts:410",
         "e2e/catalog.spec.ts:118",
@@ -32,12 +32,13 @@
         "e2e/vendor.spec.ts:28",
         "e2e/vendor.spec.ts:63",
         "e2e/shards/shards.spec.ts:119",
-        "e2e/catalog.spec.ts:594"
+        "e2e/catalog.spec.ts:594",
+        "e2e/motion.spec.ts:120"
       ]
     },
     {
       "shard": 2,
-      "seconds": 310.8,
+      "seconds": 316.9,
       "locations": [
         "e2e/a11y.spec.ts:190",
         "e2e/a11y.spec.ts:326",
@@ -66,12 +67,13 @@
         "e2e/site.spec.ts:156",
         "e2e/snippets.spec.ts:3",
         "e2e/shards/shards.spec.ts:89",
-        "e2e/catalog.spec.ts:641"
+        "e2e/catalog.spec.ts:641",
+        "e2e/motion.spec.ts:148"
       ]
     },
     {
       "shard": 3,
-      "seconds": 304.8,
+      "seconds": 317,
       "locations": [
         "e2e/catalog.spec.ts:133",
         "e2e/catalog.spec.ts:157",
@@ -99,12 +101,14 @@
         "e2e/review.spec.ts:13",
         "e2e/vendor.spec.ts:15",
         "e2e/vendor.spec.ts:46",
-        "e2e/shards/shards.spec.ts:161"
+        "e2e/shards/shards.spec.ts:161",
+        "e2e/motion.spec.ts:100",
+        "e2e/motion.spec.ts:82"
       ]
     },
     {
       "shard": 4,
-      "seconds": 310.8,
+      "seconds": 316.9,
       "locations": [
         "e2e/a11y.spec.ts:249",
         "e2e/catalog.spec.ts:172",
@@ -132,12 +136,13 @@
         "e2e/vendor.spec.ts:3",
         "e2e/vendor.spec.ts:96",
         "e2e/shards/shards.spec.ts:99",
-        "e2e/catalog.spec.ts:687"
+        "e2e/catalog.spec.ts:687",
+        "e2e/motion.spec.ts:64"
       ]
     },
     {
       "shard": 5,
-      "seconds": 310.9,
+      "seconds": 317,
       "locations": [
         "e2e/a11y.spec.ts:277",
         "e2e/a11y.spec.ts:384",
@@ -166,12 +171,13 @@
         "e2e/solids.spec.ts:6",
         "e2e/vendor.spec.ts:84",
         "e2e/shards/shards.spec.ts:152",
-        "e2e/catalog.spec.ts:703"
+        "e2e/catalog.spec.ts:703",
+        "e2e/motion.spec.ts:73"
       ]
     },
     {
       "shard": 6,
-      "seconds": 310.7,
+      "seconds": 316.8,
       "locations": [
         "e2e/a11y.spec.ts:156",
         "e2e/a11y.spec.ts:212",
@@ -208,7 +214,8 @@
         "e2e/vendor.spec.ts:40",
         "e2e/vendor.spec.ts:72",
         "e2e/shards/shards.spec.ts:134",
-        "e2e/catalog.spec.ts:620"
+        "e2e/catalog.spec.ts:620",
+        "e2e/motion.spec.ts:135"
       ]
     }
   ]

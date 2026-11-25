@@ -273,7 +273,8 @@ export function Playground() {
   const objectTakesMaterial = objects.find((option) => option.id === object)?.takesMaterial === true;
   const takesMaterial = takesShader || objectTakesMaterial;
   const withShader = takesShader && shader !== undefined ? { shader } : {};
-  const animated = doc.effects.length > 0 || doc.nodes.some(({ surface }) => surface !== undefined && "shader" in surface && isEffectId(surface.shader) && effectInfo[surface.shader].animated === true);
+  // Tracks are motion as data: a document that carries them animates, like one with an animated effect or shader surface.
+  const animated = doc.effects.length > 0 || doc.tracks.length > 0 || doc.nodes.some(({ surface }) => surface !== undefined && "shader" in surface && isEffectId(surface.shader) && effectInfo[surface.shader].animated === true);
   const host = useRef<HTMLDivElement>(null);
   const clock = useRef(0);
   const { clock: shaderClock, write: writeShaderTime } = useShaderClock();
