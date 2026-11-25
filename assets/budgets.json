@@ -5,8 +5,10 @@
   "bundles": {
     "catalog-gallery": { "gzipBytes": 125700 },
     "catalog-embed": { "gzipBytes": 322000 },
-    "catalog-3d": { "gzipBytes": 511300 },
+    "catalog-3d": { "gzipBytes": 479300 },
     "catalog-panel": { "gzipBytes": 3200 },
+    "catalog-playground": { "gzipBytes": 462600 },
+    "catalog-export": { "gzipBytes": 2900 },
     "site-island": { "gzipBytes": 2900 },
     "scene-element": { "gzipBytes": 3100 },
     "scene-element-3d": { "gzipBytes": 335800 }
