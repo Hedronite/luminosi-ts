@@ -31,7 +31,7 @@ export interface MotionRuntime {
   step(seconds: number, input?: Partial<Omit<MotionInput, "time">>): MotionFrame;
   /** The values as they stand, without stepping: the rest pose before anything moved. */
   readonly values: ReadonlyMap<string, TrackValue>;
-  /** Whether anything is moving (a started track that has not ended): a stage with nothing moving need not draw a frame. */
+  /** Whether anything is moving when the last step ended: a started track that has not finished, or a driven track the step moved. */
   readonly moving: boolean;
 }
 
@@ -79,11 +79,12 @@ export function createMotion(scene: Scene, options: MotionOptions = {}): MotionR
     if (reduced) return last;
     const dt = Math.max(0, seconds);
     let changed = false;
-    /** The value of one property, set only when it is not the one it already holds. */
-    const put = (target: string, value: TrackValue | undefined): void => {
-      if (value === undefined || same(values.get(target), value)) return;
+    /** The value of one property, set only when it is not the one it already holds. Says whether it moved it. */
+    const put = (target: string, value: TrackValue | undefined): boolean => {
+      if (value === undefined || same(values.get(target), value)) return false;
       values.set(target, value);
       changed = true;
+      return true;
     };
     for (const track of scene.tracks) {
       const state = played.get(track.id);
@@ -102,8 +103,8 @@ export function createMotion(scene: Scene, options: MotionOptions = {}): MotionR
         }
         const across = Math.min(1, Math.max(0, input.scroll.smooth));
         state.progress = across;
-        state.started = true;
-        put(target, valueAt(track, across * span, ease));
+        // A driven track is moving on the step its value moved, and still on the steps it holds.
+        state.started = put(target, valueAt(track, across * span, ease));
         continue;
       }
       if (driver === "pointer") {
@@ -115,8 +116,8 @@ export function createMotion(scene: Scene, options: MotionOptions = {}): MotionR
         }
         const across = Math.min(1, Math.max(0, (input.pointer.x + 1) / 2));
         state.progress = across;
-        state.started = true;
-        put(target, valueAt(track, across * span, ease));
+        // A driven track is moving on the step its value moved, and still on the steps it holds: a pointer that has not moved moves nothing.
+        state.started = put(target, valueAt(track, across * span, ease));
         continue;
       }
       // A track on the clock: its trigger decides when it starts.

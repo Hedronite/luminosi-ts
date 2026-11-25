@@ -267,6 +267,7 @@ describe("the runtime's triggers and drivers", () => {
     motion.step(0.1, { pointer: { x: 0, y: 0 } });
     expect(yOf(motion)).toBeCloseTo(4, 6);
     expect(motion.step(0.1, { pointer: { x: 0, y: 0 } }).changed).toBe(false);
+    expect(motion.moving, "a pointer that has not moved moves nothing").toBe(false);
     motion.step(0.1, { pointer: { x: 1, y: 0 } });
     expect(yOf(motion)).toBeCloseTo(8, 6);
     motion.step(0.1, { pointer: { x: -1, y: 0 } });
