@@ -202,9 +202,9 @@ def text-rules [] {
     # Slop in CSS: the two effects a generated page adds when it has nothing to say.
     { id: "slop.gradient-text", area: slop, severity: low, trigger: false, pattern: 'background-clip\s*:\s*text', unless: '', skip: ''
       what: "gradient-filled text: a headline that trades legibility for decoration", fix: "a solid token color for the text; a gradient belongs in a surface behind it" }
-    # Anchored to a shadow layer's own start (`:` or a `,`) and to a blur a glow would use: a zero blur is a focus ring, `inset` is a
-    # border drawn inside, and a 1px layer after an elevation shadow is a hairline. A blur this cannot read (calc, var) stays quiet.
-    { id: "slop.glow-shadow", area: slop, severity: low, trigger: false, pattern: 'box-shadow\s*:(?:[^;}]*,\s*)?\s*0(px)?\s+0(px)?\s+(?:[4-9]|[1-9]\d+)px', unless: '', skip: ''
+    # Anchored to each shadow layer after splitting at top-level commas: a zero blur is a focus ring, `inset` (leading or trailing) is a
+    # border drawn inside, and a 1px layer after an elevation shadow is a hairline. Evaluated multiline/tab-aware in `glow-shadow-findings`.
+    { id: "slop.glow-shadow", area: slop, severity: low, trigger: false, pattern: 'box-shadow\s*:(?:[^;}]*,\s*)?\s*(?i)0(?:px)?\s+0(?:px)?\s+(?:[4-9]|[1-9]\d+)(?:\.\d+)?px', unless: '', skip: ''
       what: "a glow shadow with no offset and 4px or more of blur: light from nowhere, standing in for elevation", fix: "the elevation tokens (shadow-sm, shadow-lg); a glow is an effect, not elevation" }
   ]
 }
@@ -277,6 +277,46 @@ def finding [rule: record, file: string, line: int, excerpt: string] {
   { rule: $rule.id, area: $rule.area, severity: $rule.severity, trigger: $rule.trigger, file: $file, line: $line, what: $rule.what, fix: $rule.fix, excerpt: ($excerpt | str trim | str substring 0..<120) }
 }
 
+# Splits a CSS `box-shadow` value at top-level commas (outside `(...)` such as `rgba(...)` or `color-mix(...)`).
+def shadow-layers [val: string] {
+  let init = { depth: 0, cur: "", layers: [] }
+  let done = ($val | split chars | reduce --fold $init {|ch, acc|
+    if $ch == "(" {
+      { depth: ($acc.depth + 1), cur: ($acc.cur + $ch), layers: $acc.layers }
+    } else if $ch == ")" {
+      { depth: (if $acc.depth > 0 { $acc.depth - 1 } else { 0 }), cur: ($acc.cur + $ch), layers: $acc.layers }
+    } else if $ch == "," and $acc.depth == 0 {
+      { depth: 0, cur: "", layers: ($acc.layers | append ($acc.cur | str trim)) }
+    } else {
+      { depth: $acc.depth, cur: ($acc.cur + $ch), layers: $acc.layers }
+    }
+  })
+  $done.layers | append ($done.cur | str trim) | where {|l| $l != "" }
+}
+
+# True when one shadow layer is a glow: no x/y offset, >= 4px blur (case-insensitive, across spaces/tabs/newlines), and not `inset` (leading or trailing).
+def is-glow-layer [layer: string] {
+  if ($layer =~ '(?i)(?:^|\s|\))inset(?:\s|$)') { return false }
+  $layer =~ '(?i)^0(?:px)?\s+0(?:px)?\s+(?:[4-9]|[1-9]\d+)(?:\.\d+)?px(?:\s|$)'
+}
+
+# Scans a CSS/HTML/Astro document for multiline-capable `slop.glow-shadow` declarations, returning findings with 1-based start lines.
+def glow-shadow-findings [rule: record, file: string, body: string] {
+  let normalized = ($body | str replace --regex --all '\r\n?' "\n")
+  let matches = ($normalized | parse --regex '(?s)(?P<before>.*?)(?P<sep>^|[\s{;])(?P<head>(?i:box-shadow)\s*:\s*)(?P<val>[^;}]+)')
+  $matches | reduce --fold { line: 1, out: [] } {|m, acc|
+    let start_line = ($acc.line + (($m.before + $m.sep) | split chars | where {|c| $c == "\n" } | length))
+    let next_line = ($start_line + (($m.head + $m.val) | split chars | where {|c| $c == "\n" } | length))
+    let hit = (shadow-layers $m.val | any {|layer| is-glow-layer $layer })
+    let out = (if $hit {
+      $acc.out | append (finding $rule $file $start_line $"box-shadow: ($m.val | str replace --regex --all '\s+' ' ')")
+    } else {
+      $acc.out
+    })
+    { line: $next_line, out: $out }
+  } | get out
+}
+
 def scan-files [root: string, files: list<string>] {
   let tsx = ($files | where {|f| $f ends-with ".tsx" })
   let texts = ($files | where {|f| not ($f ends-with ".tsx") })
@@ -284,11 +324,16 @@ def scan-files [root: string, files: list<string>] {
   let from_jsx = (element-rules | each {|rule|
     $facts | where {|e| do $rule.test $e } | each {|e| finding $rule (rel $root $e.file) $e.line $"<($e.tag) ($e.class)> ($e.text)" }
   } | flatten)
+  let rules = (text-rules)
+  let line_rules = ($rules | where {|r| $r.id != "slop.glow-shadow" })
+  let glow_rule = ($rules | where {|r| $r.id == "slop.glow-shadow" } | first)
   let from_text = ($texts | each {|f|
     let body = (open --raw ($root | path join $f))
-    text-rules | where {|r| ($r.unless == "") or not ($body =~ $r.unless) } | each {|rule|
+    let line_hits = ($line_rules | where {|r| ($r.unless == "") or not ($body =~ $r.unless) } | each {|rule|
       $body | lines | enumerate | where {|l| ($l.item =~ $rule.pattern) and ($rule.skip == "" or not ($l.item =~ $rule.skip)) } | each {|l| finding $rule $f ($l.index + 1) $l.item }
-    } | flatten
+    } | flatten)
+    let glow_hits = (glow-shadow-findings $glow_rule $f $body)
+    $line_hits ++ $glow_hits
   } | flatten)
   $from_jsx ++ $from_text
 }

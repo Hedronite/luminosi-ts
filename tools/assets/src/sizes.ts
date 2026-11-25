@@ -58,7 +58,9 @@ interface Bundle {
   readonly carries?: readonly string[];
   /** For the 3D set: the page whose scripts are the shell, what the gallery loads without any 3D. */
   readonly shell?: string;
-  /** For a lazy chunk's set: the chunk's name (`<name>-<hash>.js`), a lazy import of the first page's shell. */
+  /** For the 3D set: lazy chunk name prefixes excluded from the core 3D set because they carry their own budgets. */
+  readonly exclude?: readonly string[];
+  /** For a lazy chunk's set: the chunk's name (`<name>-<hash>.js`), a lazy import reachable from the first page's shell. */
   readonly chunk?: string;
 }
 
@@ -66,8 +68,10 @@ interface Bundle {
 const bundles: Readonly<Record<string, Bundle>> = {
   "catalog-gallery": { dist: "apps/catalog/dist", pages: ["index.html"] },
   "catalog-embed": { dist: "apps/catalog/dist", pages: ["embed.html"] },
-  "catalog-3d": { dist: "apps/catalog/dist", pages: ["index.html", "embed.html"], carries: ["isObject3D", "isWebGPURenderer"], shell: "index.html" },
+  "catalog-3d": { dist: "apps/catalog/dist", pages: ["index.html", "embed.html"], carries: ["isObject3D", "isWebGPURenderer"], shell: "index.html", exclude: ["Playground", "credits"] },
   "catalog-panel": { dist: "apps/catalog/dist", pages: ["index.html"], chunk: "ParameterPanel" },
+  "catalog-playground": { dist: "apps/catalog/dist", pages: ["index.html"], chunk: "Playground" },
+  "catalog-export": { dist: "apps/catalog/dist", pages: ["index.html"], chunk: "credits" },
   "site-island": { dist: "apps/site/dist", pages: ["index.html"] },
   // The scene element: what a page loads for it (the class, its observers and the poster), and the chunk set it imports when it is about to be seen (three, the builder, zod).
   "scene-element": { dist: "apps/catalog/dist", pages: ["element.html"] },
@@ -91,13 +95,15 @@ function pageScripts(dist: string, pages: readonly string[]): string[] {
   });
 }
 
-/** `starts` and every file they import statically, and dynamically too when `lazy`. Files in `skip` are neither counted nor followed. */
-function closure(starts: readonly string[], lazy: boolean, skip: ReadonlySet<string> = new Set()): Set<string> {
+const chunkPattern = (names: readonly string[]): RegExp => new RegExp(`^(?:${names.join("|")})(-[\\w-]+)?\\.js$`);
+
+/** `starts` and every file they import statically, and dynamically too when `lazy`. Files in `skip` or matching `exclude` are neither counted nor followed. */
+function closure(starts: readonly string[], lazy: boolean, skip: ReadonlySet<string> = new Set(), exclude?: RegExp): Set<string> {
   const seen = new Set<string>();
   // A specifier that names no file is skipped: the catalog bundles Markdown, whose code samples read like imports (`./harbour-water.js`
   // in a skill's example), and a size walk that followed those would fail on a file the build never made.
   const visit = (file: string): void => {
-    if (seen.has(file) || skip.has(file) || !existsSync(file)) return;
+    if (seen.has(file) || skip.has(file) || (exclude?.test(basename(file)) ?? false) || !existsSync(file)) return;
     seen.add(file);
     const source = readFileSync(file, "utf8");
     for (const pattern of lazy ? [staticImport, dynamicImport] : [staticImport]) for (const match of source.matchAll(pattern)) visit(resolve(dirname(file), match[1] ?? ""));
@@ -118,23 +124,27 @@ const reach = (dist: string, pages: readonly string[]): string[] => [...closure(
  * builders). The set is everything the entries reach past the shell, so a chunk the markers do not see (a loader, an
  * environment map, a descriptor chunk) is still counted.
  */
-function reachThreeD(dist: string, pages: readonly string[], markers: readonly string[], shellPage: string): string[] {
+function reachThreeD(dist: string, pages: readonly string[], markers: readonly string[], shellPage: string, exclude: readonly string[] = []): string[] {
   const carries = (files: Iterable<string>): boolean => [...files].some((file) => markers.some((marker) => readFileSync(file, "utf8").includes(marker)));
+  const excluded = exclude.length === 0 ? undefined : chunkPattern(exclude);
+  const isExcluded = (file: string): boolean => excluded?.test(basename(file)) ?? false;
   const scripts = pageScripts(dist, pages);
   const shell = closure(pageScripts(dist, [shellPage]).filter((script) => !carries(closure([script], false))), false);
   const lazyTargets = new Set<string>();
   for (const file of shell) for (const match of readFileSync(file, "utf8").matchAll(dynamicImport)) lazyTargets.add(resolve(dirname(file), match[1] ?? ""));
-  const entries = [...scripts.filter((script) => !shell.has(script) && carries(closure([script], false))), ...[...lazyTargets].filter((target) => carries(closure([target], true, shell)))];
-  return [...closure(entries, true, shell)].sort();
+  const entries = [
+    ...scripts.filter((script) => !shell.has(script) && !isExcluded(script) && carries(closure([script], false))),
+    ...[...lazyTargets].filter((target) => !isExcluded(target) && carries(closure([target], true, shell, excluded))),
+  ];
+  return [...closure(entries, true, shell, excluded)].sort();
 }
 
-/** A lazy chunk's set: the chunk the gallery's shell imports under `name` (`<name>-<hash>.js`) and what it imports statically, past the shell. */
+/** A lazy chunk's set: the chunk reachable from the gallery's shell under `name` (`<name>-<hash>.js`) and what it imports statically, past the shell. */
 function reachChunk(dist: string, shellPage: string, name: string): string[] {
   const shell = closure(pageScripts(dist, [shellPage]), false);
-  const named = new RegExp(`^${name}(-[\\w-]+)?\\.js$`);
-  const targets = new Set<string>();
-  for (const file of shell) for (const match of readFileSync(file, "utf8").matchAll(dynamicImport)) targets.add(resolve(dirname(file), match[1] ?? ""));
-  return [...closure([...targets].filter((target) => named.test(basename(target))), false, shell)].sort();
+  const named = chunkPattern([name]);
+  const targets = [...closure(pageScripts(dist, [shellPage]), true)].filter((file) => !shell.has(file) && named.test(basename(file)));
+  return [...closure(targets, false, shell)].sort();
 }
 
 export function measureBundles(root: string): Readonly<Record<string, BundleSize>> {
@@ -142,8 +152,8 @@ export function measureBundles(root: string): Readonly<Record<string, BundleSize
     Object.entries(bundles).map(([id, bundle]): readonly [string, BundleSize] => {
       const dist = join(root, bundle.dist);
       if (!existsSync(dist)) throw new Error(`${id}: no build output at ${bundle.dist}; run \`bun run build\``);
-      const { carries, shell, chunk } = bundle;
-      const files = chunk !== undefined ? reachChunk(dist, bundle.pages[0] ?? "", chunk) : carries === undefined || shell === undefined ? reach(dist, bundle.pages) : reachThreeD(dist, bundle.pages, carries, shell);
+      const { carries, shell, exclude, chunk } = bundle;
+      const files = chunk !== undefined ? reachChunk(dist, bundle.pages[0] ?? "", chunk) : carries === undefined || shell === undefined ? reach(dist, bundle.pages) : reachThreeD(dist, bundle.pages, carries, shell, exclude);
       return [id, { gzipBytes: gzipBytes(files), files: files.map((file) => file.slice(root.length + 1)) }];
     }),
   );

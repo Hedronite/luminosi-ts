@@ -92,7 +92,7 @@ describe("measureBundles", () => {
   // The embed page preloads spec.js, which the gallery page does not load; the view imports it too.
   write("apps/catalog/dist/embed.html", `${page("/assets/embed.js")}<link rel="modulepreload" crossorigin href="/assets/spec.js">`);
   write("apps/catalog/dist/assets/spec.js", "export const s = 'shared by the embed page and the 3D view';");
-  write("apps/catalog/dist/assets/main.js", 'import{r}from"./react.js";const view=()=>import(`./view.js`).then(e=>e.t);const packs=()=>import(`./packs.js`);const panel=()=>import(`./ParameterPanel-x1Y2.js`);export{r,view,packs,panel};');
+  write("apps/catalog/dist/assets/main.js", 'import{r}from"./react.js";const view=()=>import(`./view.js`).then(e=>e.t);const packs=()=>import(`./packs.js`);const panel=()=>import(`./ParameterPanel-x1Y2.js`);const playground=()=>import(`./Playground-a1B2.js`);export{r,view,packs,panel,playground};');
   write("apps/catalog/dist/assets/react.js", "export const r = 1;");
   write("apps/catalog/dist/assets/view.js", 'import{t}from"./three.js";import{r}from"./react.js";import{l}from"./loader.js";import{s}from"./spec.js";const late=()=>import(`./late.js`);const prose=()=>import(`./prose.js`);export{t,r,l,s,late,prose};');
   // Bundled text whose prose reads like code: a Markdown code sample of an import that names a file the build never made, beside a real
@@ -109,6 +109,8 @@ describe("measureBundles", () => {
   // The panel: a lazy chunk with a static import of its own, and one of the gallery's (react), which stays the gallery's.
   write("apps/catalog/dist/assets/ParameterPanel-x1Y2.js", 'import{r}from"./react.js";import{f}from"./paramFit-q9.js";const late=()=>import(`./late.js`);export{r,f,late};');
   write("apps/catalog/dist/assets/paramFit-q9.js", "export const f = 'what the panel and the detail view both read';");
+  write("apps/catalog/dist/assets/Playground-a1B2.js", 'import{t}from"./three.js";import{r}from"./react.js";const credits=()=>import(`./credits-c3D4.js`);export{t,r,credits};');
+  write("apps/catalog/dist/assets/credits-c3D4.js", 'import{r}from"./main.js";export const c = r;');
   write("apps/catalog/dist/assets/embed.js", "export const e = 1;");
   // Left in dist by an older build and reached by nothing.
   write("apps/catalog/dist/assets/orphan.js", `export const o = { isObject3D: true, filler: "${"orphan ".repeat(2000)}" };`);
@@ -144,6 +146,13 @@ describe("measureBundles", () => {
 
   it("takes a lazy chunk's set by its name: the chunk and its static imports past the shell, no dynamic imports, none of the shell", () => {
     expect(names("catalog-panel")).toEqual(["ParameterPanel-x1Y2.js", "paramFit-q9.js"]);
+    expect(names("catalog-playground")).toEqual(["Playground-a1B2.js", "three.js"]);
+    expect(names("catalog-export")).toEqual(["credits-c3D4.js"]);
+  });
+
+  it("keeps lazy Playground and export chunks out of the core catalog-3d closure", () => {
+    expect(names("catalog-3d")).not.toContain("Playground-a1B2.js");
+    expect(names("catalog-3d")).not.toContain("credits-c3D4.js");
   });
 
   it("does not follow an import-looking string inside bundled text, and still follows a real import beside it", () => {

@@ -248,18 +248,39 @@ describe.runIf(hasNu)("skills through Nushell", () => {
       it.each(SLOP)("%s stays quiet on the same content without the pattern", (id) => {
         expect(cleanIds).not.toContain(id);
       });
-      // A glow is a shadow with no offset and a blur worth the name: a focus ring, an inset border and a hairline are none of those.
+      // A glow is a shadow with no offset and a blur worth the name: a focus ring, an inset border (leading or trailing) and a hairline are none of those.
       const glowFires = fixture(
         "slop-glow-fires.css",
-        `.glow { box-shadow: 0 0 24px var(--lts-shadow); }\n.glow-soft { box-shadow: 0 0 8px rgb(0 0 0 / 0.4); }\n.glow-layered { box-shadow: 0 2px 4px var(--lts-shadow), 0 0 24px var(--lts-accent); }\n`,
+        [
+          `.glow { box-shadow: 0 0 24px var(--lts-shadow); }`,
+          `.glow-soft { box-shadow: 0 0 8px rgb(0 0 0 / 0.4); }`,
+          `.glow-layered { box-shadow: 0 2px 4px var(--lts-shadow), 0 0 24px var(--lts-accent); }`,
+          `.glow-upper-all { box-shadow: 0PX 0PX 12PX var(--lts-accent); }`,
+          `.glow-upper-blur { box-shadow: 0 0 8PX rgb(0 0 0 / 0.4); }`,
+          `.glow-tabs { box-shadow:\t0\t0\t12px\tvar(--lts-shadow); }`,
+          `.glow-multiline {\n  box-shadow:\n    0 4px 12px var(--lts-shadow),\n    0 0 16px var(--lts-accent);\n}`,
+          `.glow-inset-then-glow { box-shadow: 0 0 12px rgba(0, 0, 0, 0.2) inset, 0 0 18px var(--lts-accent); }`,
+          `.glow-var-name { box-shadow: 0 0 12px var(--lts-inset); }`,
+        ].join("\n"),
       );
       const glowQuiet = fixture(
         "slop-glow-quiet.css",
-        `.ring { box-shadow: 0 0 0 2px var(--lts-accent); }\n.inset-line { box-shadow: inset 0 0 1px var(--lts-line); }\n.inset-soft { box-shadow: inset 0 0 12px var(--lts-shadow); }\n.elevation { box-shadow: 0 4px 12px var(--lts-shadow); }\n.hairline { box-shadow: 0 4px 12px var(--lts-shadow), 0 0 1px var(--lts-line); }\n.measured { box-shadow: 0 0 calc(24px) var(--lts-shadow); }\n.token { box-shadow: 0 0 var(--glow); }\n`,
+        [
+          `.ring { box-shadow: 0 0 0 2px var(--lts-accent); }`,
+          `.inset-line { box-shadow: inset 0 0 1px var(--lts-line); }`,
+          `.inset-soft { box-shadow: inset 0 0 12px var(--lts-shadow); }`,
+          `.inset-trailing { box-shadow: 0 0 12px rgba(0, 0, 0, 0.2) inset; }`,
+          `.inset-trailing-upper { box-shadow: 0PX 0PX 12PX rgba(0, 0, 0, 0.2) INSET; }`,
+          `.inset-trailing-layered {\n  box-shadow:\n    0 4px 12px rgba(0, 0, 0, 0.1),\n    0 0 12px rgba(0, 0, 0, 0.2) inset;\n}`,
+          `.elevation { box-shadow: 0 4px 12px var(--lts-shadow); }`,
+          `.hairline { box-shadow: 0 4px 12px var(--lts-shadow), 0 0 1px var(--lts-line); }`,
+          `.measured { box-shadow: 0 0 calc(24px) var(--lts-shadow); }`,
+          `.token { box-shadow: 0 0 var(--glow); }`,
+        ].join("\n"),
       );
-      it("slop.glow-shadow fires on a real glow in any layer, and on nothing else", () => {
+      it("slop.glow-shadow fires on a real glow in any layer, case, or layout, and stays quiet on inset, focus rings, and hairlines", () => {
         const fired = rulesOf(runSkill("lumin-ui", ["scan", glowFires]).envelope.data).filter((rule) => rule === "slop.glow-shadow");
-        expect(fired).toHaveLength(3);
+        expect(fired).toHaveLength(9);
         const quiet = rulesOf(runSkill("lumin-ui", ["scan", glowQuiet]).envelope.data);
         expect(quiet).not.toContain("slop.glow-shadow");
       });
