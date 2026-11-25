@@ -93,7 +93,7 @@ export async function mount(options: MountOptions): Promise<MountResult> {
 
   // The shaders read this clock, which moves while the scene runs and stays at 0 for the rest pose.
   const clock = createEffectClock(0);
-  const handle = createScene(doc, { renderer, clock, reducedMotion: options.reduced, ...(palette === undefined ? {} : { palette }) });
+  const handle = createScene(doc, { renderer, clock, reducedMotion: options.reduced, motion: { reducedMotion: options.reduced }, ...(palette === undefined ? {} : { palette }) });
   const seen = builds.get(host) ?? new Set<string>();
   builds.set(host, seen);
 
@@ -116,6 +116,8 @@ export async function mount(options: MountOptions): Promise<MountResult> {
     host.dataset["programs"] = String(memory.programs);
   };
   const draw = (delta: number): void => {
+    // The motion is stepped by this loop own clock, never the wall clock, and never under reduced motion: the rest pose is the first frame.
+    if (!reduced) handle.advance?.(delta, { inView: visible });
     handle.render?.(delta);
     frames += 1;
   };

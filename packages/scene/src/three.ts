@@ -14,11 +14,26 @@ import { BufferGeometry, Group, Mesh, Object3D, PerspectiveCamera, Scene, Vector
 import type { WebGPURenderer } from "three/webgpu";
 import { z } from "zod";
 import type { Scene as SceneDocument, SceneNode, SceneSurface } from "./index.js";
+import { createMotion, propertyOf, type MotionInput, type TrackValue } from "./motion/index.js";
 
 export type { SceneDocument };
 
 /** Parameters by name, as a document holds them. */
 export type NodeParams = NonNullable<SceneNode["asset"]["params"]>;
+
+/** What `advance` takes besides the seconds: the scroll the conductor measured, the pointer and whether the stage is seen or hovered. */
+export interface MotionReading {
+  readonly scroll?: MotionInput["scroll"];
+  readonly pointer?: MotionInput["pointer"];
+  readonly hovered?: boolean;
+  readonly inView?: boolean;
+}
+
+/** How a scene plays its tracks: `replay` names the tracks or clips whose `in-view` trigger may fire more than once. */
+export interface MotionPlayOptions {
+  readonly reducedMotion?: boolean;
+  readonly replay?: readonly string[];
+}
 
 export interface SceneOptions {
   /** The scene colors to build in. Default: the document's own `look` (a look id, or an inline palette). */
@@ -32,6 +47,11 @@ export interface SceneOptions {
   readonly clock?: EffectClock;
   /** Skip the screen effects' intro and sweep, and open the lens at once. Fixed when the scene is made. */
   readonly reducedMotion?: boolean;
+  /**
+   * Play the document's tracks. The clock is the caller's: `advance` is given the seconds that passed, and nothing reads the wall clock.
+   * Under `reducedMotion` nothing moves: every animated property holds its rest value and no track starts.
+   */
+  readonly motion?: MotionPlayOptions;
 }
 
 /** A pointer over the canvas, 0 to 1 from the top left, or null when it is away. */
@@ -71,6 +91,14 @@ export interface SceneHandle {
    * no effects. Read-only, for a counter that keeps what it reads: it reads the objects' own uuids and no names.
    */
   readonly effectTargets?: () => readonly string[];
+  /**
+   * Present when the document has tracks: one step of the motion, given the seconds since the last step and what the drivers read. It
+   * writes the transforms and the camera; a parameter track is G6's. Returns whether anything moved, so a stage drawing on demand knows
+   * whether it needs a frame.
+   */
+  readonly advance?: (seconds: number, reading?: MotionReading) => boolean;
+  /** Present with tracks: the values as they stand, by property path (the rest pose before the first step). */
+  readonly motionValues?: () => ReadonlyMap<string, TrackValue>;
   /** Frees every geometry, material, texture, shader and pass the scene built, and stops builds that are under way. */
   dispose(): void;
 }
@@ -428,6 +456,40 @@ export function createScene(initial: SceneDocument, options: SceneOptions = {}):
       postfx.applyPalette(stage.effects, palette, ink === undefined ? {} : { monochrome: ink });
     }
   };
+  // --- motion: the document's tracks, stepped by the caller's clock ---
+  /** The runtime of the document's tracks, or none when it has no tracks. Rebuilt when `update` brings tracks. */
+  const motion = modeOf(doc);
+  function modeOf(document: SceneDocument): ReturnType<typeof createMotion> | undefined {
+    if (document.tracks.length === 0) return undefined;
+    return createMotion(document, { reducedMotion: options.motion?.reducedMotion ?? reducedMotion, ...(options.motion?.replay === undefined ? {} : { replay: options.motion.replay }) });
+  }
+  /** A vec3 as the tracks hold one: three numbers, which is what the schema writes there. */
+  const isVec3 = (value: TrackValue): value is readonly [number, number, number] =>
+    Array.isArray(value) && value.length >= 3 && value.every((one) => typeof one === "number");
+  /** Writes the runtime's values onto the scene: a node's transform, the camera's position, target and field of view. */
+  const writeMotion = (): void => {
+    if (motion === undefined) return;
+    for (const [target, value] of motion.values) {
+      const property = propertyOf(target);
+      if (property === undefined) continue;
+      if (property.node !== undefined) {
+        const slot = slots.get(property.node);
+        if (slot === undefined || !isVec3(value)) continue;
+        const [x, y, z] = value;
+        if (target.endsWith(".position")) slot.group.position.set(x, y, z);
+        else if (target.endsWith(".rotation")) slot.group.rotation.set(x, y, z);
+        else if (target.endsWith(".scale")) slot.group.scale.set(x, y, z);
+        continue;
+      }
+      if (target === "camera.position" && isVec3(value)) camera.position.set(value[0], value[1], value[2]);
+      else if (target === "camera.target" && isVec3(value)) camera.lookAt(value[0], value[1], value[2]);
+      else if (target === "camera.fov" && typeof value === "number") {
+        camera.fov = value;
+        camera.updateProjectionMatrix();
+      }
+    }
+  };
+
   const handle: SceneHandle = {
     root,
     camera,
@@ -471,6 +533,16 @@ export function createScene(initial: SceneDocument, options: SceneOptions = {}):
       explicitLook = true;
       recolor(palette);
     },
+    ...(motion === undefined
+      ? {}
+      : {
+          advance: (seconds: number, reading: MotionReading = {}) => {
+            const frame = motion.step(seconds, { ...(reading.scroll === undefined ? {} : { scroll: reading.scroll }), ...(reading.pointer === undefined ? {} : { pointer: reading.pointer }), ...(reading.hovered === undefined ? {} : { hovered: reading.hovered }), ...(reading.inView === undefined ? {} : { inView: reading.inView }) });
+            writeMotion();
+            return frame.changed;
+          },
+          motionValues: () => motion.values,
+        }),
     update(next) {
       if (disposed) return Promise.reject(new Error("the scene is disposed"));
       const own = explicitLook ? undefined : lookOf(next.look);

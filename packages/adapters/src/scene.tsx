@@ -67,7 +67,7 @@ export function Scene({ doc, palette, reducedMotion, onRoot, onEffectTargets }: 
 
   useEffect(() => {
     const { doc: first, palette: look } = latest.current;
-    const made = createScene(first, { ...(look === undefined ? {} : { palette: look }), ...(renderer === undefined ? {} : { renderer }), ...(clock === undefined ? {} : { clock }), reducedMotion: still });
+    const made = createScene(first, { ...(look === undefined ? {} : { palette: look }), ...(renderer === undefined ? {} : { renderer }), ...(clock === undefined ? {} : { clock }), reducedMotion: still, motion: { reducedMotion: still } });
     live.current = made;
     latest.current.onRoot?.(made.root);
     setHandle(made);
@@ -153,7 +153,10 @@ export function Scene({ doc, palette, reducedMotion, onRoot, onEffectTargets }: 
   // A positive priority takes over rendering from React Three Fiber, so only a scene that draws itself asks for it.
   useFrame((_, delta) => {
     // A long gap (a hidden tab, a paused stage) is one short step, not a jump through the intro and the sweep.
-    live.current?.render?.(Math.min(delta, 0.1));
+    const step = Math.min(delta, 0.1);
+    // The document own tracks, stepped by the render loop clock rather than the wall clock; held for a stage that asked for reduced motion.
+    if (!still) live.current?.advance?.(step, { inView: true });
+    live.current?.render?.(step);
   }, renderer === undefined ? 0 : 1);
 
   return handle === undefined || renderer !== undefined ? null : <primitive object={handle.root} dispose={null} />;
