@@ -50,17 +50,17 @@ property holds when nothing is driving it.
   "tracks": [
     {
       "id": "hero-rise",
-      "target": "hero-title.transform.position.y",   // a property path on a node
+      "target": "hero-title.position",          // a node id and one of its properties
       "keyframes": [
-        { "time": 0,    "value": 24, "easing": "enter" },
-        { "time": 0.8,  "value": 0,  "easing": "settle" }
+        { "time": 0,   "value": [0, 24, 0], "easing": "enter" },
+        { "time": 0.8, "value": [0, 0, 0],  "easing": "settle" }
       ],
       "driver": "time",
       "trigger": "load"
     }
   ],
   "clips": [{ "id": "hero", "tracks": ["hero-rise"] }],
-  "rest": { "hero-title.transform.position.y": 0 }
+  "rest": { "hero-title.position": [0, 0, 0] }
 }
 ```
 
@@ -68,6 +68,10 @@ property holds when nothing is driving it.
   track is mapped from progress, never from the wall clock.
 - **A property path is checked when the document is read.** A path the node does not have is refused with that path, not
   silently ignored.
+- **Provisional until G4 (R4):** a v1 node has `position`, `rotation` and `scale` as vec3 values; the path syntax here
+  (a node id and a property, the vec3 animated whole) is this skill's proposal for v2, not shipped yet. G4 replaces every
+  example in this skill with the shipped schema and parses each one with the v2 parser; if v2 addresses a component of a
+  vector, the examples and this note change with it.
 - **A track with no `easing` on a keyframe** takes the token the clip names; a clip with none takes `standard`.
 - **A comment in JSON is not JSON.** The block above is `jsonc` for readability; the document itself holds no comments.
 

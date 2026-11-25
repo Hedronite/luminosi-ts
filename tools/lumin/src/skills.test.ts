@@ -55,6 +55,11 @@ describe("lumin-motion", () => {
   const parsed: unknown = JSON.parse(read("evals.json"));
   const cases: readonly Eval[] =
     typeof parsed === "object" && parsed !== null && "cases" in parsed && Array.isArray(parsed.cases) ? parsed.cases.filter(isEval) : [];
+  // The negative half of the eval set: names that must not appear, kept in the data beside the facts that must.
+  const never: readonly string[] =
+    typeof parsed === "object" && parsed !== null && "never" in parsed && Array.isArray(parsed.never)
+      ? parsed.never.filter((word: unknown): word is string => typeof word === "string")
+      : [];
 
   it("carries ten fixed prompts, each with an answer and the facts it needs", () => {
     expect(cases).toHaveLength(10);
@@ -69,11 +74,10 @@ describe("lumin-motion", () => {
     expect(one.must.filter((fact) => !body.includes(fact.toLowerCase()))).toEqual([]);
   });
 
-  it("names no animation library, renderer or brand in its own text", () => {
+  it("names nothing on the eval set's never list in its own text", () => {
     // The document is the source of truth: a skill that sent an agent to a library would contradict it, and a brand would be someone else's.
-    for (const word of ["gsap", "lenis", "three.js", "threejs", "webgl", "webgpu", "mengto", "google", "gemini", "demolab", "stripe", "vercel"]) {
-      expect(body.includes(word) ? word : undefined).toBeUndefined();
-    }
+    expect(never.length).toBeGreaterThanOrEqual(4);
+    expect(never.filter((word) => body.includes(word.toLowerCase()))).toEqual([]);
   });
 
   it("credits the work it is inspired by, with the pin and its license", () => {

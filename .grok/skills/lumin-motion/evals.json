@@ -1,12 +1,13 @@
 {
   "schema": 1,
   "skill": "lumin-motion",
-  "about": "Ten fixed prompts, each with the answer this skill is expected to give, and the facts that answer needs. tools/lumin/src/skills.test.ts checks that every fact appears in the skill's own text (SKILL.md and references/), so the skill cannot drift away from its answers.",
+  "never": ["gsap", "lenis", "three.js", "threejs", "webgl", "webgpu", "mengto", "google", "gemini", "demolab", "stripe", "vercel"],
+  "about": "Ten fixed prompts, each with the answer this skill is expected to give, and the facts that answer needs. This is a guard on the skill's text, not a model-run eval: CI has no network and no model, so tools/lumin/src/skills.test.ts checks that every fact in `must` appears in SKILL.md and references/ (and that nothing in `never` does). It proves the skill carries each answer, not that a model would give it.",
   "cases": [
     {
       "id": "hero-entrance",
       "prompt": "The hero title should rise in when the page loads and settle. What do you set?",
-      "answer": "A time-driven track on hero-title.transform.position.y plus opacity, triggered by load: 24 px to 0 over 0.8 s with the enter token, then settle. Supporting copy 120 ms later over 0.6 s, the action last. Rest pose is opacity 1, y 0.",
+      "answer": "A time-driven track on hero-title.position, from [0, 24, 0] to [0, 0, 0] over 0.8 s with the enter token, then settle, plus an opacity track 0 to 1; load trigger. Supporting copy 120 ms later over 0.6 s, the action last. Rest pose is position [0, 0, 0], opacity 1.",
       "must": ["load trigger", "24 px", "0.80 s", "settle", "rest pose"]
     },
     {
@@ -47,9 +48,9 @@
     },
     {
       "id": "bad-property-path",
-      "prompt": "An agent wrote a track with target hero-title.position.y. What happens?",
-      "answer": "It is refused with the path: a property path names a node and a property the node has, and the transform names its channels, so hero-title.transform.position.y is the path.",
-      "must": ["refused", "property path", "transform"]
+      "prompt": "An agent wrote a track with target hero-title.y, or hero-title.transform.position. What happens?",
+      "answer": "Either is refused with the path it could not resolve: a node has position, rotation and scale, so hero-title.position is a path and a component or a transform segment is not one (until G4 ships a component syntax, if it does).",
+      "must": ["refused", "property path", "rotation and scale"]
     },
     {
       "id": "hover-lifecycle",

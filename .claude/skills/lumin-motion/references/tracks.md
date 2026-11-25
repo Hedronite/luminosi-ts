@@ -3,18 +3,23 @@
 The contract these notes are written against lands in G4. Until then a document is v1 and has no tracks; this file is the
 shape the code will accept, so a scene can be designed in it now.
 
+**Provisional until G4 (R4).** A v1 node has `position`, `rotation` and `scale`, each a vec3; there is no `transform` segment
+and no component syntax. The path form below — `<node id>.<property>`, with a vec3 animated whole — is a proposal for v2. G4
+replaces this file's examples with the shipped schema and parses every one of them with the v2 parser; where v2 differs, the
+examples follow v2.
+
 ## A document, version 2
 
 ```jsonc
 {
   "version": 2,
   "look": "hedron",
-  "nodes": [ /* as in v1 */ ],
+  "nodes": [ /* as in v1: position, rotation and scale, each a vec3 */ ],
   "tracks": [
-    { "id": "…", "target": "…", "keyframes": [ { "time": 0, "value": 0 } ], "driver": "time", "trigger": "load" }
+    { "id": "hero-rise", "target": "hero-title.position", "keyframes": [ { "time": 0, "value": [0, 24, 0] } ], "driver": "time", "trigger": "load" }
   ],
-  "clips": [ { "id": "…", "tracks": ["…"], "easing": "standard" } ],
-  "rest": { "node-id.property.path": 0 }
+  "clips": [ { "id": "hero", "tracks": ["hero-rise"], "easing": "standard" } ],
+  "rest": { "hero-title.position": [0, 0, 0] }
 }
 ```
 
@@ -33,10 +38,11 @@ a v2 document with no tracks renders exactly as v1 did.
 
 - **Times are seconds** in clip time. A track driven by scroll maps progress to its keyframe span; it has no wall clock of
   its own.
-- **Values are the property's own type**: a number for a transform component, a list for a vector, a color token name for an
-  ink. A value of the wrong type is refused with the keyframe's index and the target path.
-- **A property path is checked against the node.** `hero-title.transform.position.y` is a path; `hero-title.position.y`
-  is refused with the path it could not resolve, because the transform names its channels.
+- **Values are the property's own type**: a vec3 for `position`, `rotation` or `scale`, a number for a scalar, a color token
+  name for an ink. A value of the wrong type is refused with the keyframe's index and the target path.
+- **A property path is checked against the node.** `hero-title.position` names a property the node has. A path that names
+  none of its properties, or a segment it does not have (a `transform` segment, or a component of a vec3 while the vec3 is
+  animated whole), is refused with the path it could not resolve.
 - **One track drives one property.** Two tracks on one path are refused: a scene with two answers for one value is a bug,
   not a blend.
 
@@ -53,7 +59,8 @@ A clip names tracks that belong together, and may carry the default `easing` for
 
 ## Rest
 
-`rest` holds a value for **every animated property**, keyed by the same property path a track targets.
+`rest` holds a value for **every animated property**, keyed by the same property path a track targets, in the property's own
+type: `[0, 0, 0]` for a vec3, a number for a scalar, an ink token name for a colour.
 
 - A missing rest value for an animated property is refused: reduced motion has nothing to hold without it.
 - The rest pose is the scene's *complete* state, not an intermediate one. If a hidden element is at `opacity: 0` in its
