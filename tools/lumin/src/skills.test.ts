@@ -31,25 +31,6 @@ const ruleIds = (data: unknown): readonly string[] =>
         .filter((id) => id !== "")
     : [];
 
-const nu = spawnSync("nu", ["--version"], { encoding: "utf8" });
-const hasNu = nu.status === 0;
-if (!hasNu && process.env["LUMIN_REQUIRE_NU"] === "1") throw new Error("LUMIN_REQUIRE_NU=1 but `nu` is not on PATH");
-
-interface Run {
-  readonly code: number | null;
-  readonly envelope: { ok: boolean; command: string; kind?: string; exit?: number; matches?: string[]; data?: unknown };
-}
-
-const isEnvelope = (value: unknown): value is Run["envelope"] => typeof value === "object" && value !== null && "ok" in value && "command" in value;
-
-const runSkill = (skill: string, args: readonly string[]): Run => {
-  const result = spawnSync("nu", [join(canon, skill, `${skill}.nu`), ...args], { cwd: root, encoding: "utf8" });
-  const line = result.stdout.trim().split("\n").filter((l) => l.startsWith("{")).at(-1) ?? "{}";
-  const parsed: unknown = JSON.parse(line);
-  const envelope = isEnvelope(parsed) ? parsed : { ok: false, command: "" };
-  return { code: result.status, envelope };
-};
-
 interface Eval {
   readonly id: string;
   readonly prompt: string;
@@ -69,6 +50,80 @@ const isEval = (value: unknown): value is Eval =>
   "must" in value &&
   Array.isArray(value.must) &&
   value.must.every((fact: unknown) => typeof fact === "string");
+
+describe("lumin-motion", () => {
+  const dir = join(canon, "lumin-motion");
+  const read = (name: string): string => readFileSync(join(dir, name), "utf8");
+  // What the skill says, without its credit: the answers must stand on the skill's own terms, and the credit is the one place a source may be named.
+  const body = files(dir)
+    .filter((file) => file.endsWith(".md") && !file.endsWith("CREDIT.md"))
+    .map((file) => readFileSync(file, "utf8"))
+    .join("\n")
+    .toLowerCase();
+  const parsed: unknown = JSON.parse(read("evals.json"));
+  const cases: readonly Eval[] =
+    typeof parsed === "object" && parsed !== null && "cases" in parsed && Array.isArray(parsed.cases) ? parsed.cases.filter(isEval) : [];
+  // The negative half of the eval set: names that must not appear, kept in the data beside the facts that must.
+  const never: readonly string[] =
+    typeof parsed === "object" && parsed !== null && "never" in parsed && Array.isArray(parsed.never)
+      ? parsed.never.filter((word: unknown): word is string => typeof word === "string")
+      : [];
+
+  it("carries ten fixed prompts, each with an answer and the facts it needs", () => {
+    expect(cases).toHaveLength(10);
+    for (const one of cases) {
+      expect(one.prompt.length).toBeGreaterThan(20);
+      expect(one.answer.length).toBeGreaterThan(40);
+      expect(one.must.length).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it.each(cases.map((one) => [one.id, one] as const))("%s: the skill holds every fact its answer needs", (_id, one) => {
+    expect(one.must.filter((fact) => !body.includes(fact.toLowerCase()))).toEqual([]);
+  });
+
+  it("names nothing on the eval set's never list in its own text", () => {
+    // The document is the source of truth: a skill that sent an agent to a library would contradict it, and a brand would be someone else's.
+    expect(never.length).toBeGreaterThanOrEqual(4);
+    expect(never.filter((word) => body.includes(word.toLowerCase()))).toEqual([]);
+  });
+
+  it("credits the work it is inspired by, with the pin and its license", () => {
+    const credit = read("CREDIT.md");
+    expect(credit).toContain("inspired by");
+    expect(credit).toContain("https://github.com/MengTo/Skills");
+    expect(credit).toContain("a7f25b25e9e15e1944f9fe6d69d943f77a155ef7");
+    expect(credit).toContain("assets/vendor/mengto-skills");
+    expect(credit).toContain("MIT");
+  });
+
+  it("is a skill a person can follow before the schema that lands later", () => {
+    // The track document is G4: the skill says so and names the step each piece arrives in, so no answer reads as if it shipped already.
+    expect(body).toContain("g4");
+    expect(body).toContain("g5");
+    expect(body).toContain("g6");
+    expect(body).toContain("not in the schema yet");
+  });
+});
+
+const nu = spawnSync("nu", ["--version"], { encoding: "utf8" });
+const hasNu = nu.status === 0;
+if (!hasNu && process.env["LUMIN_REQUIRE_NU"] === "1") throw new Error("LUMIN_REQUIRE_NU=1 but `nu` is not on PATH");
+
+interface Run {
+  readonly code: number | null;
+  readonly envelope: { ok: boolean; command: string; kind?: string; exit?: number; matches?: string[]; data?: unknown };
+}
+
+const isEnvelope = (value: unknown): value is Run["envelope"] => typeof value === "object" && value !== null && "ok" in value && "command" in value;
+
+const runSkill = (skill: string, args: readonly string[]): Run => {
+  const result = spawnSync("nu", [join(canon, skill, `${skill}.nu`), ...args], { cwd: root, encoding: "utf8" });
+  const line = result.stdout.trim().split("\n").filter((l) => l.startsWith("{")).at(-1) ?? "{}";
+  const parsed: unknown = JSON.parse(line);
+  const envelope = isEnvelope(parsed) ? parsed : { ok: false, command: "" };
+  return { code: result.status, envelope };
+};
 
 describe.runIf(hasNu)("skills through Nushell", () => {
   it("lumin search returns ranked rows and exits 0", () => {

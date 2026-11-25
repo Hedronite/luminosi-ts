@@ -94,7 +94,14 @@ describe("measureBundles", () => {
   write("apps/catalog/dist/assets/spec.js", "export const s = 'shared by the embed page and the 3D view';");
   write("apps/catalog/dist/assets/main.js", 'import{r}from"./react.js";const view=()=>import(`./view.js`).then(e=>e.t);const packs=()=>import(`./packs.js`);const panel=()=>import(`./ParameterPanel-x1Y2.js`);export{r,view,packs,panel};');
   write("apps/catalog/dist/assets/react.js", "export const r = 1;");
-  write("apps/catalog/dist/assets/view.js", 'import{t}from"./three.js";import{r}from"./react.js";import{l}from"./loader.js";import{s}from"./spec.js";const late=()=>import(`./late.js`);export{t,r,l,s,late};');
+  write("apps/catalog/dist/assets/view.js", 'import{t}from"./three.js";import{r}from"./react.js";import{l}from"./loader.js";import{s}from"./spec.js";const late=()=>import(`./late.js`);const prose=()=>import(`./prose.js`);export{t,r,l,s,late,prose};');
+  // Bundled text whose prose reads like code: a Markdown code sample of an import that names a file the build never made, beside a real
+  // import of a chunk that is there. The size walk counts the real one and does not fail on the sample.
+  write(
+    "apps/catalog/dist/assets/prose.js",
+    `import{h}from"./prose-helper.js";export const text = "Use [water](demo/assets/harbour-water.js); the code is import('./harbour-water.js') and from './ghost.js'.";export{h};`,
+  );
+  write("apps/catalog/dist/assets/prose-helper.js", "export const h = 'a chunk the prose chunk really imports';");
   write("apps/catalog/dist/assets/three.js", "export const t = { isObject3D: true };");
   write("apps/catalog/dist/assets/loader.js", "export const l = 'a chunk that kept no three marker when the code moved';");
   write("apps/catalog/dist/assets/late.js", "export const late = 'loaded by the view on demand';");
@@ -127,7 +134,7 @@ describe("measureBundles", () => {
 
   it("takes the 3D set from everything the 3D entries reach, markers or not, and ignores files nothing reaches", () => {
     // The loader and the late chunk carry no marker, and are counted all the same. React is the gallery's: the shell is not counted.
-    expect(names("catalog-3d")).toEqual(["late.js", "loader.js", "spec.js", "three.js", "view.js"]);
+    expect(names("catalog-3d")).toEqual(["late.js", "loader.js", "prose-helper.js", "prose.js", "spec.js", "three.js", "view.js"]);
   });
 
   it("builds the shell from the gallery page alone: a chunk only the embed page preloads is counted when a 3D view reaches it", () => {
@@ -137,6 +144,16 @@ describe("measureBundles", () => {
 
   it("takes a lazy chunk's set by its name: the chunk and its static imports past the shell, no dynamic imports, none of the shell", () => {
     expect(names("catalog-panel")).toEqual(["ParameterPanel-x1Y2.js", "paramFit-q9.js"]);
+  });
+
+  it("does not follow an import-looking string inside bundled text, and still follows a real import beside it", () => {
+    // A skill's Markdown, bundled as a string, holds `import("./harbour-water.js")` in a code sample: no such file is in dist, and the walk
+    // neither fails on it nor counts it. The chunk the same file really imports is counted.
+    expect(names("catalog-3d")).toContain("prose.js");
+    expect(names("catalog-3d")).toContain("prose-helper.js");
+    expect(names("catalog-3d")).not.toContain("harbour-water.js");
+    expect(names("catalog-3d")).not.toContain("ghost.js");
+    expect(() => measureBundles(root)).not.toThrow();
   });
 
   it("leaves out a lazy chunk whose reach has no 3D, and a page script that has none", () => {

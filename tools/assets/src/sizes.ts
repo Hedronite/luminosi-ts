@@ -94,8 +94,10 @@ function pageScripts(dist: string, pages: readonly string[]): string[] {
 /** `starts` and every file they import statically, and dynamically too when `lazy`. Files in `skip` are neither counted nor followed. */
 function closure(starts: readonly string[], lazy: boolean, skip: ReadonlySet<string> = new Set()): Set<string> {
   const seen = new Set<string>();
+  // A specifier that names no file is skipped: the catalog bundles Markdown, whose code samples read like imports (`./harbour-water.js`
+  // in a skill's example), and a size walk that followed those would fail on a file the build never made.
   const visit = (file: string): void => {
-    if (seen.has(file) || skip.has(file)) return;
+    if (seen.has(file) || skip.has(file) || !existsSync(file)) return;
     seen.add(file);
     const source = readFileSync(file, "utf8");
     for (const pattern of lazy ? [staticImport, dynamicImport] : [staticImport]) for (const match of source.matchAll(pattern)) visit(resolve(dirname(file), match[1] ?? ""));

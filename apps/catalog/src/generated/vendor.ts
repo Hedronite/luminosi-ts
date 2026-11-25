@@ -408,6 +408,33 @@ export const vendored: readonly VendorEntry[] = [
     ]
   },
   {
+    "id": "gemini-demolab",
+    "name": "Google Gemini frontend design",
+    "kind": "skills",
+    "what": "The Gemini frontend design skill",
+    "source": "https://github.com/google-gemini/demolab (`cd0c1f8540c0186ec9592af972a0700fa20909d4`)",
+    "license": "Apache-2.0 (`LICENSE`)",
+    "credit": "Google (Google Gemini) — inspired by",
+    "pulled": "2026-11-24",
+    "sourceUrl": "https://github.com/google-gemini/demolab",
+    "repo": "https://github.com/google-gemini/demolab",
+    "files": 3,
+    "bytes": 28533,
+    "items": [
+      {
+        "id": "gemini-frontend-design",
+        "name": "gemini-frontend-design",
+        "description": "Design and build polished websites and web apps tailored to the brief. Use when creating or redesigning web interfaces, covering layout, color, typography, custom imagery, and motion.",
+        "pages": [
+          {
+            "path": "skills/gemini-frontend-design/SKILL.md",
+            "title": "Gemini Frontend Design"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "id": "jakubkrehel-skills",
     "name": "Interface skills",
     "kind": "skills",
@@ -683,6 +710,445 @@ export const vendored: readonly VendorEntry[] = [
           {
             "path": "skills/variant/picker.md",
             "title": "The picker"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "mengto-skills",
+    "name": "MengTo agent skills",
+    "kind": "skills",
+    "what": "Agent skills for motion and scroll choreography, PBR material finishes, lighting, sky and water, and two AI-design audits",
+    "source": "https://github.com/MengTo/Skills (`a7f25b25e9e15e1944f9fe6d69d943f77a155ef7`)",
+    "license": "MIT (`LICENSE`)",
+    "credit": "Meng To — inspired by",
+    "pulled": "2026-11-24",
+    "sourceUrl": "https://github.com/MengTo/Skills",
+    "repo": "https://github.com/MengTo/Skills",
+    "files": 57,
+    "bytes": 370768,
+    "items": [
+      {
+        "id": "3d-cloth-material",
+        "name": "3d-cloth-material",
+        "description": "Build convincing woven cloth in Three.js, with a thread-level weave normal map, sheen and anisotropic highlights, folds that never stretch the texture, hems with thickness, stitches, seams, frayed edges, fold occlusion, dye and wear variation, and light passing through thin fabric. Use for linen, silk, wool, canvas, curtains, banners, cloaks, tablecloths, tapestries or any 3D drape that currently looks like a plastic sheet, a stretched texture, or a flat coloured plane.",
+        "pages": [
+          {
+            "path": "agent-skills/3d/3d-cloth-material/SKILL.md",
+            "title": "3D Cloth Material"
+          }
+        ]
+      },
+      {
+        "id": "3d-harbour-water",
+        "name": "3d-harbour-water",
+        "description": "Build sheltered waterfronts in Three.js with depth-aware reflections of docks and signs, rain rings, boats that ride the swell, and wakes that follow turns. Use for night harbours, canals, urban quays, or a game boat whose reflection slides away from the hull.",
+        "pages": [
+          {
+            "path": "agent-skills/3d/3d-harbour-water/SKILL.md",
+            "title": "3D Harbour Water"
+          }
+        ]
+      },
+      {
+        "id": "3d-high-resolution-textures",
+        "name": "3d-high-resolution-textures",
+        "description": "Build sharp, physically coherent high-resolution materials for 3D rendering with appropriate PBR maps, texel density, UV direction, mipmaps, anisotropic filtering, and progressive asset delivery. Use for detailed wood, stone, fabric, foliage, and architectural close-ups without excessive download or GPU memory costs.",
+        "pages": [
+          {
+            "path": "agent-skills/3d/3d-high-resolution-textures/SKILL.md",
+            "title": "3D High-Resolution Textures"
+          },
+          {
+            "path": "agent-skills/3d/3d-high-resolution-textures/REFERENCES.md",
+            "title": "REFERENCES"
+          }
+        ]
+      },
+      {
+        "id": "3d-kasumidera-ultra-realism",
+        "name": "3d-kasumidera-ultra-realism",
+        "description": "Build or art-direct walkable Three.js environments in Kasumidera’s painterly ultra-realism style. Use for warm weathered architecture, layered mountain scenery, volumetric light, and close-up materials that hold up at player height and 200% optical zoom.",
+        "pages": [
+          {
+            "path": "agent-skills/3d/3d-kasumidera-ultra-realism/SKILL.md",
+            "title": "Kasumidera ultra-realism"
+          },
+          {
+            "path": "agent-skills/3d/3d-kasumidera-ultra-realism/REFERENCES.md",
+            "title": "References"
+          },
+          {
+            "path": "agent-skills/3d/3d-kasumidera-ultra-realism/references/creator-steering.md",
+            "title": "The creator’s production prompts"
+          },
+          {
+            "path": "agent-skills/3d/3d-kasumidera-ultra-realism/references/director-prompts.md",
+            "title": "Prompt the next pass"
+          },
+          {
+            "path": "agent-skills/3d/3d-kasumidera-ultra-realism/references/frame-credits.md",
+            "title": "Visual study credits"
+          },
+          {
+            "path": "agent-skills/3d/3d-kasumidera-ultra-realism/references/generation-prompts.md",
+            "title": "Generation prompts from Kasumidera"
+          },
+          {
+            "path": "agent-skills/3d/3d-kasumidera-ultra-realism/references/play-and-deliver.md",
+            "title": "From playable scene to a verified take"
+          },
+          {
+            "path": "agent-skills/3d/3d-kasumidera-ultra-realism/references/scene-recipes.md",
+            "title": "Building the sanctuary"
+          }
+        ]
+      },
+      {
+        "id": "3d-metal-material",
+        "name": "3d-metal-material",
+        "description": "Build hyperrealistic PBR metal in Three.js: steel, brass, gold, copper and iron as true conductors (metalness 1, measured F0 tint, no albedo) with roughness-varied finishes (polished, brushed anisotropic, aged with patina and worn edges) lit by a dark HDR studio of real bright window cards prefiltered with PMREM. Use when metal looks like grey plastic, a dull blur, or a black hole; when blades, tools, rings, ingots, hardware or product metal need reflections with edges and structure; or when a finish needs scratches, streaks, fingerprints and bevels that catch light.",
+        "pages": [
+          {
+            "path": "agent-skills/3d/3d-metal-material/SKILL.md",
+            "title": "3D Metal Material"
+          }
+        ]
+      },
+      {
+        "id": "3d-paper-material",
+        "name": "3d-paper-material",
+        "description": "Build a paper sheet in Three.js that reads as paper up close — washi, cotton rag or kraft with baked fibre and tooth relief, laid and chain lines, a torn deckle edge with frayed fibres, four-layer thickness, a rolled corner and crease, ink that wicks along the fibres, toasted aged edges, contact shadows and back-lit translucency. Use for a hung sheet, scroll, page, label, shoji pane or card that must survive a macro close-up, or when paper looks like a flat white plane, has ruler-straight edges, no thickness, or does not glow when lit from behind. Use 3d-wood-material, 3d-cloth-material or 3d-metal-material for those materials, and paper-cinder-transition for burning paper.",
+        "pages": [
+          {
+            "path": "agent-skills/3d/3d-paper-material/SKILL.md",
+            "title": "3D Paper Material"
+          }
+        ]
+      },
+      {
+        "id": "3d-sky-background",
+        "name": "3d-sky-background",
+        "description": "Create a camera-correct sky background for a 3D scene with a procedural atmosphere or panorama, horizon haze, aligned sunlight, and coherent environment lighting. Use for architectural skies, outdoor 3D backgrounds, golden hour, and day-to-night sky transitions.",
+        "pages": [
+          {
+            "path": "agent-skills/3d/3d-sky-background/SKILL.md",
+            "title": "3D Sky Background"
+          },
+          {
+            "path": "agent-skills/3d/3d-sky-background/REFERENCES.md",
+            "title": "REFERENCES"
+          }
+        ]
+      },
+      {
+        "id": "3d-sky-rays",
+        "name": "3d-sky-rays",
+        "description": "Add sun shafts and crepuscular rays to a Three.js or equivalent 3D scene, using scene occlusion, a projected sun position, controlled foreground spill, and scalable post-processing. Use for rays of light from the sky, sunlight through trees or roofs, and golden-hour architectural scenes.",
+        "pages": [
+          {
+            "path": "agent-skills/3d/3d-sky-rays/SKILL.md",
+            "title": "3D Sky Rays"
+          },
+          {
+            "path": "agent-skills/3d/3d-sky-rays/REFERENCES.md",
+            "title": "REFERENCES"
+          }
+        ]
+      },
+      {
+        "id": "3d-ultra-realistic-water",
+        "name": "3d-ultra-realistic-water",
+        "description": "Build an ultra-realistic open ocean in Three.js with a deep-water Gerstner spectrum shaded per pixel from analytic derivatives, each wave faded at its own pixel footprint, plus Fresnel sky-cube and planar reflections, subsurface light through the crests, HDR sun glitter, Jacobian lace foam, a Kelvin wake, hull foam, buoyancy queries and aerial perspective into the sky's horizon haze. Use for shallow creeks, water around rocks, seas, oceans, sunset or daylight water, sun glitter paths, ship or boat scenes, wakes, coastal flyovers and any 3D scene with a moving camera and a water horizon. Includes the approved water from Pirate Ship Sunset as a reusable module and demo.",
+        "pages": [
+          {
+            "path": "agent-skills/3d/3d-ultra-realistic-water/SKILL.md",
+            "title": "3D Ultra-Realistic Water"
+          },
+          {
+            "path": "agent-skills/3d/3d-ultra-realistic-water/references/creek.md",
+            "title": "Moving water in a shallow creek"
+          },
+          {
+            "path": "agent-skills/3d/3d-ultra-realistic-water/references/ocean.md",
+            "title": "Ocean integration reference"
+          }
+        ]
+      },
+      {
+        "id": "3d-underwater-god-rays",
+        "name": "3d-underwater-god-rays",
+        "description": "Add volumetric underwater god rays to a Three.js scene, marching one drifting swell field along every view ray at half resolution so the light shafts converge on the sun, parallax with the camera and carry rippling caustic streaks, with a shimmering surface underside, a sun that wobbles through the ripples, and the same light dappling fish as they swim through the beams. Use for underwater scenes, oceans seen from below, aquariums, reefs, kelp forests, diving and shipwreck scenes, schools of fish, sunbeams or light shafts through water, caustics, \"rays of light shining through the ocean\", or watery ripples on a background. Includes a reusable module and the Blue Hour sardine-school demo.",
+        "pages": [
+          {
+            "path": "agent-skills/3d/3d-underwater-god-rays/SKILL.md",
+            "title": "3D Underwater God Rays"
+          }
+        ]
+      },
+      {
+        "id": "3d-wood-lighting-scorecard",
+        "name": "3d-wood-lighting-scorecard",
+        "description": "Light carved wood in a dark room in three.js, with procedural grain and pores, one warm key through a window, soft shadows that touch, light shafts, background rays and dust, then score the render out of 10 on an anchored rubric with a runnable headless scorecard and iterate until each item reaches the target. Use for oiled timber, kumiko, joinery and workshop scenes; wood that reads flat, plastic or washed out; volumetrics that lift the blacks; \"score this out of 10\"; or \"get the lighting to 8\".",
+        "pages": [
+          {
+            "path": "agent-skills/3d/3d-wood-lighting-scorecard/SKILL.md",
+            "title": "3D Wood Lighting Scorecard"
+          },
+          {
+            "path": "agent-skills/3d/3d-wood-lighting-scorecard/references/rubric.md",
+            "title": "Rubric: lit wood in a dark room, scored out of 10"
+          }
+        ]
+      },
+      {
+        "id": "3d-wood-material",
+        "name": "3d-wood-material",
+        "description": "Build convincing timber for Three.js as one procedural MeshPhysicalMaterial with growth rings, cathedral figure, pores, medullary rays, checks, tool marks, end grain, and oil, wax, or lacquer finishes, so the grain follows the form and survives macro close-ups without image textures. Use for wood boards, benches, carved panels, tool handles, joinery, floors, and any request to make 3D wood look real, detailed, or less like a tiled photo or plastic.",
+        "pages": [
+          {
+            "path": "agent-skills/3d/3d-wood-material/SKILL.md",
+            "title": "3D Wood Material"
+          }
+        ]
+      },
+      {
+        "id": "control-camera-lenses",
+        "name": "control-camera-lenses",
+        "description": "Add photographic focal length, sensor fit, subject tracking and depth-aware shallow focus to a Three.js scene. Use for lens selectors, dolly and zoom shots, eye focus, and sharp deterministic film exports.",
+        "pages": [
+          {
+            "path": "agent-skills/3d/control-camera-lenses/SKILL.md",
+            "title": "Control camera lenses in Three.js"
+          }
+        ]
+      },
+      {
+        "id": "light-a-threejs-workspace",
+        "name": "light-a-threejs-workspace",
+        "description": "Construct a procedural Three.js desk interior with textured furniture, a window and blinds, shadowed volumetric daylight, and coupled lighting presets.",
+        "pages": [
+          {
+            "path": "agent-skills/3d/light-a-threejs-workspace/SKILL.md",
+            "title": "Light a Three.js workspace"
+          }
+        ]
+      },
+      {
+        "id": "relight-painted-surfaces",
+        "name": "relight-painted-surfaces",
+        "description": "Add pointer-driven lighting to a 2D painting, sprite, or holographic card using separate depth, normal, and roughness maps. Use for moving highlights on illustrated metal, skin, cloth, or paper while the painted silhouette stays registered.",
+        "pages": [
+          {
+            "path": "agent-skills/3d/relight-painted-surfaces/SKILL.md",
+            "title": "Relight painted surfaces"
+          }
+        ]
+      },
+      {
+        "id": "audit-ai-design-slop",
+        "name": "audit-ai-design-slop",
+        "description": "Audit websites, apps, screenshots, mockups, and design code for harmful AI-design clichés, generic generated defaults, and established UI defects. Use when the user wants evidence-backed design feedback, an anti-slop review, or a removal-first cleanup plan without a speculative redesign.",
+        "pages": [
+          {
+            "path": "agent-skills/ui/audit-ai-design-slop/SKILL.md",
+            "title": "Audit AI Design Slop"
+          },
+          {
+            "path": "agent-skills/ui/audit-ai-design-slop/REFERENCES.md",
+            "title": "REFERENCES"
+          }
+        ]
+      },
+      {
+        "id": "no-ai-design-slop",
+        "name": "no-ai-design-slop",
+        "description": "Prevent and remove generic AI-generated design defaults, incoherent visual choices, and established UI defects while creating, revising, or reviewing websites, apps, screenshots, mockups, and design code. Use as a passive quality gate during UI work or for an explicit anti-slop cleanup; preserve the chosen art direction instead of forcing a neutral redesign.",
+        "pages": [
+          {
+            "path": "agent-skills/ui/no-ai-design-slop/SKILL.md",
+            "title": "No Design Slops"
+          },
+          {
+            "path": "agent-skills/ui/no-ai-design-slop/ARTICLE.md",
+            "title": "No Design Slops: Pattern Library"
+          },
+          {
+            "path": "agent-skills/ui/no-ai-design-slop/REFERENCES.md",
+            "title": "REFERENCES"
+          }
+        ]
+      },
+      {
+        "id": "animation-on-scroll",
+        "name": "animation-on-scroll",
+        "description": "Create an on-scroll animation trigger using IntersectionObserver with Tailwind-friendly animation classes and keyframes. Use when asked for scroll-reveal, animate-on-scroll, or sequencing element animations when they enter the viewport.",
+        "pages": [
+          {
+            "path": "agent-skills/web-design/animation-on-scroll/SKILL.md",
+            "title": "Animation On Scroll Skill"
+          }
+        ]
+      },
+      {
+        "id": "animation-systems",
+        "name": "animation-systems",
+        "description": "Use when designing or implementing product-grade web motion like Stripe, Linear, Apple, and Vercel. Covers motion principles, easing/duration defaults, choreography patterns, scroll/hover interactions, performance, accessibility (reduced motion), and implementation guidance.",
+        "pages": [
+          {
+            "path": "agent-skills/web-design/animation-systems/SKILL.md",
+            "title": "Animation Systems (Stripe × Linear × Apple × Vercel)"
+          }
+        ]
+      },
+      {
+        "id": "build-threejs-scroll-worlds",
+        "name": "build-threejs-scroll-worlds",
+        "description": "Build rich, scroll-controlled real-time Three.js experiences as one persistent 3D world whose camera, lighting, atmosphere, materials, objects, DOM story, and interactions evolve across authored chapters. Use for 3D scrollytelling, scroll-driven WebGL worlds, camera journeys, interactive portfolios, product stories, exhibitions, explainers, game or film microsites, spatial narratives, and multi-scene websites where native scroll should travel through one continuous place. Not limited to landing pages.",
+        "pages": [
+          {
+            "path": "agent-skills/web-design/build-threejs-scroll-worlds/SKILL.md",
+            "title": "Build Three.js Scroll Worlds"
+          },
+          {
+            "path": "agent-skills/web-design/build-threejs-scroll-worlds/references/kage-anatomy.md",
+            "title": "Kage scroll-world anatomy"
+          },
+          {
+            "path": "agent-skills/web-design/build-threejs-scroll-worlds/references/quality-and-qa.md",
+            "title": "Visual, interaction, and runtime QA"
+          },
+          {
+            "path": "agent-skills/web-design/build-threejs-scroll-worlds/references/realtime-architecture.md",
+            "title": "Real-time Three.js scroll-world architecture"
+          },
+          {
+            "path": "agent-skills/web-design/build-threejs-scroll-worlds/references/world-bible.md",
+            "title": "World bible and production ledgers"
+          }
+        ]
+      },
+      {
+        "id": "cinematic-gsap-lenis-motion-system",
+        "name": "cinematic-gsap-lenis-motion-system",
+        "description": "Create premium cinematic web motion systems with GSAP, ScrollTrigger, and Lenis. Use for luxury editorial websites, creative studio portfolios, Awwwards-style interactions, smooth scroll reveals, staggered text, parallax, pinned sections, magnetic hover states, custom cursors, and mouse-reactive layered movement.",
+        "pages": [
+          {
+            "path": "agent-skills/web-design/cinematic-gsap-lenis-motion-system/SKILL.md",
+            "title": "Cinematic GSAP Lenis Motion System"
+          },
+          {
+            "path": "agent-skills/web-design/cinematic-gsap-lenis-motion-system/REFERENCES.md",
+            "title": "REFERENCES"
+          }
+        ]
+      },
+      {
+        "id": "cinematic-scroll-storytelling",
+        "name": "cinematic-scroll-storytelling",
+        "description": "Create cinematic scroll-driven landing pages with Lenis smooth scrolling, GSAP ScrollTrigger, scroll-linked progression, staggered text reveals, sticky card stacks, parallax backgrounds, scroll-scrubbed transitions, footer reveals, and immersive preloaders. Use when analyzing or building premium editorial scroll experiences, sticky project stacks, kinetic typography, or section-by-section storytelling.",
+        "pages": [
+          {
+            "path": "agent-skills/web-design/cinematic-scroll-storytelling/SKILL.md",
+            "title": "Cinematic Scroll Storytelling"
+          },
+          {
+            "path": "agent-skills/web-design/cinematic-scroll-storytelling/REFERENCES.md",
+            "title": "REFERENCES"
+          }
+        ]
+      },
+      {
+        "id": "gsap-scrolltrigger-storytelling",
+        "name": "gsap-scrolltrigger-storytelling",
+        "description": "Build cinematic sticky product storytelling with GSAP ScrollTrigger, progressive UI reveals, scroll-synced animation, smooth interpolation, and immersive section transitions.",
+        "pages": [
+          {
+            "path": "agent-skills/web-design/gsap-scrolltrigger-storytelling/SKILL.md",
+            "title": "GSAP ScrollTrigger Storytelling Skill"
+          }
+        ]
+      },
+      {
+        "id": "horizontal-scroll-scenes",
+        "name": "horizontal-scroll-scenes",
+        "description": "Build scene-by-scene chapters that advance left to right on one fixed stage while the user scrolls vertically, with native scroll as the only input. One pure function turns scrollY into scene, dwell and move, so forward, reverse, scrollbar drags, fast skips and reload at depth all land on the right frame. Covers dwell versus transition budgets, a burn-wipe or pan between scenes, chapter index and progress UI, glide-to-scene links that skip intermediate scenes, keyboard and reduced-motion behaviour. Use for horizontal scrollytelling, multi-scene product tours, \"scroll down to travel sideways\", chapter carousels driven by the wheel, or any piece where a wheel-jacked slider keeps breaking on touch, keys, refresh or back.",
+        "pages": [
+          {
+            "path": "agent-skills/web-design/horizontal-scroll-scenes/SKILL.md",
+            "title": "Horizontal Scroll Scenes"
+          }
+        ]
+      },
+      {
+        "id": "scroll-progress-timeline",
+        "name": "scroll-progress-timeline",
+        "description": "Turn any ordered process into a data-driven vertical or horizontal scroll story with a base line, progress fill, active step states, responsive collapse, semantic fallback, and reduced-motion behavior. Use for onboarding, checkout, roadmaps, recipes, case studies, service processes, histories, or narratives where progress through the sequence should become visible while scrolling.",
+        "pages": [
+          {
+            "path": "agent-skills/web-design/scroll-progress-timeline/SKILL.md",
+            "title": "Scroll Progress Timeline"
+          },
+          {
+            "path": "agent-skills/web-design/scroll-progress-timeline/REFERENCES.md",
+            "title": "References"
+          }
+        ]
+      },
+      {
+        "id": "scroll-scrubbed-object-handoff",
+        "name": "scroll-scrubbed-object-handoff",
+        "description": "Choreograph a reversible scroll handoff between layered illustrations, transforming a held object into multiple moving pieces that land in a second scene.",
+        "pages": [
+          {
+            "path": "agent-skills/web-design/scroll-scrubbed-object-handoff/SKILL.md",
+            "title": "Scroll-Scrubbed Object Handoff"
+          }
+        ]
+      },
+      {
+        "id": "scroll-scrubbed-visual-sequence",
+        "name": "scroll-scrubbed-visual-sequence",
+        "description": "Build reversible scroll-controlled visual transformations with a pinned or sticky stage, normalized progress, and video, image-sequence, canvas, SVG, or DOM renderers. Use for hero transformations, product assembly, interface state walkthroughs, object rotation, diagrams, or photo sequences that must move forward and backward with native scrolling.",
+        "pages": [
+          {
+            "path": "agent-skills/web-design/scroll-scrubbed-visual-sequence/SKILL.md",
+            "title": "Scroll-Scrubbed Visual Sequence"
+          },
+          {
+            "path": "agent-skills/web-design/scroll-scrubbed-visual-sequence/REFERENCES.md",
+            "title": "References"
+          }
+        ]
+      },
+      {
+        "id": "scroll-scrubbed-word-reveal",
+        "name": "scroll-scrubbed-word-reveal",
+        "description": "Reveal marked-up text word by word as scroll progress advances, while preserving semantic inline links, emphasis, responsive line wrapping, and reduced-motion readability. Use for headlines, quotes, manifestos, product statements, onboarding messages, or editorial passages where scrolling should pace comprehension rather than simulate typing.",
+        "pages": [
+          {
+            "path": "agent-skills/web-design/scroll-scrubbed-word-reveal/SKILL.md",
+            "title": "Scroll-Scrubbed Word Reveal"
+          },
+          {
+            "path": "agent-skills/web-design/scroll-scrubbed-word-reveal/REFERENCES.md",
+            "title": "References"
+          }
+        ]
+      },
+      {
+        "id": "scroll-world-storytelling",
+        "name": "scroll-world-storytelling",
+        "description": "Turn an article, case study, brand narrative, product journey, or long-form story into a cinematic scroll-driven landing page using one of three renderers: scrubbed video, a real-time Three.js world, or semantic HTML/SVG data and typography. Use when the user asks for a scroll world, fly-through landing page, article-to-website transformation, animated planet, data scrollytelling, video-scrubbed page, connected visual journey, or story-led alternative to ordinary stacked sections.",
+        "pages": [
+          {
+            "path": "agent-skills/web-design/scroll-world-storytelling/SKILL.md",
+            "title": "Scroll World Storytelling"
+          },
+          {
+            "path": "agent-skills/web-design/scroll-world-storytelling/REFERENCES.md",
+            "title": "REFERENCES"
           }
         ]
       }

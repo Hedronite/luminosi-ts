@@ -19,6 +19,8 @@ LuminosiTS is MIT OR Apache-2.0. It also carries open-source work by others, eac
 | ThreeRT: hardware ray-traced three.js (Rust + wgpu engine, TypeScript packages, showcase, docs) | `assets/vendor/threert/` | https://github.com/meshy-dev/ThreeRT (`8cb4e9b1`) | MIT (`LICENSE`); patched dependencies in `renderer/third_party/` and `tools/city` keep their own (MIT / Apache-2.0); Poly Haven models CC0 | Meshy LLC |
 | The landing-page-design agent skill | `assets/vendor/ai-design-skills/` | https://github.com/elayadesign/ai-design-skills (`456d9e0d`) | MIT (`LICENSE`) | Elaya |
 | Interface agent skills (better-ui, better-typography, better-colors, interface-review and more) | `assets/vendor/jakubkrehel-skills/` | https://github.com/jakubkrehel/skills | MIT (`LICENSE`) | Jakub Krehel (jakub.kr, interfaces.dev) |
+| Agent skills for motion and scroll, material finishes, lighting, sky and water, and two AI-design audits — reference data, distilled into `lumin-motion` and `lumin-ui`, with a port ledger for the rest | `assets/vendor/mengto-skills/` | https://github.com/MengTo/Skills (`a7f25b25`) | MIT (`LICENSE`) | Meng To — inspired by |
+| The Gemini frontend design skill — reference data, distilled into `lumin-ui` | `assets/vendor/gemini-demolab/` | https://github.com/google-gemini/demolab (`cd0c1f85`) | Apache-2.0 (`LICENSE`) | Google (Google Gemini) — inspired by |
 | Icon packs generated from the icon sets above (Lucide, Famicons, CoreUI, Stash, isocons) | `packages/icons/src/packs/` | `assets/vendor/` via `tools/icons` | Each pack keeps its source's license (ISC, MIT, CC BY 4.0); see `iconPacks` | As for each source above |
 
 Ported from the vendored work above into the library, each with its `origin` in its manifest and a credit header above its code:
