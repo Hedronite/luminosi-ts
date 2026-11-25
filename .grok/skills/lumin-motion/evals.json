@@ -1,0 +1,67 @@
+{
+  "schema": 1,
+  "skill": "lumin-motion",
+  "about": "Ten fixed prompts, each with the answer this skill is expected to give, and the facts that answer needs. tools/lumin/src/skills.test.ts checks that every fact appears in the skill's own text (SKILL.md and references/), so the skill cannot drift away from its answers.",
+  "cases": [
+    {
+      "id": "hero-entrance",
+      "prompt": "The hero title should rise in when the page loads and settle. What do you set?",
+      "answer": "A time-driven track on hero-title.transform.position.y plus opacity, triggered by load: 24 px to 0 over 0.8 s with the enter token, then settle. Supporting copy 120 ms later over 0.6 s, the action last. Rest pose is opacity 1, y 0.",
+      "must": ["load trigger", "24 px", "0.80 s", "settle", "rest pose"]
+    },
+    {
+      "id": "section-reveal-once",
+      "prompt": "A row of cards should reveal as the visitor scrolls past, and not replay when they scroll back.",
+      "answer": "An in-view trigger, once, at a third of the block visible: 16 px rise and opacity 0 to 1 over 0.5 s with enter, 60 ms stagger between cards, no replay.",
+      "must": ["in-view", "once", "16 px", "stagger", "replay"]
+    },
+    {
+      "id": "reduced-motion",
+      "prompt": "How does the scene behave under prefers-reduced-motion: reduce?",
+      "answer": "Every stage shows the rest pose and draws no animation frames; pointer and hover tracks do not run; a scrubbed scene snaps to the nearest chapter and holds it; content stays visible.",
+      "must": ["rest pose", "no animation frames", "pointer", "scrubbed", "visible"]
+    },
+    {
+      "id": "scroll-scrub-camera",
+      "prompt": "The camera should move across chapters as the page scrolls, backwards too.",
+      "answer": "A scroll-driven track scrubbed by progress between composed camera keyframes, linear easing, with the damping in the conductor: measured anchors, a smooth copy of progress, a step clamped to 1/30 s, paused while hidden.",
+      "must": ["scroll", "scroll-scrub", "linear", "1/30", "direction"]
+    },
+    {
+      "id": "durations-and-easing",
+      "prompt": "Which durations and easings do we use?",
+      "answer": "The token package's fast 120 ms, base 200 ms and slow 320 ms, extended by class: 180 to 260 ms for UI state, 220 to 320 ms for a popover, 400 to 800 ms for a section, 800 to 1600 ms for a hero, and the easings enter, exit, settle, standard and linear.",
+      "must": ["120", "200", "320", "400 to 800", "enter", "exit", "settle", "linear"]
+    },
+    {
+      "id": "pointer-parallax",
+      "prompt": "A card should tilt a little as the pointer moves over it.",
+      "answer": "A pointer-driven track on the card's rotation, running only while hovered or focused, with a rest pose of 0, and never moving the scroll story.",
+      "must": ["pointer", "hover", "rest", "scroll"]
+    },
+    {
+      "id": "off-screen-frames",
+      "prompt": "A stage is scrolled out of view. What should it cost?",
+      "answer": "Zero frames: an intersection observer stops it, the hidden document stops it too, and the frame counter stays flat until it returns.",
+      "must": ["zero frames", "hidden", "frame counter"]
+    },
+    {
+      "id": "bad-property-path",
+      "prompt": "An agent wrote a track with target hero-title.position.y. What happens?",
+      "answer": "It is refused with the path: a property path names a node and a property the node has, and the transform names its channels, so hero-title.transform.position.y is the path.",
+      "must": ["refused", "property path", "transform"]
+    },
+    {
+      "id": "hover-lifecycle",
+      "prompt": "A button should lift on hover and come back down when the pointer leaves.",
+      "answer": "A hover-triggered track: 2 to 6 px lift over about 120 to 200 ms with the standard token, returning to the rest pose on leave or blur, with no bounce.",
+      "must": ["hover", "2 to 6 px", "standard", "rest pose"]
+    },
+    {
+      "id": "what-landed-when",
+      "prompt": "Can I write a track into a scene document today?",
+      "answer": "Not yet: tracks are the v2 document, which lands in G4; the runtime and its triggers in G5; emission and the playground in G6. A v1 document has no tracks and must not pretend to.",
+      "must": ["G4", "G5", "G6", "v1"]
+    }
+  ]
+}
