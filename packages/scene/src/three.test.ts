@@ -600,3 +600,38 @@ describe("effectTargets", () => {
     drawn.dispose();
   });
 });
+
+
+describe("the document's motion", () => {
+  /** A document whose one node stands at [0, 0.6, 0], with a track that would move it and a rest pose of [0, 0, 0]. */
+  const moving = (): SceneDocument =>
+    scene([node("hero", { position: [0, 0.6, 0] })], {
+      tracks: [{ id: "rise", target: "node.hero.position", keyframes: [{ time: 0, value: [0, 0, 0], easing: "linear" }, { time: 1, value: [0, 0.6, 0], easing: "linear" }], driver: "time", trigger: "load" }],
+      rest: { "node.hero.position": [0, 0, 0] },
+    });
+
+  const heroAt = (built: { readonly root: Object3D }): readonly number[] => built.root.getObjectByName("hero")?.position.toArray() ?? [];
+
+  it("writes the rest pose before the first step, so a reduced-motion scene shows rest and not the node's own position", async () => {
+    const built = createScene(moving(), { palette: neutral.scene, motion: { reducedMotion: true } });
+    await built.ready;
+    expect(heroAt(built)).toEqual([0, 0, 0]);
+    expect(built.motionValues().get("node.hero.position")).toEqual([0, 0, 0]);
+    // Nothing moves it, whatever it is handed: the rest pose is all a reduced-motion scene shows.
+    expect(built.advance(1, { inView: true })).toBe(false);
+    expect(heroAt(built)).toEqual([0, 0, 0]);
+    built.dispose();
+  });
+
+  it("steps the tracks an update brings, from the rest pose the update wrote", async () => {
+    const built = createScene(scene([node("hero", { position: [0, 0.6, 0] })]), { palette: neutral.scene });
+    await built.ready;
+    expect(built.advance(1, {})).toBe(false);
+    expect(built.motionValues().size).toBe(0);
+    await built.update(moving());
+    expect(heroAt(built)).toEqual([0, 0, 0]);
+    expect(built.advance(0.5, {})).toBe(true);
+    expect(heroAt(built)).toEqual([0, 0.3, 0]);
+    built.dispose();
+  });
+});

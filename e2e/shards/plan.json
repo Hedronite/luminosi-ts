@@ -1,7 +1,7 @@
 {
   "shards": 6,
   "longestSeconds": 125.3,
-  "mean": 315.9,
+  "mean": 316.9,
   "slowest": 317,
   "plan": [
     {
@@ -33,7 +33,7 @@
         "e2e/vendor.spec.ts:63",
         "e2e/shards/shards.spec.ts:119",
         "e2e/catalog.spec.ts:594",
-        "e2e/motion.spec.ts:121"
+        "e2e/motion.spec.ts:120"
       ]
     },
     {
@@ -68,12 +68,12 @@
         "e2e/snippets.spec.ts:3",
         "e2e/shards/shards.spec.ts:89",
         "e2e/catalog.spec.ts:641",
-        "e2e/motion.spec.ts:66"
+        "e2e/motion.spec.ts:148"
       ]
     },
     {
       "shard": 3,
-      "seconds": 310.9,
+      "seconds": 317,
       "locations": [
         "e2e/catalog.spec.ts:133",
         "e2e/catalog.spec.ts:157",
@@ -102,7 +102,8 @@
         "e2e/vendor.spec.ts:15",
         "e2e/vendor.spec.ts:46",
         "e2e/shards/shards.spec.ts:161",
-        "e2e/motion.spec.ts:108"
+        "e2e/motion.spec.ts:100",
+        "e2e/motion.spec.ts:82"
       ]
     },
     {
@@ -136,7 +137,7 @@
         "e2e/vendor.spec.ts:96",
         "e2e/shards/shards.spec.ts:99",
         "e2e/catalog.spec.ts:687",
-        "e2e/motion.spec.ts:75"
+        "e2e/motion.spec.ts:64"
       ]
     },
     {
@@ -171,7 +172,7 @@
         "e2e/vendor.spec.ts:84",
         "e2e/shards/shards.spec.ts:152",
         "e2e/catalog.spec.ts:703",
-        "e2e/motion.spec.ts:93"
+        "e2e/motion.spec.ts:73"
       ]
     },
     {
@@ -214,7 +215,7 @@
         "e2e/vendor.spec.ts:72",
         "e2e/shards/shards.spec.ts:134",
         "e2e/catalog.spec.ts:620",
-        "e2e/motion.spec.ts:57"
+        "e2e/motion.spec.ts:135"
       ]
     }
   ]

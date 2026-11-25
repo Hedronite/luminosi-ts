@@ -32,6 +32,8 @@ vi.mock("@hedronite/lts-scene/three", () => ({
         new Promise<void>((resolve) => {
           updates.push({ resolve });
         }),
+      advance: () => false,
+      motionValues: () => new Map(),
       ...(withTargets ? { effectTargets: () => [...targets] } : {}),
       dispose: () => {
         gone = true;
