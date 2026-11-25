@@ -1,4 +1,4 @@
-import { neutral, type ScenePalette } from "@hedronite/lts-tokens";
+import { BLACK, neutral, type SceneColorKey, type ScenePalette } from "@hedronite/lts-tokens";
 import {
   abs,
   cos,
@@ -70,17 +70,17 @@ interface Bindings {
   readonly fixed: Readonly<Record<string, unknown>>;
   readonly structural: readonly string[];
   /** The colors that came from the look, not from the caller: parameter name to the scene color it follows. */
-  readonly roles?: Readonly<Record<string, keyof ScenePalette>>;
+  readonly roles?: Readonly<Record<string, SceneColorKey>>;
   /** Rules that span parameters, checked on what the numbers would be after the write. Throws to refuse. */
   readonly check?: (read: (key: string) => unknown) => void;
 }
 
 /** For each color the look supplies a default for: its role, kept only where the caller gave no color of their own. */
-const followsLook = (given: Readonly<Record<string, unknown>>, roles: Readonly<Record<string, keyof ScenePalette>>): Record<string, keyof ScenePalette> =>
+const followsLook = (given: Readonly<Record<string, unknown>>, roles: Readonly<Record<string, SceneColorKey>>): Record<string, SceneColorKey> =>
   Object.fromEntries(Object.entries(roles).filter(([key]) => given[key] === undefined));
 
 /** The colors of each effect that follow the look, by name: a color the caller sets leaves the list. */
-const following = new WeakMap<object, Map<string, keyof ScenePalette>>();
+const following = new WeakMap<object, Map<string, SceneColorKey>>();
 
 function effectHandle<Id extends EffectId, Material extends NodeMaterial>(id: Id, material: Material, bindings: Bindings): EffectHandle<Id, Material> {
   const roles = new Map(Object.entries(bindings.roles ?? {}));
@@ -196,7 +196,7 @@ export function createToonEffect(params: EffectParams<"toon"> = {}, palette: Sce
   const material = new MeshBasicNodeMaterial({ name: "toon" });
   const outline = uniform(p.outline);
   const color = uniform(new Color(p.color ?? palette.accent));
-  const ink = uniform(new Color(p.ink ?? "#000000"));
+  const ink = uniform(new Color(p.ink ?? BLACK));
   // A fixed key light from the upper right, in view space, so the bands don't swim as the view turns.
   const light = uniform(new Vector3(0.5, 0.7, 0.6).normalize());
   const lit = saturate(dot(normalView, light));

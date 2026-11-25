@@ -2,7 +2,7 @@ import type { Palette, Preset } from "./presets.js";
 import { radius } from "./scales.js";
 
 const kebab = (name: string): string => name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
-const keys: readonly (keyof Palette)[] = ["surface", "surfaceRaised", "fg", "fgMuted", "line", "accent", "onAccent"];
+const keys: readonly (keyof Palette)[] = ["surface", "surfaceRaised", "fg", "fgMuted", "line", "accent", "accentText", "onAccent"];
 
 const vars = (palette: Palette): string => keys.map((key) => `  --lts-${kebab(key)}: ${palette[key]};`).join("\n");
 

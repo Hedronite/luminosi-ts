@@ -1,4 +1,4 @@
-import { contrastRatio, parseHex, relativeLuminance, type Hex, type LookCategoryId, type Palette, type Preset, type ScenePalette } from "@hedronite/lts-tokens";
+import { BLACK, contrastRatio, hydratePreset, mixHex, relativeLuminance, WHITE, type BasePalette, type Hex, type LookCategoryId, type Preset, type ScenePalette } from "@hedronite/lts-tokens";
 import { z } from "zod";
 
 /**
@@ -73,15 +73,7 @@ export interface Conversion {
 }
 
 /** Mixes two colors in sRGB: t = 0 is `from`, t = 1 is `to`. */
-export function mix(from: Hex, to: Hex, t: number): Hex {
-  const a = parseHex(from);
-  const b = parseHex(to);
-  const channel = (i: 0 | 1 | 2): string =>
-    Math.round(a[i] + (b[i] - a[i]) * t)
-      .toString(16)
-      .padStart(2, "0");
-  return `#${channel(0)}${channel(1)}${channel(2)}`;
-}
+export const mix = mixHex;
 
 /** The lowest contrast `color` has on any of `backgrounds`, for the notes. */
 const worst = (color: Hex, backgrounds: readonly Hex[]): string => `${Math.min(...backgrounds.map((bg) => contrastRatio(color, bg))).toFixed(2)}:1 at worst`;
@@ -106,7 +98,7 @@ export function convertOmarchy(input: unknown, meta: LookMeta): Conversion {
   const colors = omarchyColorsSchema.parse(input);
   const dark = colors.mode === undefined ? relativeLuminance(colors.background) < 0.18 : colors.mode === "dark";
   const scheme = dark ? "dark" : "light";
-  const extreme: Hex = dark ? "#ffffff" : "#000000";
+  const extreme: Hex = dark ? WHITE : BLACK;
   const adjustments: string[] = [];
 
   const surface = colors.background;
@@ -141,7 +133,7 @@ export function convertOmarchy(input: unknown, meta: LookMeta): Conversion {
 
   // The accent must stand out from the surface and carry readable text.
   const onAccentFor = (accent: Hex): Hex | undefined =>
-    ([surface, fg, "#ffffff", "#000000"] as const).find((candidate) => contrastRatio(candidate, accent) >= TEXT);
+    ([surface, fg, WHITE, BLACK] as const).find((candidate) => contrastRatio(candidate, accent) >= TEXT);
   let accent: Hex | undefined;
   let onAccent: Hex | undefined;
   for (const t of STEPS) {
@@ -156,7 +148,7 @@ export function convertOmarchy(input: unknown, meta: LookMeta): Conversion {
   }
   if (accent === undefined || onAccent === undefined) throw new RangeError(`${meta.id}: no accent reaches ${String(UI)}:1 with readable text on it`);
 
-  const palette: Palette = {
+  const palette: BasePalette = {
     surface,
     surfaceRaised,
     fg,
@@ -172,7 +164,7 @@ export function convertOmarchy(input: unknown, meta: LookMeta): Conversion {
     glass: colors.cyan,
     emissive: colors.blue,
   };
-  const preset: Preset = {
+  const preset: Preset = hydratePreset({
     id: meta.id,
     name: meta.name,
     category: meta.category,
@@ -181,7 +173,7 @@ export function convertOmarchy(input: unknown, meta: LookMeta): Conversion {
     light: palette,
     dark: palette,
     scene,
-  };
+  });
   return { preset, adjustments };
 }
 

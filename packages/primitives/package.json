@@ -36,6 +36,7 @@
   },
   "dependencies": {
     "@hedronite/lts-core": "workspace:*",
+    "@hedronite/lts-tokens": "workspace:*",
     "zod": "catalog:"
   },
   "devDependencies": {

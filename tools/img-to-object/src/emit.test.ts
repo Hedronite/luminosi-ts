@@ -57,7 +57,13 @@ describe("the lts-object-spec emitter", () => {
   it("measures shades against the same neutral palette the library ships", () => {
     const result = spawnSync("python3", ["-I", "-c", `import sys; sys.path.insert(0, ${JSON.stringify(join(tool, "plugin"))}); import json, emit_object_spec as e; print(json.dumps(e.NEUTRAL_SCENE))`], { encoding: "utf8" });
     const palette: unknown = JSON.parse(result.stdout);
-    expect(palette).toEqual({ ...neutral.scene });
+    expect(palette).toEqual({
+      base: neutral.scene.base,
+      accent: neutral.scene.accent,
+      metal: neutral.scene.metal,
+      glass: neutral.scene.glass,
+      emissive: neutral.scene.emissive,
+    });
   });
 
   it.each([

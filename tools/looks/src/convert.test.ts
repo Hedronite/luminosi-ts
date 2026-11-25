@@ -98,7 +98,7 @@ describe("convertOmarchy", () => {
         input["dark_background"] = mix(background, "#000000", 0.06);
         const { preset } = convertOmarchy(input, meta);
         const p = preset.dark;
-        for (const [text, bg2] of [["fg", "surface"], ["fg", "surfaceRaised"], ["fgMuted", "surface"], ["fgMuted", "surfaceRaised"], ["onAccent", "accent"]] as const) {
+        for (const [text, bg2] of [["fg", "surface"], ["fg", "surfaceRaised"], ["fgMuted", "surface"], ["fgMuted", "surfaceRaised"], ["accentText", "surface"], ["accentText", "surfaceRaised"], ["onAccent", "accent"]] as const) {
           expect(contrastRatio(p[text], p[bg2])).toBeGreaterThanOrEqual(4.5);
         }
         expect(contrastRatio(p.accent, p.surface)).toBeGreaterThanOrEqual(3);

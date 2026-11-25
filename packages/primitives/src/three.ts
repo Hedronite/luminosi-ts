@@ -1,4 +1,5 @@
-import { AmbientLight, BatchedMesh, BufferAttribute, BufferGeometry, DirectionalLight, Group, InstancedMesh, Line, Mesh, Points, Texture, type Material, type Object3D } from "three";
+import { neutral, sceneLighting, type ScenePalette } from "@hedronite/lts-tokens";
+import { AmbientLight, BatchedMesh, BufferAttribute, BufferGeometry, DirectionalLight, Group, InstancedMesh, Light, Line, Mesh, Points, Texture, type Material, type Object3D } from "three";
 import type { Polyhedron } from "./polyhedron.js";
 import { triangulate } from "./polyhedron.js";
 
@@ -13,26 +14,44 @@ export function createPolyhedronGeometry(polyhedron: Polyhedron, name = "polyhed
   return geometry;
 }
 
+type StudioLightRole = "key" | "fill" | "rim" | "ambient";
+
+const studioLightRoles = new WeakMap<Object3D, StudioLightRole>();
+
 export interface StudioLightOptions {
   /** Scales every light. Default 1. */
   readonly intensity?: number;
+  /** Scene lighting tokens for key, fill, rim, and ambient lights. Default: neutral. */
+  readonly palette?: ScenePalette;
 }
 
-/** A neutral three-point rig (key, fill, rim) plus a little ambient. Add it to a scene; it holds no GPU resources. */
-export function createStudioLights({ intensity = 1 }: StudioLightOptions = {}): Group {
+/** A three-point rig (key, fill, rim) plus ambient, colored from `palette`. Add it to a scene; it holds no GPU resources. */
+export function createStudioLights({ intensity = 1, palette = neutral.scene }: StudioLightOptions = {}): Group {
+  const lighting = sceneLighting(palette);
   const rig = new Group();
   rig.name = "studio-lights";
-  const light = (strength: number, x: number, y: number, z: number, name: string): DirectionalLight => {
-    const l = new DirectionalLight(0xffffff, strength * intensity);
+  const light = (strength: number, x: number, y: number, z: number, role: Exclude<StudioLightRole, "ambient">): DirectionalLight => {
+    const l = new DirectionalLight(lighting[role], strength * intensity);
     l.position.set(x, y, z);
-    l.name = name;
+    l.name = role;
+    studioLightRoles.set(l, role);
     return l;
   };
   rig.add(light(2.4, 3, 4, 5, "key"), light(0.9, -4, 1.5, 2, "fill"), light(1.6, 0, 3, -5, "rim"));
-  const ambient = new AmbientLight(0xffffff, 0.25 * intensity);
+  const ambient = new AmbientLight(lighting.ambient, 0.25 * intensity);
   ambient.name = "ambient";
+  studioLightRoles.set(ambient, "ambient");
   rig.add(ambient);
   return rig;
+}
+
+/** Recolors studio lights built by `createStudioLights` in place from `palette`. */
+export function applyStudioLightsPalette(target: Object3D, palette: ScenePalette): void {
+  const lighting = sceneLighting(palette);
+  target.traverse((child) => {
+    const role = studioLightRoles.get(child);
+    if (role !== undefined && child instanceof Light) child.color.set(lighting[role]);
+  });
 }
 
 /** Anything that draws a geometry with a material: meshes (instanced and batched too), lines (segments and loops too) and points. */

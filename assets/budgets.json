@@ -3,7 +3,7 @@
     "crystal-cluster-glb": { "triangles": 174, "drawCalls": 1, "brotliBytes": 4900 }
   },
   "bundles": {
-    "catalog-gallery": { "gzipBytes": 125700 },
+    "catalog-gallery": { "gzipBytes": 126300 },
     "catalog-embed": { "gzipBytes": 322000 },
     "catalog-3d": { "gzipBytes": 479300 },
     "catalog-panel": { "gzipBytes": 3200 },
@@ -11,7 +11,7 @@
     "catalog-export": { "gzipBytes": 2900 },
     "site-island": { "gzipBytes": 2900 },
     "scene-element": { "gzipBytes": 3100 },
-    "scene-element-3d": { "gzipBytes": 335800 }
+    "scene-element-3d": { "gzipBytes": 336800 }
   },
   "posters": { "perPosterBytes": 4096, "totalBytes": 80000 },
   "objects": {
