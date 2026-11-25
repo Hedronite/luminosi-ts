@@ -234,6 +234,22 @@ describe.runIf(hasNu)("skills through Nushell", () => {
       it.each(SLOP)("%s stays quiet on the same content without the pattern", (id) => {
         expect(cleanIds).not.toContain(id);
       });
+      // A glow is a shadow with no offset and a blur worth the name: a focus ring, an inset border and a hairline are none of those.
+      const glowFires = fixture(
+        "slop-glow-fires.css",
+        `.glow { box-shadow: 0 0 24px var(--lts-shadow); }\n.glow-soft { box-shadow: 0 0 8px rgb(0 0 0 / 0.4); }\n.glow-layered { box-shadow: 0 2px 4px var(--lts-shadow), 0 0 24px var(--lts-accent); }\n`,
+      );
+      const glowQuiet = fixture(
+        "slop-glow-quiet.css",
+        `.ring { box-shadow: 0 0 0 2px var(--lts-accent); }\n.inset-line { box-shadow: inset 0 0 1px var(--lts-line); }\n.inset-soft { box-shadow: inset 0 0 12px var(--lts-shadow); }\n.elevation { box-shadow: 0 4px 12px var(--lts-shadow); }\n.hairline { box-shadow: 0 4px 12px var(--lts-shadow), 0 0 1px var(--lts-line); }\n.measured { box-shadow: 0 0 calc(24px) var(--lts-shadow); }\n.token { box-shadow: 0 0 var(--glow); }\n`,
+      );
+      it("slop.glow-shadow fires on a real glow in any layer, and on nothing else", () => {
+        const fired = rulesOf(runSkill("lumin-ui", ["scan", glowFires]).envelope.data).filter((rule) => rule === "slop.glow-shadow");
+        expect(fired).toHaveLength(3);
+        const quiet = rulesOf(runSkill("lumin-ui", ["scan", glowQuiet]).envelope.data);
+        expect(quiet).not.toContain("slop.glow-shadow");
+      });
+
       it("lists the whole area in the rule table, and only the area", () => {
         const listed = ruleIds(runSkill("lumin-ui", ["rules", "--area", "slop"]).envelope.data);
         expect([...listed].sort()).toEqual([...SLOP].sort());

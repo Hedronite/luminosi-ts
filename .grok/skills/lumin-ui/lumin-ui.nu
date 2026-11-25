@@ -202,8 +202,10 @@ def text-rules [] {
     # Slop in CSS: the two effects a generated page adds when it has nothing to say.
     { id: "slop.gradient-text", area: slop, severity: low, trigger: false, pattern: 'background-clip\s*:\s*text', unless: '', skip: ''
       what: "gradient-filled text: a headline that trades legibility for decoration", fix: "a solid token color for the text; a gradient belongs in a surface behind it" }
-    { id: "slop.glow-shadow", area: slop, severity: low, trigger: false, pattern: 'box-shadow\s*:[^;]*\b0\s+0\s+[1-9]\d*px', unless: '', skip: ''
-      what: "a neon glow shadow with no offset: light from nowhere, standing in for elevation", fix: "the elevation tokens (shadow-sm, shadow-lg); a glow is an effect, not elevation" }
+    # Anchored to a shadow layer's own start (`:` or a `,`) and to a blur a glow would use: a zero blur is a focus ring, `inset` is a
+    # border drawn inside, and a 1px layer after an elevation shadow is a hairline. A blur this cannot read (calc, var) stays quiet.
+    { id: "slop.glow-shadow", area: slop, severity: low, trigger: false, pattern: 'box-shadow\s*:(?:[^;}]*,\s*)?\s*0(px)?\s+0(px)?\s+(?:[4-9]|[1-9]\d+)px', unless: '', skip: ''
+      what: "a glow shadow with no offset and 4px or more of blur: light from nowhere, standing in for elevation", fix: "the elevation tokens (shadow-sm, shadow-lg); a glow is an effect, not elevation" }
   ]
 }
 
