@@ -27,7 +27,7 @@ def failure [command: string, kind: string, error: string] {
   { ok: false, command: $command, error: $error, kind: $kind, exit: (if $kind == "usage" { 2 } else { 1 }) }
 }
 
-const AREAS = [a11y color type layout motion copy ui]
+const AREAS = [a11y color type layout motion copy ui slop]
 const RANK = { high: 0, medium: 1, low: 2 }
 
 # --- the rules -----------------------------------------------------------------------------------
@@ -163,6 +163,23 @@ def element-rules [] {
       what: "\"the user\" in interface text"
       fix: "speak to the reader: you"
       test: {|e| $e.text =~ '(?i)\bthe user\b' } }
+    # Slop: the decoration a generated interface reaches for. Each rule names a pattern that carries no information; deleted, the page says the same thing.
+    { id: "slop.decorative-chip", area: slop, severity: medium, trigger: false,
+      what: "a capsule badge with no interaction and no state: decoration in the shape of a control"
+      fix: "delete it; capsule and border shapes belong to controls and to real status cells, which carry a role"
+      test: {|e| ($e.tag in [span div small]) and (not (has $e "role")) and (not (has $e "onClick")) and ($e.class =~ '(^|\s)rounded-full(\s|$)') and ($e.children == 0) and ($e.text != "") and (($e.text | split row -r '\s+' | where {|w| $w != "" } | length) <= 4) } }
+    { id: "slop.fake-cue", area: slop, severity: medium, trigger: false,
+      what: "a synthetic cue word (LIVE, SCROLL, NEW, SOON, BETA) standing in for real state"
+      fix: "remove it; if the state is real, render it from data in words a screen reader can read"
+      test: {|e| ($e.tag in [span div small p b strong em]) and (not (has $e "role")) and (($e.text | str trim | str upcase) in ["LIVE" "SCROLL" "NEW" "SOON" "BETA" "HOT"]) } }
+    { id: "slop.decorative-numbering", area: slop, severity: low, trigger: false,
+      what: "a heading numbered as decoration (01, [ 01 / 04 ], I.) rather than as a real step"
+      fix: "drop the number, or make the sequence an ordered list, where the order means something"
+      test: {|e| ($e.tag in [h1 h2 h3 h4 h5 h6]) and ($e.text =~ '^\s*[\[(]?\s*0\d(\s|[/·—–-]|$)|^\s*\[\s*0\d\s*/\s*0\d\s*\]|^\s*[IVX]+\.\s') } }
+    { id: "slop.shouted-heading", area: slop, severity: low, trigger: false,
+      what: "a heading set in capitals, which shouts and slows reading"
+      fix: "sentence case; weight and size carry the hierarchy"
+      test: {|e| ($e.tag in [h1 h2 h3 h4 h5 h6]) and ($e.class =~ '(^|\s)uppercase(\s|$)') } }
   ]
 }
 
@@ -182,6 +199,13 @@ def text-rules [] {
       what: "a :hover style that sticks after a tap on touch screens", fix: "put it under @media (hover: hover)" }
     { id: "color.literal", area: color, severity: medium, trigger: false, pattern: '#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(|\boklch\(', unless: '', skip: 'name="theme-color"'
       what: "a raw color in CSS instead of a token", fix: "var(--lts-…) or a theme utility" }
+    # Slop in CSS: the two effects a generated page adds when it has nothing to say.
+    { id: "slop.gradient-text", area: slop, severity: low, trigger: false, pattern: 'background-clip\s*:\s*text', unless: '', skip: ''
+      what: "gradient-filled text: a headline that trades legibility for decoration", fix: "a solid token color for the text; a gradient belongs in a surface behind it" }
+    # Anchored to a shadow layer's own start (`:` or a `,`) and to a blur a glow would use: a zero blur is a focus ring, `inset` is a
+    # border drawn inside, and a 1px layer after an elevation shadow is a hairline. A blur this cannot read (calc, var) stays quiet.
+    { id: "slop.glow-shadow", area: slop, severity: low, trigger: false, pattern: 'box-shadow\s*:(?:[^;}]*,\s*)?\s*0(px)?\s+0(px)?\s+(?:[4-9]|[1-9]\d+)px', unless: '', skip: ''
+      what: "a glow shadow with no offset and 4px or more of blur: light from nowhere, standing in for elevation", fix: "the elevation tokens (shadow-sm, shadow-lg); a glow is an effect, not elevation" }
   ]
 }
 

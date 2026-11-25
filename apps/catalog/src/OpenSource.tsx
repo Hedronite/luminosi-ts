@@ -82,7 +82,7 @@ export function OpenSource({ onBrowsePack, onOpenAsset }: { readonly onBrowsePac
         if (group.length === 0) return null;
         return (
           <section key={kind} aria-labelledby={`kind-${kind}`} className="mt-6">
-            <h3 id={`kind-${kind}`} className="text-sm font-semibold uppercase tracking-wide text-fg-muted">
+            <h3 id={`kind-${kind}`} className="text-sm font-semibold text-fg-muted">
               {kindTitles[kind]}
             </h3>
             <ul className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

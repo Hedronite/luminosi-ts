@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "skill": "lumin-ui",
+  "never": ["next/font", "preconnect", "generate_image", "cdn", "unpkg", "jsdelivr", "fonts.googleapis", "gsap", "mengto", "google", "gemini", "demolab"],
+  "about": "Eight fixed prompts, each with the answer this skill is expected to give, and the facts that answer needs. This is a guard on the skill's text, not a model-run eval: CI has no network and no model, so tools/lumin/src/skills.test.ts checks that every fact in `must` appears in SKILL.md or judgment.md (and that nothing in `never` does). It proves the skill carries each answer, not that a model would give it.",
+  "cases": [
+    {
+      "id": "capsule-chip",
+      "prompt": "A card has a little rounded border capsule that says New above its heading. Is that a finding?",
+      "answer": "Yes, a slop pattern: a capsule or bordered chip with no role and no interaction is decoration in the shape of a control. Delete it; a real status cell carries a role and comes from data.",
+      "must": ["slop pattern", "capsule", "role", "delete"]
+    },
+    {
+      "id": "heading-caps",
+      "prompt": "The section headings are set in small caps with wide tracking. What do you do?",
+      "answer": "Two findings: a heading set in capitals (shouted heading) and, if the tracked label sits above it, an eyebrow kicker. Use sentence case and let weight and size carry the hierarchy; delete the kicker.",
+      "must": ["shouted heading", "sentence case", "eyebrow"]
+    },
+    {
+      "id": "decorative-numbering",
+      "prompt": "The page numbers its sections 01, 02, 03 for style. Keep them?",
+      "answer": "No: decorative numbering is a slop pattern unless the sequence is real. Drop the numbers, or make the sequence an ordered list where the order means something.",
+      "must": ["decorative numbering", "ordered list", "meaning"]
+    },
+    {
+      "id": "one-primary-action",
+      "prompt": "A section has a primary button, a second primary button and a ghost link. Is that fine?",
+      "answer": "One primary action per section: the second primary is a finding. Make one action primary and the other a link or a different control; choices between modes are a segmented control or a select, not a row of buttons.",
+      "must": ["one primary action", "segmented", "select"]
+    },
+    {
+      "id": "palette",
+      "prompt": "The brief says artisanal, and the page came out cream with a rust accent. What do you say?",
+      "answer": "That is the reflex palette: cream with rust is what a brief about craft produces by default. Derive the palette from the subject's real materials and light — roast, forest, ink, marine, stone, silver, sunlit pastel, gallery light — and keep every colour in the look's tokens.",
+      "must": ["reflex", "materials", "tokens"]
+    },
+    {
+      "id": "type-discipline",
+      "prompt": "How many type families and body sizes may a page use?",
+      "answer": "At most two families, and at most three body sizes below the hero; the hero display size and the wordmark are the exceptions. Differentiate with weight, family and colour, and keep body prose at one scale.",
+      "must": ["two families", "three body sizes", "weight"]
+    },
+    {
+      "id": "evidence",
+      "prompt": "What does a finding look like when you report it?",
+      "answer": "A finding cites where it is (file:line, a viewport, a measured number), says whether it is a quality defect or a slop pattern, names the rule or the judgment it rests on, and gives the fix. Then the report gives the table, confirmed rows, coverage, anything not verified, and the verdict.",
+      "must": ["quality defect", "slop pattern", "coverage", "verdict"]
+    },
+    {
+      "id": "visual-pass",
+      "prompt": "The source scan came back clean. Can you call the UI done?",
+      "answer": "No: a source scan is not proof. Run the rendered pass over HTTP at desktop and 390 px, look at the opening viewport and below the fold, check the populated, empty and error states, and record what was not verified.",
+      "must": ["not proof", "390", "not verified"]
+    }
+  ]
+}

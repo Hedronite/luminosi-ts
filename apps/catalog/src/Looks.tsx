@@ -29,8 +29,8 @@ export function Looks({ current, onPick }: { readonly current: Preset; readonly 
       <p className="mt-1 max-w-prose text-sm text-fg-muted">A look is a set of interface and scene colors that passes WCAG contrast. Pick one to apply it to the whole catalog.</p>
       {presetsByCategory().map(({ category, presets: group }) => (
         <section key={category.id} aria-labelledby={`looks-${category.id}`} className="mt-6">
-          <h3 id={`looks-${category.id}`} className="text-sm font-semibold uppercase tracking-wide text-fg-muted">
-            {category.name} <span className="font-normal normal-case tracking-normal">· {String(group.length)}</span>
+          <h3 id={`looks-${category.id}`} className="text-sm font-semibold text-fg-muted">
+            {category.name} <span className="font-normal">· {String(group.length)}</span>
           </h3>
           <p className="mt-0.5 text-sm text-fg-muted">{category.description}</p>
           <ul className="mt-2 grid grid-cols-[repeat(auto-fill,minmax(14rem,1fr))] gap-3">
