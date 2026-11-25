@@ -11,17 +11,17 @@ const budgets: Budgets = {
   objects: { cube: { drawCalls: 2, triangles: 12 } },
   goldens: { images: { bytes: 5000, perImageBytes: 800 } },
 };
-const measured: Measured = { bundles: { entry: { gzipBytes: 900, files: [] } }, objects: { cube: { drawCalls: 2, triangles: 12 } }, goldens: { images: { bytes: 5000, perImageBytes: 800 } } };
+const measured: Measured = { bundles: { entry: { gzipBytes: 900, files: ["entry.js"] } }, objects: { cube: { drawCalls: 2, triangles: 12 } }, goldens: { images: { bytes: 5000, perImageBytes: 800 } } };
 
 describe("checkAgainst", () => {
   it("passes what is within its budget, to the byte", () => {
-    const { rows, problems } = checkAgainst(budgets, { ...measured, bundles: { entry: { gzipBytes: 1000, files: [] } } });
+    const { rows, problems } = checkAgainst(budgets, { ...measured, bundles: { entry: { gzipBytes: 1000, files: ["entry.js"] } } });
     expect(problems).toEqual([]);
     expect(rows.map((row) => [row.id, row.ok])).toEqual([["entry", true], ["cube", true], ["images", true]]);
   });
 
   it("names a number over its budget", () => {
-    const { rows, problems } = checkAgainst(budgets, { ...measured, bundles: { entry: { gzipBytes: 1001, files: [] } }, objects: { cube: { drawCalls: 3, triangles: 12 } } });
+    const { rows, problems } = checkAgainst(budgets, { ...measured, bundles: { entry: { gzipBytes: 1001, files: ["entry.js"] } }, objects: { cube: { drawCalls: 3, triangles: 12 } } });
     expect(problems).toEqual(["entry: gzipBytes 1001 > budget 1000", "cube: drawCalls 3 > budget 2"]);
     expect(rows.map((row) => row.ok)).toEqual([false, false, true]);
   });
@@ -39,6 +39,12 @@ describe("checkAgainst", () => {
   it("flags a budget with nothing measured", () => {
     const { problems } = checkAgainst(budgets, { ...measured, bundles: {} });
     expect(problems).toEqual(["entry: budgeted under bundles but not measured"]);
+  });
+
+  it("refuses a bundle that resolved to zero files", () => {
+    const { rows, problems } = checkAgainst(budgets, { ...measured, bundles: { entry: { gzipBytes: 0, files: [] } } });
+    expect(problems).toEqual(["entry: measured no files"]);
+    expect(rows.find((row) => row.id === "entry")?.ok).toBe(false);
   });
 });
 
@@ -109,7 +115,8 @@ describe("measureBundles", () => {
   // The panel: a lazy chunk with a static import of its own, and one of the gallery's (react), which stays the gallery's.
   write("apps/catalog/dist/assets/ParameterPanel-x1Y2.js", 'import{r}from"./react.js";import{f}from"./paramFit-q9.js";const late=()=>import(`./late.js`);export{r,f,late};');
   write("apps/catalog/dist/assets/paramFit-q9.js", "export const f = 'what the panel and the detail view both read';");
-  write("apps/catalog/dist/assets/Playground-a1B2.js", 'import{t}from"./three.js";import{r}from"./react.js";const credits=()=>import(`./credits-c3D4.js`);export{t,r,credits};');
+  write("apps/catalog/dist/assets/Playground-a1B2.js", 'import{t}from"./three.js";import{r}from"./react.js";const credits=()=>import(`./credits-c3D4.js`);const pgExtra=()=>import(`./pg-extra.js`);export{t,r,credits,pgExtra};');
+  write("apps/catalog/dist/assets/pg-extra.js", "export const extra = 'a lazy chunk reached only via Playground';");
   write("apps/catalog/dist/assets/credits-c3D4.js", 'import{r}from"./main.js";export const c = r;');
   write("apps/catalog/dist/assets/embed.js", "export const e = 1;");
   // Left in dist by an older build and reached by nothing.
@@ -136,7 +143,7 @@ describe("measureBundles", () => {
 
   it("takes the 3D set from everything the 3D entries reach, markers or not, and ignores files nothing reaches", () => {
     // The loader and the late chunk carry no marker, and are counted all the same. React is the gallery's: the shell is not counted.
-    expect(names("catalog-3d")).toEqual(["late.js", "loader.js", "prose-helper.js", "prose.js", "spec.js", "three.js", "view.js"]);
+    expect(names("catalog-3d")).toEqual(["late.js", "loader.js", "pg-extra.js", "prose-helper.js", "prose.js", "spec.js", "three.js", "view.js"]);
   });
 
   it("builds the shell from the gallery page alone: a chunk only the embed page preloads is counted when a 3D view reaches it", () => {
@@ -150,9 +157,41 @@ describe("measureBundles", () => {
     expect(names("catalog-export")).toEqual(["credits-c3D4.js"]);
   });
 
-  it("keeps lazy Playground and export chunks out of the core catalog-3d closure", () => {
+  it("keeps lazy Playground and export chunks out of the core catalog-3d closure, while counting lazy chunks reached through Playground", () => {
     expect(names("catalog-3d")).not.toContain("Playground-a1B2.js");
     expect(names("catalog-3d")).not.toContain("credits-c3D4.js");
+    expect(names("catalog-3d")).toContain("pg-extra.js");
+  });
+
+  it("fails checkAgainst when a budgeted chunk name is missing from dist", () => {
+    const renamed = mkdtempSync(join(tmpdir(), "lts-missing-chunk-"));
+    try {
+      const writeMissing = (path: string, text: string): void => {
+        mkdirSync(dirname(join(renamed, path)), { recursive: true });
+        writeFileSync(join(renamed, path), text);
+      };
+      writeMissing("apps/catalog/dist/index.html", page("/assets/main.js"));
+      writeMissing("apps/catalog/dist/embed.html", page("/assets/embed.js"));
+      writeMissing("apps/catalog/dist/element.html", page("/assets/element.js"));
+      writeMissing("apps/catalog/dist/assets/main.js", "export const m = 1;");
+      writeMissing("apps/catalog/dist/assets/embed.js", "export const e = 1;");
+      writeMissing("apps/catalog/dist/assets/element.js", "export const el = 1;");
+      writeMissing("apps/site/dist/index.html", page("/_astro/island.js"));
+      writeMissing("apps/site/dist/_astro/island.js", "export const i = 1;");
+      const broken = measureBundles(renamed);
+      const { problems } = checkAgainst(
+        {
+          models: {},
+          bundles: { "catalog-export": { gzipBytes: 2900 } },
+          objects: {},
+          goldens: {},
+        },
+        { bundles: { "catalog-export": broken["catalog-export"] ?? { gzipBytes: 0, files: [] } }, objects: {}, goldens: {} },
+      );
+      expect(problems).toEqual(['catalog-export: measured no files (chunk "credits" not found)']);
+    } finally {
+      rmSync(renamed, { recursive: true, force: true });
+    }
   });
 
   it("does not follow an import-looking string inside bundled text, and still follows a real import beside it", () => {

@@ -204,7 +204,7 @@ def text-rules [] {
       what: "gradient-filled text: a headline that trades legibility for decoration", fix: "a solid token color for the text; a gradient belongs in a surface behind it" }
     # Anchored to each shadow layer after splitting at top-level commas: a zero blur is a focus ring, `inset` (leading or trailing) is a
     # border drawn inside, and a 1px layer after an elevation shadow is a hairline. Evaluated multiline/tab-aware in `glow-shadow-findings`.
-    { id: "slop.glow-shadow", area: slop, severity: low, trigger: false, pattern: 'box-shadow\s*:(?:[^;}]*,\s*)?\s*(?i)0(?:px)?\s+0(?:px)?\s+(?:[4-9]|[1-9]\d+)(?:\.\d+)?px', unless: '', skip: ''
+    { id: "slop.glow-shadow", area: slop, severity: low, trigger: false, pattern: r#'(?:-(?:webkit|moz)-)?box-shadow\s*:(?:[^;}"']*,\s*)?\s*(?i)0(?:px)?\s+0(?:px)?\s+(?:[4-9]|[1-9]\d+)(?:\.\d+)?px'#, unless: '', skip: ''
       what: "a glow shadow with no offset and 4px or more of blur: light from nowhere, standing in for elevation", fix: "the elevation tokens (shadow-sm, shadow-lg); a glow is an effect, not elevation" }
   ]
 }
@@ -303,7 +303,7 @@ def is-glow-layer [layer: string] {
 # Scans a CSS/HTML/Astro document for multiline-capable `slop.glow-shadow` declarations, returning findings with 1-based start lines.
 def glow-shadow-findings [rule: record, file: string, body: string] {
   let normalized = ($body | str replace --regex --all '\r\n?' "\n")
-  let matches = ($normalized | parse --regex '(?s)(?P<before>.*?)(?P<sep>^|[\s{;])(?P<head>(?i:box-shadow)\s*:\s*)(?P<val>[^;}]+)')
+  let matches = ($normalized | parse --regex r#'(?s)(?P<before>.*?)(?P<sep>^|[^\w-])(?P<head>(?i:(?:-(?:webkit|moz)-)?box-shadow)\s*:\s*)(?P<val>[^;}"']+)'#)
   $matches | reduce --fold { line: 1, out: [] } {|m, acc|
     let start_line = ($acc.line + (($m.before + $m.sep) | split chars | where {|c| $c == "\n" } | length))
     let next_line = ($start_line + (($m.head + $m.val) | split chars | where {|c| $c == "\n" } | length))

@@ -261,6 +261,9 @@ describe.runIf(hasNu)("skills through Nushell", () => {
           `.glow-multiline {\n  box-shadow:\n    0 4px 12px var(--lts-shadow),\n    0 0 16px var(--lts-accent);\n}`,
           `.glow-inset-then-glow { box-shadow: 0 0 12px rgba(0, 0, 0, 0.2) inset, 0 0 18px var(--lts-accent); }`,
           `.glow-var-name { box-shadow: 0 0 12px var(--lts-inset); }`,
+          `.glow-webkit { -webkit-box-shadow: 0 0 12px var(--lts-shadow); }`,
+          `<div style="box-shadow: 0 0 12px var(--lts-shadow)"></div>`,
+          `<div style='box-shadow:0 0 12px var(--lts-shadow)'></div>`,
         ].join("\n"),
       );
       const glowQuiet = fixture(
@@ -280,7 +283,7 @@ describe.runIf(hasNu)("skills through Nushell", () => {
       );
       it("slop.glow-shadow fires on a real glow in any layer, case, or layout, and stays quiet on inset, focus rings, and hairlines", () => {
         const fired = rulesOf(runSkill("lumin-ui", ["scan", glowFires]).envelope.data).filter((rule) => rule === "slop.glow-shadow");
-        expect(fired).toHaveLength(9);
+        expect(fired).toHaveLength(12);
         const quiet = rulesOf(runSkill("lumin-ui", ["scan", glowQuiet]).envelope.data);
         expect(quiet).not.toContain("slop.glow-shadow");
       });

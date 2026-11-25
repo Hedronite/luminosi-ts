@@ -97,13 +97,13 @@ function pageScripts(dist: string, pages: readonly string[]): string[] {
 
 const chunkPattern = (names: readonly string[]): RegExp => new RegExp(`^(?:${names.join("|")})(-[\\w-]+)?\\.js$`);
 
-/** `starts` and every file they import statically, and dynamically too when `lazy`. Files in `skip` or matching `exclude` are neither counted nor followed. */
-function closure(starts: readonly string[], lazy: boolean, skip: ReadonlySet<string> = new Set(), exclude?: RegExp): Set<string> {
+/** `starts` and every file they import statically, and dynamically too when `lazy`. Files in `skip` are neither counted nor followed. */
+function closure(starts: readonly string[], lazy: boolean, skip: ReadonlySet<string> = new Set()): Set<string> {
   const seen = new Set<string>();
   // A specifier that names no file is skipped: the catalog bundles Markdown, whose code samples read like imports (`./harbour-water.js`
   // in a skill's example), and a size walk that followed those would fail on a file the build never made.
   const visit = (file: string): void => {
-    if (seen.has(file) || skip.has(file) || (exclude?.test(basename(file)) ?? false) || !existsSync(file)) return;
+    if (seen.has(file) || skip.has(file) || !existsSync(file)) return;
     seen.add(file);
     const source = readFileSync(file, "utf8");
     for (const pattern of lazy ? [staticImport, dynamicImport] : [staticImport]) for (const match of source.matchAll(pattern)) visit(resolve(dirname(file), match[1] ?? ""));
@@ -133,10 +133,11 @@ function reachThreeD(dist: string, pages: readonly string[], markers: readonly s
   const lazyTargets = new Set<string>();
   for (const file of shell) for (const match of readFileSync(file, "utf8").matchAll(dynamicImport)) lazyTargets.add(resolve(dirname(file), match[1] ?? ""));
   const entries = [
-    ...scripts.filter((script) => !shell.has(script) && !isExcluded(script) && carries(closure([script], false))),
-    ...[...lazyTargets].filter((target) => !isExcluded(target) && carries(closure([target], true, shell, excluded))),
+    ...scripts.filter((script) => !shell.has(script) && carries(closure([script], false))),
+    ...[...lazyTargets].filter((target) => carries(closure([target], true, shell))),
   ];
-  return [...closure(entries, true, shell, excluded)].sort();
+  // Exclude from counting, never from the walk: any lazy chunk reached only through an excluded route still counts in catalog-3d.
+  return [...closure(entries, true, shell)].filter((file) => !isExcluded(file)).sort();
 }
 
 /** A lazy chunk's set: the chunk reachable from the gallery's shell under `name` (`<name>-<hash>.js`) and what it imports statically, past the shell. */
@@ -181,9 +182,17 @@ export function checkAgainst(budgets: Budgets, measured: Measured): { readonly r
         problems.push(`${id}: no ${name} budget in assets/budgets.json`);
         continue;
       }
-      const checks = Object.entries(limit).map(([key, budget]): Check => ({ key, actual: actual[key] ?? Infinity, budget, ok: (actual[key] ?? Infinity) <= budget }));
-      for (const check of checks) if (!check.ok) problems.push(`${id}: ${check.key} ${String(check.actual)} > budget ${String(check.budget)}`);
-      rows.push({ family: name, id, ok: checks.every((check) => check.ok), checks });
+      const empty = name === "bundle" && (measured.bundles[id]?.files.length ?? 0) === 0;
+      if (empty) {
+        const chunk = bundles[id]?.chunk;
+        problems.push(chunk === undefined ? `${id}: measured no files` : `${id}: measured no files (chunk "${chunk}" not found)`);
+      }
+      const checks = Object.entries(limit).map(([key, budget]): Check => {
+        const value = actual[key] ?? Infinity;
+        return { key, actual: value, budget, ok: !empty && value <= budget };
+      });
+      for (const check of checks) if (check.actual > check.budget) problems.push(`${id}: ${check.key} ${String(check.actual)} > budget ${String(check.budget)}`);
+      rows.push({ family: name, id, ok: !empty && checks.every((check) => check.ok), checks });
     }
   };
   family("bundle", budgets.bundles, Object.fromEntries(Object.entries(measured.bundles).map(([id, size]) => [id, { gzipBytes: size.gzipBytes }])));
