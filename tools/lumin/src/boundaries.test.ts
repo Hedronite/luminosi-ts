@@ -60,8 +60,9 @@ const PACKAGE_SOURCE_EXT = /\.(?:[cm]?[jt]sx?)$/;
 const HEX_IN_STRING = /#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b/g;
 const COLOR_FN_IN_STRING = /\b(?:rgb|rgba|hsl|hsla)\s*\(/gi;
 const RAW_HEX_INT = /\b0[xX][0-9a-fA-F]{6}\b/g;
-const COLOR_SINK = /(?:new\s+Color|\.(?:set|setStyle))\(\s*["'`]([a-zA-Z]+)["'`]\s*\)|\b(?:fillStyle|strokeStyle)\s*=\s*["'`]([a-zA-Z]+)["'`]/g;
-const ARBITRARY_FUZZ_LINE = /^\s*const hex = fc\.integer\(\{\s*min:\s*0,\s*max:\s*0xffffff\s*\}\)/;
+const COLOR_SINK =
+  /(?:new\s+(?:[A-Za-z_$][\w$]*\.)?Color|\.(?:set|setStyle|setColorName))\(\s*["'`]([a-zA-Z]+)["'`]\s*(?:,\s*)?\)|(?:\b(?:fillStyle|strokeStyle|shadowColor)\s*=|\bcolor\s*:)\s*["'`]([a-zA-Z]+)["'`]/g;
+const ARBITRARY_FUZZ_LITERAL = /\bmax:\s*(0xffffff)\b/;
 
 // Standard CSS Color Level 4 keywords checked inside color sinks (not bare tags like "transparent").
 const CSS_NAMED_COLORS = new Set([
@@ -97,129 +98,253 @@ function packageSourceFiles(packagesRoot: string): string[] {
   };
   for (const pkg of readdirSync(packagesRoot)) {
     if (pkg === "tokens" || pkg === "icons") continue;
-    const src = join(packagesRoot, pkg, "src");
-    if (statSync(join(packagesRoot, pkg)).isDirectory() && readdirSync(join(packagesRoot, pkg)).includes("src") && statSync(src).isDirectory()) walk(src);
+    const full = join(packagesRoot, pkg);
+    if (statSync(full).isDirectory()) walk(full);
   }
   return out.sort();
 }
 
-interface ScannedLine {
-  readonly codeOnly: string;
-  readonly codeWithStrings: string;
-  readonly strings: readonly string[];
+interface StringSegment {
+  readonly offset: number;
+  readonly text: string;
 }
 
-/** Strips JS/TS comments line-for-line while separating string/template text segments from code. */
-function scanLines(source: string): readonly ScannedLine[] {
-  const lines = source.split("\n");
-  const result: ScannedLine[] = [];
-  let inBlockComment = false;
-  const templateBraces: number[] = [];
+interface LexedFile {
+  /** Exact `source.length` string with comments, regex literals, and string/template contents replaced by spaces (newlines preserved). */
+  readonly codeOnly: string;
+  /** Exact `source.length` string with comments and regex literals replaced by spaces (newlines and strings preserved). */
+  readonly codeWithStrings: string;
+  /** Every quoted string and static template text segment, with its starting character offset in `source`. */
+  readonly strings: readonly StringSegment[];
+  /** Maps any 0-based character offset in `source` to its 1-based line number. */
+  readonly lineOf: (offset: number) => number;
+}
 
-  for (const line of lines) {
-    let codeOnly = "";
-    let codeWithStrings = "";
-    const strings: string[] = [];
-    let i = 0;
+const REGEX_BEFORE = new Set(["=", "(", "[", "{", ",", ";", ":", "!", "&", "|", "?", "~", "+", "-", "*", "%", "^", "<", ">"]);
+const REGEX_KEYWORDS = new Set(["return", "throw", "case", "in", "of", "typeof", "void", "delete", "await", "yield", "else", "do"]);
 
-    const readQuoted = (quote: string): void => {
-      const start = i;
-      i += 1;
-      let text = "";
-      while (i < line.length) {
-        const ch = line[i] ?? "";
+/**
+ * Lexes an entire JS/TS/JSX/TSX file once, carrying template-literal and interpolation state across newlines
+ * while skipping comments and regex literals and keeping exact character offsets for line mapping.
+ */
+function lexFile(source: string, isTsx: boolean): LexedFile {
+  const lineStarts: number[] = [0];
+  for (let p = 0; p < source.length; p++) {
+    if (source[p] === "\n") lineStarts.push(p + 1);
+  }
+  const lineOf = (offset: number): number => {
+    let lo = 0;
+    let hi = lineStarts.length - 1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >>> 1;
+      if ((lineStarts[mid] ?? 0) <= offset) lo = mid + 1;
+      else hi = mid - 1;
+    }
+    return hi + 1;
+  };
+
+  const codeOnly: string[] = [];
+  const codeWithStrings: string[] = [];
+  const strings: StringSegment[] = [];
+  const pushBlank = (ch: string, intoStringsToo: boolean): void => {
+    const out = ch === "\n" ? "\n" : " ";
+    codeOnly.push(out);
+    codeWithStrings.push(intoStringsToo ? out : ch);
+  };
+
+  const findClosingQuoteOnLine = (quote: string, start: number): number => {
+    let k = start;
+    while (k < source.length) {
+      const ch = source[k] ?? "";
+      if (ch === "\n") return -1;
+      if (ch === "\\") {
+        k += 2;
+        continue;
+      }
+      if (ch === quote) return k;
+      k += 1;
+    }
+    return -1;
+  };
+
+  type Mode = { readonly kind: "code"; readonly templateDepth: number } | { readonly kind: "template" };
+  const stack: Mode[] = [{ kind: "code", templateDepth: 0 }];
+  let canStartRegex = true;
+  let ident = "";
+  let i = 0;
+
+  while (i < source.length) {
+    const top = stack[stack.length - 1] ?? { kind: "code", templateDepth: 0 };
+    if (top.kind === "template") {
+      const segStart = i;
+      let segText = "";
+      while (i < source.length) {
+        const ch = source[i] ?? "";
         if (ch === "\\") {
-          text += line.slice(i, i + 2);
+          const esc = source.slice(i, i + 2);
+          segText += esc;
+          for (const c of esc) pushBlank(c, false);
           i += 2;
           continue;
         }
-        if (ch === quote) {
+        if (ch === "`") {
+          if (segText !== "") strings.push({ offset: segStart, text: segText });
+          codeOnly.push("`");
+          codeWithStrings.push("`");
+          i += 1;
+          stack.pop();
+          canStartRegex = false;
+          ident = "";
+          break;
+        }
+        if (ch === "$" && source[i + 1] === "{") {
+          if (segText !== "") strings.push({ offset: segStart, text: segText });
+          codeOnly.push("$", "{");
+          codeWithStrings.push("$", "{");
+          i += 2;
+          stack.push({ kind: "code", templateDepth: 1 });
+          canStartRegex = true;
+          ident = "";
+          break;
+        }
+        segText += ch;
+        pushBlank(ch, false);
+        i += 1;
+      }
+      if (i >= source.length && segText !== "" && source[i - 1] !== "`") strings.push({ offset: segStart, text: segText });
+      continue;
+    }
+
+    const ch = source[i] ?? "";
+    const next = source[i + 1] ?? "";
+
+    // Line comment
+    if (ch === "/" && next === "/") {
+      ident = "";
+      while (i < source.length && source[i] !== "\n") {
+        pushBlank(source[i] ?? " ", true);
+        i += 1;
+      }
+      continue;
+    }
+    // Block comment
+    if (ch === "/" && next === "*") {
+      ident = "";
+      pushBlank("/", true);
+      pushBlank("*", true);
+      i += 2;
+      while (i < source.length) {
+        const c = source[i] ?? "";
+        const n = source[i + 1] ?? "";
+        pushBlank(c, true);
+        i += 1;
+        if (c === "*" && n === "/") {
+          pushBlank("/", true);
           i += 1;
           break;
         }
-        if (quote === "`" && ch === "$" && line[i + 1] === "{") {
-          strings.push(text);
-          codeOnly += `${quote}${quote}`;
-          codeWithStrings += line.slice(start, i + 2);
+      }
+      continue;
+    }
+    // Regex literal (when `/` cannot be division)
+    if (ch === "/" && canStartRegex) {
+      ident = "";
+      pushBlank("/", true);
+      i += 1;
+      let inClass = false;
+      while (i < source.length) {
+        const c = source[i] ?? "";
+        if (c === "\n") break;
+        if (c === "\\") {
+          pushBlank(c, true);
+          if (i + 1 < source.length) pushBlank(source[i + 1] ?? " ", true);
           i += 2;
-          templateBraces.push(1);
-          return;
+          continue;
         }
-        text += ch;
+        if (c === "[") inClass = true;
+        else if (c === "]" && inClass) inClass = false;
+        else if (c === "/" && !inClass) {
+          pushBlank("/", true);
+          i += 1;
+          while (i < source.length && /[a-z]/i.test(source[i] ?? "")) {
+            pushBlank(source[i] ?? " ", true);
+            i += 1;
+          }
+          break;
+        }
+        pushBlank(c, true);
         i += 1;
       }
-      strings.push(text);
-      codeOnly += `${quote}${quote}`;
-      codeWithStrings += line.slice(start, i);
-    };
-
-    while (i < line.length) {
-      if (inBlockComment) {
-        const end = line.indexOf("*/", i);
-        if (end === -1) break;
-        inBlockComment = false;
-        i = end + 2;
-        continue;
-      }
-      const ch = line[i] ?? "";
-      const next = line[i + 1] ?? "";
-      if (ch === "/" && next === "/") break;
-      if (ch === "/" && next === "*") {
-        inBlockComment = true;
-        i += 2;
-        continue;
-      }
-      if (ch === "'" || ch === '"' || ch === "`") {
-        readQuoted(ch);
-        continue;
-      }
-      if (templateBraces.length > 0) {
-        if (ch === "{") templateBraces[templateBraces.length - 1] = (templateBraces[templateBraces.length - 1] ?? 0) + 1;
-        else if (ch === "}") {
-          const depth = (templateBraces[templateBraces.length - 1] ?? 1) - 1;
-          if (depth === 0) {
-            templateBraces.pop();
-            codeWithStrings += "}";
-            i += 1;
-            // Resume static template text after `${...}`.
-            let text = "";
-            const segStart = i;
-            while (i < line.length) {
-              const tc = line[i] ?? "";
-              if (tc === "\\") {
-                text += line.slice(i, i + 2);
-                i += 2;
-                continue;
-              }
-              if (tc === "`") {
-                i += 1;
-                break;
-              }
-              if (tc === "$" && line[i + 1] === "{") {
-                strings.push(text);
-                codeWithStrings += line.slice(segStart, i + 2);
-                i += 2;
-                templateBraces.push(1);
-                text = "";
-                break;
-              }
-              text += tc;
-              i += 1;
-            }
-            if (text !== "") strings.push(text);
-            if (line[i - 1] === "`") codeWithStrings += line.slice(segStart, i);
-            continue;
-          }
-          templateBraces[templateBraces.length - 1] = depth;
-        }
-      }
-      codeOnly += ch;
-      codeWithStrings += ch;
-      i += 1;
+      canStartRegex = false;
+      continue;
     }
-    result.push({ codeOnly, codeWithStrings, strings });
+    // Single or double quoted string (ignore contractions / unmatched apostrophes such as JSX text `Don't`)
+    if (ch === "'" || ch === '"') {
+      const prevChar = i > 0 ? (source[i - 1] ?? "") : "";
+      const isContraction = isTsx && ch === "'" && /[a-zA-Z]/.test(prevChar) && /[a-zA-Z]/.test(next);
+      const end = isContraction ? -1 : findClosingQuoteOnLine(ch, i + 1);
+      if (end !== -1) {
+        ident = "";
+        codeOnly.push(ch);
+        codeWithStrings.push(ch);
+        i += 1;
+        const segStart = i;
+        const text = source.slice(segStart, end);
+        if (text !== "") strings.push({ offset: segStart, text });
+        for (let k = segStart; k < end; k++) pushBlank(source[k] ?? " ", false);
+        codeOnly.push(ch);
+        codeWithStrings.push(ch);
+        i = end + 1;
+        canStartRegex = false;
+        continue;
+      }
+    }
+    // Template literal opening
+    if (ch === "`") {
+      ident = "";
+      codeOnly.push("`");
+      codeWithStrings.push("`");
+      i += 1;
+      stack.push({ kind: "template" });
+      continue;
+    }
+
+    // Track template `${...}` brace depth
+    if (stack.length > 1) {
+      if (ch === "{") {
+        stack[stack.length - 1] = { kind: "code", templateDepth: top.templateDepth + 1 };
+      } else if (ch === "}") {
+        if (top.templateDepth === 1) {
+          codeOnly.push("}");
+          codeWithStrings.push("}");
+          i += 1;
+          stack.pop();
+          ident = "";
+          continue;
+        }
+        stack[stack.length - 1] = { kind: "code", templateDepth: top.templateDepth - 1 };
+      }
+    }
+
+    if (/[A-Za-z_$0-9]/.test(ch)) {
+      ident += ch;
+      canStartRegex = false;
+    } else {
+      if (ident !== "") {
+        canStartRegex = REGEX_KEYWORDS.has(ident);
+        ident = "";
+      }
+      if (REGEX_BEFORE.has(ch)) canStartRegex = true;
+      else if (ch === ")" || ch === "]") canStartRegex = false;
+      else if (ch === "}" && stack.length === 1) canStartRegex = true;
+    }
+
+    codeOnly.push(ch);
+    codeWithStrings.push(ch);
+    i += 1;
   }
-  return result;
+
+  return { codeOnly: codeOnly.join(""), codeWithStrings: codeWithStrings.join(""), strings, lineOf };
 }
 
 /** Returns `"file:line: match"` hits for raw color literals (hex, rgb/hsl, named Color sinks, `0x`/`0X`) in non-token/non-icon package source. */
@@ -227,24 +352,37 @@ export function findRawColorLiterals(packagesRoot: string): string[] {
   const hits: string[] = [];
   for (const file of packageSourceFiles(packagesRoot)) {
     const rel = file.slice(packagesRoot.length + 1);
-    const rawLines = readFileSync(file, "utf8").split("\n");
-    const scanned = scanLines(rawLines.join("\n"));
-    for (const [index, entry] of scanned.entries()) {
-      const lineNo = String(index + 1);
-      for (const str of entry.strings) {
-        for (const match of str.matchAll(HEX_IN_STRING)) hits.push(`${rel}:${lineNo}: ${match[0]}`);
-        for (const match of str.matchAll(COLOR_FN_IN_STRING)) hits.push(`${rel}:${lineNo}: ${match[0]}`);
+    const source = readFileSync(file, "utf8");
+    const lexed = lexFile(source, file.endsWith(".tsx"));
+    const fileHits: { readonly at: number; readonly text: string }[] = [];
+    for (const seg of lexed.strings) {
+      for (const match of seg.text.matchAll(HEX_IN_STRING)) {
+        const at = seg.offset + match.index;
+        fileHits.push({ at, text: `${rel}:${String(lexed.lineOf(at))}: ${match[0]}` });
       }
-      for (const match of entry.codeWithStrings.matchAll(COLOR_SINK)) {
-        const name = (match[1] ?? match[2] ?? "").toLowerCase();
-        if (CSS_NAMED_COLORS.has(name)) hits.push(`${rel}:${lineNo}: ${match[0]}`);
-      }
-      // Only the arbitrary fuzz range generator `max: 0xffffff` is non-color; any other 0x color in arbitrary.ts trips.
-      const rawLine = rawLines[index] ?? "";
-      if (!(rel === "scene/src/arbitrary.ts" && ARBITRARY_FUZZ_LINE.test(rawLine))) {
-        for (const match of entry.codeOnly.matchAll(RAW_HEX_INT)) hits.push(`${rel}:${lineNo}: ${match[0]}`);
+      for (const match of seg.text.matchAll(COLOR_FN_IN_STRING)) {
+        const at = seg.offset + match.index;
+        fileHits.push({ at, text: `${rel}:${String(lexed.lineOf(at))}: ${match[0]}` });
       }
     }
+    for (const match of lexed.codeWithStrings.matchAll(COLOR_SINK)) {
+      const name = (match[1] ?? match[2] ?? "").toLowerCase();
+      if (CSS_NAMED_COLORS.has(name)) {
+        fileHits.push({ at: match.index, text: `${rel}:${String(lexed.lineOf(match.index))}: ${match[0]}` });
+      }
+    }
+    // Allow ONLY the exact `0xffffff` token inside `max: 0xffffff` of `scene/src/arbitrary.ts`; any other 0x color there trips.
+    let allowedStart: number | undefined;
+    if (rel === "scene/src/arbitrary.ts") {
+      const m = ARBITRARY_FUZZ_LITERAL.exec(lexed.codeOnly);
+      if (m !== null) allowedStart = m.index + m[0].indexOf("0xffffff");
+    }
+    for (const match of lexed.codeOnly.matchAll(RAW_HEX_INT)) {
+      if (allowedStart !== undefined && match.index === allowedStart) continue;
+      fileHits.push({ at: match.index, text: `${rel}:${String(lexed.lineOf(match.index))}: ${match[0]}` });
+    }
+    fileHits.sort((a, b) => a.at - b.at);
+    for (const hit of fileHits) hits.push(hit.text);
   }
   return hits;
 }
@@ -254,9 +392,10 @@ describe("raw color literal tripwire", () => {
     expect(findRawColorLiterals(join(root, "packages"))).toEqual([]);
   });
 
-  it("trips red on embedded hex, rgb/hsl, named Color sinks, uppercase 0X, .js/.mts files, and arbitrary.ts non-max 0x while staying quiet on comments/tags/non-color ints", () => {
+  it("trips red on multi-line templates, namespaced/multiline Color sinks, 0X, non-src files, and arbitrary.ts while staying quiet on comments/tags/non-color ints", () => {
     const tree = join(scratch, "raw-color-plant");
     mkdirSync(join(tree, "packages/sample/src"), { recursive: true });
+    mkdirSync(join(tree, "packages/sample/scripts"), { recursive: true });
     mkdirSync(join(tree, "packages/scene/src"), { recursive: true });
     mkdirSync(join(tree, "packages/tokens/src"), { recursive: true });
     writeFileSync(join(tree, "packages/tokens/src/presets.ts"), 'export const c = "#ff0000";\n');
@@ -275,23 +414,39 @@ describe("raw color literal tripwire", () => {
         'export const badRgb = "rgb(255, 0, 0)";',
         'export const badHsl = "hsl(0 100% 50%)";',
         'export const badColor = new Color("red");',
+        'export const badNsColor = new THREE.Color("red");',
+        'export const badSetName = new Color().setColorName("crimson");',
+        'export const badMat = new MeshBasicMaterial({ color: "red" });',
+        'export const cleanMat = { color: "base" };',
         'color.set("blue");',
         'color.setStyle("green");',
         'ctx.fillStyle = "rebeccapurple";',
         'ctx.strokeStyle = "coral";',
+        'ctx.shadowColor = "red";',
+        'export const badMultiline = new Color(',
+        '  "red",',
+        ');',
         'export const badUpper = 0XFF0000;',
+        'export const regexBefore = /"/; export const afterRegex = 0xff0000;',
+        'export const STYLE = `:host {',
+        '  border: 1px solid #ff0000;',
+        '  color: rgb(255, 0, 0);',
+        '  background: #000;`; export const afterTpl = 0xff0000;',
       ].join("\n") + "\n",
     );
+    writeFileSync(join(tree, "packages/sample/src/jsx.tsx"), "export const View = () => <p>Don't {0xff0000}</p>;\n");
     writeFileSync(join(tree, "packages/sample/src/b.js"), 'export const jsHex = "#ff0000";\n');
     writeFileSync(join(tree, "packages/sample/src/c.mts"), 'export const mtsInt = 0x112233;\n');
+    writeFileSync(join(tree, "packages/sample/scripts/zz.ts"), 'export const rootHex = "#ff0000";\n');
     writeFileSync(
       join(tree, "packages/scene/src/arbitrary.ts"),
       [
-        'const hex = fc.integer({ min: 0, max: 0xffffff }).map((n) => n);',
+        'const hex = fc.integer({ min: 0, max: 0xffffff }).map((n) => n); const sameLinePlant = 0xff0000;',
         'export const planted = 0xff0000;',
       ].join("\n") + "\n",
     );
     expect(findRawColorLiterals(join(tree, "packages"))).toEqual([
+      "sample/scripts/zz.ts:1: #ff0000",
       "sample/src/a.ts:6: #ff0000",
       "sample/src/a.ts:7: #ff0000",
       "sample/src/a.ts:8: #fff",
@@ -299,13 +454,25 @@ describe("raw color literal tripwire", () => {
       "sample/src/a.ts:10: rgb(",
       "sample/src/a.ts:11: hsl(",
       'sample/src/a.ts:12: new Color("red")',
-      'sample/src/a.ts:13: .set("blue")',
-      'sample/src/a.ts:14: .setStyle("green")',
-      'sample/src/a.ts:15: fillStyle = "rebeccapurple"',
-      'sample/src/a.ts:16: strokeStyle = "coral"',
-      "sample/src/a.ts:17: 0XFF0000",
+      'sample/src/a.ts:13: new THREE.Color("red")',
+      'sample/src/a.ts:14: .setColorName("crimson")',
+      'sample/src/a.ts:15: color: "red"',
+      'sample/src/a.ts:17: .set("blue")',
+      'sample/src/a.ts:18: .setStyle("green")',
+      'sample/src/a.ts:19: fillStyle = "rebeccapurple"',
+      'sample/src/a.ts:20: strokeStyle = "coral"',
+      'sample/src/a.ts:21: shadowColor = "red"',
+      'sample/src/a.ts:22: new Color(\n  "red",\n)',
+      "sample/src/a.ts:25: 0XFF0000",
+      "sample/src/a.ts:26: 0xff0000",
+      "sample/src/a.ts:28: #ff0000",
+      "sample/src/a.ts:29: rgb(",
+      "sample/src/a.ts:30: #000",
+      "sample/src/a.ts:30: 0xff0000",
       "sample/src/b.js:1: #ff0000",
       "sample/src/c.mts:1: 0x112233",
+      "sample/src/jsx.tsx:1: 0xff0000",
+      "scene/src/arbitrary.ts:1: 0xff0000",
       "scene/src/arbitrary.ts:2: 0xff0000",
     ]);
   });
