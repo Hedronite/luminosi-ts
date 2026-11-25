@@ -18,7 +18,10 @@ const node = (id: string, over: Partial<SceneNode> = {}): SceneNode => ({
 
 const document = (nodes: SceneNode[]): SceneDocument => ({
   format: "lts-scene",
-  version: 1,
+  version: 2,
+  tracks: [],
+  clips: [],
+  rest: {},
   look: "neutral",
   seed: 1,
   nodes,

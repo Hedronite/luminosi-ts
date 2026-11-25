@@ -3,6 +3,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
+import { parseScene } from "@hedronite/lts-scene";
 import { root } from "./commands.js";
 
 const canon = join(root, ".agents/skills");
@@ -97,12 +98,25 @@ describe("lumin-motion", () => {
     expect(credit).toContain("MIT");
   });
 
-  it("is a skill a person can follow before the schema that lands later", () => {
-    // The track document is G4: the skill says so and names the step each piece arrives in, so no answer reads as if it shipped already.
-    expect(body).toContain("g4");
+  it("parses every JSON example in the skill and its references with the v2 parser", () => {
+    // R4: the skill shows documents, and a document it shows is one the package reads. Every fenced JSON block in SKILL.md and in the
+    // references is handed to `parseScene` exactly as written.
+    const references = join(dir, "references");
+    const blocks = [read("SKILL.md"), ...files(references).filter((file) => file.endsWith(".md")).map((file) => readFileSync(file, "utf8"))]
+      .flatMap((text) => [...text.matchAll(/```json\n([\s\S]*?)```/g)].map((match) => match[1] ?? ""));
+    expect(blocks.length).toBeGreaterThan(0);
+    for (const block of blocks) {
+      const parsed = parseScene(block);
+      expect(parsed.ok ? [] : parsed.issues).toEqual([]);
+      expect(parsed.ok ? parsed.scene.version : 0).toBe(2);
+    }
+  });
+
+  it("says which pieces have landed and which have not", () => {
+    // The document is shipped; the runtime, the triggers and the emission are not, and an answer must not read as if they were.
+    expect(body).toContain("shipped");
     expect(body).toContain("g5");
     expect(body).toContain("g6");
-    expect(body).toContain("not in the schema yet");
   });
 });
 

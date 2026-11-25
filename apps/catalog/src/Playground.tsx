@@ -89,7 +89,10 @@ function arranged(nodes: readonly SceneNode[]): SceneNode[] {
 
 const starter: SceneDocument = {
   format: "lts-scene",
-  version: 1,
+  version: 2,
+  tracks: [],
+  clips: [],
+  rest: {},
   look: "neutral",
   seed: 0,
   nodes: arranged([

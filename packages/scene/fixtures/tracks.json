@@ -1,0 +1,118 @@
+{
+  "format": "lts-scene",
+  "version": 2,
+  "look": "neutral",
+  "seed": 7,
+  "nodes": [
+    {
+      "id": "hero-title",
+      "parent": null,
+      "position": [0, 2.4, 0],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "asset": {
+        "kind": "primitive",
+        "id": "platonic-cube"
+      }
+    },
+    {
+      "id": "marked",
+      "parent": null,
+      "position": [0, 0, 0],
+      "rotation": [0, 0, 0],
+      "scale": [0.5, 0.5, 0.5],
+      "asset": {
+        "kind": "primitive",
+        "id": "platonic-icosahedron"
+      }
+    }
+  ],
+  "lights": {
+    "rig": "studio",
+    "intensity": 1
+  },
+  "environment": {
+    "kind": "studio"
+  },
+  "camera": {
+    "target": [0, 0, 0],
+    "position": [0, 1, 6],
+    "fov": 35
+  },
+  "effects": [],
+  "ink": "look",
+  "tracks": [
+    {
+      "id": "hero-rise",
+      "target": "node.hero-title.position",
+      "keyframes": [
+        {
+          "time": 0,
+          "value": [0, 2, 0],
+          "easing": "enter"
+        },
+        {
+          "time": 0.8,
+          "value": [0, 0, 0],
+          "easing": "settle"
+        }
+      ],
+      "driver": "time",
+      "trigger": "load"
+    },
+    {
+      "id": "orbit",
+      "target": "node.marked.rotation",
+      "keyframes": [
+        {
+          "time": 0,
+          "value": [0, 0, 0]
+        },
+        {
+          "time": 4,
+          "value": [0, 6.283, 0]
+        }
+      ],
+      "driver": "scroll",
+      "trigger": "scroll-scrub"
+    },
+    {
+      "id": "lens",
+      "target": "camera.fov",
+      "keyframes": [
+        {
+          "time": 0,
+          "value": 35
+        },
+        {
+          "time": 1,
+          "value": 28,
+          "easing": "settle"
+        }
+      ],
+      "driver": "time",
+      "trigger": "in-view"
+    }
+  ],
+  "clips": [
+    {
+      "tracks": [
+        "hero-rise",
+        "lens"
+      ],
+      "id": "hero",
+      "easing": "standard"
+    },
+    {
+      "tracks": [
+        "orbit"
+      ],
+      "id": "chapter"
+    }
+  ],
+  "rest": {
+    "camera.fov": 35,
+    "node.hero-title.position": [0, 0, 0],
+    "node.marked.rotation": [0, 0, 0]
+  }
+}

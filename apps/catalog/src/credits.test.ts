@@ -6,7 +6,10 @@ import { creditsOf } from "./credits";
 
 const scene = (change: Partial<Scene>): Scene => ({
   format: "lts-scene",
-  version: 1,
+  version: 2,
+  tracks: [],
+  clips: [],
+  rest: {},
   look: "neutral",
   seed: 0,
   nodes: [{ id: "node-1", parent: null, position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1], asset: { kind: "primitive", id: "platonic-cube" }, surface: { material: "satin" } }],

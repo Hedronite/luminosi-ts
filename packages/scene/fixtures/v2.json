@@ -1,0 +1,102 @@
+{
+  "format": "lts-scene",
+  "version": 2,
+  "look": "neutral",
+  "seed": 0,
+  "nodes": [
+    {
+      "id": "node-1",
+      "parent": null,
+      "position": [6.250480737842606e-17, 0, -1.020780970022448],
+      "rotation": [0.3, 0.5, 0],
+      "scale": [0.5, 0.5, 0.5],
+      "asset": {
+        "kind": "primitive",
+        "id": "platonic-cube"
+      },
+      "surface": {
+        "material": "metal"
+      }
+    },
+    {
+      "id": "node-2",
+      "parent": null,
+      "position": [0.9708203932499369, 0, -0.3154386672714801],
+      "rotation": [0.3, 0.5, 0],
+      "scale": [0.5, 0.5, 0.5],
+      "asset": {
+        "kind": "primitive",
+        "id": "platonic-octahedron"
+      },
+      "surface": {
+        "shader": "toon"
+      }
+    },
+    {
+      "id": "node-3",
+      "parent": null,
+      "position": [0.6, 0, 0.8258291522827041],
+      "rotation": [0.3, 0.5, 0],
+      "scale": [0.5, 0.5, 0.5],
+      "asset": {
+        "kind": "framed",
+        "id": "archimedean-cuboctahedron",
+        "edges": {
+          "material": "metal"
+        }
+      },
+      "surface": {
+        "material": "glass"
+      }
+    },
+    {
+      "id": "node-4",
+      "parent": null,
+      "position": [-0.5999999999999999, 0, 0.8258291522827041],
+      "rotation": [0.3, 0.5, 0],
+      "scale": [0.6, 0.6, 0.6],
+      "asset": {
+        "kind": "object",
+        "id": "crystal-cluster",
+        "params": {
+          "material": "glass"
+        }
+      }
+    },
+    {
+      "id": "node-5",
+      "parent": null,
+      "position": [-0.970820393249937, 0, -0.31543866727148],
+      "rotation": [0.3, 0.5, 0],
+      "scale": [0.6, 0.6, 0.6],
+      "asset": {
+        "kind": "object",
+        "id": "your-desk-lamp"
+      }
+    }
+  ],
+  "lights": {
+    "rig": "studio",
+    "intensity": 1.2
+  },
+  "environment": {
+    "kind": "studio"
+  },
+  "camera": {
+    "target": [0, 0, 0],
+    "position": [0, 2.2, 5.5],
+    "fov": 40
+  },
+  "effects": [
+    {
+      "id": "dither"
+    },
+    {
+      "id": "grain"
+    }
+  ],
+  "ink": "accent",
+  "tracks": [],
+  "clips": [],
+  "rest": {}
+}

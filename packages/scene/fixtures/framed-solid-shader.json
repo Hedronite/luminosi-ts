@@ -1,6 +1,6 @@
 {
   "format": "lts-scene",
-  "version": 1,
+  "version": 2,
   "look": "neutral",
   "seed": 0,
   "nodes": [
@@ -33,10 +33,13 @@
     "kind": "studio"
   },
   "camera": {
-    "position": [0, 0, 3.4],
     "target": [0, 0, 0],
+    "position": [0, 0, 3.4],
     "fov": 35
   },
   "effects": [],
-  "ink": "look"
+  "ink": "look",
+  "tracks": [],
+  "clips": [],
+  "rest": {}
 }

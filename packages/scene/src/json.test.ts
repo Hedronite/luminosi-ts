@@ -24,7 +24,7 @@ describe("toCanonicalJson", () => {
 
   it("starts with the format's own keys, in their order, and ends with a newline", () => {
     const text = toCanonicalJson(fixtureScene("v1"));
-    expect(text.startsWith('{\n  "format": "lts-scene",\n  "version": 1,\n  "look": "neutral",\n  "seed": 0,\n  "nodes": [\n')).toBe(true);
+    expect(text.startsWith('{\n  "format": "lts-scene",\n  "version": 2,\n  "look": "neutral",\n  "seed": 0,\n  "nodes": [\n')).toBe(true);
     expect(text.endsWith("}\n")).toBe(true);
   });
 
