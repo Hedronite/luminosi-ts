@@ -19,6 +19,12 @@ export interface SceneProps {
    */
   readonly reducedMotion?: boolean;
   /**
+   * Paused by the stage's own controls: draw on demand, and step the document's tracks not at all (R9). Default: false. A change
+   * of this does not build the scene again — it only stops the tracks where they are, and a redraw for a pointer or an orbit
+   * draws the pose they hold.
+   */
+  readonly paused?: boolean;
+  /**
    * Told the root of what the scene built (and told `undefined` when it is freed). With a WebGPU renderer the scene draws its own
    * graph, which is no part of the canvas's, so this is how a caller reads it (to count what it built, say).
    */
@@ -46,7 +52,7 @@ const isWebGPURenderer = (gl: unknown): gl is WebGPURenderer => typeof gl === "o
  * makes the document's camera the canvas's. On another renderer it adds the nodes and lights to the canvas's scene and
  * leaves the environment, the effects and any surface shader (which need WebGPU) out. Frees everything it built on unmount.
  */
-export function Scene({ doc, palette, reducedMotion, onRoot, onEffectTargets }: SceneProps) {
+export function Scene({ doc, palette, reducedMotion, paused = false, onRoot, onEffectTargets }: SceneProps) {
   const gl: unknown = useThree((state) => state.gl);
   const renderer = isWebGPURenderer(gl) ? gl : undefined;
   const invalidate = useThree((state) => state.invalidate);
@@ -55,6 +61,8 @@ export function Scene({ doc, palette, reducedMotion, onRoot, onEffectTargets }: 
   const clock = useContext(EffectClockContext);
   const preferred = useReducedMotion();
   const still = reducedMotion ?? preferred;
+  /** Held: the picture stands. A paused stage draws on demand and steps nothing, so a redraw shows the pose the tracks hold. */
+  const held = still || paused;
   const motionPointer = useRef<MotionPointer>({ hovered: false });
 
   // The state says "there is a scene now" (and draws it); the ref is the live one, which the effects below read, so that none
@@ -165,9 +173,10 @@ export function Scene({ doc, palette, reducedMotion, onRoot, onEffectTargets }: 
   useFrame((_, delta) => {
     // A long gap (a hidden tab, a paused stage) is one short step, not a jump through the intro and the sweep.
     const step = Math.min(delta, 0.1);
-    // The document own tracks, stepped by the render loop clock rather than the wall clock; held for a stage that asked for reduced motion.
+    // The document own tracks, stepped by the render loop clock rather than the wall clock; held for a stage that asked for reduced
+    // motion and for one paused by its own controls, so a redraw drawn on demand steps nothing.
     // The pointer and the hover come from the same listeners that feed the lens, in the tracks' own -1-to-1 reading.
-    if (!still) {
+    if (!held) {
       const where = motionPointer.current;
       live.current?.advance(step, { inView: true, ...(where.pointer === undefined ? {} : { pointer: where.pointer }), hovered: where.hovered });
     }
