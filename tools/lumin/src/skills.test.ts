@@ -23,6 +23,14 @@ describe("skill copies", () => {
   });
 });
 
+/** A rule row's id, as `rules` lists it. */
+const ruleIds = (data: unknown): readonly string[] =>
+  Array.isArray(data)
+    ? data
+        .map((row: unknown) => (typeof row === "object" && row !== null && "id" in row && typeof row.id === "string" ? row.id : ""))
+        .filter((id) => id !== "")
+    : [];
+
 const nu = spawnSync("nu", ["--version"], { encoding: "utf8" });
 const hasNu = nu.status === 0;
 if (!hasNu && process.env["LUMIN_REQUIRE_NU"] === "1") throw new Error("LUMIN_REQUIRE_NU=1 but `nu` is not on PATH");
@@ -41,6 +49,26 @@ const runSkill = (skill: string, args: readonly string[]): Run => {
   const envelope = isEnvelope(parsed) ? parsed : { ok: false, command: "" };
   return { code: result.status, envelope };
 };
+
+interface Eval {
+  readonly id: string;
+  readonly prompt: string;
+  readonly answer: string;
+  readonly must: readonly string[];
+}
+
+const isEval = (value: unknown): value is Eval =>
+  typeof value === "object" &&
+  value !== null &&
+  "id" in value &&
+  typeof value.id === "string" &&
+  "prompt" in value &&
+  typeof value.prompt === "string" &&
+  "answer" in value &&
+  typeof value.answer === "string" &&
+  "must" in value &&
+  Array.isArray(value.must) &&
+  value.must.every((fact: unknown) => typeof fact === "string");
 
 describe.runIf(hasNu)("skills through Nushell", () => {
   it("lumin search returns ranked rows and exits 0", () => {
@@ -105,6 +133,86 @@ describe.runIf(hasNu)("skills through Nushell", () => {
       expect(code).toBe(0);
       expect(JSON.stringify(envelope.data)).toContain('"id":"a11y.pointer-only"');
       expect(JSON.stringify(envelope.data)).not.toContain('"area":"copy"');
+    });
+
+    describe("slop", () => {
+      const SLOP = [
+        "slop.decorative-chip",
+        "slop.fake-cue",
+        "slop.decorative-numbering",
+        "slop.shouted-heading",
+        "slop.gradient-text",
+        "slop.glow-shadow",
+      ];
+      // One fixture per direction: the pattern, and the same content said without it.
+      const fired = fixture(
+        "SlopFires.tsx",
+        `export const Slop = () => (
+  <section>
+    <h2 className="uppercase">What we do</h2>
+    <h3>01 — Approach</h3>
+    <span className="rounded-full border px-2 py-0.5 text-xs">New in beta</span>
+    <span>LIVE</span>
+  </section>
+);`,
+      );
+      const firedCss = fixture("slop-fires.css", `.headline { background-clip: text; }\n.card { box-shadow: 0 0 24px rgb(0 0 0 / 0.4); }\n`);
+      const clean = fixture(
+        "SlopClean.tsx",
+        `export const Clean = ({ label }: { label: string }) => (
+  <section>
+    <h2>What we do</h2>
+    <p>We build tools that stay out of the way.</p>
+    <button type="button" className="rounded-full bg-accent px-3 py-1.5 text-on-accent">{label}</button>
+    <span role="status" className="rounded-full bg-surface-raised px-2">3 new</span>
+    <a href="/live">Watch the stream</a>
+  </section>
+);`,
+      );
+      const cleanCss = fixture("slop-clean.css", `.line { color: var(--lts-fg); }\n.card { box-shadow: var(--lts-shadow); }\n`);
+      const scans = (paths: readonly string[]): readonly string[] => rulesOf(runSkill("lumin-ui", ["scan", ...paths]).envelope.data);
+      const firedIds = scans([fired, firedCss]);
+      const cleanIds = scans([clean, cleanCss]);
+      it.each(SLOP)("%s fires on the pattern it names", (id) => {
+        expect(firedIds).toContain(id);
+      });
+      it.each(SLOP)("%s stays quiet on the same content without the pattern", (id) => {
+        expect(cleanIds).not.toContain(id);
+      });
+      it("lists the whole area in the rule table, and only the area", () => {
+        const listed = ruleIds(runSkill("lumin-ui", ["rules", "--area", "slop"]).envelope.data);
+        expect([...listed].sort()).toEqual([...SLOP].sort());
+      });
+    });
+
+    it("carries eight fixed prompts, each with the facts its answer needs and a never list", () => {
+      const dir = join(canon, "lumin-ui");
+      const body = [readFileSync(join(dir, "SKILL.md"), "utf8"), readFileSync(join(dir, "judgment.md"), "utf8")].join("\n").toLowerCase();
+      const parsed: unknown = JSON.parse(readFileSync(join(dir, "evals.json"), "utf8"));
+      const cases: readonly Eval[] =
+        typeof parsed === "object" && parsed !== null && "cases" in parsed && Array.isArray(parsed.cases) ? parsed.cases.filter(isEval) : [];
+      const never: readonly string[] =
+        typeof parsed === "object" && parsed !== null && "never" in parsed && Array.isArray(parsed.never)
+          ? parsed.never.filter((word: unknown): word is string => typeof word === "string")
+          : [];
+      expect(cases).toHaveLength(8);
+      expect(never.length).toBeGreaterThanOrEqual(4);
+      for (const one of cases) {
+        expect(one.must.length).toBeGreaterThanOrEqual(3);
+        expect(one.must.filter((fact) => !body.includes(fact.toLowerCase()))).toEqual([]);
+      }
+      // The never list is checked the same way: a font service, a content host, an image generator, or a name this skill may not carry.
+      expect(never.filter((word) => body.includes(word.toLowerCase()))).toEqual([]);
+    });
+
+    it("credits both sets it is inspired by, with their links and pins", () => {
+      const credit = readFileSync(join(canon, "lumin-ui", "CREDIT.md"), "utf8");
+      expect(credit).toContain("inspired by");
+      expect(credit).toContain("https://github.com/MengTo/Skills");
+      expect(credit).toContain("a7f25b25e9e15e1944f9fe6d69d943f77a155ef7");
+      expect(credit).toContain("https://github.com/google-gemini/demolab");
+      expect(credit).toContain("cd0c1f8540c0186ec9592af972a0700fa20909d4");
+      expect(credit).toContain("Apache-2.0");
     });
 
     it("scan finds what a broken component breaks, and nothing in a clean one", () => {
