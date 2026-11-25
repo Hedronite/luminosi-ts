@@ -18,6 +18,3 @@ export const easings: Readonly<Record<string, Easing>> = { enter, exit, settle, 
 
 /** The curve a token names, or `standard` when a document names none. */
 export const easingOf = (token: string | undefined): Easing => (token === undefined ? standard : (easings[token] ?? standard));
-
-/** Clip time for a progress into a clip: the inverse of what a keyframe list spans, clamped. */
-export const progressOf = (time: number, span: number): number => (span <= 0 ? 0 : Math.min(1, Math.max(0, time / span)));

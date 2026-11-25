@@ -53,3 +53,8 @@ export {
 } from "./edit.js";
 export { canRedo, canUndo, createHistory, endGesture, HISTORY_CAP, push, redo, undo, type SceneHistory } from "./history.js";
 export { decodeScene, encodeScene, SHARE_LIMITS, SHARE_PREFIX } from "./share.js";
+// The motion runtime: a document's tracks, evaluated. It imports no renderer, so a caller may play a document anywhere.
+export { anchorsOf, createConductor, progressAt, DAMPING, LONGEST_STEP, type Conductor, type ScrollInput, type ScrollState } from "./motion/conductor.js";
+export { easingOf, easings, type Easing } from "./motion/easing.js";
+export { clipEasingOf, spanOf, valueAt, type TrackValue } from "./motion/evaluate.js";
+export { createMotion, type MotionFrame, type MotionInput, type MotionOptions, type MotionRuntime } from "./motion/runtime.js";

@@ -1,8 +1,8 @@
 {
   "shards": 6,
   "longestSeconds": 125.3,
-  "mean": 312.8,
-  "slowest": 316.8,
+  "mean": 315.9,
+  "slowest": 317,
   "plan": [
     {
       "shard": 1,
@@ -33,12 +33,12 @@
         "e2e/vendor.spec.ts:63",
         "e2e/shards/shards.spec.ts:119",
         "e2e/catalog.spec.ts:594",
-        "e2e/motion.spec.ts:26"
+        "e2e/motion.spec.ts:121"
       ]
     },
     {
       "shard": 2,
-      "seconds": 310.8,
+      "seconds": 316.9,
       "locations": [
         "e2e/a11y.spec.ts:190",
         "e2e/a11y.spec.ts:326",
@@ -67,7 +67,8 @@
         "e2e/site.spec.ts:156",
         "e2e/snippets.spec.ts:3",
         "e2e/shards/shards.spec.ts:89",
-        "e2e/catalog.spec.ts:641"
+        "e2e/catalog.spec.ts:641",
+        "e2e/motion.spec.ts:66"
       ]
     },
     {
@@ -101,12 +102,12 @@
         "e2e/vendor.spec.ts:15",
         "e2e/vendor.spec.ts:46",
         "e2e/shards/shards.spec.ts:161",
-        "e2e/motion.spec.ts:17"
+        "e2e/motion.spec.ts:108"
       ]
     },
     {
       "shard": 4,
-      "seconds": 310.8,
+      "seconds": 316.9,
       "locations": [
         "e2e/a11y.spec.ts:249",
         "e2e/catalog.spec.ts:172",
@@ -134,12 +135,13 @@
         "e2e/vendor.spec.ts:3",
         "e2e/vendor.spec.ts:96",
         "e2e/shards/shards.spec.ts:99",
-        "e2e/catalog.spec.ts:687"
+        "e2e/catalog.spec.ts:687",
+        "e2e/motion.spec.ts:75"
       ]
     },
     {
       "shard": 5,
-      "seconds": 310.9,
+      "seconds": 317,
       "locations": [
         "e2e/a11y.spec.ts:277",
         "e2e/a11y.spec.ts:384",
@@ -168,7 +170,8 @@
         "e2e/solids.spec.ts:6",
         "e2e/vendor.spec.ts:84",
         "e2e/shards/shards.spec.ts:152",
-        "e2e/catalog.spec.ts:703"
+        "e2e/catalog.spec.ts:703",
+        "e2e/motion.spec.ts:93"
       ]
     },
     {
@@ -211,7 +214,7 @@
         "e2e/vendor.spec.ts:72",
         "e2e/shards/shards.spec.ts:134",
         "e2e/catalog.spec.ts:620",
-        "e2e/motion.spec.ts:8"
+        "e2e/motion.spec.ts:57"
       ]
     }
   ]
