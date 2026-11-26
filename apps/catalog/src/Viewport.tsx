@@ -114,8 +114,9 @@ export function Viewport({ meta, palette, params }: { readonly meta: AssetMeta; 
   const [arrived, setArrived] = useState<Object3D | undefined>(undefined);
   // A new object, so the stage applies itself again to what has arrived since it last did.
   const staged = useMemo(() => (stage === undefined || arrived === undefined ? stage : { ...stage }), [stage, arrived]);
+  // May shrink: the box around it is a grid that clips, and the canvas's own width would otherwise hold it wider than a narrow screen.
   return (
-    <div className="w-full">
+    <div className="w-full min-w-0">
       <StageFrame group={group} motion={motion} label={`${meta.name}, rendered in 3D.`} className="h-72 w-full" testId="viewport">
         <WebGPUCanvas frameloop="demand" dpr={[1, 2]} camera={{ position: [0, 0, DISTANCE], fov: 35 }}>
           <WebGPUEnvironment kind={environment.kind} />

@@ -384,3 +384,18 @@ test("a scene kit offers a room and quality but no shadows, and shader and effec
     await expect(page.getByRole("dialog", { name }).getByRole("group", { name: "Stage" })).toHaveCount(0);
   }
 });
+
+// A narrow phone: nothing scrolls sideways, and no control runs past the page's padding (the detail view's box would clip it unseen).
+for (const stage of staged) {
+  test(`${stage.name}'s stage controls fit a screen 320 px wide`, async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 800 });
+    await open(page, stage);
+    await quality(page).selectOption("full");
+    for (const control of [room(page), quality(page), box(page, "Bloom"), tone(page), exposure(page)]) {
+      // eslint-disable-next-line no-await-in-loop -- read one control at a time
+      const at = await control.boundingBox();
+      expect((at?.x ?? 0) + (at?.width ?? 321), "the control ends inside the page's padding").toBeLessThanOrEqual(304.5);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth), "no sideways scroll").toBeLessThanOrEqual(320);
+  });
+}

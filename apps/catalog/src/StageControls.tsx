@@ -15,7 +15,7 @@ const toneNames: Readonly<Record<(typeof toneMappingModes)[number], string>> = {
 const qualities = [
   ["off", "Off: renderer defaults"],
   ["full", "Full"],
-  ["lite", "Lite: no shadows, bloom or depth of field"],
+  ["lite", "Lite"],
 ] as const;
 
 interface ToggleProps {
@@ -80,7 +80,7 @@ export function StageControls({ environment, stage, palette, distance, shadows =
   const catcher = stage?.shadows?.catcher === true;
 
   return (
-    <fieldset className="flex flex-col gap-2">
+    <fieldset className="flex min-w-0 flex-col gap-2">
       <legend className="mb-1 text-sm font-medium">Stage</legend>
       <div className="flex flex-col gap-1 text-sm">
         <label htmlFor={`${id}-room`}>Room</label>
@@ -118,6 +118,7 @@ export function StageControls({ environment, stage, palette, distance, shadows =
             </option>
           ))}
         </select>
+        {quality === "lite" ? <p className="text-fg-muted">Lite leaves out shadows, bloom and depth of field.</p> : null}
       </div>
       {shadows ? (
         <>
