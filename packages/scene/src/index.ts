@@ -1,8 +1,11 @@
+export { ROOM_BLUR, ROOM_SPECS, STUDIO_BLUR, type RoomCardSpec, type RoomColorExpr, type RoomColorToken, type RoomSpec } from "./rooms.js";
 export { ringLayout, type Vec3 } from "./layout.js";
 export { migrate } from "./migrate.js";
 export { assetCredit, creditsFor, lookCredit } from "./credits.js";
 export { checkRefs, type RefKind, type Resolve, type Resolved } from "./refs.js";
 export {
+  environmentKinds,
+  HDRI_LICENSE,
   inkModes,
   parseScene,
   SCENE_FORMAT,
@@ -20,7 +23,10 @@ export {
   type PropertyKind,
   type Scene,
   type SceneAsset,
+  type EnvironmentKind,
   type SceneEffect,
+  type SceneEnvironment,
+  type SceneEnvironmentHdri,
   type SceneIssue,
   type SceneLook,
   type SceneNode,
@@ -40,6 +46,7 @@ export {
   removeTrack,
   setClip,
   setEffects,
+  setEnvironment,
   setInk,
   setLights,
   setLook,

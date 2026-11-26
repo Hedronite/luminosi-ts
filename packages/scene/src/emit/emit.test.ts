@@ -331,3 +331,26 @@ describe("credited code is code, and its credits are the scene's", () => {
     }
   });
 });
+
+describe("environments in toTsx and toVanilla", () => {
+  it.each(["studio", "gallery", "dusk", "noir"] as const)("emits room %s with intensity and rotation cleanly across both emitters", (kind) => {
+    const doc = sceneOf([cube("a")], { environment: { kind, intensity: 1.35, rotation: 0.4 } });
+    const tsx = toTsx(doc);
+    const vanilla = toVanilla(doc);
+    expect(tsx).toContain(`<WebGPUEnvironment kind="${kind}" intensity={1.35} rotation={0.4}`);
+    expect(vanilla).not.toMatch(/lts-scene|lts-adapters|createScene|react/);
+    expect(vanilla).toContain("scene.environmentIntensity = 1.35;");
+    expect(vanilla).toContain("scene.environmentRotation.set(0, 0.4, 0);");
+  });
+
+  it("emits non-studio procedural box rooms and CC0 HDRI metadata cleanly", () => {
+    const hdri = { url: "https://example.com/dusk.hdr", license: "CC0-1.0" as const, credit: "Poly Haven\n*/ injected" };
+    const doc = sceneOf([cube("a")], { environment: { kind: "dusk", intensity: 1.35, rotation: 0.4, hdri } });
+    const tsx = toTsx(doc);
+    const vanilla = toVanilla(doc);
+    expect(tsx).toContain("CC0-1.0");
+    expect(vanilla).toContain("BoxGeometry");
+    expect(vanilla).toContain("HDRLoader");
+    expect(vanilla).toContain("fromEquirectangular");
+  });
+});

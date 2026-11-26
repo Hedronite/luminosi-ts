@@ -1,7 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { acceptAll, currentFixtures, editsOf, fixtureScene, resolve, scenes } from "./arbitrary.js";
-import { addNode, removeNode, setEffects, setInk, setLights, setLook, setSurface, setTransform } from "./edit.js";
+import { addNode, removeNode, setEffects, setInk, setEnvironment, setLights, setLook, setSurface, setTransform } from "./edit.js";
 import { checkRefs } from "./refs.js";
 import { parseScene, type Scene, type SceneNode, type SceneResult } from "./schema.js";
 
@@ -289,5 +289,20 @@ describe("setInk, setLights and setLook", () => {
     expect(codes(badly(setInk, base, "sparkle"))).toHaveLength(1);
     expect(codes(badly(setLook, base, { base: "red" }))).not.toEqual([]);
     expect(codes(setLook(base, "Not A Slug"))).not.toEqual([]);
+  });
+});
+
+describe("setEnvironment", () => {
+  const base = deepFreeze(fixtureScene("v2"));
+
+  it("updates room kind, intensity, rotation, and credited CC0 HDRI without mutating input", () => {
+    const next = { kind: "gallery" as const, intensity: 1.4, rotation: 0.5, hdri: { url: "https://example.com/gallery.hdr", license: "CC0-1.0" as const, credit: "Poly Haven" } };
+    expect(scene(setEnvironment(base, next)).environment).toEqual(next);
+    expect(scene(setEnvironment(scene(setEnvironment(base, next)), { kind: "noir" })).environment).toEqual({ kind: "noir" });
+  });
+
+  it("refuses invalid room or HDRI license", () => {
+    expect(codes(badly(setEnvironment, base, { kind: "forest" }))).not.toEqual([]);
+    expect(codes(badly(setEnvironment, base, { kind: "dusk", hdri: { url: "https://example.com/a.hdr", license: "MIT", credit: "x" } }))).not.toEqual([]);
   });
 });

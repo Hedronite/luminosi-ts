@@ -14,6 +14,7 @@ import { afterAll, describe, expect, it, vi } from "vitest";
 // within the Canvas component!". This is the regression test for exactly that.
 vi.mock("@hedronite/lts-adapters/webgpu", () => ({
   WebGPUCanvas: () => null,
+  WebGPUEnvironment: () => null,
   WebGPUStudioEnvironment: () => null,
   ScreenEffectsPass: () => null,
 }));

@@ -15,6 +15,7 @@ import { afterAll, describe, expect, it, vi } from "vitest";
 
 vi.mock("@hedronite/lts-adapters/webgpu", () => ({
   WebGPUCanvas: ({ children }: { readonly children?: ReactNode }) => children,
+  WebGPUEnvironment: () => null,
   WebGPUStudioEnvironment: () => null,
   ScreenEffectsPass: () => null,
 }));
@@ -77,5 +78,20 @@ describe("the emitted React code, mounted", () => {
     // The test takes 70 to 120 ms on a quiet machine, but its first step is the cold import of three, the adapters and R3F, and CI runs it on two
     // cores beside the lumin tests: 2,432 ms (run 44866191568), 4,056 ms (run 44859038343) and 5,461 ms (run 44869368035, which failed the default 5 s).
     // Three times the largest reading is 16,383 ms, rounded up to the next 5 s.
+  }, 20_000);
+
+  it("mounts emitted React code for a non-studio room with intensity, rotation, and CC0 HDRI", async () => {
+    const result = migrate(readFileSync(join(here, "..", "..", "..", "packages", "scene", "fixtures", "framed-solid-shader.json"), "utf8"));
+    if (!result.ok) throw new Error(JSON.stringify(result.issues));
+    const doc = { ...result.scene, environment: { kind: "dusk" as const, intensity: 1.4, rotation: 0.6, hdri: { url: "https://example.com/dusk.hdr", license: "CC0-1.0" as const, credit: "Poly Haven" } } };
+    mkdirSync(dir, { recursive: true });
+    const file = join(dir, "dusk-room.tsx");
+    writeFileSync(file, toTsx(doc));
+    const loaded: unknown = await import(/* @vite-ignore */ file);
+    const Scene: unknown = typeof loaded === "object" && loaded !== null && "Scene" in loaded ? loaded.Scene : undefined;
+    if (!isComponent(Scene)) throw new Error("the emitted module has no Scene");
+    const renderer = await ReactThreeTestRenderer.create(createElement(Scene));
+    expect(renderer.scene.instance.children.length).toBeGreaterThan(0);
+    await renderer.unmount();
   }, 20_000);
 });

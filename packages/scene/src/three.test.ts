@@ -3,13 +3,13 @@ import { readdirSync, readFileSync } from "node:fs";
 import { materialPreset } from "@hedronite/lts-materials";
 import { loadDescriptors } from "@hedronite/lts-registry";
 import { hedronite, neutral, presets, type ScenePalette } from "@hedronite/lts-tokens";
-import { Color, Euler, InstancedMesh, Light, Matrix4, Quaternion, Vector3, Mesh, MeshPhysicalMaterial, Texture, type BufferGeometry, type Material, type Object3D } from "three";
+import { Color, DataTexture, Euler, InstancedMesh, Light, Matrix4, Quaternion, Vector3, Mesh, MeshPhysicalMaterial, Texture, type BufferGeometry, type Material, type Object3D, type Scene as ThreeScene } from "three";
 import fc from "fast-check";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { checkRefs, parseScene, setEffects, setInk, setTransform, type Scene as SceneDocument, type SceneNode } from "./index.js";
 import type { WebGPURenderer } from "three/webgpu";
 import type * as WebgpuTypes from "three/webgpu";
-import { createScene } from "./three.js";
+import { createRoom, createScene } from "./three.js";
 
 const node = (id: string, over: Partial<SceneNode> = {}): SceneNode => ({
   id,
@@ -661,5 +661,149 @@ describe("in-place light recoloring", () => {
 
     built.dispose();
     live.dispose();
+  });
+});
+
+describe("procedural rooms, PMREM disposal, and CC0 HDRI fallback", () => {
+  it("builds four distinct procedural rooms and disposes geometry and materials cleanly", () => {
+    const names = new Set<string>();
+    const blurs = new Set<number>();
+    for (const kind of ["studio", "gallery", "dusk", "noir"] as const) {
+      const { scene: room, blur } = createRoom(kind);
+      names.add(room.name);
+      blurs.add(blur);
+      expect(room.children.length).toBeGreaterThanOrEqual(7);
+      room.dispose();
+    }
+    expect(names.size).toBe(4);
+    expect(blurs.size).toBe(4);
+  });
+
+  it("switches rooms with zero PMREM target leaks, updates intensity/rotation in place, and falls back gracefully when offline HDRI fails", async () => {
+    vi.resetModules();
+    const bakes: { kind: string; disposed: boolean; texture: Texture; isHdri: boolean }[] = [];
+    const scenesSeen: ThreeScene[] = [];
+    vi.doMock("three/webgpu", async (original) => {
+      const actual = await original<typeof WebgpuTypes>();
+      class PMREMGenerator {
+        fromScene(room: ThreeScene) {
+          const entry = { kind: room.name || "room", disposed: false, texture: new Texture(), isHdri: false };
+          bakes.push(entry);
+          return {
+            texture: entry.texture,
+            dispose: () => {
+              entry.disposed = true;
+            },
+          };
+        }
+        fromEquirectangular() {
+          const entry = { kind: "hdri", disposed: false, texture: new Texture(), isHdri: true };
+          bakes.push(entry);
+          return {
+            texture: entry.texture,
+            dispose: () => {
+              entry.disposed = true;
+            },
+          };
+        }
+        dispose(): void {}
+      }
+      return { ...actual, PMREMGenerator };
+    });
+
+    const threeMod = await import("./three.js");
+    const Webgpu = await import("three/webgpu");
+    // Capture internal stage.scene via Renderer stub not needed if we inspect bake targets & scene.environment via WebGPURenderer + Scene spy;
+    // verify real HDRLoader offline decode from an in-memory base64 Radiance RGBE data URI first:
+    const rgbeHeader = "#?RADIANCE\nFORMAT=32-bit_rle_rgbe\n\n-Y 1 +X 2\n";
+    const rgbeBytes = new Uint8Array(rgbeHeader.length + 8);
+    for (let k = 0; k < rgbeHeader.length; k++) rgbeBytes[k] = rgbeHeader.charCodeAt(k);
+    rgbeBytes.set([128, 128, 128, 128, 130, 130, 130, 130], rgbeHeader.length);
+    const dataUri = `data:application/octet-stream;base64,${Buffer.from(rgbeBytes).toString("base64")}`;
+
+    let equirectDisposed = false;
+    const syntheticLoader = (): Promise<Texture> => {
+      const tex = new DataTexture(new Uint8Array(16), 2, 2);
+      tex.addEventListener("dispose", () => {
+        equirectDisposed = true;
+      });
+      return Promise.resolve(tex);
+    };
+
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- test renderer stub without a GPU
+    const renderer = Object.assign(Object.create(Webgpu.WebGPURenderer.prototype) as WebGPURenderer, {
+      getSize: (target: { set: (x: number, y: number) => unknown }) => target.set(256, 256),
+      render: (s: ThreeScene) => {
+        scenesSeen.push(s);
+      },
+    });
+
+    const drawn = threeMod.createScene(scene([node("a")], { environment: { kind: "studio" } }), { palette: neutral.scene, renderer, hdriLoader: syntheticLoader });
+    await drawn.ready;
+    drawn.render?.(0.016);
+    const stageScene = scenesSeen[0];
+    expect(stageScene).toBeDefined();
+    expect(bakes).toHaveLength(1);
+    expect(bakes[0]?.disposed).toBe(false);
+    expect(stageScene?.environment).toBe(bakes[0]?.texture);
+
+    // Intensity + rotation update in place with ZERO PMREM re-bakes.
+    await drawn.update(scene([node("a")], { environment: { kind: "studio", intensity: 2.2, rotation: 1.25 } }));
+    expect(bakes).toHaveLength(1);
+    expect(stageScene?.environmentIntensity).toBe(2.2);
+    expect(stageScene?.environmentRotation.y).toBeCloseTo(1.25);
+
+    // Room switches bake new target and dispose old target immediately.
+    await drawn.update(scene([node("a")], { environment: { kind: "gallery", intensity: 1.1 } }));
+    expect(bakes).toHaveLength(2);
+    expect(bakes[0]?.disposed).toBe(true);
+    expect(bakes[1]?.kind).toBe("room-gallery");
+    expect(bakes[1]?.disposed).toBe(false);
+    expect(stageScene?.environment).toBe(bakes[1]?.texture);
+
+    await drawn.update(scene([node("a")], { environment: { kind: "dusk" } }));
+    expect(bakes[1]?.disposed).toBe(true);
+    expect(bakes[2]?.kind).toBe("room-dusk");
+
+    // In-memory synthetic HDRI upgrades cleanly and disposes the temporary equirectangular texture + previous room target.
+    await drawn.update(scene([node("a")], { environment: { kind: "noir", hdri: { url: dataUri, license: "CC0-1.0", credit: "Synthetic Test" } } }));
+    expect(equirectDisposed).toBe(true);
+    expect(bakes[2]?.disposed).toBe(true);
+    expect(bakes[3]?.isHdri).toBe(true);
+    expect(stageScene?.environment).toBe(bakes[3]?.texture);
+
+    // Offline / failing HDRI falls back gracefully to procedural room without rejecting update.
+    const failing = threeMod.createScene(scene([node("a")], { environment: { kind: "noir", hdri: { url: "https://offline.invalid/nope.hdr", license: "CC0-1.0", credit: "Offline Test" } } }), {
+      palette: neutral.scene,
+      renderer,
+      hdriLoader: async () => Promise.reject(new Error("offline")),
+    });
+    await expect(failing.ready).resolves.toBeUndefined();
+    expect(bakes[4]?.kind).toBe("room-noir");
+    expect(bakes[4]?.isHdri).toBe(false);
+
+    // Real HDRLoader offline parse via bakeEnvironmentTarget using data: URI (zero network).
+    let decodedTex: Texture | undefined;
+    const bakedData = await threeMod.bakeEnvironmentTarget(
+      {
+        fromScene: () => ({ texture: new Texture(), dispose: () => undefined }),
+        fromEquirectangular: (t) => {
+          decodedTex = t;
+          return { texture: new Texture(), dispose: () => undefined };
+        },
+        dispose: () => undefined,
+      },
+      { kind: "studio", hdri: { url: dataUri, license: "CC0-1.0", credit: "Data URI" } },
+    );
+    expect(bakedData.source).toBe("hdri");
+    expect(decodedTex).toBeInstanceOf(DataTexture);
+    bakedData.target.dispose();
+
+    drawn.dispose();
+    failing.dispose();
+    expect(bakes.every((b) => b.disposed)).toBe(true);
+
+    vi.doUnmock("three/webgpu");
+    vi.resetModules();
   });
 });

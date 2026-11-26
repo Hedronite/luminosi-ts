@@ -9,12 +9,165 @@ import { applyStudioLightsPalette, createStudioLights, disposeObject } from "@he
 import { loadDescriptors } from "@hedronite/lts-registry";
 import { isEffectId } from "@hedronite/lts-shaders";
 import type { EffectClock, EffectHandle } from "@hedronite/lts-shaders/three";
-import { presets, type Hex, type ScenePalette } from "@hedronite/lts-tokens";
-import { BufferGeometry, Group, Mesh, Object3D, PerspectiveCamera, Scene, Vector2, type Material, type Texture } from "three";
+import { BLACK, duskLightTints, hedronite, mixHex, neutral, presets, WHITE, type Hex, type ScenePalette } from "@hedronite/lts-tokens";
+import { BackSide, BoxGeometry, BufferGeometry, DataTexture, EquirectangularReflectionMapping, Group, Mesh, MeshLambertMaterial, MeshStandardMaterial, Object3D, PerspectiveCamera, PointLight, Scene, Vector2, type Material, type Texture } from "three";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import type { WebGPURenderer } from "three/webgpu";
 import { z } from "zod";
-import type { Scene as SceneDocument, SceneNode, SceneSurface } from "./index.js";
+import type { EnvironmentKind, Scene as SceneDocument, SceneEnvironment, SceneNode, SceneSurface } from "./index.js";
 import { createMotion, propertyOf, type MotionInput, type TrackValue } from "./motion/index.js";
+import { ROOM_BLUR, ROOM_SPECS, STUDIO_BLUR, type RoomColorExpr, type RoomColorToken } from "./rooms.js";
+
+export { ROOM_BLUR, STUDIO_BLUR };
+
+export interface RoomTarget {
+  readonly texture: Texture;
+  dispose(): void;
+}
+
+export interface RoomGenerator {
+  fromScene(scene: Scene, sigma: number): RoomTarget;
+  fromEquirectangular?(texture: Texture): RoomTarget;
+  dispose(): void;
+}
+
+export type HdriLoader = (url: string, options?: { readonly signal?: AbortSignal }) => Promise<Texture>;
+
+export interface RoomScene {
+  readonly scene: Scene & { dispose(): void };
+  readonly blur: number;
+}
+
+const TOKEN_HEX: Readonly<Record<RoomColorToken, Hex>> = {
+  WHITE,
+  BLACK,
+  "neutral.ground": neutral.scene.ground,
+  "neutral.base": neutral.scene.base,
+  "hedronite.sky": hedronite.scene.sky,
+  "hedronite.fill": hedronite.scene.fill,
+  "dusk.key": duskLightTints.key,
+  "dusk.rim": duskLightTints.rim,
+  "dusk.ambient": duskLightTints.ambient,
+};
+
+const resolveRoomColor = (expr: RoomColorExpr): Hex => (typeof expr === "string" ? TOKEN_HEX[expr] : mixHex(TOKEN_HEX[expr[1]], TOKEN_HEX[expr[2]], expr[3]));
+
+/** Creates the named procedural environment room (`studio`, `gallery`, `dusk`, or `noir`) and its PMREM blur sigma. */
+export function createRoom(kind: EnvironmentKind): RoomScene {
+  if (kind === "studio") return { scene: new RoomEnvironment(), blur: STUDIO_BLUR };
+  const spec = ROOM_SPECS[kind];
+  const scene = new Scene();
+  scene.name = `room-${kind}`;
+  scene.position.y = -3.5;
+
+  const geometry = new BoxGeometry();
+  geometry.deleteAttribute("uv");
+  const wallMat = new MeshStandardMaterial({ color: resolveRoomColor(spec.wall), roughness: spec.roughness, side: BackSide });
+  const contactMat = new MeshStandardMaterial({ color: resolveRoomColor(spec.contact), roughness: 1 });
+  const materials: (MeshStandardMaterial | MeshLambertMaterial)[] = [wallMat, contactMat];
+
+  const enclosure = new Mesh(geometry, wallMat);
+  enclosure.name = "enclosure";
+  enclosure.position.set(0, 12, 0);
+  enclosure.scale.set(31, 27, 29);
+  scene.add(enclosure);
+
+  const contact = new Mesh(geometry, contactMat);
+  contact.name = "contact-floor";
+  contact.position.set(0, -1.2, 0);
+  contact.scale.set(22, 0.4, 22);
+  scene.add(contact);
+
+  const light = new PointLight(resolveRoomColor(spec.point), spec.pointIntensity, 32, 2);
+  light.position.set(0.4, 16, 0.3);
+  scene.add(light);
+
+  for (const [index, [colorExpr, intensity, x, y, z, sx, sy, sz]] of spec.cards.entries()) {
+    const material = new MeshLambertMaterial({ color: BLACK, emissive: resolveRoomColor(colorExpr), emissiveIntensity: intensity });
+    materials.push(material);
+    const mesh = new Mesh(geometry, material);
+    mesh.name = `card-${String(index)}`;
+    mesh.position.set(x, y, z);
+    mesh.scale.set(sx, sy, sz);
+    scene.add(mesh);
+  }
+
+  return {
+    scene: Object.assign(scene, {
+      dispose(): void {
+        geometry.dispose();
+        for (const material of materials) material.dispose();
+      },
+    }),
+    blur: spec.blur,
+  };
+}
+
+/** Bakes a procedural room into a PMREM target and frees both the room geometry/materials and generator. */
+export function bakeRoom(generator: RoomGenerator, kind: EnvironmentKind = "studio"): RoomTarget {
+  const { scene, blur } = createRoom(kind);
+  try {
+    return generator.fromScene(scene, blur);
+  } finally {
+    scene.dispose();
+    generator.dispose();
+  }
+}
+
+async function defaultHdriLoader(url: string, options?: { readonly signal?: AbortSignal }): Promise<Texture> {
+  const response = await fetch(url, options?.signal === undefined ? {} : { signal: options.signal });
+  if (!response.ok) throw new Error(`HDRI load failed (${String(response.status)})`);
+  const buffer = await response.arrayBuffer();
+  const { HDRLoader } = await import("three/examples/jsm/loaders/HDRLoader.js");
+  const texture = new HDRLoader().createDataTexture(buffer);
+  if (texture instanceof DataTexture) {
+    texture.mapping = EquirectangularReflectionMapping;
+    texture.needsUpdate = true;
+  }
+  return texture;
+}
+
+export interface BakeEnvironmentOptions {
+  readonly hdriLoader?: HdriLoader;
+  readonly signal?: AbortSignal;
+}
+
+export interface BakedEnvironment {
+  readonly target: RoomTarget;
+  readonly source: "procedural" | "hdri";
+  readonly fallbackError?: unknown;
+}
+
+/**
+ * Resolves a scene environment descriptor into a PMREM target. When `environment.hdri` is given, loads and prefilters it,
+ * falling back gracefully to the procedural room on fetch, decode, or generator failure with zero leaked textures.
+ */
+export async function bakeEnvironmentTarget(generator: RoomGenerator, environment: Pick<SceneEnvironment, "kind" | "hdri">, options: BakeEnvironmentOptions = {}): Promise<BakedEnvironment> {
+  if (environment.hdri !== undefined && generator.fromEquirectangular !== undefined) {
+    const loader = options.hdriLoader ?? defaultHdriLoader;
+    let equirectangular: Texture | undefined;
+    try {
+      equirectangular = await loader(environment.hdri.url, options.signal === undefined ? {} : { signal: options.signal });
+      if (options.signal?.aborted) {
+        equirectangular.dispose();
+        generator.dispose();
+        throw new Error("environment load aborted");
+      }
+      const target = generator.fromEquirectangular(equirectangular);
+      equirectangular.dispose();
+      generator.dispose();
+      return { target, source: "hdri" };
+    } catch (error) {
+      equirectangular?.dispose();
+      if (options.signal?.aborted) {
+        generator.dispose();
+        throw error;
+      }
+      return { target: bakeRoom(generator, environment.kind), source: "procedural", fallbackError: error };
+    }
+  }
+  return { target: bakeRoom(generator, environment.kind), source: "procedural" };
+}
 
 export type { SceneDocument };
 
@@ -52,6 +205,8 @@ export interface SceneOptions {
    * Under `reducedMotion` nothing moves: every animated property holds its rest value and no track starts.
    */
   readonly motion?: MotionPlayOptions;
+  /** Optional loader for `environment.hdri.url` (useful for offline or synthetic HDRI testing). */
+  readonly hdriLoader?: HdriLoader;
 }
 
 /** A pointer over the canvas, 0 to 1 from the top left, or null when it is away. */
@@ -114,7 +269,8 @@ interface Built {
 /** What a renderer adds: the scene it draws, its environment, and the effect stack. */
 interface Stage {
   readonly scene: Scene;
-  environment: { dispose(): void; readonly texture: Texture } | undefined;
+  environment: RoomTarget | undefined;
+  environmentKey: string;
   effects: Postfx.ScreenEffects | undefined;
   /** What the running stack was built from (`stackStructure`). */
   structure: string;
@@ -281,7 +437,7 @@ export function createScene(initial: SceneDocument, options: SceneOptions = {}):
   let lightIntensity: number | undefined;
 
   // --- the stage: what needs a renderer ---
-  const stage: Stage | undefined = renderer === undefined ? undefined : { scene: new Scene(), environment: undefined, effects: undefined, structure: "", pointer: null };
+  const stage: Stage | undefined = renderer === undefined ? undefined : { scene: new Scene(), environment: undefined, environmentKey: "", effects: undefined, structure: "", pointer: null };
   stage?.scene.add(root);
   /** Loaded with the first effect stack; every later use of it is after that. */
   let postfx: typeof Postfx | undefined;
@@ -291,19 +447,40 @@ export function createScene(initial: SceneDocument, options: SceneOptions = {}):
   const stackOf = (d: SceneDocument): readonly ScreenEffectConfig[] => stackEntries.parse(d.effects);
   const monochrome = (d: SceneDocument, palette: ScenePalette) => (d.ink === "look" ? undefined : palette[d.ink]);
 
-  async function setUpEnvironment(): Promise<void> {
+  let envGeneration = 0;
+  let envInFlightKey: string | undefined;
+  let envController: AbortController | undefined;
+  const environmentSourceKey = (environment: SceneEnvironment): string => `${environment.kind}|${environment.hdri?.url ?? ""}`;
+
+  async function applyEnvironment(environment: SceneEnvironment): Promise<void> {
     if (renderer === undefined || stage === undefined) return;
-    // One load after the other, each naming what it takes: a pair taken together keeps the whole of three's WebGPU build in the chunk.
+    stage.scene.environmentIntensity = environment.intensity ?? 1;
+    stage.scene.environmentRotation.set(0, environment.rotation ?? 0, 0);
+    const sourceKey = environmentSourceKey(environment);
+    if (sourceKey === stage.environmentKey && (stage.environment !== undefined || envInFlightKey === sourceKey)) return;
+
+    envController?.abort();
+    const controller = new AbortController();
+    envController = controller;
+    const generation = ++envGeneration;
+    envInFlightKey = sourceKey;
+    const stale = (): boolean => disposed || controller.signal.aborted || generation !== envGeneration;
+
     const { PMREMGenerator } = await import("three/webgpu");
-    const { RoomEnvironment } = await import("three/examples/jsm/environments/RoomEnvironment.js");
-    if (disposed) return;
-    const room = new RoomEnvironment();
-    const pmrem = new PMREMGenerator(renderer);
-    const target = pmrem.fromScene(room, 0.04);
-    room.dispose();
-    pmrem.dispose();
+    if (stale()) return;
+    const { target } = await bakeEnvironmentTarget(new PMREMGenerator(renderer), environment, {
+      signal: controller.signal,
+      ...(options.hdriLoader === undefined ? {} : { hdriLoader: options.hdriLoader }),
+    });
+    if (stale()) {
+      target.dispose();
+      return;
+    }
+    const previous = stage.environment;
     stage.environment = target;
+    stage.environmentKey = sourceKey;
     stage.scene.environment = target.texture;
+    previous?.dispose();
   }
 
   async function applyEffects(): Promise<void> {
@@ -431,6 +608,7 @@ export function createScene(initial: SceneDocument, options: SceneOptions = {}):
     camera.position.set(...next.camera.position);
     camera.lookAt(...next.camera.target);
     camera.updateProjectionMatrix();
+    work.push(applyEnvironment(next.environment));
     work.push(applyEffects());
     return work;
   }
@@ -442,7 +620,7 @@ export function createScene(initial: SceneDocument, options: SceneOptions = {}):
   };
 
   const first = apply(initial);
-  const ready = settle([...first, setUpEnvironment()]);
+  const ready = settle(first);
   // A caller that never awaits `ready` must not raise an unhandled rejection; one that does still sees it.
   ready.catch(() => undefined);
 
@@ -581,6 +759,8 @@ export function createScene(initial: SceneDocument, options: SceneOptions = {}):
     dispose() {
       if (disposed) return;
       disposed = true;
+      envController?.abort();
+      envController = undefined;
       for (const slot of slots.values()) release(slot);
       slots.clear();
       if (stage !== undefined) {

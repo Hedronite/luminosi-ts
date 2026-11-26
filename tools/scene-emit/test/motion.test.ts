@@ -14,6 +14,7 @@ import { afterAll, describe, expect, it, vi } from "vitest";
 // WebGPU parts need a browser, so those are stood in for; the components inside them are the real ones.
 vi.mock("@hedronite/lts-adapters/webgpu", () => ({
   WebGPUCanvas: ({ children }: { readonly children?: ReactNode }) => children,
+  WebGPUEnvironment: () => null,
   WebGPUStudioEnvironment: () => null,
   ScreenEffectsPass: () => null,
 }));

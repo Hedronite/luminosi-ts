@@ -179,7 +179,7 @@ function motionOps(a: Scene, b: Scene): { readonly leaving: readonly Op[]; reado
 }
 
 /** The sections of a document the edit operations have no word for. */
-const INEXPRESSIBLE: ReadonlySet<string> = new Set(["format", "version", "seed", "environment", "camera"]);
+const INEXPRESSIBLE: ReadonlySet<string> = new Set(["format", "version", "seed", "camera"]);
 
 /** The operations that turn `a` into `b`, other than the ones for nodes. */
 function sceneOps(a: Scene, b: Scene): Op[] {
@@ -187,6 +187,7 @@ function sceneOps(a: Scene, b: Scene): Op[] {
     ...(equal(a.look, b.look) ? [] : [{ op: "setLook" as const, look: b.look }]),
     ...(a.ink === b.ink ? [] : [{ op: "setInk" as const, ink: b.ink }]),
     ...(equal(a.lights, b.lights) ? [] : [{ op: "setLights" as const, change: b.lights }]),
+    ...(equal(a.environment, b.environment) ? [] : [{ op: "setEnvironment" as const, environment: b.environment }]),
     ...(equal(a.effects, b.effects) ? [] : [{ op: "setEffects" as const, effects: b.effects }]),
   ];
 }

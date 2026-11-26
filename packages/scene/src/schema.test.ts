@@ -102,4 +102,27 @@ describe("parseScene", () => {
       }),
     );
   });
+
+  it("supports environment kinds, intensity, rotation, and credited CC0 HDRI while defaulting omitted/empty environment to studio", () => {
+    const doc = fixtureScene("v2");
+    const omitted = Object.fromEntries(Object.entries(doc).filter(([k]) => k !== "environment"));
+    expect(parseScene(omitted)).toMatchObject({ ok: true, scene: { environment: { kind: "studio" } } });
+    expect(parseScene({ ...doc, environment: {} })).toMatchObject({ ok: true, scene: { environment: { kind: "studio" } } });
+
+    const hdri = { url: "https://example.com/room.hdr", license: "CC0-1.0", credit: "Poly Haven" } as const;
+    for (const kind of ["studio", "gallery", "dusk", "noir"] as const) {
+      expect(parseScene({ ...doc, environment: { kind, intensity: 1.5, rotation: 0.75, hdri } })).toEqual({
+        ok: true,
+        scene: { ...doc, environment: { kind, intensity: 1.5, rotation: 0.75, hdri } },
+      });
+    }
+    expect(parseScene({ ...doc, environment: { kind: "dusk", hdri: { url: "/envs/dusk.hdr", license: "CC0-1.0", credit: "Studio" } } }).ok).toBe(true);
+    expect(parseScene({ ...doc, environment: { kind: "noir", hdri: { url: "data:application/octet-stream;base64,AA==", license: "CC0-1.0", credit: "Inline" } } }).ok).toBe(true);
+    expect(parseScene({ ...doc, environment: { kind: "studio", hdri: { ...hdri, url: "javascript:alert(1)" } } }).ok).toBe(false);
+    expect(parseScene({ ...doc, environment: { kind: "studio", hdri: { ...hdri, url: "//evil/room.hdr" } } }).ok).toBe(false);
+    expect(parseScene({ ...doc, environment: { kind: "studio", hdri: { ...hdri, license: "MIT" } } }).ok).toBe(false);
+    expect(parseScene({ ...doc, environment: { kind: "studio", hdri: { ...hdri, credit: "" } } }).ok).toBe(false);
+    expect(parseScene({ ...doc, environment: { kind: "studio", intensity: 11 } }).ok).toBe(false);
+    expect(parseScene({ ...doc, environment: { kind: "outdoor" } }).ok).toBe(false);
+  });
 });
