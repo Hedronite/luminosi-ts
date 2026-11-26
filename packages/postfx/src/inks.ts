@@ -1,4 +1,6 @@
-import { parseHex, type Hex, type ScenePalette } from "@hedronite/lts-tokens";
+import { BLACK, mixHex, WHITE, type Hex, type ScenePalette } from "@hedronite/lts-tokens";
+
+export { mixHex };
 
 /**
  * The inks a print uses: a cool ramp for pixels that lean blue, a warm ramp for those that lean red,
@@ -23,17 +25,8 @@ export interface InkOptions {
   readonly monochrome?: Hex;
 }
 
-const toHex = (rgb: readonly [number, number, number]): Hex =>
-  `#${rgb.map((c) => Math.round(Math.min(255, Math.max(0, c))).toString(16).padStart(2, "0")).join("")}`;
-
-/** Mixes two colors in sRGB: t = 0 is `a`, t = 1 is `b`. */
-export function mixHex(a: Hex, b: Hex, t: number): Hex {
-  const x = parseHex(a);
-  const y = parseHex(b);
-  return toHex([x[0] + (y[0] - x[0]) * t, x[1] + (y[1] - x[1]) * t, x[2] + (y[2] - x[2]) * t]);
-}
-
-const ramp = (mid: Hex): readonly [Hex, Hex, Hex] => [mixHex(mid, "#000000", 0.55), mid, mixHex(mid, "#ffffff", 0.5)];
+// Pure luminance mix endpoints (tokens BLACK/WHITE) anchor the dark/light ramp extremes for any print hue.
+const ramp = (mid: Hex): readonly [Hex, Hex, Hex] => [mixHex(mid, BLACK, 0.55), mid, mixHex(mid, WHITE, 0.5)];
 
 /**
  * Inks from a token preset's scene colors. With the Hedronite preset this gives the hedronite.com
@@ -42,5 +35,5 @@ const ramp = (mid: Hex): readonly [Hex, Hex, Hex] => [mixHex(mid, "#000000", 0.5
 export function inksFor(scene: ScenePalette, options: InkOptions = {}): Inks {
   const cool = options.monochrome ?? options.cool ?? scene.emissive;
   const warm = options.monochrome ?? options.warm ?? scene.accent;
-  return { cool: ramp(cool), warm: ramp(warm), hot: mixHex(warm, "#ffffff", 0.88), rule: mixHex(warm, "#ffffff", 0.5), chroma: options.monochrome === undefined ? 0.35 : 0 };
+  return { cool: ramp(cool), warm: ramp(warm), hot: mixHex(warm, WHITE, 0.88), rule: mixHex(warm, WHITE, 0.5), chroma: options.monochrome === undefined ? 0.35 : 0 };
 }

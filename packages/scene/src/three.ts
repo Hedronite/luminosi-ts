@@ -5,7 +5,7 @@ import { createFramedSolid } from "@hedronite/lts-objects/three";
 import { screenEffectSchemas, type ScreenEffectConfig } from "@hedronite/lts-postfx";
 import type * as Postfx from "@hedronite/lts-postfx/three";
 import { isPrimitiveId, primitive } from "@hedronite/lts-primitives";
-import { createStudioLights, disposeObject } from "@hedronite/lts-primitives/three";
+import { applyStudioLightsPalette, createStudioLights, disposeObject } from "@hedronite/lts-primitives/three";
 import { loadDescriptors } from "@hedronite/lts-registry";
 import { isEffectId } from "@hedronite/lts-shaders";
 import type { EffectClock, EffectHandle } from "@hedronite/lts-shaders/three";
@@ -423,7 +423,7 @@ export function createScene(initial: SceneDocument, options: SceneOptions = {}):
 
     if (lights === undefined || lightIntensity !== next.lights.intensity) {
       if (lights !== undefined) root.remove(lights);
-      lights = createStudioLights({ intensity: next.lights.intensity });
+      lights = createStudioLights({ intensity: next.lights.intensity, palette: look });
       lightIntensity = next.lights.intensity;
       root.add(lights);
     }
@@ -447,9 +447,10 @@ export function createScene(initial: SceneDocument, options: SceneOptions = {}):
   ready.catch(() => undefined);
 
   const size = new Vector2();
-  /** Writes a look into everything built, and into the effects' inks. */
+  /** Writes a look into everything built (materials, lights, and effects' inks) in place. */
   const recolor = (palette: ScenePalette): void => {
     look = palette;
+    if (lights !== undefined) applyStudioLightsPalette(lights, palette);
     for (const slot of slots.values()) slot.built?.recolor(palette);
     if (stage?.effects !== undefined && postfx !== undefined) {
       const ink = monochrome(doc, palette);
@@ -547,11 +548,13 @@ export function createScene(initial: SceneDocument, options: SceneOptions = {}):
     update(next) {
       if (disposed) return Promise.reject(new Error("the scene is disposed"));
       const own = explicitLook ? undefined : lookOf(next.look);
+      const changedLook = own !== undefined && own !== look ? own : undefined;
+      if (changedLook !== undefined) look = changedLook;
       const work = apply(next);
       // The document's motion follows it: a document that brings tracks, or changes them, plays them from the next step.
       motion = modeOf(next);
       writeMotion();
-      if (own !== undefined && own !== look) recolor(own);
+      if (changedLook !== undefined) recolor(changedLook);
       return settle(work);
     },
     ...(renderer === undefined || stage === undefined

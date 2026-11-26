@@ -29,3 +29,18 @@ export function contrastRatio(a: string, b: string): number {
   const [hi, lo] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => y - x);
   return ((hi ?? 0) + 0.05) / ((lo ?? 0) + 0.05);
 }
+
+/** Pure black (#000000) and pure white (#ffffff), for neutral mix endpoints and luminance masks. */
+export const BLACK: Hex = "#000000";
+export const WHITE: Hex = "#ffffff";
+
+/** Mixes two #rrggbb colors in sRGB: t = 0 is `a`, t = 1 is `b`. */
+export function mixHex(a: Hex, b: Hex, t: number): Hex {
+  const x = parseHex(a);
+  const y = parseHex(b);
+  const channel = (i: 0 | 1 | 2): string =>
+    Math.round(Math.min(255, Math.max(0, x[i] + (y[i] - x[i]) * t)))
+      .toString(16)
+      .padStart(2, "0");
+  return `#${channel(0)}${channel(1)}${channel(2)}`;
+}

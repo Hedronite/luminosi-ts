@@ -1,11 +1,11 @@
-import type { ScenePalette } from "@hedronite/lts-tokens";
+import type { SceneColorKey } from "@hedronite/lts-tokens";
 
 /** A physically based material, described as data. Colors come from the active token preset. */
 export interface MaterialPreset {
   readonly name: string;
   readonly tags: readonly string[];
   /** Which scene color the material takes from the token preset. */
-  readonly color: keyof ScenePalette;
+  readonly color: SceneColorKey;
   readonly roughness: number;
   readonly metalness: number;
   readonly clearcoat?: number;
@@ -21,7 +21,7 @@ export interface MaterialPreset {
   readonly sheen?: number;
   readonly sheenRoughness?: number;
   /** Which scene color tints the sheen; without it the sheen is the material's own color. */
-  readonly sheenColor?: keyof ScenePalette;
+  readonly sheenColor?: SceneColorKey;
   /** A thin film over the surface whose color shifts with the viewing angle. 0 to 1. */
   readonly iridescence?: number;
   readonly iridescenceIOR?: number;

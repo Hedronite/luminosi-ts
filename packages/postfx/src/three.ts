@@ -1,4 +1,4 @@
-import { neutral, type ScenePalette } from "@hedronite/lts-tokens";
+import { BLACK, neutral, WHITE, type ScenePalette } from "@hedronite/lts-tokens";
 import type { z } from "zod";
 import { convertToTexture, pass, viewportOpaqueMipTexture } from "three/tsl";
 import { CanvasTexture, DataTexture, LinearFilter, MathUtils, RedFormat, RenderPipeline, TextureNode, Vector2, ViewportTextureNode, type Camera, type Node, type RenderTarget, type Scene, type Texture, type WebGPURenderer } from "three/webgpu";
@@ -61,9 +61,9 @@ function glyphAtlas(ramp: string): Texture {
   }
   canvas.width = cell * ramp.length;
   canvas.height = cell;
-  context.fillStyle = "#000";
+  context.fillStyle = BLACK;
   context.fillRect(0, 0, canvas.width, canvas.height);
-  context.fillStyle = "#fff";
+  context.fillStyle = WHITE;
   context.font = `600 ${String(cell * 0.9)}px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
   context.textAlign = "center";
   context.textBaseline = "middle";

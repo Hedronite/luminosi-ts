@@ -1,6 +1,6 @@
 import { createRegistry, registerManifest } from "@hedronite/lts-core";
 import { disposeObject } from "@hedronite/lts-primitives/three";
-import { hedronite, neutral } from "@hedronite/lts-tokens";
+import { duskLightTints, hedronite, neutral } from "@hedronite/lts-tokens";
 import { Color, DirectionalLight, HemisphereLight, Light, Mesh, MeshPhysicalMaterial, type Object3D } from "three";
 import { describe, expect, it, vi } from "vitest";
 import { sceneKit, sceneKitIds } from "./kits.js";
@@ -69,7 +69,7 @@ describe("applyPalette", () => {
     expect(kit.children.filter((child): child is Mesh => child instanceof Mesh).map((mesh) => mesh.material)).toEqual(materials);
   });
 
-  it("writes a kit's lights from its data, whatever they were changed to, and leaves a light it did not build alone", () => {
+  it("writes a kit's lights from the look's lighting tokens, and leaves a light it did not build alone", () => {
     const kit = createSceneKit("dusk");
     const [warm] = kit.children.filter((child): child is DirectionalLight => child instanceof DirectionalLight);
     expect(warm).toBeDefined();
@@ -77,17 +77,17 @@ describe("applyPalette", () => {
     const stranger = new DirectionalLight(new Color("#654321"), 1);
     kit.add(stranger);
     applyPalette(kit, hedronite.scene);
-    expect(warm?.color.getHexString()).toBe("ffb36b");
+    expect(warm?.color.getHexString()).toBe(new Color(hedronite.scene.key).multiply(new Color(duskLightTints.key)).getHexString());
     expect(stranger.color.getHexString()).toBe("654321");
   });
 
-  it("recolors a kit's hemisphere light's sky and ground", () => {
+  it("recolors a kit's hemisphere light's sky and ground from the look", () => {
     const kit = createSceneKit("gallery");
     const light = kit.children.find((child): child is HemisphereLight => child instanceof HemisphereLight);
     light?.color.set("#000000");
     light?.groundColor.set("#000000");
     applyPalette(kit, hedronite.scene);
-    expect(light?.color.getHexString()).toBe("ffffff");
-    expect(light?.groundColor.getHexString()).toBe("d8d4cc");
+    expect(light?.color.getHexString()).toBe(new Color(hedronite.scene.sky).getHexString());
+    expect(light?.groundColor.getHexString()).toBe(new Color(hedronite.scene.ground).getHexString());
   });
 });

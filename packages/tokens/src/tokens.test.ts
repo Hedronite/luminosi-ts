@@ -39,6 +39,8 @@ const textPairs: readonly (readonly [keyof Palette, keyof Palette])[] = [
   ["fg", "surfaceRaised"],
   ["fgMuted", "surface"],
   ["fgMuted", "surfaceRaised"],
+  ["accentText", "surface"],
+  ["accentText", "surfaceRaised"],
   ["onAccent", "accent"],
 ];
 
@@ -61,7 +63,7 @@ describe("themeCss", () => {
 
   it("maps every semantic color to a utility through @theme inline", () => {
     expect(css).toContain("@theme inline {");
-    for (const name of ["surface", "surface-raised", "fg", "fg-muted", "line", "accent", "on-accent"]) {
+    for (const name of ["surface", "surface-raised", "fg", "fg-muted", "line", "accent", "accent-text", "on-accent"]) {
       expect(css).toContain(`--color-${name}: var(--lts-${name});`);
     }
   });
@@ -70,5 +72,15 @@ describe("themeCss", () => {
     expect(css).toContain(':root, :root[data-preset="neutral"] {');
     expect(css).toContain(':root[data-preset="hedronite"] {');
     expect(css).toContain("@media (prefers-color-scheme: dark)");
+  });
+});
+
+describe("scene lighting tokens", () => {
+  it.each(presets)("%s carries lighting, toneMapping, and exposure tokens", (preset) => {
+    for (const role of ["key", "fill", "rim", "ambient", "sky", "ground"] as const) {
+      expect(preset.scene[role]).toMatch(/^#[0-9a-f]{6}$/);
+    }
+    expect(["aces", "agx", "neutral"]).toContain(preset.scene.toneMapping);
+    expect(preset.scene.exposure).toBeGreaterThan(0);
   });
 });

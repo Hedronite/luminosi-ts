@@ -1,7 +1,8 @@
-import { BatchedMesh, BufferAttribute, BufferGeometry, Color, Group, InstancedMesh, Line, LineBasicMaterial, LineLoop, LineSegments, Mesh, MeshStandardMaterial, Points, PointsMaterial, Texture } from "three";
+import { hedronite, neutral } from "@hedronite/lts-tokens";
+import { BatchedMesh, BufferAttribute, BufferGeometry, Color, Group, InstancedMesh, Light, Line, LineBasicMaterial, LineLoop, LineSegments, Mesh, MeshStandardMaterial, Points, PointsMaterial, Texture } from "three";
 import { describe, expect, it, vi, type Mock } from "vitest";
 import { primitive } from "./catalog.js";
-import { createPolyhedronGeometry, createStudioLights, disposeObject } from "./three.js";
+import { applyStudioLightsPalette, createPolyhedronGeometry, createStudioLights, disposeObject } from "./three.js";
 
 describe("createPolyhedronGeometry", () => {
   it("has a position and normal per triangle corner, and a bounding sphere", () => {
@@ -22,11 +23,23 @@ describe("createPolyhedronGeometry", () => {
 });
 
 describe("createStudioLights", () => {
-  it("has key, fill, rim and ambient lights, scaled by intensity", () => {
+  it("has key, fill, rim and ambient lights, scaled by intensity and colored from palette", () => {
     const rig = createStudioLights({ intensity: 2 });
     expect(rig.children.map((c) => c.name)).toEqual(["key", "fill", "rim", "ambient"]);
     const key = rig.getObjectByName("key");
     expect(key && "intensity" in key ? key.intensity : 0).toBeCloseTo(4.8);
+    expect(key instanceof Light && key.color.getHexString()).toBe(new Color(neutral.scene.key).getHexString());
+  });
+
+  it("recolors studio lights in place via applyStudioLightsPalette", () => {
+    const rig = createStudioLights({ palette: neutral.scene });
+    const before = rig.children.slice();
+    applyStudioLightsPalette(rig, hedronite.scene);
+    expect(rig.children).toEqual(before);
+    for (const role of ["key", "fill", "rim", "ambient"] as const) {
+      const light = rig.getObjectByName(role);
+      expect(light instanceof Light && light.color.getHexString()).toBe(new Color(hedronite.scene[role]).getHexString());
+    }
   });
 });
 

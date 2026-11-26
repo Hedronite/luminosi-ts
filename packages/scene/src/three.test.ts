@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { materialPreset } from "@hedronite/lts-materials";
 import { loadDescriptors } from "@hedronite/lts-registry";
 import { hedronite, neutral, presets, type ScenePalette } from "@hedronite/lts-tokens";
-import { Color, Euler, InstancedMesh, Matrix4, Quaternion, Vector3, Mesh, MeshPhysicalMaterial, Texture, type BufferGeometry, type Material, type Object3D } from "three";
+import { Color, Euler, InstancedMesh, Light, Matrix4, Quaternion, Vector3, Mesh, MeshPhysicalMaterial, Texture, type BufferGeometry, type Material, type Object3D } from "three";
 import fc from "fast-check";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { checkRefs, parseScene, setEffects, setInk, setTransform, type Scene as SceneDocument, type SceneNode } from "./index.js";
@@ -633,5 +633,33 @@ describe("the document's motion", () => {
     expect(built.advance(0.5, {})).toBe(true);
     expect(heroAt(built)).toEqual([0, 0.3, 0]);
     built.dispose();
+  });
+});
+
+describe("in-place light recoloring", () => {
+  it("recolors studio lights in place on setLook and update without rebuilding", async () => {
+    const doc = scene([node("a", { surface: { material: "satin" } })], { look: "neutral" });
+    const built = createScene(doc);
+    await built.ready;
+    const rig = built.root.getObjectByName("studio-lights");
+    const lightsBefore = rig?.children.slice();
+    const key = rig?.getObjectByName("key");
+    expect(key instanceof Light && key.color.getHexString()).toBe(new Color(neutral.scene.key).getHexString());
+
+    built.setLook(hedronite.scene);
+    expect(rig?.children).toEqual(lightsBefore);
+    expect(key instanceof Light && key.color.getHexString()).toBe(new Color(hedronite.scene.key).getHexString());
+
+    const live = createScene(doc);
+    await live.ready;
+    const liveRig = live.root.getObjectByName("studio-lights");
+    const liveLightsBefore = liveRig?.children.slice();
+    const liveKey = liveRig?.getObjectByName("key");
+    await live.update({ ...doc, look: "hedronite" });
+    expect(liveRig?.children).toEqual(liveLightsBefore);
+    expect(liveKey instanceof Light && liveKey.color.getHexString()).toBe(new Color(hedronite.scene.key).getHexString());
+
+    built.dispose();
+    live.dispose();
   });
 });
