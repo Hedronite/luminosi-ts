@@ -4,7 +4,7 @@ import { Close } from "@hedronite/lts-icons/react";
 import { isMaterialId, materialIds, materialPreset, type MaterialId } from "@hedronite/lts-materials";
 import { isScreenEffectId, screenEffectIds, screenEffectInfo } from "@hedronite/lts-postfx";
 import { isPrimitiveId, primitiveIds, primitiveInfo, type PrimitiveId } from "@hedronite/lts-primitives";
-import { addNode, canRedo, canUndo, createHistory, encodeScene, endGesture, push, redo, removeNode, ringLayout, setEffects, setInk, setLights, setTransform, SHARE_LIMITS, undo, type InkMode, type Scene as SceneDocument, type SceneHistory, type SceneIssue, type SceneNode, type SceneResult } from "@hedronite/lts-scene";
+import { addNode, canRedo, canUndo, createHistory, encodeScene, endGesture, push, redo, removeNode, ringLayout, setEffects, setEnvironment, setInk, setLights, setStage, setTransform, SHARE_LIMITS, undo, type InkMode, type Scene as SceneDocument, type SceneHistory, type SceneIssue, type SceneNode, type SceneResult } from "@hedronite/lts-scene";
 import { toCanonicalJson, toTsx, toVanilla } from "@hedronite/lts-scene/emit";
 import { effectIds, effectInfo, isEffectId, type EffectId } from "@hedronite/lts-shaders";
 import { presets } from "@hedronite/lts-tokens";
@@ -19,6 +19,7 @@ import { usePlaceable, type Placeable } from "./placeable";
 import { Controls, GpuCounts, StageClock, StageFrame, StageHold, useMotion } from "./scene";
 import { describeIssue, fileNameFor, linkFor, openFile, openLink, sceneParam, stemOf, type Opened } from "./sceneFile";
 import { useShaderClock } from "./shaderClock";
+import { StageControls } from "./StageControls";
 import { TrackPanel } from "./tracks/TrackPanel";
 import { TransformPanel } from "./TransformPanel";
 import { useCredits } from "./useCredits";
@@ -588,6 +589,22 @@ export function Playground() {
               }}
             />
           </label>
+
+          <StageControls
+            environment={doc.environment}
+            stage={doc.stage}
+            palette={preset.scene}
+            distance={Math.hypot(...doc.camera.position.map((at, axis) => at - (doc.camera.target[axis] ?? 0)))}
+            onEnvironment={(environment) => {
+              commit(setEnvironment(doc, environment));
+            }}
+            onStage={(stage, gesture) => {
+              commit(setStage(doc, stage), gesture);
+            }}
+            onGestureEnd={() => {
+              setHistory(endGesture);
+            }}
+          />
 
           <TrackPanel doc={doc} commit={commit} />
         </div>
