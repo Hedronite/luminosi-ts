@@ -6,6 +6,7 @@ import {
   type Scene,
   type SceneClip,
   type SceneEffect,
+  type SceneEnvironment,
   type SceneLook,
   type SceneNode,
   type SceneRest,
@@ -215,6 +216,11 @@ export function setLights(scene: Scene, change: LightsChange): SceneResult {
 /** The document in this look: a look id, or the five scene colors. */
 export function setLook(scene: Scene, look: SceneLook): SceneResult {
   return read({ ...scene, look });
+}
+
+/** The document with this environment configuration: room kind, optional intensity/rotation, and optional CC0 HDRI source. */
+export function setEnvironment(scene: Scene, environment: SceneEnvironment): SceneResult {
+  return read({ ...scene, environment });
 }
 
 /** The document with `track` added after the others. Its id must be new, and its path, its keyframes and its rest value must read. */

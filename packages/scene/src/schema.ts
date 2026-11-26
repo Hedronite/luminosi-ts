@@ -132,6 +132,34 @@ const node = z.strictObject({
 const effect = z.strictObject({ id: assetId, params: params.optional() });
 
 export const inkModes = ["look", "accent", "emissive", "glass"] as const;
+export const environmentKinds = ["studio", "gallery", "dusk", "noir"] as const;
+export type EnvironmentKind = (typeof environmentKinds)[number];
+export const HDRI_LICENSE = "CC0-1.0" as const;
+
+const isSafeHdriUrl = (value: string): boolean => {
+  if (value.trim() !== value || /\s/.test(value)) return false;
+  // A path from the site's own root. A backslash is refused: a browser reads `/\host` as `//host`, which is another origin.
+  if (value.startsWith("/")) return !value.startsWith("//") && !value.includes("\\");
+  try {
+    const { protocol } = new URL(value);
+    return protocol === "https:" || protocol === "data:";
+  } catch {
+    return false;
+  }
+};
+
+const environmentHdri = z.strictObject({
+  url: z.string().min(1).refine(isSafeHdriUrl, "an environment HDRI url must be https:, data:, or root-relative"),
+  license: z.literal(HDRI_LICENSE),
+  credit: z.string().trim().min(1),
+});
+
+const environment = z.strictObject({
+  kind: z.enum(environmentKinds).default("studio"),
+  intensity: z.number().min(0).max(10).optional(),
+  rotation: z.number().optional(),
+  hdri: environmentHdri.optional(),
+});
 
 /**
  * A scene document, version 1: one composition as data. The root of the package imports no three.js and no React,
@@ -146,7 +174,7 @@ export const sceneSchema = z.strictObject({
   seed: z.int().min(0),
   nodes: z.array(node),
   lights: z.strictObject({ rig: z.literal("studio"), intensity: z.number().min(0).max(10) }),
-  environment: z.strictObject({ kind: z.literal("studio") }),
+  environment: environment.default({ kind: "studio" }),
   camera: z.strictObject({ position: vec3, target: vec3, fov: z.number().gt(0).lt(180) }),
   effects: z.array(effect),
   /** One-ink prints use one of the look's scene colors; "look" prints with two inks. */
@@ -165,6 +193,8 @@ export type SceneAsset = SceneNode["asset"];
 export type SceneSurface = NonNullable<SceneNode["surface"]>;
 export type SceneEffect = Scene["effects"][number];
 export type SceneLook = Scene["look"];
+export type SceneEnvironment = Scene["environment"];
+export type SceneEnvironmentHdri = NonNullable<SceneEnvironment["hdri"]>;
 export type SceneTrack = Scene["tracks"][number];
 export type SceneTrackKeyframe = SceneTrack["keyframes"][number];
 export type SceneClip = Scene["clips"][number];

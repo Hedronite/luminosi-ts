@@ -10,6 +10,7 @@ import {
   sceneSchema,
   setRest,
   setEffects,
+  setEnvironment,
   setInk,
   setLights,
   setLook,
@@ -34,6 +35,7 @@ const opSchema = z.discriminatedUnion("op", [
   z.strictObject({ op: z.literal("setTransform"), id: node.shape.id, change: z.strictObject({ position: node.shape.position.optional(), rotation: node.shape.rotation.optional(), scale: node.shape.scale.optional() }) }),
   z.strictObject({ op: z.literal("setSurface"), id: node.shape.id, surface: node.shape.surface }),
   z.strictObject({ op: z.literal("setEffects"), effects: sceneSchema.shape.effects }),
+  z.strictObject({ op: z.literal("setEnvironment"), environment: sceneSchema.shape.environment }),
   z.strictObject({ op: z.literal("setInk"), ink: sceneSchema.shape.ink }),
   z.strictObject({ op: z.literal("setLights"), change: sceneSchema.shape.lights.partial() }),
   z.strictObject({ op: z.literal("setLook"), look: sceneSchema.shape.look }),
@@ -50,7 +52,7 @@ const opSchema = z.discriminatedUnion("op", [
 export type Op = z.output<typeof opSchema>;
 
 /** The names of the operations, in the order of the package's edit module. */
-export const opNames = ["addNode", "removeNode", "setTransform", "setSurface", "setEffects", "setInk", "setLights", "setLook", "addTrack", "removeTrack", "setKeyframes", "setRest", "removeRest", "setClip", "removeClip"] as const;
+export const opNames = ["addNode", "removeNode", "setTransform", "setSurface", "setEffects", "setEnvironment", "setInk", "setLights", "setLook", "addTrack", "removeTrack", "setKeyframes", "setRest", "removeRest", "setClip", "removeClip"] as const;
 
 /** One operation applied to a document: the package function of that name. */
 function applyOp(scene: Scene, op: Op): SceneResult {
@@ -67,6 +69,8 @@ function applyOp(scene: Scene, op: Op): SceneResult {
       return setSurface(scene, op.id, op.surface);
     case "setEffects":
       return setEffects(scene, op.effects);
+    case "setEnvironment":
+      return setEnvironment(scene, op.environment);
     case "setInk":
       return setInk(scene, op.ink);
     case "setLights": {

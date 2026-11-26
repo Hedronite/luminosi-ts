@@ -1,3 +1,4 @@
+import { ROOM_SPECS, type RoomColorExpr, type RoomColorToken } from "../rooms.js";
 import type { Scene, SceneNode } from "../schema.js";
 import { assetScale, creditExport, creditHeader, forest, hasMotion, importLine, literal, lookSource, motionSource, names, num, type Entry, type EmitOptions } from "./common.js";
 
@@ -39,6 +40,130 @@ function build(node: SceneNode, at: number): readonly string[] {
   }
 }
 
+interface VanillaRoomConfig {
+  readonly threeValues: readonly string[];
+  readonly tokenValues: readonly string[];
+  readonly lines: readonly string[];
+}
+
+const TOKEN_EXPR: Readonly<Record<RoomColorToken, { readonly code: string; readonly token: string }>> = {
+  WHITE: { code: "WHITE", token: "WHITE" },
+  BLACK: { code: "BLACK", token: "BLACK" },
+  "neutral.ground": { code: "neutral.scene.ground", token: "neutral" },
+  "neutral.base": { code: "neutral.scene.base", token: "neutral" },
+  "hedronite.sky": { code: "hedronite.scene.sky", token: "hedronite" },
+  "hedronite.fill": { code: "hedronite.scene.fill", token: "hedronite" },
+  "dusk.key": { code: "duskLightTints.key", token: "duskLightTints" },
+  "dusk.rim": { code: "duskLightTints.rim", token: "duskLightTints" },
+  "dusk.ambient": { code: "duskLightTints.ambient", token: "duskLightTints" },
+};
+
+function colorExprCode(expr: RoomColorExpr, tokens: Set<string>): string {
+  if (typeof expr === "string") {
+    tokens.add(TOKEN_EXPR[expr].token);
+    return TOKEN_EXPR[expr].code;
+  }
+  tokens.add("mixHex");
+  return `mixHex(${colorExprCode(expr[1], tokens)}, ${colorExprCode(expr[2], tokens)}, ${num(expr[3])})`;
+}
+
+function environmentLines(scene: Scene): VanillaRoomConfig {
+  const env = scene.environment;
+  const hdri = env.hdri;
+  const threeValues: string[] = [];
+  const tokens = new Set<string>();
+  const lines: string[] = [];
+  const decl = hdri === undefined ? "const" : "let";
+
+  if (env.kind === "studio") {
+    lines.push(
+      "  const room = new RoomEnvironment();",
+      "  const pmrem = new PMREMGenerator(renderer);",
+      `  ${decl} environment = pmrem.fromScene(room, 0.04);`,
+      "  room.dispose();",
+      "  pmrem.dispose();",
+      "  scene.environment = environment.texture;",
+    );
+  } else {
+    threeValues.push("BackSide", "BoxGeometry", "Mesh", "MeshLambertMaterial", "MeshStandardMaterial", "PointLight");
+    tokens.add("BLACK");
+    const spec = ROOM_SPECS[env.kind];
+    lines.push(
+      "  const room = new Scene();",
+      "  room.position.y = -3.5;",
+      "  const roomGeometry = new BoxGeometry();",
+      '  roomGeometry.deleteAttribute("uv");',
+      `  const wallMaterial = new MeshStandardMaterial({ color: ${colorExprCode(spec.wall, tokens)}, roughness: ${num(spec.roughness)}, side: BackSide });`,
+      `  const contactMaterial = new MeshStandardMaterial({ color: ${colorExprCode(spec.contact, tokens)}, roughness: 1 });`,
+      "  const roomMaterials: (MeshStandardMaterial | MeshLambertMaterial)[] = [wallMaterial, contactMaterial];",
+      "  const enclosure = new Mesh(roomGeometry, wallMaterial);",
+      "  enclosure.position.set(0, 12, 0);",
+      "  enclosure.scale.set(31, 27, 29);",
+      "  room.add(enclosure);",
+      "  const contactFloor = new Mesh(roomGeometry, contactMaterial);",
+      "  contactFloor.position.set(0, -1.2, 0);",
+      "  contactFloor.scale.set(22, 0.4, 22);",
+      "  room.add(contactFloor);",
+      `  const roomLight = new PointLight(${colorExprCode(spec.point, tokens)}, ${num(spec.pointIntensity)}, 32, 2);`,
+      "  roomLight.position.set(0.4, 16, 0.3);",
+      "  room.add(roomLight);",
+      ...spec.cards.flatMap(([colorExpr, cardIntensity, x, y, z, sx, sy, sz], i) => [
+        `  const cardMat${String(i)} = new MeshLambertMaterial({ color: BLACK, emissive: ${colorExprCode(colorExpr, tokens)}, emissiveIntensity: ${num(cardIntensity)} });`,
+        `  roomMaterials.push(cardMat${String(i)});`,
+        `  const card${String(i)} = new Mesh(roomGeometry, cardMat${String(i)});`,
+        `  card${String(i)}.position.set(${num(x)}, ${num(y)}, ${num(z)});`,
+        `  card${String(i)}.scale.set(${num(sx)}, ${num(sy)}, ${num(sz)});`,
+        `  room.add(card${String(i)});`,
+      ]),
+      "  const pmrem = new PMREMGenerator(renderer);",
+      `  ${decl} environment = pmrem.fromScene(room, ${num(spec.blur)});`,
+      "  roomGeometry.dispose();",
+      "  for (const roomMaterial of roomMaterials) roomMaterial.dispose();",
+      "  pmrem.dispose();",
+      "  scene.environment = environment.texture;",
+    );
+  }
+
+  if (env.intensity !== undefined) lines.push(`  scene.environmentIntensity = ${num(env.intensity)};`);
+  if (env.rotation !== undefined) lines.push(`  scene.environmentRotation.set(0, ${num(env.rotation)}, 0);`);
+
+  if (hdri !== undefined) {
+    threeValues.push("EquirectangularReflectionMapping");
+    const safeCredit = hdri.credit.replace(/[\p{Cc}\p{Zl}\p{Zp}]/gu, " ").replace(/\s+/g, " ").trim();
+    const safeUrl = hdri.url.replace(/[\p{Cc}\p{Zl}\p{Zp}]/gu, " ").replace(/\s+/g, " ").trim();
+    lines.push(
+      `  // Optional HDRI (${hdri.license}): ${safeCredit} (${safeUrl})`,
+      "  loads.push(",
+      "    (async () => {",
+      "      try {",
+      `        const response = await fetch(${JSON.stringify(hdri.url)}, { signal: controller.signal });`,
+      "        if (!response.ok) return;",
+      "        const buffer = await response.arrayBuffer();",
+      "        if (controller.signal.aborted) return;",
+      "        const equirectangular = new HDRLoader().createDataTexture(buffer);",
+      "        equirectangular.mapping = EquirectangularReflectionMapping;",
+      "        equirectangular.needsUpdate = true;",
+      "        if (controller.signal.aborted) { equirectangular.dispose(); return; }",
+      "        const hdriPmrem = new PMREMGenerator(renderer);",
+      "        const nextEnvironment = hdriPmrem.fromEquirectangular(equirectangular);",
+      "        equirectangular.dispose();",
+      "        hdriPmrem.dispose();",
+      "        if (controller.signal.aborted) { nextEnvironment.dispose(); return; }",
+      "        const previousEnvironment = environment;",
+      "        environment = nextEnvironment;",
+      "        scene.environment = nextEnvironment.texture;",
+      "        previousEnvironment.dispose();",
+      "      } catch {",
+      "        // Graceful fallback to procedural room on network or decode failure.",
+      "      }",
+      "    })(),",
+      "  );",
+    );
+  }
+
+  return { threeValues, tokenValues: [...tokens], lines };
+}
+
 function nodes(entries: readonly Entry[]): readonly string[] {
   return entries.flatMap(({ node, parent }, at) => {
     const group = `n${String(at)}`;
@@ -77,6 +202,9 @@ export function toVanilla(scene: Scene, options: EmitOptions = {}): string {
   const effects = scene.effects.length > 0;
   const ink = scene.ink === "look" ? "" : `, monochrome: palette.${scene.ink}`;
   const [x, y, z] = scene.camera.target;
+  const env = environmentLines(scene);
+  const tokenValues = [...new Set([...look.values, ...env.tokenValues])].sort();
+  const threeValues = [...new Set(["Group", ...(primitives ? ["Mesh"] : []), "PerspectiveCamera", "Scene", "Vector2", ...env.threeValues])].sort();
   // Each effect's parameters are checked and filled with its defaults by its own schema, as `createScene` fills them.
   const stack = `[${scene.effects.map((effect) => `{ id: ${JSON.stringify(effect.id)}, params: screenEffectSchemas[${JSON.stringify(effect.id)}].parse(${literal(effect.params ?? {})}) }`).join(", ")}]`;
   return [
@@ -90,9 +218,10 @@ export function toVanilla(scene: Scene, options: EmitOptions = {}): string {
     ...(primitives || framed ? [importLine("{ primitive }", "@hedronite/lts-primitives")] : []),
     importLine(names([...(primitives || framed ? ["createPolyhedronGeometry"] : []), "createStudioLights", "disposeObject"].sort()), "@hedronite/lts-primitives/three"),
     importLine(shaders ? "{ createEffect, type EffectClock }" : "{ type EffectClock }", "@hedronite/lts-shaders/three"),
-    importLine(names(look.values, look.types), "@hedronite/lts-tokens"),
-    importLine(names(["Group", ...(primitives ? ["Mesh"] : []), "PerspectiveCamera", "Scene", "Vector2"].sort(), motion ? ["Object3D"] : []), "three"),
-    importLine("{ RoomEnvironment }", "three/examples/jsm/environments/RoomEnvironment.js"),
+    importLine(names(tokenValues, look.types), "@hedronite/lts-tokens"),
+    importLine(names(threeValues, motion ? ["Object3D"] : []), "three"),
+    ...(scene.environment.hdri === undefined ? [] : [importLine("{ HDRLoader }", "three/examples/jsm/loaders/HDRLoader.js")]),
+    ...(scene.environment.kind === "studio" ? [importLine("{ RoomEnvironment }", "three/examples/jsm/environments/RoomEnvironment.js")] : []),
     importLine("{ PMREMGenerator, type WebGPURenderer }", "three/webgpu"),
     "",
     ...look.lines,
@@ -136,12 +265,7 @@ export function toVanilla(scene: Scene, options: EmitOptions = {}): string {
       : []),
     "",
     `  scene.add(createStudioLights({ intensity: ${num(scene.lights.intensity)} }));`,
-    "  const room = new RoomEnvironment();",
-    "  const pmrem = new PMREMGenerator(renderer);",
-    "  const environment = pmrem.fromScene(room, 0.04);",
-    "  room.dispose();",
-    "  pmrem.dispose();",
-    "  scene.environment = environment.texture;",
+    ...env.lines,
     "",
     "  const root = new Group();",
     "  scene.add(root);",

@@ -79,7 +79,7 @@ export function toTsx(scene: Scene, options: EmitOptions = {}): string {
   const look = lookSource(scene.look);
   const effects = scene.effects.length > 0;
   const components = [...new Set(["StudioLights", ...entries.map(({ node }) => tagOf(node))])].sort();
-  const webgpu = ["WebGPUCanvas", "WebGPUStudioEnvironment", ...(effects ? ["ScreenEffectsPass"] : [])].sort();
+  const webgpu = ["WebGPUCanvas", "WebGPUEnvironment", ...(effects ? ["ScreenEffectsPass"] : [])].sort();
   const ink = effects && scene.ink !== "look" ? ` monochrome={palette.${scene.ink}}` : "";
   const [x, y, z] = scene.camera.target;
   const lookAt = x === 0 && y === 0 && z === 0 ? "" : ` onCreated={({ camera }) => {\n        camera.lookAt(${num(x)}, ${num(y)}, ${num(z)});\n      }}`;
@@ -122,7 +122,13 @@ export function toTsx(scene: Scene, options: EmitOptions = {}): string {
     motion
       ? `    <WebGPUCanvas frameloop={reducedMotion ? "demand" : "always"} camera={{ position: ${vec(scene.camera.position)}, fov: ${num(scene.camera.fov)}, near: 0.1, far: 100 }}${lookAt}>`
       : `    <WebGPUCanvas camera={{ position: ${vec(scene.camera.position)}, fov: ${num(scene.camera.fov)}, near: 0.1, far: 100 }}${lookAt}>`,
-    "      <WebGPUStudioEnvironment />",
+    ...(scene.environment.hdri === undefined ? [] : [`      {/* HDRI (${scene.environment.hdri.license}): ${scene.environment.hdri.credit.replace(/[\p{Cc}\p{Zl}\p{Zp}]/gu, " ").replace(/\*\//g, "* /")} */}`]),
+    `      <WebGPUEnvironment ${[
+      `kind=${JSON.stringify(scene.environment.kind)}`,
+      ...(scene.environment.intensity === undefined ? [] : [`intensity={${num(scene.environment.intensity)}}`]),
+      ...(scene.environment.rotation === undefined ? [] : [`rotation={${num(scene.environment.rotation)}}`]),
+      ...(scene.environment.hdri === undefined ? [] : [`hdri={${literal(scene.environment.hdri)}}`]),
+    ].join(" ")} />`,
     `      <StudioLights intensity={${num(scene.lights.intensity)}} />`,
     ...(motion ? ["      <SceneContents reducedMotion={reducedMotion} scroll={scroll} pointer={pointer} {...(hovered === undefined ? {} : { hovered })} inView={inView} />"] : entries.flatMap((entry, at) => (entry.parent === -1 ? lines(entries, at, 3) : []))),
     ...(effects ? [`      <ScreenEffectsPass effects={effects} palette={palette} reducedMotion={reducedMotion}${ink} />`] : []),

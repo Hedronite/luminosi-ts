@@ -121,4 +121,20 @@ describe("migrate", () => {
       }),
     );
   });
+
+  it("defaults omitted environment on legacy v1/v2 documents to studio and preserves richer v2 environments", () => {
+    const omitEnv = (raw: string): Record<string, unknown> => {
+      const parsed: unknown = JSON.parse(raw);
+      if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) throw new Error("expected object");
+      return Object.fromEntries(Object.entries(parsed).filter(([k]) => k !== "environment"));
+    };
+    const v1 = omitEnv(fixtureText("v1"));
+    expect(sceneOf(migrate(v1)).environment).toEqual({ kind: "studio" });
+
+    const v2 = omitEnv(fixtureText("v2"));
+    expect(sceneOf(migrate(v2)).environment).toEqual({ kind: "studio" });
+
+    const dusk = { ...v2, environment: { kind: "dusk", intensity: 0.85, rotation: 1.1, hdri: { url: "https://example.com/dusk.hdr", license: "CC0-1.0", credit: "Poly Haven" } } };
+    expect(sceneOf(migrate(dusk)).environment).toEqual(dusk.environment);
+  });
 });

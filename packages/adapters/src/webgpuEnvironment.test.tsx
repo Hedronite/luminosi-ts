@@ -1,4 +1,4 @@
-import { ACESFilmicToneMapping, Scene, Texture } from "three";
+import { ACESFilmicToneMapping, DataTexture, Scene, Texture } from "three";
 import ReactThreeTestRenderer from "@react-three/test-renderer";
 import { useThree } from "@react-three/fiber";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
@@ -30,6 +30,17 @@ const { bakes, recorder } = vi.hoisted(() => {
         },
       };
     }
+    fromEquirectangular() {
+      const texture = new Texture();
+      let targetGone = false;
+      bakes.push({ from, room: "hdri", sigma: 0, generatorDisposed: () => this.gone, targetDisposed: () => targetGone, texture });
+      return {
+        texture,
+        dispose: () => {
+          targetGone = true;
+        },
+      };
+    }
     dispose() {
       this.gone = true;
     }
@@ -43,8 +54,8 @@ vi.mock("three/webgpu", () => ({
   WebGPURenderer: { [Symbol.hasInstance]: () => true },
 }));
 
-const { WebGPUStudioEnvironment } = await import("./webgpuEnvironment.js");
-const { STUDIO_BLUR } = await import("./studioRoom.js");
+const { WebGPUEnvironment, WebGPUStudioEnvironment } = await import("./webgpuEnvironment.js");
+const { bakeEnvironmentTarget, STUDIO_BLUR } = await import("./studioRoom.js");
 /** The look the root environment has always had, and what the WebGPU one must keep: React Three Fiber's ACES filmic, and three's own intensity of 1. */
 const studioRoom = { blur: 0.04, intensity: 1, toneMapping: ACESFilmicToneMapping } as const;
 
@@ -93,5 +104,120 @@ describe("the WebGPU studio environment", () => {
     expect(webgpu.scene()?.environmentIntensity).toBe(studioRoom.intensity);
     expect(webgpu.tone()).toBe(studioRoom.toneMapping);
     await webgpu.renderer.unmount();
+  });
+});
+
+const roomName = (room: unknown): unknown => (typeof room === "object" && room !== null ? Reflect.get(room, "name") : undefined);
+
+describe("WebGPUEnvironment", () => {
+  it("switches across procedural rooms cleanly and disposes replaced PMREM targets, while applying intensity and rotation", async () => {
+    const webgpu = await mounted(<WebGPUEnvironment kind="gallery" intensity={1.7} rotation={0.5} />);
+    expect(bakes).toHaveLength(1);
+    expect(roomName(bakes[0]?.room)).toBe("room-gallery");
+    expect(webgpu.scene()?.environment).toBe(bakes[0]?.texture);
+    expect(webgpu.scene()?.environmentIntensity).toBe(1.7);
+    expect(webgpu.scene()?.environmentRotation.y).toBeCloseTo(0.5);
+
+    await webgpu.renderer.update(
+      <>
+        <WebGPUEnvironment kind="dusk" intensity={0.9} rotation={1.1} />
+      </>,
+    );
+    expect(bakes).toHaveLength(2);
+    expect(bakes[0]?.targetDisposed()).toBe(true);
+    expect(roomName(bakes[1]?.room)).toBe("room-dusk");
+    expect(webgpu.scene()?.environment).toBe(bakes[1]?.texture);
+    expect(webgpu.scene()?.environmentIntensity).toBe(0.9);
+    expect(webgpu.scene()?.environmentRotation.y).toBeCloseTo(1.1);
+
+    await webgpu.renderer.unmount();
+    expect(bakes[1]?.targetDisposed()).toBe(true);
+  });
+
+  it("loads a CC0 HDRI via injected loader without network and falls back cleanly on error", async () => {
+    let resolved: ((tex: Texture) => void) | undefined;
+    const loader = () =>
+      new Promise<Texture>((resolve) => {
+        resolved = resolve;
+      });
+    const webgpu = await mounted(
+      <WebGPUEnvironment kind="noir" hdri={{ url: "https://example.com/noir.hdr", license: "CC0-1.0", credit: "Poly Haven" }} hdriLoader={loader} />,
+    );
+    expect(bakes[0]?.targetDisposed()).toBe(false);
+    resolved?.(new DataTexture(new Uint8Array(16), 2, 2));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(bakes).toHaveLength(2);
+    expect(bakes[1]?.room).toBe("hdri");
+    expect(webgpu.scene()?.environment).toBe(bakes[1]?.texture);
+    await webgpu.renderer.unmount();
+    expect(bakes.every((b) => b.targetDisposed())).toBe(true);
+
+    bakes.length = 0;
+    const offline = await mounted(
+      <WebGPUEnvironment kind="gallery" hdri={{ url: "https://offline.invalid/a.hdr", license: "CC0-1.0", credit: "Offline" }} hdriLoader={() => Promise.reject(new Error("offline"))} />,
+    );
+    await new Promise((r) => setTimeout(r, 20));
+    expect(roomName(bakes[0]?.room)).toBe("room-gallery");
+    expect(bakes[0]?.targetDisposed()).toBe(false);
+    expect(offline.scene()?.environment).toBe(bakes[0]?.texture);
+    await offline.renderer.unmount();
+    expect(bakes.every((b) => b.targetDisposed())).toBe(true);
+  });
+});
+
+describe("WebGPUEnvironment when its HDRI goes away", () => {
+  const hdri = { url: "https://example.com/noir.hdr", license: "CC0-1.0", credit: "Nobody" } as const;
+  const equirect = (): DataTexture => new DataTexture(new Uint8Array(16), 2, 2);
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+
+  it("frees the HDRI's target when hdri is taken away, not only at unmount", async () => {
+    const loader = () => Promise.resolve(equirect());
+    const webgpu = await mounted(<WebGPUEnvironment kind="noir" hdri={hdri} hdriLoader={loader} />);
+    await settle();
+    const [procedural, loaded] = bakes;
+    expect(loaded?.room).toBe("hdri");
+    expect(webgpu.scene()?.environment).toBe(loaded?.texture);
+
+    await webgpu.renderer.update(
+      <>
+        <WebGPUEnvironment kind="noir" hdriLoader={loader} />
+      </>,
+    );
+    await settle();
+    expect(webgpu.scene()?.environment).toBe(procedural?.texture);
+    expect(loaded?.targetDisposed()).toBe(true);
+    expect(procedural?.targetDisposed()).toBe(false);
+
+    await webgpu.renderer.unmount();
+    expect(bakes.every((b) => b.targetDisposed())).toBe(true);
+  });
+
+  it("frees an aborted load's texture and generator once each", async () => {
+    const controller = new AbortController();
+    const counts = { generator: 0, texture: 0 };
+    const texture = equirect();
+    texture.addEventListener("dispose", () => {
+      counts.texture += 1;
+    });
+    const unwanted = () => ({ texture: new Texture(), dispose: () => undefined });
+    const loading = bakeEnvironmentTarget(
+      {
+        fromScene: unwanted,
+        fromEquirectangular: unwanted,
+        dispose: () => {
+          counts.generator += 1;
+        },
+      },
+      { kind: "noir", hdri },
+      {
+        signal: controller.signal,
+        hdriLoader: async () => {
+          controller.abort();
+          return Promise.resolve(texture);
+        },
+      },
+    );
+    await expect(loading).rejects.toThrow("aborted");
+    expect(counts).toEqual({ generator: 1, texture: 1 });
   });
 });

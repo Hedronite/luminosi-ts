@@ -14,7 +14,7 @@ describe("the adapters' entries", () => {
     const root = await import("./index.js");
     expect(Object.keys(root)).toEqual(expect.arrayContaining(["PrimitiveMesh", "StudioLights"]));
     // The root environment is gone (one renderer); its name must not come back here, and the WebGPU set stays in ./webgpu.
-    for (const name of ["StudioEnvironment", "WebGPUCanvas", "ScreenEffectsPass", "WebGPUStudioEnvironment"]) expect(root).not.toHaveProperty(name);
+    for (const name of ["StudioEnvironment", "WebGPUCanvas", "ScreenEffectsPass", "WebGPUEnvironment", "WebGPUStudioEnvironment"]) expect(root).not.toHaveProperty(name);
   });
 
   it("keeps WebGPUCanvas, ScreenEffectsPass and the WebGPU environment in ./webgpu, which does need the WebGPU build", async () => {

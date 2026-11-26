@@ -534,3 +534,22 @@ describe("export", () => {
     });
   });
 });
+
+describe("environment operations in validate, patch, diff, and export", () => {
+  it("validates, patches, diffs completely, and exports gallery/dusk/noir environments", async () => {
+    const baseDoc = objectOf(textOf("transform-hierarchy"));
+    const duskEnv = { kind: "dusk", intensity: 1.3, rotation: 0.7, hdri: { url: "https://example.com/dusk.hdr", license: "CC0-1.0", credit: "Poly Haven" } };
+    const duskDoc = { ...baseDoc, environment: duskEnv };
+
+    expect(await call("validate", { document: duskDoc })).toMatchObject({ ok: true, data: { valid: true } });
+
+    const diffRes = data(await call("diff", { a: baseDoc, b: duskDoc }));
+    expect(diffRes).toMatchObject({ same: false, complete: true, ops: [{ op: "setEnvironment", environment: duskEnv }] });
+
+    const patchRes = data(await call("patch", { document: baseDoc, ops: [{ op: "setEnvironment", environment: duskEnv }] }));
+    expect(patchRes["document"]).toMatchObject({ environment: duskEnv });
+
+    expect(data(await call("export", { document: duskDoc, as: "tsx" }))["text"]).toContain('<WebGPUEnvironment kind="dusk" intensity={1.3} rotation={0.7}');
+    expect(data(await call("export", { document: duskDoc, as: "vanilla" }))["text"]).toContain("scene.environmentIntensity = 1.3;");
+  });
+});

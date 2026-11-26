@@ -120,4 +120,21 @@ describe("emitted code", () => {
     expect(tsx.passed).toBe(false);
     expect(tsx.output).toMatch(/platonic-cuboid|chrome/);
   }, 30_000);
+
+  it("type-checks React and plain three.js for gallery, dusk, noir, intensity, rotation, and CC0 HDRI rooms", () => {
+    const envDocs = [
+      ["gallery", { kind: "gallery", intensity: 1.2, rotation: 0.35 }],
+      ["dusk", { kind: "dusk", intensity: 0.9, rotation: -0.5, hdri: { url: "https://example.com/dusk.hdr", license: "CC0-1.0", credit: "Poly Haven" } }],
+      ["noir", { kind: "noir", intensity: 1.6 }],
+    ] as const;
+    const files = new Map<string, string>();
+    for (const [name, env] of envDocs) {
+      const doc = sceneSchema.parse({ ...turning, tracks: [], clips: [], rest: {}, environment: env });
+      files.set(`env-${name}.tsx`, toTsx(doc));
+      files.set(`env-${name}.vanilla.ts`, toVanilla(doc));
+    }
+    const run = check(good, files);
+    expect(run.output).toBe("");
+    expect(run.passed).toBe(true);
+  }, 30_000);
 });

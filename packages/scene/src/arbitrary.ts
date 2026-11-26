@@ -5,9 +5,11 @@ import fc from "fast-check";
 import { z } from "zod";
 import { migrate } from "./migrate.js";
 import type { RefKind, Resolve } from "./refs.js";
-import { addNode, removeNode, setEffects, setInk, setLights, setLook, setSurface, setTransform, type TransformChange } from "./edit.js";
+import { addNode, removeNode, setEffects, setEnvironment, setInk, setLights, setLook, setSurface, setTransform, type TransformChange } from "./edit.js";
 import {
   easingTokens,
+  environmentKinds,
+  HDRI_LICENSE,
   inkModes,
   propertyOf,
   trackDrivers,
@@ -15,6 +17,7 @@ import {
   type PropertyKind,
   type Scene,
   type SceneEffect,
+  type SceneEnvironment,
   type SceneLook,
   type SceneNode,
   type SceneResult,
@@ -229,6 +232,27 @@ const motionFor = (nodes: readonly SceneNode[], effects: readonly SceneEffect[])
     });
 };
 
+const environments: fc.Arbitrary<SceneEnvironment> = fc
+  .record({
+    kind: fc.constantFrom(...environmentKinds),
+    intensity: fc.option(fc.double({ min: 0, max: 10, noNaN: true }), { nil: undefined }),
+    rotation: fc.option(fc.double({ min: -Math.PI * 2, max: Math.PI * 2, noNaN: true, noDefaultInfinity: true }), { nil: undefined }),
+    hdri: fc.option(
+      fc.record({
+        url: fc.constantFrom("https://example.com/studio.hdr", "data:application/octet-stream;base64,AA==", "/assets/env.hdr"),
+        license: fc.constant(HDRI_LICENSE),
+        credit: fc.constantFrom("Poly Haven (Greg Zaal)", "AmbientCG"),
+      }),
+      { nil: undefined },
+    ),
+  })
+  .map(({ kind, intensity, rotation, hdri }): SceneEnvironment => ({
+    kind,
+    ...(intensity === undefined ? {} : { intensity }),
+    ...(rotation === undefined ? {} : { rotation }),
+    ...(hdri === undefined ? {} : { hdri }),
+  }));
+
 /** Valid documents that pass `checkRefs` against `resolve`. */
 export const scenes: fc.Arbitrary<Scene> = fc
   .record({
@@ -238,7 +262,7 @@ export const scenes: fc.Arbitrary<Scene> = fc
     seed: fc.nat(),
     nodes,
     lights: fc.record({ rig: fc.constant("studio" as const), intensity: fc.double({ min: 0, max: 10, noNaN: true }) }),
-    environment: fc.constant({ kind: "studio" as const }),
+    environment: environments,
     camera: fc.record({ position: vec3, target: vec3, fov: fc.double({ min: 1, max: 179, noNaN: true }) }),
     effects: effectStacks,
     ink: fc.constantFrom(...inkModes),
@@ -304,6 +328,7 @@ export function editsOf(scene: Scene): fc.Arbitrary<Edit> {
     effectStacks.map((stack): Edit => ({ name: "setEffects", run: (current) => setEffects(current, stack) })),
     fc.constantFrom(...inkModes).map((ink): Edit => ({ name: "setInk", run: (current) => setInk(current, ink) })),
     fc.double({ min: 0, max: 10, noNaN: true }).map((intensity): Edit => ({ name: "setLights", run: (current) => setLights(current, { intensity }) })),
+    environments.map((environment): Edit => ({ name: "setEnvironment", run: (current) => setEnvironment(current, environment) })),
     looks.map((look): Edit => ({ name: "setLook", run: (current) => setLook(current, look) })),
   ];
   if (ids.length > 0) {
