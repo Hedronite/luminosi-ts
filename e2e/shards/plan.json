@@ -1,7 +1,7 @@
 {
   "shards": 6,
   "longestSeconds": 125.3,
-  "mean": 310.7,
+  "mean": 311.7,
   "slowest": 322.9,
   "plan": [
     {
@@ -38,7 +38,7 @@
     },
     {
       "shard": 2,
-      "seconds": 302.3,
+      "seconds": 308.4,
       "locations": [
         "e2e/a11y.spec.ts:190",
         "e2e/a11y.spec.ts:326",
@@ -69,7 +69,8 @@
         "e2e/motion.spec.ts:170",
         "e2e/motion.spec.ts:92",
         "e2e/looks.spec.ts:272",
-        "e2e/looks.spec.ts:86"
+        "e2e/looks.spec.ts:86",
+        "e2e/stage-quality.spec.ts:390"
       ]
     },
     {
