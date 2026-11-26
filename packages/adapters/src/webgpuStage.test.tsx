@@ -79,6 +79,8 @@ describe("WebGPUStage", () => {
     expect(Reflect.get(Object(Reflect.get(Object(captured.gl), "shadowMap")), "enabled")).toBe(true);
     const key = captured.scene.getObjectByName("key");
     expect(key instanceof DirectionalLight && key.castShadow).toBe(true);
+    let keyDisposed = 0;
+    if (key instanceof DirectionalLight) key.addEventListener("dispose", () => { keyDisposed += 1; });
     const subject = captured.scene.getObjectByName("subject");
     expect(subject instanceof Mesh && subject.castShadow && subject.receiveShadow).toBe(true);
     const catcher = captured.scene.getObjectByName("shadow-catcher");
@@ -117,7 +119,9 @@ describe("WebGPUStage", () => {
     expect(subject instanceof Mesh && !subject.castShadow && !subject.receiveShadow).toBe(true);
     expect(captured.scene.getObjectByName("shadow-catcher")).toBeUndefined();
     expect(catcherDisposed).toBe(true);
+    expect(keyDisposed).toBe(1);
 
     await renderer.unmount();
+    expect(keyDisposed).toBeGreaterThanOrEqual(2);
   });
 });

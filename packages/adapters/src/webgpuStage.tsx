@@ -94,7 +94,7 @@ export function WebGPUStage({ stage, palette = neutral.scene }: WebGPUStageProps
         key.shadow.normalBias = 0.02;
         key.shadow.radius = 3;
       } else {
-        key.shadow.dispose();
+        key.dispose();
       }
     }
 
@@ -122,7 +122,7 @@ export function WebGPUStage({ stage, palette = neutral.scene }: WebGPUStageProps
         }
       }
       const key = state.scene.getObjectByName("key");
-      if (key instanceof DirectionalLight) key.shadow.dispose();
+      if (key instanceof DirectionalLight) key.dispose();
     },
     [get],
   );

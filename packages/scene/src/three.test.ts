@@ -1118,6 +1118,41 @@ describe("environment swaps that overtake one another", () => {
       handle.dispose();
     });
 
+    it("disposes previous key light (releasing ShadowNode target/textures) when shadows turn off or lights.intensity changes", async () => {
+      const { renderer } = makeRenderer();
+      const docWithIntensity = (intensity: number, stage?: SceneDocument["stage"]): SceneDocument => ({
+        ...stageDoc(stage),
+        lights: { rig: "studio", intensity },
+      });
+      const handle = threeMod.createScene(docWithIntensity(1, { quality: "full", shadows: { enabled: true, catcher: false } }), { renderer });
+      await handle.ready;
+
+      const firstKey = handle.root.getObjectByName("key");
+      if (!(firstKey instanceof Light)) throw new Error("missing key light");
+      let firstDisposed = 0;
+      firstKey.addEventListener("dispose", () => {
+        firstDisposed += 1;
+      });
+
+      // Opening a scene with a different lights.intensity (e.g., v1 glass fixture at 1.2) replaces the light rig: the old key light must dispose.
+      await handle.update(docWithIntensity(1.2));
+      expect(firstDisposed).toBe(1);
+
+      // Enabling shadows again on the new light rig and then switching shadows off also disposes the key light synchronously.
+      await handle.update(docWithIntensity(1.2, { quality: "full", shadows: { enabled: true, catcher: false } }));
+      const secondKey = handle.root.getObjectByName("key");
+      if (!(secondKey instanceof Light)) throw new Error("missing second key light");
+      let secondDisposed = 0;
+      secondKey.addEventListener("dispose", () => {
+        secondDisposed += 1;
+      });
+      await handle.update(docWithIntensity(1.2, { quality: "lite", shadows: { enabled: true, catcher: false } }));
+      expect(secondDisposed).toBe(1);
+
+      handle.dispose();
+      expect(secondDisposed).toBeGreaterThanOrEqual(2);
+    });
+
     it("builds bloom and dof targets on full quality, updates uniformly, and disables under lite with zero leaks", async () => {
       const { renderer } = makeRenderer();
       const handle = threeMod.createScene(

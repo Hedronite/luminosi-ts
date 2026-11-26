@@ -371,7 +371,7 @@ export function toVanilla(scene: Scene, options: EmitOptions = {}): string {
     "      scene.remove(root);",
     "      disposeObject(root);",
     ...(hasPipeline ? ["      effects.dispose();"] : []),
-    ...(shadowsOn ? ["      if (keyLight instanceof DirectionalLight) keyLight.shadow.dispose();"] : []),
+    ...(shadowsOn ? ["      if (keyLight instanceof DirectionalLight) keyLight.dispose();"] : []),
     "      environment.dispose();",
     "    },",
     "  };",

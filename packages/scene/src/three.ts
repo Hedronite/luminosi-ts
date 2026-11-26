@@ -10,7 +10,7 @@ import { loadDescriptors } from "@hedronite/lts-registry";
 import { isEffectId } from "@hedronite/lts-shaders";
 import type { EffectClock, EffectHandle } from "@hedronite/lts-shaders/three";
 import { BLACK, duskLightTints, hedronite, mixHex, neutral, presets, sceneLighting, WHITE, type Hex, type ScenePalette, type ToneMapping } from "@hedronite/lts-tokens";
-import { ACESFilmicToneMapping, AgXToneMapping, BackSide, BoxGeometry, BufferGeometry, DataTexture, DirectionalLight, EquirectangularReflectionMapping, Group, Mesh, MeshLambertMaterial, MeshStandardMaterial, NeutralToneMapping, NoToneMapping, Object3D, PCFShadowMap, PerspectiveCamera, PlaneGeometry, PointLight, Scene, ShadowMaterial, Vector2, type Material, type ShadowMapType, type Texture, type ToneMapping as ThreeToneMapping } from "three";
+import { ACESFilmicToneMapping, AgXToneMapping, BackSide, BoxGeometry, BufferGeometry, DataTexture, DirectionalLight, EquirectangularReflectionMapping, Group, Light, Mesh, MeshLambertMaterial, MeshStandardMaterial, NeutralToneMapping, NoToneMapping, Object3D, PCFShadowMap, PerspectiveCamera, PlaneGeometry, PointLight, Scene, ShadowMaterial, Vector2, type Material, type ShadowMapType, type Texture, type ToneMapping as ThreeToneMapping } from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import type { WebGPURenderer } from "three/webgpu";
 import { z } from "zod";
@@ -302,6 +302,13 @@ const readBoolProp = (obj: object, key: string, fallback: boolean): boolean => {
   return typeof val === "boolean" ? val : fallback;
 };
 
+const disposeLights = (group: Group): void => {
+  group.removeFromParent();
+  group.traverse((child) => {
+    if (child instanceof Light) child.dispose();
+  });
+};
+
 const setMeshShadows = (root: Object3D, enabled: boolean): void => {
   root.traverse((child) => {
     if (child instanceof Mesh && child.name !== "shadow-catcher") {
@@ -580,7 +587,7 @@ export function createScene(initial: SceneDocument, options: SceneOptions = {}):
         key.shadow.normalBias = 0.02;
         key.shadow.radius = 3;
       } else {
-        key.shadow.dispose();
+        key.dispose();
       }
     }
 
@@ -748,7 +755,7 @@ export function createScene(initial: SceneDocument, options: SceneOptions = {}):
     link(next);
 
     if (lights === undefined || lightIntensity !== next.lights.intensity) {
-      if (lights !== undefined) root.remove(lights);
+      if (lights !== undefined) disposeLights(lights);
       lights = createStudioLights({ intensity: next.lights.intensity, palette: look });
       lightIntensity = next.lights.intensity;
       root.add(lights);
@@ -915,8 +922,10 @@ export function createScene(initial: SceneDocument, options: SceneOptions = {}):
       for (const slot of slots.values()) release(slot);
       slots.clear();
       disposeCatcher();
-      const key = lights?.getObjectByName("key");
-      if (key instanceof DirectionalLight) key.shadow.dispose();
+      if (lights !== undefined) {
+        disposeLights(lights);
+        lights = undefined;
+      }
       if (stage !== undefined) {
         if (renderer !== undefined) {
           if (hasShadowMap(renderer)) {
