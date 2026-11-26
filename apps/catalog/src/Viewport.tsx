@@ -6,8 +6,9 @@ import { createStudioLights, disposeObject } from "@hedronite/lts-primitives/thr
 import type { SceneEnvironment, SceneStage } from "@hedronite/lts-scene";
 import type { ScenePalette } from "@hedronite/lts-tokens";
 import { useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Object3D } from "three";
+import { noteEffectTargets } from "./builds";
 import { Controls, GpuCounts, StageFrame, useMotion } from "./scene";
 import { StageControls } from "./StageControls";
 import { buildSubject } from "./subjects";
@@ -114,6 +115,11 @@ export function Viewport({ meta, palette, params }: { readonly meta: AssetMeta; 
   const [arrived, setArrived] = useState<Object3D | undefined>(undefined);
   // A new object, so the stage applies itself again to what has arrived since it last did.
   const staged = useMemo(() => (stage === undefined || arrived === undefined ? stage : { ...stage }), [stage, arrived]);
+  // The stage runs screen effects only with bloom or depth of field on; only then does it count their pipelines.
+  const postfx = stage !== undefined && hasStagePostfx(stage);
+  const noteTargets = useCallback((ids: readonly string[]) => {
+    noteEffectTargets(group.current, ids);
+  }, []);
   // May shrink: the box around it is a grid that clips, and the canvas's own width would otherwise hold it wider than a narrow screen.
   return (
     <div className="w-full min-w-0">
@@ -124,8 +130,8 @@ export function Viewport({ meta, palette, params }: { readonly meta: AssetMeta; 
           <Controls keys={group} />
           <Subject key={meta.id} meta={meta} palette={palette} params={params} onObject={setArrived} />
           <WebGPUStage stage={staged} palette={palette} />
-          {stage !== undefined && hasStagePostfx(stage) ? <ScreenEffectsPass stage={stage} palette={palette} /> : null}
-          <GpuCounts target={group} />
+          {postfx ? <ScreenEffectsPass stage={stage} palette={palette} onPipeline={noteTargets} /> : null}
+          <GpuCounts target={group} screenEffects={postfx} />
         </WebGPUCanvas>
       </StageFrame>
       <div className="border-t border-line bg-surface p-4">
