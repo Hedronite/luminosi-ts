@@ -141,16 +141,16 @@
         "e2e/looks.spec.ts:261",
         "e2e/looks.spec.ts:66",
         "e2e/looks.spec.ts:98",
-        "e2e/memory.spec.ts:163",
-        "e2e/memory.spec.ts:228",
-        "e2e/memory.spec.ts:290",
         "e2e/stage-quality.spec.ts:140",
         "e2e/stage-quality.spec.ts:176",
         "e2e/stage-quality.spec.ts:222",
         "e2e/stage-quality.spec.ts:282",
         "e2e/stage-quality.spec.ts:311",
         "e2e/stage-quality.spec.ts:337",
-        "e2e/stage-quality.spec.ts:369"
+        "e2e/stage-quality.spec.ts:369",
+        "e2e/memory.spec.ts:174",
+        "e2e/memory.spec.ts:239",
+        "e2e/memory.spec.ts:301"
       ]
     },
     {

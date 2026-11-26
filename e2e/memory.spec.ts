@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import type { Locator, Page } from "@playwright/test";
-import { migrate, toneMappingModes, type SceneStage } from "@hedronite/lts-scene";
+// A type only. The suite also runs against the built container, where no workspace package is built: nothing here may import one to run.
+import type { SceneStage } from "@hedronite/lts-scene";
 import { expect, expectRenderer, test } from "./fixtures.js";
 
 // The playground's memory guard: open, undo, redo and remove, five times over, leave the GPU holding what it held after the first time.
@@ -52,13 +53,20 @@ const glassUnderEffects = (): Document => {
   return { source: { name: "glass-under-effects.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(solo)) }, nodes: 1 };
 };
 
-/** A fixture, or a document made from one, brought to the current version and given a stage block. One that does not read fails here and not in the page. */
+/** How many staged documents have been made: each gets a name of its own, so the page's note says which one it opened. */
+let made = 0;
+
+/**
+ * A fixture, or a document made from one, as a version 2 document with a stage block. Version 1 is version 2 with no motion. The
+ * playground reads it as it reads any file, and `open` waits for it to say so: a stage the schema refuses fails there.
+ */
 const staged = (from: () => Document, stage: SceneStage): Document => {
   const { source, nodes } = from();
-  const text = typeof source === "string" ? readFileSync(source, "utf8") : source.buffer.toString("utf8");
-  const read = migrate(JSON.parse(text));
-  if (!read.ok) throw new Error(`the document to stage does not read: ${JSON.stringify(read.issues)}`);
-  return { source: { name: "staged.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify({ ...read.scene, stage })) }, nodes };
+  const parsed: unknown = JSON.parse(typeof source === "string" ? readFileSync(source, "utf8") : source.buffer.toString("utf8"));
+  if (typeof parsed !== "object" || parsed === null || !("version" in parsed) || (parsed.version !== 1 && parsed.version !== 2)) throw new Error("only a version 1 or 2 scene document can be given a stage here");
+  const motion = parsed.version === 1 ? { version: 2, tracks: [], clips: [], rest: {} } : {};
+  made += 1;
+  return { source: { name: `staged-${String(made)}.json`, mimeType: "application/json", buffer: Buffer.from(JSON.stringify({ ...parsed, ...motion, stage })) }, nodes };
 };
 
 const fixture = (file: string) => (): Document => ({ source: file, nodes: nodesIn(file) });
@@ -70,7 +78,7 @@ const everything: SceneStage = {
   shadows: { enabled: true, catcher: true },
   bloom: { enabled: true, threshold: 5, gain: 0.22, radius: 0.35 },
   dof: { enabled: true, focus: 5.5, aperture: 1, focalLength: 2.5 },
-  toneMapping: toneMappingModes[1],
+  toneMapping: "agx",
 };
 
 const ATTRIBUTES = ["data-geometries", "data-textures", "data-targets"] as const;
@@ -122,6 +130,9 @@ const framesOf = async (host: Locator): Promise<number> => Number(await host.get
 /** Opens a scene document from a file, as a person does with Open scene, and waits until the scene list shows what it holds. */
 async function open(page: Page, scene: Document): Promise<void> {
   await page.getByLabel("Open scene").setInputFiles(scene.source);
+  // A document the playground refuses leaves the one before it on show, which may hold as many nodes: wait for it to name this one.
+  const name = typeof scene.source === "string" ? basename(scene.source) : scene.source.name;
+  await expect(page.getByText(`Opened ${name}:`)).toBeVisible({ timeout: STAGE_WAIT });
   await expect(page.getByRole("list", { name: "Scene" }).getByRole("listitem")).toHaveCount(scene.nodes, { timeout: STAGE_WAIT });
 }
 
