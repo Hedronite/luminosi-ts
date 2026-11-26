@@ -141,8 +141,6 @@ interface Round {
   readonly title: string;
   /** What each cycle opens first: A, plain unless given. */
   readonly opening?: () => Document;
-  /** Opened between the first and the last, when given. */
-  readonly through?: () => Document;
   readonly build: () => Document;
 }
 
@@ -154,22 +152,14 @@ const rounds: readonly Round[] = [
     opening: () => staged(fixture(FIXTURE_A), everything),
     build: () => staged(fixture(FIXTURE_B), everything),
   },
-  // A shadow map and the glass's transmission pass once left a render target and two textures behind every time round.
   {
-    title: "the playground holds the same GPU memory after every cycle from a shadowed document to transmission glass under every stage feature",
-    opening: fixture(FIXTURE_A),
-    through: () => staged(fixture(FIXTURE_B), { quality: "full", shadows }),
+    title: "the playground holds the same GPU memory after every cycle with transmission glass under screen effects and every stage feature",
+    opening: () => staged(fixture(FIXTURE_A), everything),
     build: () => staged(glassUnderEffects, everything),
-  },
-  {
-    title: "the playground holds the same GPU memory after every cycle from shadows alone to plain glass under screen effects",
-    opening: fixture(FIXTURE_A),
-    through: () => staged(fixture(FIXTURE_B), { quality: "full", shadows }),
-    build: glassUnderEffects,
   },
 ];
 
-rounds.forEach(({ title, opening: first_, through, build }) => {
+rounds.forEach(({ title, opening: first_, build }) => {
   test(title, async ({ page }, info) => {
     // Five cycles of builds and rebuilds on software WebGL take longer than one test's usual share of the clock, and longer still with a stage.
     test.setTimeout(300_000);
@@ -178,9 +168,8 @@ rounds.forEach(({ title, opening: first_, through, build }) => {
     await expectRenderer(stage.locator("canvas"));
     await expect(stage).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
     const opening = (first_ ?? fixture(FIXTURE_A))();
-    const middle = through?.();
     const closing = build();
-    const a = (middle ?? opening).nodes;
+    const a = opening.nodes;
     const b = closing.nodes;
 
     const readings: Memory[] = [];
@@ -188,15 +177,6 @@ rounds.forEach(({ title, opening: first_, through, build }) => {
     for (let cycle = 1; cycle <= CYCLES; cycle += 1) {
       // eslint-disable-next-line no-await-in-loop -- the cycles run one after another: each starts from what the last one left
       await open(page, opening);
-      if (middle !== undefined) {
-        // eslint-disable-next-line no-await-in-loop -- see above
-        const before = await framesOf(stage);
-        // eslint-disable-next-line no-await-in-loop -- see above
-        await open(page, middle);
-        // The next document replaces this one only once it has been drawn: a shadow map is made by drawing.
-        // eslint-disable-next-line no-await-in-loop -- see above
-        await settledMemory(stage, before, 0);
-      }
       // eslint-disable-next-line no-await-in-loop -- see above
       await open(page, closing);
       // eslint-disable-next-line no-await-in-loop -- see above
@@ -297,3 +277,43 @@ test("the detail view holds the same GPU memory after every round of its stage c
   });
   expect(firstOn?.["data-targets"], "the stage features draw into targets of their own").toBeGreaterThan(firstOff?.["data-targets"] ?? 0);
 });
+
+// A shadow map and the transmission glass's own pass under screen effects once left a render target and two textures behind each time the
+// shadows went off again. It shows only when every document on the way is drawn, and the count is read back on the plain first one.
+const chains: readonly { readonly title: string; readonly steps: readonly (() => Document)[] }[] = [
+  { title: "shadows", steps: [() => staged(fixture(FIXTURE_B), { quality: "full", shadows }), glassUnderEffects] },
+  { title: "shadows and a catcher", steps: [() => staged(fixture(FIXTURE_B), { quality: "full", shadows: { enabled: true, catcher: true } }), glassUnderEffects] },
+  { title: "every stage feature, on the glass too", steps: [() => staged(fixture(FIXTURE_B), everything), () => staged(glassUnderEffects, everything), glassUnderEffects] },
+];
+
+for (const { title, steps } of chains) {
+  test(`the playground holds the same GPU memory each time round, from ${title} through transmission glass and back`, async ({ page }, info) => {
+    test.setTimeout(300_000);
+    await page.goto("/?view=playground");
+    const stage = page.getByTestId("playground-viewport");
+    await expectRenderer(stage.locator("canvas"));
+    await expect(stage).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: STAGE_WAIT });
+    const home = fixture(FIXTURE_A);
+
+    const readings: Memory[] = [];
+    for (let cycle = 1; cycle <= CYCLES; cycle += 1) {
+      let reading: Memory | undefined;
+      for (const step of [...steps, home]) {
+        // eslint-disable-next-line no-await-in-loop -- each document is opened over the one before, once that one has been drawn
+        const frames = await framesOf(stage);
+        // eslint-disable-next-line no-await-in-loop -- see above
+        await open(page, step());
+        // eslint-disable-next-line no-await-in-loop -- see above
+        reading = await settledMemory(stage, frames, 0);
+      }
+      if (reading !== undefined) readings.push(reading);
+    }
+
+    info.annotations.push({ type: "memory back on the first document after each cycle", description: JSON.stringify(readings) });
+    expect(readings).toHaveLength(CYCLES);
+    const [first, ...rest] = readings;
+    rest.forEach((reading, index) => {
+      expect(reading, `cycle ${String(index + 2)} of ${String(CYCLES)} against cycle 1`).toEqual(first);
+    });
+  });
+}
