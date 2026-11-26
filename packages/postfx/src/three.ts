@@ -1,10 +1,11 @@
-import { BLACK, neutral, WHITE, type ScenePalette } from "@hedronite/lts-tokens";
+import { BLACK, neutral, WHITE, type ScenePalette, type ToneMapping as LookToneMapping } from "@hedronite/lts-tokens";
 import type { z } from "zod";
 import { convertToTexture, pass, viewportOpaqueMipTexture } from "three/tsl";
-import { CanvasTexture, DataTexture, LinearFilter, MathUtils, RedFormat, RenderPipeline, TextureNode, Vector2, ViewportTextureNode, type Camera, type Node, type RenderTarget, type Scene, type Texture, type WebGPURenderer } from "three/webgpu";
+import { ACESFilmicToneMapping, AgXToneMapping, CanvasTexture, DataTexture, LinearFilter, MathUtils, NeutralToneMapping, NoToneMapping, RedFormat, RenderPipeline, TextureNode, Vector2, ViewportTextureNode, type Camera, type Node, type RenderTarget, type Scene, type Texture, type ToneMapping as ThreeToneMapping, type WebGPURenderer } from "three/webgpu";
 import { orderStack, screenEffectSchemas, type ScreenEffectConfig, type ScreenEffectId } from "./effects.js";
 import { inksFor, type InkOptions, type Inks } from "./inks.js";
-import { crtNode, floatUniform, grainNode, inkUniforms, printNode, smokeField, smokeNode, vec2Uniform, writeInks, type CrtUniforms, type FloatUniform, type InkUniforms, type PrintUniforms } from "./nodes.js";
+import { bloomMips, bloomNode, crtNode, dofField, dofNode, floatUniform, grainNode, inkUniforms, printNode, smokeField, smokeNode, vec2Uniform, writeInks, type BloomUniforms, type CrtUniforms, type DofUniforms, type FloatUniform, type InkUniforms, type PrintUniforms } from "./nodes.js";
+import { resolveStagePostfx, type ResolvedStagePostfx, type StagePostfxConfig } from "./stage.js";
 import { isPrintId, mergePrintSettings, printGroups, resolveValues, type PrintId, type PrintSettings, type ScreenEffectUpdate, type ScreenEffectValues, type StackValues } from "./settings.js";
 
 export type { ScreenEffectUpdate, ScreenEffectValues };
@@ -14,6 +15,8 @@ export interface ScreenEffectsOptions extends InkOptions {
   readonly palette?: ScenePalette;
   /** Skip the intro and the scan sweep, and open the lens at once. */
   readonly reducedMotion?: boolean;
+  /** Optional stage bloom and depth-of-field quality settings. */
+  readonly stage?: StagePostfxConfig | undefined;
 }
 
 /** A pointer over the canvas, 0 to 1 from the top left, or null when it is away. */
@@ -24,9 +27,24 @@ export type ScreenPointer = { readonly x: number; readonly y: number } | null;
  * structure differ only in values `setParams` and `setInks` write, so one `ScreenEffects` serves both.
  * Pass the same `reducedMotion` as the options: it is structure too.
  */
-export function stackStructure(stack: readonly ScreenEffectConfig[], reducedMotion = false): string {
+export function stackStructure(stack: readonly ScreenEffectConfig[], reducedMotion = false, stage?: StagePostfxConfig): string {
   const ordered = orderStack(stack).map((effect) => (effect.id === "ascii" ? [effect.id, screenEffectSchemas.ascii.parse(effect.params ?? {}).ramp] : [effect.id]));
-  return JSON.stringify([reducedMotion, ordered]);
+  const resolved = resolveStagePostfx(stage);
+  if (!resolved.dof.enabled && !resolved.bloom.enabled) return JSON.stringify([reducedMotion, ordered]);
+  return JSON.stringify([reducedMotion, ordered, resolved.dof.enabled, resolved.bloom.enabled]);
+}
+
+const TONE_MAPPINGS: Readonly<Record<LookToneMapping | "none", ThreeToneMapping>> = {
+  aces: ACESFilmicToneMapping,
+  agx: AgXToneMapping,
+  neutral: NeutralToneMapping,
+  none: NoToneMapping,
+};
+
+/** Applies look-token or scene-override tone mapping and exposure directly onto `renderer`. */
+export function applyToneMapping(renderer: WebGPURenderer, mode: LookToneMapping | "none", exposure: number): void {
+  renderer.toneMapping = TONE_MAPPINGS[mode];
+  renderer.toneMappingExposure = exposure;
 }
 
 /** Every parameter of every effect in `stack`, defaults filled in: `setParams` takes it to bring a built stack to these values. */
@@ -150,6 +168,9 @@ export class ScreenEffects {
   private readonly smokeIntensity = floatUniform(1);
   private readonly grainAmount = floatUniform(0);
   private readonly crt: CrtUniforms = { curvature: floatUniform(1), pitch: floatUniform(2), aberration: floatUniform(1), motion: floatUniform(1) };
+  private readonly bloom: BloomUniforms = { threshold: floatUniform(5), gain: floatUniform(0.22), radius: floatUniform(0.35) };
+  private readonly dof: DofUniforms = { focus: floatUniform(5.5), aperture: floatUniform(1), focalLength: floatUniform(2.5) };
+  private stage: ResolvedStagePostfx;
   private readonly inks: InkUniforms;
   /** The parameters now in force for each effect in the stack, complete. */
   private values: StackValues;
@@ -169,6 +190,7 @@ export class ScreenEffects {
     this.inks = inkUniforms(inksFor(options.palette ?? neutral.scene, options));
     this.dpr = floatUniform(renderer.getPixelRatio());
     this.reduced = options.reducedMotion === true;
+    this.stage = resolveStagePostfx(options.stage);
     this.values = resolveValues(stack);
     this.ids = orderStack(stack).map((effect) => effect.id);
     this.ramp = this.values.ascii?.ramp;
@@ -192,6 +214,20 @@ export class ScreenEffects {
       if ("isRTTNode" in target) targets.push(target);
       return target;
     };
+    if (this.stage.dof.enabled) {
+      const sharp = source();
+      const field = dofField(sharp, this.dof.aperture);
+      targets.push(field);
+      output = dofNode(sharp, field, scenePass.getViewZNode(), this.dof);
+      passes.push("dof");
+    }
+    if (this.stage.bloom.enabled) {
+      const hdr = source();
+      const mips = bloomMips(hdr, this.bloom.threshold, this.bloom.radius);
+      targets.push(...mips);
+      output = bloomNode(hdr, mips, this.bloom.gain);
+      passes.push("bloom");
+    }
     let printed = false;
     for (const id of this.ids) {
       if (isPrintId(id)) {
@@ -259,8 +295,24 @@ export class ScreenEffects {
     return this.values.smoke?.speed ?? 1;
   }
 
+  /** Updates stage bloom and DoF uniform values in place without rebuilding the pipeline. */
+  setStage(stage?: StagePostfxConfig): void {
+    this.stage = resolveStagePostfx(stage);
+    this.writeStage();
+  }
+
+  private writeStage(): void {
+    this.bloom.threshold.value = this.stage.bloom.threshold;
+    this.bloom.gain.value = this.stage.bloom.gain;
+    this.bloom.radius.value = this.stage.bloom.radius;
+    this.dof.focus.value = this.stage.dof.focus;
+    this.dof.aperture.value = this.stage.dof.aperture;
+    this.dof.focalLength.value = this.stage.dof.focalLength;
+  }
+
   /** Writes the effect values into the uniforms the non-print passes read. */
   private writeValues(): void {
+    this.writeStage();
     const v = this.values;
     this.smokeIntensity.value = v.smoke?.intensity ?? 1;
     this.grainAmount.value = v.grain?.amount ?? 0;

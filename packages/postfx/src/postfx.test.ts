@@ -4,12 +4,13 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { orderStack, screenEffectIds, screenEffectInfo, screenEffectSchemas } from "./effects.js";
 import { texture, viewportOpaqueMipTexture } from "three/tsl";
-import { PerspectiveCamera, Scene, Texture, TextureNode, Vector2, ViewportTextureNode, WebGPURenderer } from "three/webgpu";
-import { crtNode, floatUniform as uniform, grainNode, inkUniforms, printNode, smokeField, smokeNode, vec2Uniform, writeInks, type PrintUniforms } from "./nodes.js";
+import { PerspectiveCamera, RenderTarget, Scene, Texture, TextureNode, Vector2, ViewportTextureNode, WebGPURenderer } from "three/webgpu";
+import { bloomMips, bloomNode, crtNode, dofField, dofNode, floatUniform as uniform, grainNode, inkUniforms, printNode, smokeField, smokeNode, vec2Uniform, writeInks, type PrintUniforms } from "./nodes.js";
+import { resolveStagePostfx } from "./stage.js";
 import { inksFor, mixHex } from "./inks.js";
 import { manifest } from "./manifest.js";
 import { mergePrintSettings, printGroups, printSettings, resolveValues } from "./settings.js";
-import { applyPalette, ScreenEffects, stackStructure, stackValues, type ScreenEffectsOptions } from "./three.js";
+import { applyPalette, applyToneMapping, ScreenEffects, stackStructure, stackValues, type ScreenEffectsOptions } from "./three.js";
 
 describe("inks", () => {
   it("gives the Hedronite look hedronite.com's lapis and copper", () => {
@@ -334,4 +335,75 @@ it("registers one effect asset per screen effect", () => {
   const registry = createRegistry();
   registerManifest(registry, manifest);
   expect(registry.list({ kind: "effect" }).map((a) => a.id)).toEqual([...screenEffectIds].sort());
+});
+
+describe("stage quality passes", () => {
+  const renderer = ((): WebGPURenderer => {
+    const stub: unknown = Object.create(WebGPURenderer.prototype);
+    if (!(stub instanceof WebGPURenderer)) throw new Error("no renderer");
+    stub.getPixelRatio = () => 2;
+    return stub;
+  })();
+
+  it("resolves defaults and disables bloom/dof under lite quality", () => {
+    expect(resolveStagePostfx({ bloom: {}, dof: {} })).toEqual({
+      quality: "full",
+      bloom: { enabled: false, threshold: 5, gain: 0.22, radius: 0.35 },
+      dof: { enabled: false, focus: 5.5, aperture: 1, focalLength: 2.5 },
+    });
+    expect(resolveStagePostfx({ quality: "lite", bloom: { enabled: true }, dof: { enabled: true } })).toMatchObject({
+      quality: "lite",
+      bloom: { enabled: false },
+      dof: { enabled: false },
+    });
+  });
+
+  it("builds bloom mips and dof TSL nodes cleanly", () => {
+    const input = texture(new Texture());
+    const mips = bloomMips(input, uniform(5), uniform(0.35));
+    expect(mips).toHaveLength(3);
+    const bloom = bloomNode(input, mips, uniform(0.22));
+    const field = dofField(input, uniform(1));
+    const dof = dofNode(input, field, uniform(-5), { focus: uniform(5.5), aperture: uniform(1), focalLength: uniform(2.5) });
+    expect([bloom.isNode, field.isNode, dof.isNode]).toEqual([true, true, true]);
+  });
+
+  it("runs stage dof & bloom before stylized effects and updates uniforms in place", () => {
+    const stage = { quality: "full" as const, bloom: { enabled: true }, dof: { enabled: true } };
+    const runner = new ScreenEffects(renderer, new Scene(), new PerspectiveCamera(), [{ id: "grain" }], { stage });
+    expect(runner.passes).toEqual(["dof", "bloom", "grain"]);
+    const pipeline = runner.pipeline;
+    const held = [...runner.targetIds];
+    expect(held.length).toBe(7);
+    const freed: string[] = [];
+    for (const target of runner["targets"]) {
+      const rt: unknown = Reflect.get(target, "renderTarget");
+      if (rt instanceof RenderTarget) {
+        rt.addEventListener("dispose", () => freed.push("t"));
+      }
+    }
+    runner.setStage({ quality: "full", bloom: { enabled: true, threshold: 2, gain: 0.5, radius: 0.6 }, dof: { enabled: true, focus: 8, aperture: 1.5, focalLength: 3 } });
+    expect(runner.pipeline).toBe(pipeline);
+    expect(runner.targetIds).toEqual(held);
+    expect(runner["bloom"].threshold.value).toBe(2);
+    expect(runner["bloom"].gain.value).toBe(0.5);
+    expect(runner["dof"].focus.value).toBe(8);
+    expect(stackStructure([], false, stage)).not.toBe(stackStructure([], false, { quality: "lite", bloom: { enabled: true }, dof: { enabled: true } }));
+    expect(stackStructure([{ id: "grain" }], false)).toBe(stackStructure([{ id: "grain" }], false, { quality: "lite", bloom: { enabled: true } }));
+    runner.dispose();
+    expect(freed.length).toBeGreaterThanOrEqual(5);
+  });
+
+  it("applies look or override tone mapping and exposure onto WebGPURenderer", () => {
+    const stub: unknown = Object.create(WebGPURenderer.prototype);
+    if (!(stub instanceof WebGPURenderer)) throw new Error("no renderer");
+    applyToneMapping(stub, "agx", 1.25);
+    expect([stub.toneMapping, stub.toneMappingExposure]).toEqual([6, 1.25]);
+    applyToneMapping(stub, "neutral", 0.9);
+    expect([stub.toneMapping, stub.toneMappingExposure]).toEqual([7, 0.9]);
+    applyToneMapping(stub, "aces", 1);
+    expect([stub.toneMapping, stub.toneMappingExposure]).toEqual([4, 1]);
+    applyToneMapping(stub, "none", 1);
+    expect(stub.toneMapping).toBe(0);
+  });
 });

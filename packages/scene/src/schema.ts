@@ -132,6 +132,10 @@ const node = z.strictObject({
 const effect = z.strictObject({ id: assetId, params: params.optional() });
 
 export const inkModes = ["look", "accent", "emissive", "glass"] as const;
+export const stageQualities = ["full", "lite"] as const;
+export type StageQuality = (typeof stageQualities)[number];
+export const toneMappingModes = ["aces", "agx", "neutral"] as const;
+export type ToneMappingMode = (typeof toneMappingModes)[number];
 export const environmentKinds = ["studio", "gallery", "dusk", "noir"] as const;
 export type EnvironmentKind = (typeof environmentKinds)[number];
 export const HDRI_LICENSE = "CC0-1.0" as const;
@@ -161,6 +165,34 @@ const environment = z.strictObject({
   hdri: environmentHdri.optional(),
 });
 
+const stageShadows = z.strictObject({
+  enabled: z.boolean().default(true),
+  catcher: z.boolean().default(false),
+});
+
+const stageBloom = z.strictObject({
+  enabled: z.boolean().default(true),
+  threshold: z.number().min(0).max(20).default(5),
+  gain: z.number().min(0).max(4).default(0.22),
+  radius: z.number().min(0).max(1).default(0.35),
+});
+
+const stageDof = z.strictObject({
+  enabled: z.boolean().default(true),
+  focus: z.number().gt(0).max(100).default(5.5),
+  aperture: z.number().min(0).max(10).default(1),
+  focalLength: z.number().gt(0).max(50).default(2.5),
+});
+
+const stageConfig = z.strictObject({
+  quality: z.enum(stageQualities).default("full"),
+  shadows: stageShadows.optional(),
+  bloom: stageBloom.optional(),
+  dof: stageDof.optional(),
+  toneMapping: z.enum(toneMappingModes).optional(),
+  exposure: z.number().gt(0).max(10).optional(),
+});
+
 /**
  * A scene document, version 1: one composition as data. The root of the package imports no three.js and no React,
  * so a document can be read, checked, migrated and written anywhere.
@@ -175,6 +207,7 @@ export const sceneSchema = z.strictObject({
   nodes: z.array(node),
   lights: z.strictObject({ rig: z.literal("studio"), intensity: z.number().min(0).max(10) }),
   environment: environment.default({ kind: "studio" }),
+  stage: stageConfig.optional(),
   camera: z.strictObject({ position: vec3, target: vec3, fov: z.number().gt(0).lt(180) }),
   effects: z.array(effect),
   /** One-ink prints use one of the look's scene colors; "look" prints with two inks. */
@@ -195,6 +228,10 @@ export type SceneEffect = Scene["effects"][number];
 export type SceneLook = Scene["look"];
 export type SceneEnvironment = Scene["environment"];
 export type SceneEnvironmentHdri = NonNullable<SceneEnvironment["hdri"]>;
+export type SceneStage = NonNullable<Scene["stage"]>;
+export type SceneStageShadows = NonNullable<SceneStage["shadows"]>;
+export type SceneStageBloom = NonNullable<SceneStage["bloom"]>;
+export type SceneStageDof = NonNullable<SceneStage["dof"]>;
 export type SceneTrack = Scene["tracks"][number];
 export type SceneTrackKeyframe = SceneTrack["keyframes"][number];
 export type SceneClip = Scene["clips"][number];

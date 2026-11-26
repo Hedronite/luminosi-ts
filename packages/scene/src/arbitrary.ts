@@ -5,13 +5,15 @@ import fc from "fast-check";
 import { z } from "zod";
 import { migrate } from "./migrate.js";
 import type { RefKind, Resolve } from "./refs.js";
-import { addNode, removeNode, setEffects, setEnvironment, setInk, setLights, setLook, setSurface, setTransform, type TransformChange } from "./edit.js";
+import { addNode, removeNode, setEffects, setEnvironment, setInk, setLights, setLook, setStage, setSurface, setTransform, type TransformChange } from "./edit.js";
 import {
   easingTokens,
   environmentKinds,
   HDRI_LICENSE,
   inkModes,
   propertyOf,
+  stageQualities,
+  toneMappingModes,
   trackDrivers,
   trackTriggers,
   type PropertyKind,
@@ -19,6 +21,7 @@ import {
   type SceneEffect,
   type SceneEnvironment,
   type SceneLook,
+  type SceneStage,
   type SceneNode,
   type SceneResult,
   type SceneSurface,
@@ -232,6 +235,24 @@ const motionFor = (nodes: readonly SceneNode[], effects: readonly SceneEffect[])
     });
 };
 
+const stages: fc.Arbitrary<SceneStage> = fc
+  .record({
+    quality: fc.constantFrom(...stageQualities),
+    shadows: fc.option(fc.record({ enabled: fc.boolean(), catcher: fc.boolean() }), { nil: undefined }),
+    bloom: fc.option(fc.record({ enabled: fc.boolean(), threshold: fc.double({ min: 0, max: 20, noNaN: true }), gain: fc.double({ min: 0, max: 4, noNaN: true }), radius: fc.double({ min: 0, max: 1, noNaN: true }) }), { nil: undefined }),
+    dof: fc.option(fc.record({ enabled: fc.boolean(), focus: fc.double({ min: 0.1, max: 100, noNaN: true }), aperture: fc.double({ min: 0, max: 10, noNaN: true }), focalLength: fc.double({ min: 0.1, max: 50, noNaN: true }) }), { nil: undefined }),
+    toneMapping: fc.option(fc.constantFrom(...toneMappingModes), { nil: undefined }),
+    exposure: fc.option(fc.double({ min: 0.1, max: 10, noNaN: true }), { nil: undefined }),
+  })
+  .map(({ quality, shadows, bloom, dof, toneMapping, exposure }): SceneStage => ({
+    quality,
+    ...(shadows === undefined ? {} : { shadows }),
+    ...(bloom === undefined ? {} : { bloom }),
+    ...(dof === undefined ? {} : { dof }),
+    ...(toneMapping === undefined ? {} : { toneMapping }),
+    ...(exposure === undefined ? {} : { exposure }),
+  }));
+
 const environments: fc.Arbitrary<SceneEnvironment> = fc
   .record({
     kind: fc.constantFrom(...environmentKinds),
@@ -263,6 +284,7 @@ export const scenes: fc.Arbitrary<Scene> = fc
     nodes,
     lights: fc.record({ rig: fc.constant("studio" as const), intensity: fc.double({ min: 0, max: 10, noNaN: true }) }),
     environment: environments,
+    stage: fc.option(stages, { nil: undefined }),
     camera: fc.record({ position: vec3, target: vec3, fov: fc.double({ min: 1, max: 179, noNaN: true }) }),
     effects: effectStacks,
     ink: fc.constantFrom(...inkModes),
@@ -329,6 +351,7 @@ export function editsOf(scene: Scene): fc.Arbitrary<Edit> {
     fc.constantFrom(...inkModes).map((ink): Edit => ({ name: "setInk", run: (current) => setInk(current, ink) })),
     fc.double({ min: 0, max: 10, noNaN: true }).map((intensity): Edit => ({ name: "setLights", run: (current) => setLights(current, { intensity }) })),
     environments.map((environment): Edit => ({ name: "setEnvironment", run: (current) => setEnvironment(current, environment) })),
+    fc.option(stages, { nil: undefined }).map((stage): Edit => ({ name: "setStage", run: (current) => setStage(current, stage) })),
     looks.map((look): Edit => ({ name: "setLook", run: (current) => setLook(current, look) })),
   ];
   if (ids.length > 0) {

@@ -78,9 +78,12 @@ export function toTsx(scene: Scene, options: EmitOptions = {}): string {
   const entries = forest(scene);
   const look = lookSource(scene.look);
   const effects = scene.effects.length > 0;
+  const stage = scene.stage;
+  const stagePostfx = stage !== undefined && stage.quality !== "lite" && (stage.bloom?.enabled === true || stage.dof?.enabled === true);
+  const hasPipeline = effects || stagePostfx;
   const components = [...new Set(["StudioLights", ...entries.map(({ node }) => tagOf(node))])].sort();
-  const webgpu = ["WebGPUCanvas", "WebGPUEnvironment", ...(effects ? ["ScreenEffectsPass"] : [])].sort();
-  const ink = effects && scene.ink !== "look" ? ` monochrome={palette.${scene.ink}}` : "";
+  const webgpu = ["WebGPUCanvas", "WebGPUEnvironment", ...(hasPipeline ? ["ScreenEffectsPass"] : []), ...(stage === undefined ? [] : ["WebGPUStage"])].sort();
+  const ink = hasPipeline && scene.ink !== "look" ? ` monochrome={palette.${scene.ink}}` : "";
   const [x, y, z] = scene.camera.target;
   const lookAt = x === 0 && y === 0 && z === 0 ? "" : ` onCreated={({ camera }) => {\n        camera.lookAt(${num(x)}, ${num(y)}, ${num(z)});\n      }}`;
   return [
@@ -93,7 +96,8 @@ export function toTsx(scene: Scene, options: EmitOptions = {}): string {
     "",
     ...look.lines,
     ...(credits.length === 0 ? [] : ["", ...creditExport(credits)]),
-    ...(effects ? ["", "// Defined once, outside the component: a new array would rebuild the passes.", `const effects = [${scene.effects.map((effect) => (effect.params === undefined ? `{ id: ${JSON.stringify(effect.id)} }` : `{ id: ${JSON.stringify(effect.id)}, params: ${literal(effect.params)} }`)).join(", ")}] as const;`] : []),
+    ...(effects ? ["", "// Defined once, outside the component: a new array would rebuild the passes.", `const effects = [${scene.effects.map((effect) => (effect.params === undefined ? `{ id: ${JSON.stringify(effect.id)} }` : `{ id: ${JSON.stringify(effect.id)}, params: ${literal(effect.params)} }`)).join(", ")}] as const;`] : stagePostfx ? ["", "const effects = [] as const;"] : []),
+    ...(stage === undefined ? [] : ["", `const stage = ${literal(stage)} as const;`]),
     ...(motion ? ["", ...motionSource(scene)] : []),
     "",
     ...(motion
@@ -115,7 +119,7 @@ export function toTsx(scene: Scene, options: EmitOptions = {}): string {
       : []),
     motion
       ? "export function Scene({ reducedMotion = false, scroll, pointer, hovered, inView = true }: SceneProps) {"
-      : effects
+      : hasPipeline
         ? "export function Scene({ reducedMotion = false }: { readonly reducedMotion?: boolean }) {"
         : "export function Scene() {",
     "  return (",
@@ -131,7 +135,8 @@ export function toTsx(scene: Scene, options: EmitOptions = {}): string {
     ].join(" ")} />`,
     `      <StudioLights intensity={${num(scene.lights.intensity)}} />`,
     ...(motion ? ["      <SceneContents reducedMotion={reducedMotion} scroll={scroll} pointer={pointer} {...(hovered === undefined ? {} : { hovered })} inView={inView} />"] : entries.flatMap((entry, at) => (entry.parent === -1 ? lines(entries, at, 3) : []))),
-    ...(effects ? [`      <ScreenEffectsPass effects={effects} palette={palette} reducedMotion={reducedMotion}${ink} />`] : []),
+    ...(stage === undefined ? [] : ["      <WebGPUStage stage={stage} palette={palette} />"]),
+    ...(hasPipeline ? [`      <ScreenEffectsPass effects={effects}${stage === undefined ? "" : " stage={stage}"} palette={palette} reducedMotion={reducedMotion}${ink} />`] : []),
     "    </WebGPUCanvas>",
     "  );",
     "}",

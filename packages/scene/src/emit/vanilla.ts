@@ -200,13 +200,29 @@ export function toVanilla(scene: Scene, options: EmitOptions = {}): string {
   const shaders = drawn.some(isShader);
   const materials = drawn.some((node) => node.asset.kind === "framed" || (node.asset.kind === "primitive" && !isShader(node)));
   const effects = scene.effects.length > 0;
+  const stage = scene.stage;
+  const fullStage = stage !== undefined && stage.quality !== "lite";
+  const shadowsOn = fullStage && stage.shadows?.enabled === true;
+  const catcherOn = shadowsOn && stage.shadows?.catcher === true;
+  const stagePostfx = fullStage && (stage.bloom?.enabled === true || stage.dof?.enabled === true);
+  const hasPipeline = effects || stagePostfx;
   const ink = scene.ink === "look" ? "" : `, monochrome: palette.${scene.ink}`;
   const [x, y, z] = scene.camera.target;
   const env = environmentLines(scene);
-  const tokenValues = [...new Set([...look.values, ...env.tokenValues])].sort();
-  const threeValues = [...new Set(["Group", ...(primitives ? ["Mesh"] : []), "PerspectiveCamera", "Scene", "Vector2", ...env.threeValues])].sort();
+  const needsLookLighting = stage !== undefined && (stage.toneMapping === undefined || stage.exposure === undefined);
+  const toneConstByMode: Record<string, string> = { aces: "ACESFilmicToneMapping", agx: "AgXToneMapping", neutral: "NeutralToneMapping" };
+  const explicitToneConst = stage?.toneMapping === undefined ? undefined : toneConstByMode[stage.toneMapping];
+  const toneImports =
+    stage === undefined
+      ? []
+      : explicitToneConst !== undefined
+        ? [explicitToneConst]
+        : ["ACESFilmicToneMapping", "AgXToneMapping", "NeutralToneMapping"];
+  const shadowImports = shadowsOn ? ["DirectionalLight", "Mesh", "PCFShadowMap", ...(catcherOn ? ["PlaneGeometry", "ShadowMaterial"] : [])] : [];
+  const tokenValues = [...new Set([...look.values, ...env.tokenValues, ...(needsLookLighting ? ["sceneLighting"] : [])])].sort();
+  const threeValues = [...new Set(["Group", ...(primitives ? ["Mesh"] : []), "PerspectiveCamera", "Scene", "Vector2", ...env.threeValues, ...toneImports, ...shadowImports])].sort();
   // Each effect's parameters are checked and filled with its defaults by its own schema, as `createScene` fills them.
-  const stack = `[${scene.effects.map((effect) => `{ id: ${JSON.stringify(effect.id)}, params: screenEffectSchemas[${JSON.stringify(effect.id)}].parse(${literal(effect.params ?? {})}) }`).join(", ")}]`;
+  const stack = effects ? `[${scene.effects.map((effect) => `{ id: ${JSON.stringify(effect.id)}, params: screenEffectSchemas[${JSON.stringify(effect.id)}].parse(${literal(effect.params ?? {})}) }`).join(", ")}]` : "[]";
   return [
     "// Generated from a scene document: change the document and generate this again.",
     ...creditHeader(credits),
@@ -214,7 +230,8 @@ export function toVanilla(scene: Scene, options: EmitOptions = {}): string {
     ...(materials ? [importLine("{ createMaterial }", "@hedronite/lts-materials/three")] : []),
     ...(objects ? [importLine("{ descriptors }", "@hedronite/lts-objects/descriptors")] : []),
     ...(framed ? [importLine("{ createFramedSolid }", "@hedronite/lts-objects/three")] : []),
-    ...(effects ? [importLine("{ screenEffectSchemas }", "@hedronite/lts-postfx"), importLine("{ ScreenEffects }", "@hedronite/lts-postfx/three")] : []),
+    ...(effects ? [importLine("{ screenEffectSchemas }", "@hedronite/lts-postfx")] : []),
+    ...(hasPipeline ? [importLine("{ ScreenEffects }", "@hedronite/lts-postfx/three")] : []),
     ...(primitives || framed ? [importLine("{ primitive }", "@hedronite/lts-primitives")] : []),
     importLine(names([...(primitives || framed ? ["createPolyhedronGeometry"] : []), "createStudioLights", "disposeObject"].sort()), "@hedronite/lts-primitives/three"),
     importLine(shaders ? "{ createEffect, type EffectClock }" : "{ type EffectClock }", "@hedronite/lts-shaders/three"),
@@ -264,12 +281,49 @@ export function toVanilla(scene: Scene, options: EmitOptions = {}): string {
         ]
       : []),
     "",
-    `  scene.add(createStudioLights({ intensity: ${num(scene.lights.intensity)} }));`,
+    ...(shadowsOn
+      ? [
+          `  const lights = createStudioLights({ intensity: ${num(scene.lights.intensity)} });`,
+          '  const keyLight = lights.getObjectByName("key");',
+          "  if (keyLight instanceof DirectionalLight) {",
+          "    keyLight.castShadow = true;",
+          "    keyLight.shadow.mapSize.set(1024, 1024);",
+          "    keyLight.shadow.camera.near = 0.5;",
+          "    keyLight.shadow.camera.far = 25;",
+          "    keyLight.shadow.camera.left = -6;",
+          "    keyLight.shadow.camera.right = 6;",
+          "    keyLight.shadow.camera.top = 6;",
+          "    keyLight.shadow.camera.bottom = -6;",
+          "    keyLight.shadow.bias = -0.0005;",
+          "    keyLight.shadow.normalBias = 0.02;",
+          "    keyLight.shadow.radius = 3;",
+          "  }",
+          "  scene.add(lights);",
+          "  renderer.shadowMap.enabled = true;",
+          "  renderer.shadowMap.type = PCFShadowMap;",
+        ]
+      : [`  scene.add(createStudioLights({ intensity: ${num(scene.lights.intensity)} }));`]),
     ...env.lines,
     "",
     "  const root = new Group();",
     "  scene.add(root);",
     ...nodes(entries),
+    ...(shadowsOn
+      ? [
+          "  root.traverse((child) => { if (child instanceof Mesh) { child.castShadow = true; child.receiveShadow = true; } });",
+          ...(catcherOn
+            ? [
+                "  const catcherGeometry = new PlaneGeometry(24, 24);",
+                "  catcherGeometry.rotateX(-Math.PI / 2);",
+                "  const catcher = new Mesh(catcherGeometry, new ShadowMaterial({ opacity: 0.35, transparent: true }));",
+                '  catcher.name = "shadow-catcher";',
+                "  catcher.position.set(0, -1.2, 0);",
+                "  catcher.receiveShadow = true;",
+                "  root.add(catcher);",
+              ]
+            : []),
+        ]
+      : []),
     ...(motion
       ? [
           "",
@@ -287,25 +341,37 @@ export function toVanilla(scene: Scene, options: EmitOptions = {}): string {
         ]
       : []),
     "",
-    ...(effects ? [`  const effects = new ScreenEffects(renderer, scene, camera, ${stack}, { palette, reducedMotion: options.reducedMotion === true${ink} });`] : []),
+    ...(stage === undefined
+      ? []
+      : [
+          ...(needsLookLighting ? ["  const stageLighting = sceneLighting(palette);"] : []),
+          ...(explicitToneConst !== undefined
+            ? [`  renderer.toneMapping = ${explicitToneConst};`]
+            : ['  renderer.toneMapping = ({ aces: ACESFilmicToneMapping, agx: AgXToneMapping, neutral: NeutralToneMapping } as const)[stageLighting.toneMapping];']),
+          `  renderer.toneMappingExposure = ${stage.exposure !== undefined ? num(stage.exposure) : "stageLighting.exposure"};`,
+        ]),
+    ...(hasPipeline ? [`  const effects = new ScreenEffects(renderer, scene, camera, ${stack}, { palette, reducedMotion: options.reducedMotion === true${ink}${stage === undefined ? "" : `, stage: ${literal({ quality: stage.quality, ...(stage.bloom === undefined ? {} : { bloom: stage.bloom }), ...(stage.dof === undefined ? {} : { dof: stage.dof }) })}`} });`] : []),
     "  return {",
     "    scene,",
     "    camera,",
-    "    ready: Promise.all(loads).then(() => undefined),",
+    ...(shadowsOn && objects
+      ? ['    ready: Promise.all(loads).then(() => { root.traverse((child) => { if (child instanceof Mesh && child.name !== "shadow-catcher") { child.castShadow = true; child.receiveShadow = true; } }); }),']
+      : ['    ready: Promise.all(loads).then(() => undefined),']),
     "    render: (delta) => {",
     "      renderer.getSize(size);",
     "      if (size.y > 0 && Math.abs(camera.aspect - size.x / size.y) > 1e-6) {",
     "        camera.aspect = size.x / size.y;",
     "        camera.updateProjectionMatrix();",
     "      }",
-    ...(effects ? ["      effects.setSize();", "      effects.render(delta);"] : ["      renderer.render(scene, camera);"]),
+    ...(hasPipeline ? ["      effects.setSize();", "      effects.render(delta);"] : ["      renderer.render(scene, camera);"]),
     "    },",
     ...(motion ? ["    advance: (seconds: number, input: MotionInput = {}) => {", "      motion.step(seconds, input);", "      motionApply(motion.values, motionTargets);", "    },"] : []),
     "    dispose: () => {",
     "      controller.abort();",
     "      scene.remove(root);",
     "      disposeObject(root);",
-    ...(effects ? ["      effects.dispose();"] : []),
+    ...(hasPipeline ? ["      effects.dispose();"] : []),
+    ...(shadowsOn ? ["      if (keyLight instanceof DirectionalLight) keyLight.dispose();"] : []),
     "      environment.dispose();",
     "    },",
     "  };",

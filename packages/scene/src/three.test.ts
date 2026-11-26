@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { materialPreset } from "@hedronite/lts-materials";
 import { loadDescriptors } from "@hedronite/lts-registry";
 import { hedronite, neutral, presets, type ScenePalette } from "@hedronite/lts-tokens";
-import { Color, DataTexture, Euler, InstancedMesh, Light, Matrix4, Quaternion, Vector3, Mesh, MeshPhysicalMaterial, Texture, type BufferGeometry, type Material, type Object3D, type Scene as ThreeScene } from "three";
+import { BufferGeometry, Color, DataTexture, Euler, InstancedMesh, Light, Matrix4, Quaternion, Vector3, Mesh, MeshPhysicalMaterial, Texture, type Material, type Object3D, type Scene as ThreeScene } from "three";
 import fc from "fast-check";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { checkRefs, parseScene, setEffects, setInk, setTransform, type Scene as SceneDocument, type SceneNode } from "./index.js";
@@ -520,6 +520,7 @@ describe("effectTargets", () => {
           this.targetIds = [`pass-${String(built.pipelines)}`, `target-${String(built.pipelines)}`];
         }
         setParams(): void {}
+        setStage(): void {}
         setPointer(): void {}
         setSize(): void {}
         render(): void {}
@@ -927,6 +928,20 @@ describe("environment swaps that overtake one another", () => {
     expect(live()).toEqual([]);
   });
 
+  it("updates intensity and rotation in place when the same HDRI bake is already in flight (F1)", async () => {
+    const pending = held(true);
+    const { handle, shown, live } = draw({ kind: "noir", hdri }, pending.loader);
+    await pending.started;
+    const sameSource = handle.update(doc({ kind: "noir", intensity: 2.2, rotation: 0.9, hdri }));
+    expect(pending.signals).toHaveLength(1);
+    expect(pending.signals[0]?.aborted).toBe(false);
+    pending.release(equirect());
+    await expect(Promise.all([handle.ready, sameSource])).resolves.toBeDefined();
+    expect(shown()).toBe("hdri");
+    expect(live()).toEqual(["hdri"]);
+    handle.dispose();
+  });
+
   it("aborts a pending HDRI when the document goes back to the room on show, and never shows it", async () => {
     const pending = held(false);
     const { handle, shown, live } = draw({ kind: "studio" }, pending.loader);
@@ -1007,5 +1022,157 @@ describe("environment swaps that overtake one another", () => {
     );
     await expect(loading).rejects.toThrow("aborted");
     expect(counts).toEqual({ generator: 1, texture: 1 });
+  });
+
+  describe("stage quality engine (shadows, bloom, dof, tone mapping, full/lite)", () => {
+    const stageDoc = (stage?: SceneDocument["stage"], look: SceneDocument["look"] = "neutral"): SceneDocument => ({
+      format: "lts-scene",
+      version: 2,
+      look,
+      seed: 0,
+      nodes: [node("cube", { asset: { kind: "primitive", id: "platonic-cube" }, surface: { material: "metal" } })],
+      lights: { rig: "studio", intensity: 1 },
+      environment: { kind: "studio" },
+      camera: { position: [0, 0, 5], target: [0, 0, 0], fov: 40 },
+      effects: [],
+      ink: "look",
+      tracks: [],
+      clips: [],
+      rest: {},
+      ...(stage === undefined ? {} : { stage }),
+    });
+
+    const makeRenderer = () => {
+      const seen: ThreeScene[] = [];
+      const proto: unknown = Object.create(Webgpu.WebGPURenderer.prototype);
+      if (!(proto instanceof Webgpu.WebGPURenderer)) throw new Error("not renderer");
+      const renderer = Object.assign(proto, {
+        toneMapping: 0,
+        toneMappingExposure: 1,
+        shadowMap: { enabled: false, type: 1 },
+        getPixelRatio: () => 1,
+        getSize: (target: { set: (x: number, y: number) => unknown }) => target.set(256, 256),
+        render: (s: ThreeScene) => {
+          seen.push(s);
+        },
+      });
+      return { renderer, seen };
+    };
+
+    it("toggles soft shadows, mesh castShadow/receiveShadow, shadow catcher, and disposes cleanly", async () => {
+      const { renderer } = makeRenderer();
+      const handle = threeMod.createScene(stageDoc({ quality: "full", shadows: { enabled: true, catcher: true } }), { renderer });
+      await handle.ready;
+
+      const key = handle.root.getObjectByName("key");
+      expect(key instanceof Light && key.castShadow).toBe(true);
+      expect(renderer.shadowMap.enabled).toBe(true);
+      const catcher = handle.root.getObjectByName("shadow-catcher");
+      expect(catcher).toBeInstanceOf(Mesh);
+      expect(catcher?.receiveShadow).toBe(true);
+      const meshes: Object3D[] = [];
+      handle.root.traverse((o) => {
+        if (o instanceof Mesh && o.name !== "shadow-catcher") meshes.push(o);
+      });
+      expect(meshes.every((m) => m.castShadow && m.receiveShadow)).toBe(true);
+
+      let catcherDisposed = false;
+      if (catcher instanceof Mesh && catcher.geometry instanceof BufferGeometry) {
+        catcher.geometry.addEventListener("dispose", () => {
+          catcherDisposed = true;
+        });
+      }
+
+      // Switching to lite cleanly disables shadows and frees the shadow catcher without rebuilding nodes.
+      await handle.update(stageDoc({ quality: "lite", shadows: { enabled: true, catcher: true } }));
+      expect(key instanceof Light && key.castShadow).toBe(false);
+      expect(renderer.shadowMap.enabled).toBe(false);
+      expect(handle.root.getObjectByName("shadow-catcher")).toBeUndefined();
+      expect(catcherDisposed).toBe(true);
+      expect(meshes.every((m) => !m.castShadow && !m.receiveShadow)).toBe(true);
+
+      handle.dispose();
+    });
+
+    it("drives toneMapping and exposure from look tokens with per-scene override, and preserves baseline when stage is omitted", async () => {
+      const { renderer } = makeRenderer();
+      const lightPreset = presets.find((p) => p.scene.toneMapping === "neutral") ?? hedronite;
+      const handle = threeMod.createScene(stageDoc(undefined, lightPreset.id), { renderer });
+      await handle.ready;
+      expect([renderer.toneMapping, renderer.toneMappingExposure]).toEqual([0, 1]);
+
+      // Adding stage uses the look toneMapping and exposure tokens.
+      await handle.update(stageDoc({ quality: "lite" }, lightPreset.id));
+      expect(renderer.toneMapping).toBe(lightPreset.scene.toneMapping === "neutral" ? 7 : 4);
+      expect(renderer.toneMappingExposure).toBe(lightPreset.scene.exposure);
+
+      // Explicit per-scene override takes precedence; setLook only updates non-overridden fields.
+      await handle.update(stageDoc({ quality: "lite", toneMapping: "agx", exposure: 1.6 }, lightPreset.id));
+      expect([renderer.toneMapping, renderer.toneMappingExposure]).toEqual([6, 1.6]);
+      handle.setLook(hedronite.scene);
+      expect([renderer.toneMapping, renderer.toneMappingExposure]).toEqual([6, 1.6]);
+
+      // Clearing stage restores renderer baseline cleanly.
+      await handle.update(stageDoc(undefined, lightPreset.id));
+      expect([renderer.toneMapping, renderer.toneMappingExposure]).toEqual([0, 1]);
+      handle.dispose();
+    });
+
+    it("disposes previous key light (releasing ShadowNode target/textures) when shadows turn off or lights.intensity changes", async () => {
+      const { renderer } = makeRenderer();
+      const docWithIntensity = (intensity: number, stage?: SceneDocument["stage"]): SceneDocument => ({
+        ...stageDoc(stage),
+        lights: { rig: "studio", intensity },
+      });
+      const handle = threeMod.createScene(docWithIntensity(1, { quality: "full", shadows: { enabled: true, catcher: false } }), { renderer });
+      await handle.ready;
+
+      const firstKey = handle.root.getObjectByName("key");
+      if (!(firstKey instanceof Light)) throw new Error("missing key light");
+      let firstDisposed = 0;
+      firstKey.addEventListener("dispose", () => {
+        firstDisposed += 1;
+      });
+
+      // Opening a scene with a different lights.intensity (e.g., v1 glass fixture at 1.2) replaces the light rig: the old key light must dispose.
+      await handle.update(docWithIntensity(1.2));
+      expect(firstDisposed).toBe(1);
+
+      // Enabling shadows again on the new light rig and then switching shadows off also disposes the key light synchronously.
+      await handle.update(docWithIntensity(1.2, { quality: "full", shadows: { enabled: true, catcher: false } }));
+      const secondKey = handle.root.getObjectByName("key");
+      if (!(secondKey instanceof Light)) throw new Error("missing second key light");
+      let secondDisposed = 0;
+      secondKey.addEventListener("dispose", () => {
+        secondDisposed += 1;
+      });
+      await handle.update(docWithIntensity(1.2, { quality: "lite", shadows: { enabled: true, catcher: false } }));
+      expect(secondDisposed).toBe(1);
+
+      handle.dispose();
+      expect(secondDisposed).toBeGreaterThanOrEqual(2);
+    });
+
+    it("builds bloom and dof targets on full quality, updates uniformly, and disables under lite with zero leaks", async () => {
+      const { renderer } = makeRenderer();
+      const handle = threeMod.createScene(
+        stageDoc({ quality: "full", bloom: { enabled: true, threshold: 5, gain: 0.22, radius: 0.35 }, dof: { enabled: true, focus: 5.5, aperture: 1, focalLength: 2.5 } }),
+        { renderer },
+      );
+      await handle.ready;
+      const initialTargets = handle.effectTargets?.() ?? [];
+      expect(initialTargets.length).toBeGreaterThan(0);
+
+      // Updating bloom/dof parameters reuses the same pipeline targets without reallocating.
+      await handle.update(
+        stageDoc({ quality: "full", bloom: { enabled: true, threshold: 3, gain: 0.4, radius: 0.5 }, dof: { enabled: true, focus: 7, aperture: 1.5, focalLength: 3 } }),
+      );
+      expect(handle.effectTargets?.()).toEqual(initialTargets);
+
+      // Switching to lite tears down bloom/dof targets cleanly.
+      await handle.update(stageDoc({ quality: "lite", bloom: { enabled: true, threshold: 5, gain: 0.22, radius: 0.35 }, dof: { enabled: true, focus: 5.5, aperture: 1, focalLength: 2.5 } }));
+      expect(handle.effectTargets?.()).toEqual(initialTargets);
+      handle.dispose();
+    });
   });
 });

@@ -292,3 +292,81 @@ export function crtNode(input: TextureNode, time: FloatUniform, dpr: FloatUnifor
   const room = inks.cool[0].mul(0.03).add(inks.cool[1].mul(spill.mul(0.5)));
   return vec4(max(mix(room, col, inside), vec3(0.004)), 1);
 }
+
+/** Bloom pass settings, as uniforms. */
+export interface BloomUniforms {
+  readonly threshold: FloatUniform;
+  readonly gain: FloatUniform;
+  readonly radius: FloatUniform;
+}
+
+/** Luminance high-pass + 9-tap tent blur mip pyramid (`0.5` -> `0.25` -> `0.125`), in TSL without WebGL-only GLSL. */
+const bloomBlur = (input: TextureNode, spread: FloatNode, scale: number) => {
+  const step = vec2(spread).div(screenSize.mul(scale));
+  const at = (ox: number, oy: number) => input.sample(clamp(screenUV.add(step.mul(vec2(ox, oy))), vec2(0.001), vec2(0.999))).rgb;
+  const center = at(0, 0).mul(4);
+  const edges = at(-1, 0).add(at(1, 0)).add(at(0, -1)).add(at(0, 1)).mul(2);
+  const corners = at(-1, -1).add(at(1, -1)).add(at(-1, 1)).add(at(1, 1));
+  return vec4(center.add(edges).add(corners).div(16), 1);
+};
+
+/** Quarter-resolution HDR bloom mip chain (high-pass at `0.5`, progressive downsampled blur mips at `0.25` and `0.125`). */
+export function bloomMips(input: TextureNode, threshold: FloatUniform, radius: FloatUniform): readonly [TextureNode, TextureNode, TextureNode] {
+  const s = input.sample(screenUV);
+  const luma = dot(s.rgb, vec3(0.2126, 0.7152, 0.0722));
+  const knee = max(threshold.mul(0.25), 0.001);
+  const weight = smoothstep(threshold.sub(knee), threshold.add(knee), luma);
+  const mip0 = convertToTexture(vec4(s.rgb.mul(weight), s.a), null, null, { resolutionScale: 0.5 });
+  const mip1 = convertToTexture(bloomBlur(mip0, float(1.25).add(radius.mul(1.5)), 0.5), null, null, { resolutionScale: 0.25 });
+  const mip2 = convertToTexture(bloomBlur(mip1, float(1.75).add(radius.mul(2.5)), 0.25), null, null, { resolutionScale: 0.125 });
+  return [mip0, mip1, mip2];
+}
+
+/** Linear HDR bloom composite over `input` before tone mapping. */
+export function bloomNode(input: TextureNode, mips: readonly [TextureNode, TextureNode, TextureNode], gain: FloatUniform) {
+  const base = input.sample(screenUV);
+  const glow = mips[0].sample(screenUV).rgb.mul(0.25).add(mips[1].sample(screenUV).rgb.mul(0.45)).add(mips[2].sample(screenUV).rgb.mul(0.3)).mul(gain);
+  const a = clamp(base.a.add(dot(glow, vec3(0.2126, 0.7152, 0.0722))), 0, 1);
+  return vec4(base.rgb.add(glow), a);
+}
+
+/** Depth-of-field pass settings, as uniforms. */
+export interface DofUniforms {
+  readonly focus: FloatUniform;
+  readonly aperture: FloatUniform;
+  readonly focalLength: FloatUniform;
+}
+
+const DOF_TAPS = 12;
+const GOLDEN_ANGLE = 2.39996323;
+
+/**
+ * Downsampled optical bokeh field in TSL using a 12-tap Vogel disc gather.
+ *
+ * Inspired by Codevember 2026 (`assets/vendor/codevember-2026/`, MIT, Theo Tillberg).
+ */
+export function dofField(input: TextureNode, aperture: FloatUniform): TextureNode {
+  const spread = clamp(aperture, 0, 10).mul(6).div(screenSize);
+  let sum: Node<"vec4"> = vec4(0);
+  for (let i = 0; i < DOF_TAPS; i += 1) {
+    const theta = i * GOLDEN_ANGLE;
+    const radius = Math.sqrt((i + 0.5) / DOF_TAPS);
+    const offset = vec2(Math.cos(theta) * radius, Math.sin(theta) * radius).mul(spread);
+    sum = sum.add(input.sample(clamp(screenUV.add(offset), vec2(0.001), vec2(0.999))));
+  }
+  return convertToTexture(sum.div(DOF_TAPS), null, null, { resolutionScale: 0.5 });
+}
+
+/**
+ * Circle-of-confusion depth-of-field composite over `input` from linear `viewZ`, focus distance, focal length, and aperture.
+ *
+ * Inspired by Codevember 2026 (`assets/vendor/codevember-2026/`, MIT, Theo Tillberg).
+ */
+export function dofNode(input: TextureNode, field: TextureNode, viewZ: FloatNode, u: DofUniforms) {
+  const sharp = input.sample(screenUV);
+  const soft = field.sample(screenUV);
+  const depth = viewZ.negate();
+  const coc = clamp(abs(depth.sub(u.focus)).div(max(u.focalLength, 0.01)), 0, 1);
+  const blend = clamp(coc.mul(clamp(u.aperture, 0, 2)), 0, 1);
+  return vec4(mix(sharp.rgb, soft.rgb, blend), mix(sharp.a, soft.a, blend));
+}

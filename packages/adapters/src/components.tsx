@@ -8,6 +8,7 @@ import { createPolyhedronGeometry, createStudioLights, disposeObject } from "@he
 import { neutral, type ScenePalette } from "@hedronite/lts-tokens";
 import { useThree, type ThreeElements } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
+import { Light } from "three";
 import { useEffectMaterial, type ShaderParams } from "./effectMaterial.js";
 
 type GroupProps = Omit<ThreeElements["group"], "args" | "children" | "ref" | "object">;
@@ -56,6 +57,14 @@ export function PrimitiveMesh({ primitive: id, material = "satin", shader, shade
 /** The library's three-point studio rig. */
 export function StudioLights({ intensity = 1 }: { readonly intensity?: number }) {
   const rig = useMemo(() => createStudioLights({ intensity }), [intensity]);
+  useEffect(
+    () => () => {
+      rig.traverse((child) => {
+        if (child instanceof Light) child.dispose();
+      });
+    },
+    [rig],
+  );
   return <primitive object={rig} />;
 }
 

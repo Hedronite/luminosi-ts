@@ -11,6 +11,7 @@ import {
   type SceneNode,
   type SceneRest,
   type SceneResult,
+  type SceneStage,
   type SceneSurface,
   type SceneTrack,
 } from "./schema.js";
@@ -221,6 +222,16 @@ export function setLook(scene: Scene, look: SceneLook): SceneResult {
 /** The document with this environment configuration: room kind, optional intensity/rotation, and optional CC0 HDRI source. */
 export function setEnvironment(scene: Scene, environment: SceneEnvironment): SceneResult {
   return read({ ...scene, environment });
+}
+
+/** The document with this stage quality configuration (shadows, bloom, depth of field, tone mapping, exposure, quality tier). */
+export function setStage(scene: Scene, stage: SceneStage | undefined): SceneResult {
+  if (stage === undefined) {
+    const rest = { ...scene };
+    delete rest.stage;
+    return read(rest);
+  }
+  return read({ ...scene, stage });
 }
 
 /** The document with `track` added after the others. Its id must be new, and its path, its keyframes and its rest value must read. */

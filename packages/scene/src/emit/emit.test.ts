@@ -354,3 +354,48 @@ describe("environments in toTsx and toVanilla", () => {
     expect(vanilla).toContain("fromEquirectangular");
   });
 });
+
+describe("stage quality in toTsx and toVanilla", () => {
+  it("emits WebGPUStage, ScreenEffectsPass stage, soft key shadows, shadow catcher, and tone mapping cleanly", () => {
+    const doc = sceneOf([cube("a")], {
+      stage: {
+        quality: "full",
+        shadows: { enabled: true, catcher: true },
+        bloom: { enabled: true, threshold: 5, gain: 0.22, radius: 0.35 },
+        dof: { enabled: true, focus: 5.5, aperture: 1, focalLength: 2.5 },
+        toneMapping: "agx",
+        exposure: 1.25,
+      },
+    });
+    const tsx = toTsx(doc);
+    const vanilla = toVanilla(doc);
+    expect(tsx).toContain("WebGPUStage");
+    expect(tsx).toContain("<WebGPUStage stage={stage} palette={palette} />");
+    expect(tsx).toContain("<ScreenEffectsPass effects={effects} stage={stage}");
+    expect(vanilla).not.toMatch(/lts-scene|lts-adapters|createScene|react/);
+    expect(vanilla).toContain("renderer.shadowMap.enabled = true;");
+    expect(vanilla).toContain("ShadowMaterial");
+    expect(vanilla).toContain("renderer.toneMapping = AgXToneMapping;");
+    expect(vanilla).toContain("renderer.toneMappingExposure = 1.25;");
+    expect(vanilla).toContain("new ScreenEffects(");
+  });
+
+  it("omits shadows, bloom, and dof when quality is lite, while driving tone mapping from look tokens", () => {
+    const doc = sceneOf([cube("a")], {
+      look: "neutral",
+      stage: {
+        quality: "lite",
+        shadows: { enabled: true, catcher: true },
+        bloom: { enabled: true, threshold: 5, gain: 0.22, radius: 0.35 },
+        dof: { enabled: true, focus: 5.5, aperture: 1, focalLength: 2.5 },
+      },
+    });
+    const tsx = toTsx(doc);
+    const vanilla = toVanilla(doc);
+    expect(tsx).toContain("WebGPUStage");
+    expect(tsx).not.toContain("ScreenEffectsPass");
+    expect(vanilla).not.toContain("shadowMap.enabled = true");
+    expect(vanilla).not.toContain("ScreenEffects");
+    expect(vanilla).toContain("sceneLighting(palette)");
+  });
+});

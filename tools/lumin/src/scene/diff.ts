@@ -188,6 +188,7 @@ function sceneOps(a: Scene, b: Scene): Op[] {
     ...(a.ink === b.ink ? [] : [{ op: "setInk" as const, ink: b.ink }]),
     ...(equal(a.lights, b.lights) ? [] : [{ op: "setLights" as const, change: b.lights }]),
     ...(equal(a.environment, b.environment) ? [] : [{ op: "setEnvironment" as const, environment: b.environment }]),
+    ...(equal(a.stage, b.stage) ? [] : [{ op: "setStage" as const, stage: b.stage }]),
     ...(equal(a.effects, b.effects) ? [] : [{ op: "setEffects" as const, effects: b.effects }]),
   ];
 }
@@ -204,6 +205,7 @@ export function diffScenes(a: Scene, b: Scene): Diff {
   nodeChanges(a, b, changes);
   walk(a.lights, b.lights, ["lights"], changes);
   walk(a.environment, b.environment, ["environment"], changes);
+  walk(a.stage, b.stage, ["stage"], changes);
   walk(a.camera, b.camera, ["camera"], changes);
   effectChanges(a.effects, b.effects, changes);
   trackChanges(a.tracks, b.tracks, changes);

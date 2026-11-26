@@ -131,4 +131,38 @@ describe("parseScene", () => {
     expect(parseScene({ ...doc, environment: { kind: "studio", intensity: 11 } }).ok).toBe(false);
     expect(parseScene({ ...doc, environment: { kind: "outdoor" } }).ok).toBe(false);
   });
+
+  it("accepts optional stage quality configuration while keeping omitted stage backward-compatible", () => {
+    const doc = fixtureScene("primitives-in-materials");
+    expect(doc.stage).toBeUndefined();
+    expect(parseScene({ ...doc, stage: {} })).toMatchObject({ ok: true, scene: { stage: { quality: "full" } } });
+    expect(
+      parseScene({
+        ...doc,
+        stage: {
+          quality: "full",
+          shadows: { enabled: true, catcher: true },
+          bloom: {},
+          dof: {},
+          toneMapping: "agx",
+          exposure: 1.25,
+        },
+      }),
+    ).toMatchObject({
+      ok: true,
+      scene: {
+        stage: {
+          quality: "full",
+          shadows: { enabled: true, catcher: true },
+          bloom: { enabled: true, threshold: 5, gain: 0.22, radius: 0.35 },
+          dof: { enabled: true, focus: 5.5, aperture: 1, focalLength: 2.5 },
+          toneMapping: "agx",
+          exposure: 1.25,
+        },
+      },
+    });
+    expect(parseScene({ ...doc, stage: { quality: "ultra" } }).ok).toBe(false);
+    expect(parseScene({ ...doc, stage: { toneMapping: "filmic" } }).ok).toBe(false);
+    expect(parseScene({ ...doc, stage: { exposure: 0 } }).ok).toBe(false);
+  });
 });

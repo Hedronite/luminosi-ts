@@ -553,3 +553,35 @@ describe("environment operations in validate, patch, diff, and export", () => {
     expect(data(await call("export", { document: duskDoc, as: "vanilla" }))["text"]).toContain("scene.environmentIntensity = 1.3;");
   });
 });
+
+describe("stage operations in validate, patch, diff, and export", () => {
+  it("validates, patches, diffs completely, clears, and exports stage quality docs", async () => {
+    const baseDoc = objectOf(textOf("transform-hierarchy"));
+    const stage = {
+      quality: "full" as const,
+      shadows: { enabled: true, catcher: true },
+      bloom: { enabled: true, threshold: 5, gain: 0.22, radius: 0.35 },
+      dof: { enabled: true, focus: 5.5, aperture: 1, focalLength: 2.5 },
+      toneMapping: "agx" as const,
+      exposure: 1.2,
+    };
+    const withStage = { ...baseDoc, stage };
+
+    expect(await call("validate", { document: withStage })).toMatchObject({ ok: true, data: { valid: true } });
+
+    const diffAdd = data(await call("diff", { a: baseDoc, b: withStage }));
+    expect(diffAdd).toMatchObject({ same: false, complete: true, ops: [{ op: "setStage", stage }] });
+
+    const patchAdd = data(await call("patch", { document: baseDoc, ops: [{ op: "setStage", stage }] }));
+    expect(patchAdd["document"]).toMatchObject({ stage });
+
+    const diffClear = data(await call("diff", { a: withStage, b: baseDoc }));
+    expect(diffClear).toMatchObject({ same: false, complete: true });
+
+    const patchClear = data(await call("patch", { document: withStage, ops: [{ op: "setStage" }] }));
+    expect(Reflect.get(Object(patchClear["document"]), "stage")).toBeUndefined();
+
+    expect(data(await call("export", { document: withStage, as: "tsx" }))["text"]).toContain("<WebGPUStage stage={stage}");
+    expect(data(await call("export", { document: withStage, as: "vanilla" }))["text"]).toContain("renderer.shadowMap.enabled = true;");
+  });
+});

@@ -1,7 +1,7 @@
 import type { EnvironmentKind, SceneEnvironmentHdri } from "@hedronite/lts-scene";
 import { bakeEnvironmentTarget, bakeRoom, type HdriLoader, type RoomTarget } from "./studioRoom.js";
 import { useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PMREMGenerator, WebGPURenderer } from "three/webgpu";
 
 export interface WebGPUEnvironmentProps {
@@ -28,6 +28,12 @@ export function WebGPUEnvironment({ kind = "studio", intensity, rotation, hdri, 
 
   const proceduralTarget = useMemo(() => bakeRoom(new PMREMGenerator(gl), kind), [gl, kind]);
   const hdriKey = hdri === undefined ? "" : `${kind}|${hdri.url}|${hdri.credit}`;
+  const hdriRef = useRef(hdri);
+  const hdriLoaderRef = useRef(hdriLoader);
+  useEffect(() => {
+    hdriRef.current = hdri;
+    hdriLoaderRef.current = hdriLoader;
+  });
   const [hdriState, setHdriState] = useState<{ readonly key: string; readonly target: RoomTarget } | undefined>(undefined);
   // Without an HDRI the procedural room shows: letting go of the loaded target here frees it now (its cleanup below), not at unmount.
   if (hdri === undefined && hdriState !== undefined) setHdriState(undefined);
@@ -47,13 +53,15 @@ export function WebGPUEnvironment({ kind = "studio", intensity, rotation, hdri, 
   );
 
   useEffect(() => {
-    if (hdri === undefined) return undefined;
+    const activeHdri = hdriRef.current;
+    if (hdriKey === "" || activeHdri === undefined) return undefined;
     const controller = new AbortController();
     let active = true;
+    const loader = hdriLoaderRef.current;
     void bakeEnvironmentTarget(
       new PMREMGenerator(gl),
-      { kind, hdri },
-      { signal: controller.signal, ...(hdriLoader === undefined ? {} : { hdriLoader }) },
+      { kind, hdri: activeHdri },
+      { signal: controller.signal, ...(loader === undefined ? {} : { hdriLoader: loader }) },
     ).then(
       (result) => {
         if (!active || controller.signal.aborted) {
@@ -74,7 +82,7 @@ export function WebGPUEnvironment({ kind = "studio", intensity, rotation, hdri, 
       active = false;
       controller.abort();
     };
-  }, [gl, kind, hdri, hdriKey, hdriLoader]);
+  }, [gl, kind, hdriKey]);
 
   useEffect(() => {
     const targetScene = get().scene;
