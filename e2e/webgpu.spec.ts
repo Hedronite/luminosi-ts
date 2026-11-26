@@ -89,3 +89,24 @@ test("the playground draws on WebGPU", async ({ page }) => {
   await page.goto("/?view=playground");
   await expectDrawnOnWebGPU(page, page.getByTestId("playground-viewport"), false);
 });
+
+test("the playground draws a full stage on WebGPU: shadows and a catcher, bloom and depth of field, in another room", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("console", (message) => {
+    if (message.type() === "error") errors.push(message.text());
+  });
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto("/?view=playground");
+  const stage = page.getByTestId("playground-viewport");
+  await expectDrawnOnWebGPU(page, stage, false);
+  const targets = Number(await stage.getAttribute("data-targets"));
+  await page.getByLabel("Quality", { exact: true }).selectOption("full");
+  for (const name of ["Shadows", "Shadow catcher", "Bloom", "Depth of field"]) {
+    // eslint-disable-next-line no-await-in-loop -- the catcher is enabled once shadows are
+    await page.getByRole("checkbox", { name, exact: true }).check();
+  }
+  await page.getByLabel("Room", { exact: true }).selectOption("dusk");
+  await expect.poll(async () => Number(await stage.getAttribute("data-targets")), { message: "the stage features draw into targets of their own" }).toBeGreaterThan(targets);
+  await expectDrawnOnWebGPU(page, stage, false);
+  expect(errors).toEqual([]);
+});
