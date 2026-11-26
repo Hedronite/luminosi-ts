@@ -125,9 +125,14 @@ const materialColor = { matte: "base", ceramic: "base", satin: "accent", metal: 
 /** A light by its three.js type and the lighting token it takes; a hemisphere light takes a second one for the ground. */
 type LightToken = readonly [type: string, color: SceneLightRole, ground?: SceneLightRole];
 
+/** A material by its preset's name; one painted off the look (a framed solid's edges, in the accent) says which color it takes instead. */
+type MaterialToken = keyof typeof materialColor | readonly [name: keyof typeof materialColor, takes: SceneColor];
+
 interface Lit {
   readonly lights: readonly LightToken[];
-  readonly materials: readonly (keyof typeof materialColor)[];
+  readonly materials: readonly MaterialToken[];
+  /** The name of an object only this stage's scene holds, when the page has other stages. */
+  readonly holding?: string;
 }
 
 const threePoint: readonly LightToken[] = [
@@ -160,9 +165,12 @@ async function watchScenes(page: Page): Promise<void> {
   });
 }
 
-/** Every light, and every mesh's material, in the page's scenes now: `uuid`, what it is, and its color as `#rrggbb`. The environment's baking room is not a stage. */
-const colorsOn = (page: Page): Promise<Colors> =>
-  page.evaluate(() => {
+/**
+ * Every light, and every mesh's material, in the page's scenes now: `uuid`, what it is, and its color as `#rrggbb`. The environment's baking room is not a stage.
+ * `holding` reads only the scenes that hold an object of that name, for a page with more than one stage.
+ */
+const colorsOn = (page: Page, holding?: string): Promise<Colors> =>
+  page.evaluate((name) => {
     const get = (target: unknown, key: string): unknown => (typeof target === "object" && target !== null ? Reflect.get(target, key) : undefined);
     const call = (target: unknown, key: string, ...args: readonly unknown[]): unknown => {
       const method = get(target, key);
@@ -174,6 +182,7 @@ const colorsOn = (page: Page): Promise<Colors> =>
     const scenes: unknown = Reflect.get(window, "watchedScenes");
     for (const scene of Array.isArray(scenes) ? scenes : []) {
       if (get(scene, "isScene") !== true || get(scene, "name") === "RoomEnvironment") continue;
+      if (name !== null && call(scene, "getObjectByName", name) === undefined) continue;
       call(scene, "traverse", (node: unknown) => {
         const id = String(get(node, "uuid"));
         if (get(node, "isLight") === true) {
@@ -188,7 +197,7 @@ const colorsOn = (page: Page): Promise<Colors> =>
       });
     }
     return { lights: [...lights.values()], materials: [...materials.values()] };
-  });
+  }, holding ?? null);
 
 /** What a stage's lights and materials should read under look `id`, as `what color`, in the order the stage adds them. */
 function tokensFor(id: string, stage: Lit): { readonly lights: readonly string[]; readonly materials: readonly string[] } {
@@ -197,7 +206,10 @@ function tokensFor(id: string, stage: Lit): { readonly lights: readonly string[]
   const lighting = sceneLighting(preset.scene);
   return {
     lights: stage.lights.map(([type, role, ground]) => `${type} ${lighting[role]}${ground === undefined ? "" : ` over ${lighting[ground]}`}`.toLowerCase()),
-    materials: stage.materials.map((name) => `${name} ${preset.scene[materialColor[name]]}`.toLowerCase()),
+    materials: stage.materials.map((token) => {
+      const [name, takes] = typeof token === "string" ? [token, materialColor[token]] : token;
+      return `${name} ${preset.scene[takes]}`.toLowerCase();
+    }),
   };
 }
 
@@ -217,17 +229,17 @@ async function expectLightsAndMaterialsInPlace(page: Page, host: Locator, stage:
 
   await expect(host).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 20_000 });
   const built = await settledBuilds(host);
-  await expect.poll(async () => read((await colorsOn(page)).lights), { message: "lights in the neutral look" }).toEqual(tokensFor("neutral", stage).lights);
-  await expect.poll(async () => read((await colorsOn(page)).materials), { message: "materials in the neutral look" }).toEqual(tokensFor("neutral", stage).materials);
-  const first = ids(await colorsOn(page));
+  await expect.poll(async () => read((await colorsOn(page, stage.holding)).lights), { message: "lights in the neutral look" }).toEqual(tokensFor("neutral", stage).lights);
+  await expect.poll(async () => read((await colorsOn(page, stage.holding)).materials), { message: "materials in the neutral look" }).toEqual(tokensFor("neutral", stage).materials);
+  const first = ids(await colorsOn(page, stage.holding));
   await looks.reduce<Promise<void>>(async (before, look) => {
     await before;
     const frames = await number(host, "data-frames");
     await pick(look);
-    await expect.poll(async () => read((await colorsOn(page)).lights), { message: `lights under ${look}` }).toEqual(tokensFor(look, stage).lights);
-    await expect.poll(async () => read((await colorsOn(page)).materials), { message: `materials under ${look}` }).toEqual(tokensFor(look, stage).materials);
+    await expect.poll(async () => read((await colorsOn(page, stage.holding)).lights), { message: `lights under ${look}` }).toEqual(tokensFor(look, stage).lights);
+    await expect.poll(async () => read((await colorsOn(page, stage.holding)).materials), { message: `materials under ${look}` }).toEqual(tokensFor(look, stage).materials);
     await expect.poll(async () => number(host, "data-frames"), { message: `a frame after ${look}` }).toBeGreaterThan(frames);
-    expect(ids(await colorsOn(page)), `the same lights and materials under ${look}`).toEqual(first);
+    expect(ids(await colorsOn(page, stage.holding)), `the same lights and materials under ${look}`).toEqual(first);
     expect(await builds(host), `builds after ${look}`).toBe(built);
   }, Promise.resolve());
 }
@@ -256,6 +268,19 @@ for (const kit of kits) {
     });
   });
 }
+
+test("the playground's scene takes each look's tokens in its lights and materials, with no rebuild", async ({ page }) => {
+  await watchScenes(page);
+  await page.goto("/?view=playground");
+  await expect(page.getByRole("list", { name: "Scene" }).getByRole("listitem")).toHaveCount(3);
+  // The starting scene: a satin cube, a framed solid with glass faces and metal edges in the accent, and a metal octahedron.
+  // The material lineup below it is another stage, under the neutral studio rig: `scene` names the root of the document's own.
+  const stage: Lit = { lights: threePoint, materials: ["satin", "glass", ["metal", "accent"], "metal"], holding: "scene" };
+  await expectLightsAndMaterialsInPlace(page, page.getByTestId("playground-viewport"), stage, async (look) => {
+    await page.getByLabel("Look").selectOption(look);
+    await expect(page.locator("html")).toHaveAttribute("data-preset", look);
+  });
+});
 
 test("the site's scene element takes each look's tokens in its lights and materials, with no rebuild", async ({ page }) => {
   await watchScenes(page);
