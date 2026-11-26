@@ -30,7 +30,7 @@ export function Provenance({ origin }: { readonly origin: AssetOrigin }): React.
             <>
               <span className="break-all">{source.repo.replace(/^https?:\/\/github\.com\//, "")}</span> at{" "}
               {/* The link is named by its commit alone: a name holding the folder id would match every "the folder" link on this dialog. */}
-              <a href={commitUrl(source)} className="text-fg underline decoration-accent decoration-2 underline-offset-2">
+              <a href={commitUrl(source)} className="text-accent-text underline decoration-accent decoration-2 underline-offset-2">
                 {shortCommit(source.commit)}
               </a>
             </>
