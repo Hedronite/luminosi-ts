@@ -220,4 +220,40 @@ describe("WebGPUEnvironment when its HDRI goes away", () => {
     await expect(loading).rejects.toThrow("aborted");
     expect(counts).toEqual({ generator: 1, texture: 1 });
   });
+
+  it("does not re-fetch or re-bake when rerendered with equal inline hdri and loader (F2)", async () => {
+    let calls = 0;
+    const webgpu = await mounted(
+      <WebGPUEnvironment
+        kind="noir"
+        hdri={{ url: hdri.url, license: "CC0-1.0", credit: hdri.credit }}
+        hdriLoader={() => {
+          calls += 1;
+          return Promise.resolve(equirect());
+        }}
+      />,
+    );
+    await settle();
+    expect(calls).toBe(1);
+    const loadedTarget = bakes[1]?.texture;
+    expect(webgpu.scene()?.environment).toBe(loadedTarget);
+
+    // Rerender with fresh inline object and function instances that keep the same hdriKey.
+    await webgpu.renderer.update(
+      <WebGPUEnvironment
+        kind="noir"
+        hdri={{ url: hdri.url, license: "CC0-1.0", credit: hdri.credit }}
+        hdriLoader={() => {
+          calls += 1;
+          return Promise.resolve(equirect());
+        }}
+      />,
+    );
+    await settle();
+    expect(calls).toBe(1);
+    expect(bakes).toHaveLength(2);
+    expect(webgpu.scene()?.environment).toBe(loadedTarget);
+    await webgpu.renderer.unmount();
+    expect(bakes.every((b) => b.targetDisposed())).toBe(true);
+  });
 });

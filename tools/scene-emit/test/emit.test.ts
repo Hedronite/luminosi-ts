@@ -137,4 +137,21 @@ describe("emitted code", () => {
     expect(run.output).toBe("");
     expect(run.passed).toBe(true);
   }, 30_000);
+
+  it("type-checks React and plain three.js for stage quality across full and lite tiers", () => {
+    const docs = [
+      ["full", { quality: "full", shadows: { enabled: true, catcher: true }, bloom: { enabled: true }, dof: { enabled: true }, toneMapping: "agx", exposure: 1.2 }],
+      ["look-tokens", { quality: "full", shadows: { enabled: true, catcher: false }, bloom: { enabled: true } }],
+      ["lite", { quality: "lite", shadows: { enabled: true, catcher: true }, bloom: { enabled: true }, dof: { enabled: true } }],
+    ] as const;
+    const files = new Map<string, string>();
+    for (const [name, stage] of docs) {
+      const doc = sceneSchema.parse({ ...turning, tracks: [], clips: [], rest: {}, stage });
+      files.set(`stage-${name}.tsx`, toTsx(doc));
+      files.set(`stage-${name}.vanilla.ts`, toVanilla(doc));
+    }
+    const run = check(good, files);
+    expect(run.output).toBe("");
+    expect(run.passed).toBe(true);
+  }, 30_000);
 });

@@ -9,12 +9,12 @@ import { applyStudioLightsPalette, createStudioLights, disposeObject } from "@he
 import { loadDescriptors } from "@hedronite/lts-registry";
 import { isEffectId } from "@hedronite/lts-shaders";
 import type { EffectClock, EffectHandle } from "@hedronite/lts-shaders/three";
-import { BLACK, duskLightTints, hedronite, mixHex, neutral, presets, WHITE, type Hex, type ScenePalette } from "@hedronite/lts-tokens";
-import { BackSide, BoxGeometry, BufferGeometry, DataTexture, EquirectangularReflectionMapping, Group, Mesh, MeshLambertMaterial, MeshStandardMaterial, Object3D, PerspectiveCamera, PointLight, Scene, Vector2, type Material, type Texture } from "three";
+import { BLACK, duskLightTints, hedronite, mixHex, neutral, presets, sceneLighting, WHITE, type Hex, type ScenePalette, type ToneMapping } from "@hedronite/lts-tokens";
+import { ACESFilmicToneMapping, AgXToneMapping, BackSide, BoxGeometry, BufferGeometry, DataTexture, DirectionalLight, EquirectangularReflectionMapping, Group, Mesh, MeshLambertMaterial, MeshStandardMaterial, NeutralToneMapping, NoToneMapping, Object3D, PCFShadowMap, PerspectiveCamera, PlaneGeometry, PointLight, Scene, ShadowMaterial, Vector2, type Material, type ShadowMapType, type Texture, type ToneMapping as ThreeToneMapping } from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import type { WebGPURenderer } from "three/webgpu";
 import { z } from "zod";
-import type { EnvironmentKind, Scene as SceneDocument, SceneEnvironment, SceneNode, SceneSurface } from "./index.js";
+import type { EnvironmentKind, Scene as SceneDocument, SceneEnvironment, SceneNode, SceneStage, SceneSurface } from "./index.js";
 import { createMotion, propertyOf, type MotionInput, type TrackValue } from "./motion/index.js";
 import { ROOM_BLUR, ROOM_SPECS, STUDIO_BLUR, type RoomColorExpr, type RoomColorToken } from "./rooms.js";
 
@@ -266,6 +266,10 @@ interface Built {
 /** What a renderer adds: the scene it draws, its environment, and the effect stack. */
 interface Stage {
   readonly scene: Scene;
+  readonly baselineToneMapping: ThreeToneMapping;
+  readonly baselineExposure: number;
+  readonly baselineShadowEnabled: boolean;
+  readonly baselineShadowType: ShadowMapType;
   environment: RoomTarget | undefined;
   environmentKey: string;
   effects: Postfx.ScreenEffects | undefined;
@@ -273,6 +277,39 @@ interface Stage {
   structure: string;
   pointer: ScenePointer;
 }
+
+const STAGE_TONE_MAPPINGS: Readonly<Record<ToneMapping, ThreeToneMapping>> = {
+  aces: ACESFilmicToneMapping,
+  agx: AgXToneMapping,
+  neutral: NeutralToneMapping,
+};
+
+const stagePostfxActive = (stage: SceneStage | undefined): boolean =>
+  stage !== undefined && stage.quality !== "lite" && (stage.bloom?.enabled === true || stage.dof?.enabled === true);
+
+const readNumberProp = (obj: object, key: string, fallback: number): number => {
+  const val: unknown = Reflect.get(obj, key);
+  return typeof val === "number" ? val : fallback;
+};
+
+const hasShadowMap = (r: object): boolean => {
+  const sm: unknown = Reflect.get(r, "shadowMap");
+  return typeof sm === "object" && sm !== null;
+};
+
+const readBoolProp = (obj: object, key: string, fallback: boolean): boolean => {
+  const val: unknown = Reflect.get(obj, key);
+  return typeof val === "boolean" ? val : fallback;
+};
+
+const setMeshShadows = (root: Object3D, enabled: boolean): void => {
+  root.traverse((child) => {
+    if (child instanceof Mesh && child.name !== "shadow-catcher") {
+      child.castShadow = enabled;
+      child.receiveShadow = enabled;
+    }
+  });
+};
 
 interface Slot {
   /** What is built, or being built. */
@@ -432,9 +469,25 @@ export function createScene(initial: SceneDocument, options: SceneOptions = {}):
 
   let lights: Group | undefined;
   let lightIntensity: number | undefined;
+  let catcher: Mesh<PlaneGeometry, ShadowMaterial> | undefined;
+  let shadowsActive = false;
 
   // --- the stage: what needs a renderer ---
-  const stage: Stage | undefined = renderer === undefined ? undefined : { scene: new Scene(), environment: undefined, environmentKey: "", effects: undefined, structure: "", pointer: null };
+  const stage: Stage | undefined =
+    renderer === undefined
+      ? undefined
+      : {
+          scene: new Scene(),
+          baselineToneMapping: typeof Reflect.get(renderer, "toneMapping") === "number" ? renderer.toneMapping : NoToneMapping,
+          baselineExposure: readNumberProp(renderer, "toneMappingExposure", 1),
+          baselineShadowEnabled: hasShadowMap(renderer) ? readBoolProp(renderer.shadowMap, "enabled", false) : false,
+          baselineShadowType: hasShadowMap(renderer) && typeof Reflect.get(renderer.shadowMap, "type") === "number" ? renderer.shadowMap.type : PCFShadowMap,
+          environment: undefined,
+          environmentKey: "",
+          effects: undefined,
+          structure: "",
+          pointer: null,
+        };
   stage?.scene.add(root);
   /** Loaded with the first effect stack; every later use of it is after that. */
   let postfx: typeof Postfx | undefined;
@@ -463,6 +516,7 @@ export function createScene(initial: SceneDocument, options: SceneOptions = {}):
       }
       return;
     }
+    if (sourceKey === envInFlightKey) return;
 
     envController?.abort();
     const controller = new AbortController();
@@ -496,26 +550,107 @@ export function createScene(initial: SceneDocument, options: SceneOptions = {}):
     }
   }
 
+  function disposeCatcher(): void {
+    if (catcher === undefined) return;
+    catcher.removeFromParent();
+    catcher.geometry.dispose();
+    catcher.material.dispose();
+    catcher = undefined;
+  }
+
+  function syncStage(): void {
+    const cfg = doc.stage;
+    const full = cfg !== undefined && cfg.quality !== "lite";
+    const shadowsOn = full && cfg.shadows?.enabled === true;
+    const catcherOn = shadowsOn && cfg.shadows?.catcher === true;
+    shadowsActive = shadowsOn;
+
+    const key = lights?.getObjectByName("key");
+    if (key instanceof DirectionalLight) {
+      key.castShadow = shadowsOn;
+      if (shadowsOn) {
+        key.shadow.mapSize.set(1024, 1024);
+        key.shadow.camera.near = 0.5;
+        key.shadow.camera.far = 25;
+        key.shadow.camera.left = -6;
+        key.shadow.camera.right = 6;
+        key.shadow.camera.top = 6;
+        key.shadow.camera.bottom = -6;
+        key.shadow.bias = -0.0005;
+        key.shadow.normalBias = 0.02;
+        key.shadow.radius = 3;
+      } else {
+        key.shadow.dispose();
+      }
+    }
+
+    for (const slot of slots.values()) {
+      if (slot.built !== undefined) setMeshShadows(slot.built.object, shadowsOn);
+    }
+
+    if (catcherOn && catcher === undefined) {
+      const geometry = new PlaneGeometry(24, 24);
+      geometry.rotateX(-Math.PI / 2);
+      const material = new ShadowMaterial({ opacity: 0.35, transparent: true });
+      const plane = new Mesh(geometry, material);
+      plane.name = "shadow-catcher";
+      plane.position.set(0, -1.2, 0);
+      plane.receiveShadow = true;
+      plane.castShadow = false;
+      root.add(plane);
+      catcher = plane;
+    } else if (!catcherOn) {
+      disposeCatcher();
+    }
+
+    if (renderer !== undefined && stage !== undefined) {
+      if (hasShadowMap(renderer)) {
+        if (cfg === undefined) {
+          renderer.shadowMap.enabled = stage.baselineShadowEnabled;
+          renderer.shadowMap.type = stage.baselineShadowType;
+        } else {
+          renderer.shadowMap.enabled = shadowsOn;
+          if (shadowsOn) renderer.shadowMap.type = PCFShadowMap;
+        }
+      }
+      if (cfg === undefined) {
+        renderer.toneMapping = stage.baselineToneMapping;
+        renderer.toneMappingExposure = stage.baselineExposure;
+      } else {
+        const lighting = sceneLighting(look);
+        renderer.toneMapping = STAGE_TONE_MAPPINGS[cfg.toneMapping ?? lighting.toneMapping];
+        renderer.toneMappingExposure = cfg.exposure ?? lighting.exposure;
+      }
+    }
+  }
+
   async function applyEffects(): Promise<void> {
     if (renderer === undefined || stage === undefined) return;
     const stack = stackOf(doc);
-    if (stack.length === 0 && stage.effects === undefined) return;
+    const stageActive = stagePostfxActive(doc.stage);
+    if (stack.length === 0 && !stageActive && stage.effects === undefined) return;
     const three = (postfx ??= await import("@hedronite/lts-postfx/three"));
     if (disposed) return;
-    const structure = three.stackStructure(stack, reducedMotion);
-    if (stage.effects !== undefined && (stack.length === 0 || structure !== stage.structure)) {
+    const structure = three.stackStructure(stack, reducedMotion, doc.stage);
+    if (stage.effects !== undefined && ((stack.length === 0 && !stageActive) || structure !== stage.structure)) {
       stage.effects.dispose();
       stage.effects = undefined;
     }
-    if (stack.length === 0) return;
+    if (stack.length === 0 && !stageActive) return;
     const ink = monochrome(doc, look);
     if (stage.effects === undefined) {
-      stage.effects = new three.ScreenEffects(renderer, stage.scene, camera, stack, { palette: look, reducedMotion, ...(ink === undefined ? {} : { monochrome: ink }) });
+      stage.effects = new three.ScreenEffects(renderer, stage.scene, camera, stack, {
+        palette: look,
+        reducedMotion,
+        ...(ink === undefined ? {} : { monochrome: ink }),
+        ...(doc.stage === undefined ? {} : { stage: doc.stage }),
+      });
       stage.structure = structure;
       for (const id of stage.effects.targetIds) effectTargets.add(id);
       stage.effects.setPointer(stage.pointer);
     }
     stage.effects.setParams(three.stackValues(stack));
+    if (typeof stage.effects.setStage === "function") stage.effects.setStage(doc.stage);
     three.applyPalette(stage.effects, look, ink === undefined ? {} : { monochrome: ink });
   }
 
@@ -547,6 +682,7 @@ export function createScene(initial: SceneDocument, options: SceneOptions = {}):
         return;
       }
       const previous = slot.built;
+      setMeshShadows(built.object, shadowsActive);
       slot.built = built;
       slot.group.add(built.object);
       if (previous !== undefined) {
@@ -621,6 +757,7 @@ export function createScene(initial: SceneDocument, options: SceneOptions = {}):
     camera.position.set(...next.camera.position);
     camera.lookAt(...next.camera.target);
     camera.updateProjectionMatrix();
+    syncStage();
     work.push(applyEnvironment(next.environment));
     work.push(applyEffects());
     return work;
@@ -642,6 +779,7 @@ export function createScene(initial: SceneDocument, options: SceneOptions = {}):
   const recolor = (palette: ScenePalette): void => {
     look = palette;
     if (lights !== undefined) applyStudioLightsPalette(lights, palette);
+    syncStage();
     for (const slot of slots.values()) slot.built?.recolor(palette);
     if (stage?.effects !== undefined && postfx !== undefined) {
       const ink = monochrome(doc, palette);
@@ -776,7 +914,18 @@ export function createScene(initial: SceneDocument, options: SceneOptions = {}):
       envController = undefined;
       for (const slot of slots.values()) release(slot);
       slots.clear();
+      disposeCatcher();
+      const key = lights?.getObjectByName("key");
+      if (key instanceof DirectionalLight) key.shadow.dispose();
       if (stage !== undefined) {
+        if (renderer !== undefined) {
+          if (hasShadowMap(renderer)) {
+            renderer.shadowMap.enabled = stage.baselineShadowEnabled;
+            renderer.shadowMap.type = stage.baselineShadowType;
+          }
+          renderer.toneMapping = stage.baselineToneMapping;
+          renderer.toneMappingExposure = stage.baselineExposure;
+        }
         stage.effects?.dispose();
         stage.effects = undefined;
         stage.environment?.dispose();

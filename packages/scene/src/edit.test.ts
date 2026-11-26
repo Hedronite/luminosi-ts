@@ -1,7 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { acceptAll, currentFixtures, editsOf, fixtureScene, resolve, scenes } from "./arbitrary.js";
-import { addNode, removeNode, setEffects, setInk, setEnvironment, setLights, setLook, setSurface, setTransform } from "./edit.js";
+import { addNode, removeNode, setEffects, setInk, setEnvironment, setLights, setLook, setStage, setSurface, setTransform } from "./edit.js";
 import { checkRefs } from "./refs.js";
 import { parseScene, type Scene, type SceneNode, type SceneResult } from "./schema.js";
 
@@ -304,5 +304,27 @@ describe("setEnvironment", () => {
   it("refuses invalid room or HDRI license", () => {
     expect(codes(badly(setEnvironment, base, { kind: "forest" }))).not.toEqual([]);
     expect(codes(badly(setEnvironment, base, { kind: "dusk", hdri: { url: "https://example.com/a.hdr", license: "MIT", credit: "x" } }))).not.toEqual([]);
+  });
+});
+
+describe("setStage", () => {
+  const base = deepFreeze(fixtureScene("primitives-in-materials"));
+
+  it("sets and clears stage quality configuration without mutating input", () => {
+    const next = {
+      quality: "full" as const,
+      shadows: { enabled: true, catcher: true },
+      bloom: { enabled: true, threshold: 5, gain: 0.22, radius: 0.35 },
+      dof: { enabled: true, focus: 5.5, aperture: 1, focalLength: 2.5 },
+      toneMapping: "agx" as const,
+      exposure: 1.2,
+    };
+    expect(scene(setStage(base, next)).stage).toEqual(next);
+    expect(scene(setStage(scene(setStage(base, next)), undefined)).stage).toBeUndefined();
+  });
+
+  it("refuses invalid stage quality or exposure values", () => {
+    expect(codes(badly(setStage, base, { quality: "ultra" }))).not.toEqual([]);
+    expect(codes(badly(setStage, base, { exposure: 0 }))).not.toEqual([]);
   });
 });

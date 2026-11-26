@@ -16,6 +16,7 @@ import { afterAll, describe, expect, it, vi } from "vitest";
 vi.mock("@hedronite/lts-adapters/webgpu", () => ({
   WebGPUCanvas: ({ children }: { readonly children?: ReactNode }) => children,
   WebGPUEnvironment: () => null,
+  WebGPUStage: () => null,
   WebGPUStudioEnvironment: () => null,
   ScreenEffectsPass: () => null,
 }));
@@ -86,6 +87,31 @@ describe("the emitted React code, mounted", () => {
     const doc = { ...result.scene, environment: { kind: "dusk" as const, intensity: 1.4, rotation: 0.6, hdri: { url: "https://example.com/dusk.hdr", license: "CC0-1.0" as const, credit: "Poly Haven" } } };
     mkdirSync(dir, { recursive: true });
     const file = join(dir, "dusk-room.tsx");
+    writeFileSync(file, toTsx(doc));
+    const loaded: unknown = await import(/* @vite-ignore */ file);
+    const Scene: unknown = typeof loaded === "object" && loaded !== null && "Scene" in loaded ? loaded.Scene : undefined;
+    if (!isComponent(Scene)) throw new Error("the emitted module has no Scene");
+    const renderer = await ReactThreeTestRenderer.create(createElement(Scene));
+    expect(renderer.scene.instance.children.length).toBeGreaterThan(0);
+    await renderer.unmount();
+  }, 20_000);
+
+  it("mounts emitted React code for a stage quality document (shadows, catcher, bloom, dof, tone mapping)", async () => {
+    const result = migrate(readFileSync(join(here, "..", "..", "..", "packages", "scene", "fixtures", "framed-solid-shader.json"), "utf8"));
+    if (!result.ok) throw new Error(JSON.stringify(result.issues));
+    const doc = {
+      ...result.scene,
+      stage: {
+        quality: "full" as const,
+        shadows: { enabled: true, catcher: true },
+        bloom: { enabled: true, threshold: 5, gain: 0.22, radius: 0.35 },
+        dof: { enabled: true, focus: 5.5, aperture: 1, focalLength: 2.5 },
+        toneMapping: "agx" as const,
+        exposure: 1.15,
+      },
+    };
+    mkdirSync(dir, { recursive: true });
+    const file = join(dir, "stage-quality.tsx");
     writeFileSync(file, toTsx(doc));
     const loaded: unknown = await import(/* @vite-ignore */ file);
     const Scene: unknown = typeof loaded === "object" && loaded !== null && "Scene" in loaded ? loaded.Scene : undefined;
