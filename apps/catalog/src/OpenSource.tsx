@@ -14,7 +14,7 @@ const kinds: readonly VendorKind[] = ["icons", "components", "demos", "engines",
 
 const button =
   "inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-sm hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
-// Links read in the text color, marked by an accent underline or icon: accent text falls short of 4.5:1 in some looks.
+// Button-shaped links read in the text color, like the buttons beside them. Links in text read in `accent-text`, which holds 4.5:1 on both surfaces in every look.
 const linkButton = `${button} text-fg`;
 
 interface Place {
@@ -159,7 +159,7 @@ function Folder({ entry, go, onBrowsePack, onOpenAsset }: { readonly entry: Vend
         <dd>{entry.license.replace(/`/g, "")}</dd>
         <dt className="text-fg-muted">Source</dt>
         <dd className="min-w-0 break-words">
-          <a href={entry.sourceUrl} className="text-fg underline decoration-accent decoration-2 underline-offset-2" rel="noreferrer">
+          <a href={entry.sourceUrl} className="text-accent-text underline decoration-accent decoration-2 underline-offset-2" rel="noreferrer">
             {entry.source.replace(/`/g, "")}
           </a>
         </dd>
@@ -193,7 +193,7 @@ function Folder({ entry, go, onBrowsePack, onOpenAsset }: { readonly entry: Vend
                 <ul role="list" className="flex flex-col gap-0.5">
                   {provenance.sources.map((source) => (
                     <li key={source.repo} className="min-w-0 break-words">
-                      <a href={commitUrl(source)} className="text-fg underline decoration-accent decoration-2 underline-offset-2" rel="noreferrer">
+                      <a href={commitUrl(source)} className="text-accent-text underline decoration-accent decoration-2 underline-offset-2" rel="noreferrer">
                         {source.repo.replace(/^https:\/\//, "")} at {shortCommit(source.commit)}
                       </a>
                     </li>
@@ -283,7 +283,7 @@ function Folder({ entry, go, onBrowsePack, onOpenAsset }: { readonly entry: Vend
                   onClick={(event) => {
                     onOpenAsset(meta, event.currentTarget);
                   }}
-                  className="self-start font-medium text-fg underline decoration-accent decoration-2 underline-offset-2 focus-visible:outline-2 focus-visible:outline-accent"
+                  className="self-start font-medium text-accent-text underline decoration-accent decoration-2 underline-offset-2 focus-visible:outline-2 focus-visible:outline-accent"
                 >
                   {meta.name} <span className="font-normal text-fg-muted">({meta.kind})</span>
                 </button>
@@ -293,7 +293,7 @@ function Folder({ entry, go, onBrowsePack, onOpenAsset }: { readonly entry: Vend
                     at{" "}
                     <a
                       href={`${provenance?.sources.find((source) => source.commit === meta.origin?.commit)?.repo ?? entry.sourceUrl}/tree/${meta.origin.commit}`}
-                      className="text-fg underline decoration-accent decoration-2 underline-offset-2"
+                      className="text-accent-text underline decoration-accent decoration-2 underline-offset-2"
                       aria-label={`${meta.name} at commit ${shortCommit(meta.origin.commit)}`}
                       rel="noreferrer"
                     >

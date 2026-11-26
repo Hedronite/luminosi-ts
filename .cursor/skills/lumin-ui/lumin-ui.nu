@@ -383,7 +383,7 @@ def palettes [root: string] {
     }
 }
 
-const TOKEN_NAMES = [surface surface-raised fg fg-muted line accent on-accent]
+const TOKEN_NAMES = [surface surface-raised fg fg-muted line accent accent-text on-accent]
 
 def token-of [ts: list<string>, prefix: string] {
   let hits = ($ts | where {|t| $t starts-with $"($prefix)-" } | each {|t| $t | str substring ($prefix | str length | $in + 1).. } | where {|n| $n in $TOKEN_NAMES })

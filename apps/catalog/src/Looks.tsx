@@ -2,7 +2,7 @@ import { presetsByCategory, type Palette, type Preset, type ScenePalette } from 
 
 const sceneKeys = ["base", "accent", "metal", "glass", "emissive"] as const satisfies readonly (keyof ScenePalette)[];
 
-/** One scheme's colors as a small sample: surfaces, text, a line and the accent with its text. */
+/** One scheme's colors as a small sample: surfaces, text, a line, accent-colored text and the accent with its text. */
 function Sample({ palette, label }: { readonly palette: Palette; readonly label: string }) {
   return (
     <span className="flex min-w-0 flex-1 flex-col gap-1.5 p-3" style={{ background: palette.surface, color: palette.fg }}>
@@ -10,7 +10,7 @@ function Sample({ palette, label }: { readonly palette: Palette; readonly label:
         {label}
       </span>
       <span className="rounded-md px-2 py-1 text-sm" style={{ background: palette.surfaceRaised, border: `1px solid ${palette.line}` }}>
-        Aa
+        Aa <span style={{ color: palette.accentText }}>Link</span>
       </span>
       <span className="self-start rounded-md px-2 py-0.5 text-xs font-medium" style={{ background: palette.accent, color: palette.onAccent }}>
         Accent

@@ -141,7 +141,7 @@ export function IconPacks({ startPack }: { readonly startPack?: string | undefin
       {info === undefined ? null : (
         <p className="mt-3 max-w-prose text-sm" data-testid="pack-credit">
           <span className="font-medium">{info.name}</span> · {info.description} · License <span className="font-medium">{info.license}</span> · Credit: {info.credit} ·{" "}
-          <a href={info.source} className="text-fg underline decoration-accent decoration-2 underline-offset-2">
+          <a href={info.source} className="text-accent-text underline decoration-accent decoration-2 underline-offset-2">
             source
           </a>
         </p>
