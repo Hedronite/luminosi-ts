@@ -370,6 +370,30 @@ export const Broken = () => (
       // One run that starts `bun` twice and reads every UI file: 2.57 to 3.12 s on CI (2.80 to 2.93 s on main), so three times the largest reading, rounded up to 5 s.
     }, 10_000);
 
+    it("contrast measures accent-colored text on both surfaces, in every look and scheme", () => {
+      const linked = fixture(
+        "AccentText.tsx",
+        `export const Linked = () => (
+  <main>
+    <a href="/a" className="text-accent-text underline">on the page</a>
+    <p className="bg-surface-raised">
+      <a href="/b" className="text-accent-text underline">on a raised surface</a>
+    </p>
+    <a href="/c" className="text-accent underline">in the accent itself</a>
+  </main>
+);`,
+      );
+      const { code, envelope } = runSkill("lumin-ui", ["contrast", linked]);
+      expect(code).toBe(0);
+      const rows: readonly unknown[] = Array.isArray(envelope.data) ? envelope.data : [];
+      const row = (fg: string, bg: string): unknown => rows.find((each) => typeof each === "object" && each !== null && "fg" in each && each.fg === fg && "bg" in each && each.bg === bg);
+      // `accentText` passes text contrast on both surfaces in every look; the accent itself does not, which is why links never used it.
+      expect(row("accent-text", "surface")).toMatchObject({ min: 4.5, failing: 0 });
+      expect(row("accent-text", "surface-raised")).toMatchObject({ min: 4.5, failing: 0 });
+      expect(row("accent", "surface")).toMatchObject({ min: 4.5 });
+      expect(row("accent", "surface")).not.toMatchObject({ failing: 0 });
+    }, 10_000);
+
     it("scope works against HEAD", () => {
       expect(runSkill("lumin-ui", ["scope", "--against", "HEAD"]).envelope.ok).toBe(true);
     });
