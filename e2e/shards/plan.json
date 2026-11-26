@@ -1,7 +1,7 @@
 {
   "shards": 6,
   "longestSeconds": 125.3,
-  "mean": 310.5,
+  "mean": 311.7,
   "slowest": 322.9,
   "plan": [
     {
@@ -38,7 +38,7 @@
     },
     {
       "shard": 2,
-      "seconds": 302.3,
+      "seconds": 308.4,
       "locations": [
         "e2e/a11y.spec.ts:190",
         "e2e/a11y.spec.ts:326",
@@ -69,7 +69,8 @@
         "e2e/motion.spec.ts:170",
         "e2e/motion.spec.ts:92",
         "e2e/looks.spec.ts:272",
-        "e2e/looks.spec.ts:86"
+        "e2e/looks.spec.ts:86",
+        "e2e/stage-quality.spec.ts:390"
       ]
     },
     {
@@ -109,7 +110,7 @@
     },
     {
       "shard": 4,
-      "seconds": 306.8,
+      "seconds": 308.3,
       "locations": [
         "e2e/a11y.spec.ts:249",
         "e2e/catalog.spec.ts:172",
@@ -121,7 +122,6 @@
         "e2e/effects.spec.ts:142",
         "e2e/element.spec.ts:270",
         "e2e/mcp/spawn.spec.ts:25",
-        "e2e/memory.spec.ts:124",
         "e2e/panel.spec.ts:187",
         "e2e/panel.spec.ts:337",
         "e2e/playground.spec.ts:213",
@@ -140,7 +140,17 @@
         "e2e/motion.spec.ts:203",
         "e2e/looks.spec.ts:261",
         "e2e/looks.spec.ts:66",
-        "e2e/looks.spec.ts:98"
+        "e2e/looks.spec.ts:98",
+        "e2e/stage-quality.spec.ts:140",
+        "e2e/stage-quality.spec.ts:176",
+        "e2e/stage-quality.spec.ts:222",
+        "e2e/stage-quality.spec.ts:282",
+        "e2e/stage-quality.spec.ts:311",
+        "e2e/stage-quality.spec.ts:337",
+        "e2e/stage-quality.spec.ts:369",
+        "e2e/memory.spec.ts:174",
+        "e2e/memory.spec.ts:239",
+        "e2e/memory.spec.ts:301"
       ]
     },
     {

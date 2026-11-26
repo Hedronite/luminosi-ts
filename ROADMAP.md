@@ -153,11 +153,11 @@ Each line is one PR. Order holds in one place: Stage 6, then 7, then 8; Stages 9
 ### Stage 9 (D) — Fidelity
 
 - [x] D1 One renderer: every viewport on the WebGPU renderer, and a tripwire keeps it that way (#89)
-- [ ] D2 Scene tokens v2: looks light the scene; no raw colors in packages (revisit an `accent-text` token here)
-- [ ] D3 Stage quality: shadows, bloom, depth of field, tone mapping per look, with a lite tier
+- [x] D2 Scene tokens v2: looks light the scene; no raw colors in packages; an `accent-text` token for text (#111, #112)
+- [x] D3 Stage quality: shadows, bloom, depth of field, tone mapping per look, with a lite tier (#114, #115)
 - [ ] D4 Procedural finishes: brushed, weave, grain, orange peel, frost, with no texture files
 - [ ] D5 ObjectSpec v2: repeat, extrude, sweep, tube, text, per-part shader
-- [ ] D6 Environments: more than one room; credited CC0 HDRIs optional
+- [x] D6 Environments: more than one room; credited CC0 HDRIs optional (#113, #115)
 - [x] D7 Motion tracks: animation as data, with a rest pose for reduced motion (#107)
 - [ ] D8 Interface tokens and a design pass: type scale, spacing, elevation, easing; the interface quality tooling is in place (partial: `lumin-ui` #31, the catalog passing it #32)
 - [ ] D9 Generators: isometric icons from the primitives; generated looks
