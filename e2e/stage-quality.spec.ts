@@ -262,12 +262,21 @@ async function everything(page: Page): Promise<void> {
   await room(page).selectOption("noir");
 }
 
-/** The frame count, once it has held still for `quiet` ms. */
+/** The frame count, once it has held still for `quiet` ms. A stage that never stops drawing fails here, and says so. */
 async function held(host: Locator, quiet = 900): Promise<number> {
-  const before = await number(host, "data-frames");
-  await host.page().waitForTimeout(quiet);
-  const after = await number(host, "data-frames");
-  return after === before ? after : held(host, quiet);
+  let last = -1;
+  await expect
+    .poll(
+      async () => {
+        const before = await number(host, "data-frames");
+        await host.page().waitForTimeout(quiet);
+        last = await number(host, "data-frames");
+        return last - before;
+      },
+      { message: "the stage stops drawing", timeout: 20_000 },
+    )
+    .toBe(0);
+  return last;
 }
 
 test("an animated playground with every stage feature draws nothing out of view, and resumes when it returns", async ({ page }) => {
