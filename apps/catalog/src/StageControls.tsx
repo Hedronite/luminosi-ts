@@ -11,7 +11,7 @@ const roomNames: Readonly<Record<SceneEnvironment["kind"], string>> = { studio: 
 const isRoom = (value: string): value is SceneEnvironment["kind"] => Object.hasOwn(roomNames, value);
 const toneNames: Readonly<Record<(typeof toneMappingModes)[number], string>> = { aces: "ACES filmic", agx: "AgX", neutral: "Neutral" };
 
-/** `off` is a document with no stage block: the renderer keeps its own tone mapping and nothing below applies. */
+/** `off` is a document with no stage block: the renderer keeps its own tone mapping and exposure, and nothing below applies. */
 const qualities = [
   ["off", "Off: renderer defaults"],
   ["full", "Full"],
@@ -156,58 +156,61 @@ export function StageControls({ environment, stage, palette, distance, shadows =
           change({ dof: { ...resolveStagePostfx({ dof: { focus: distance, ...stage?.dof, enabled: true } }).dof, enabled } });
         }}
       />
-      <div className="flex flex-col gap-1 text-sm">
-        <label htmlFor={`${id}-tone`}>Tone mapping</label>
-        <select
-          id={`${id}-tone`}
-          className={field}
-          value={stage?.toneMapping ?? ""}
-          disabled={stage === undefined}
-          onChange={(event) => {
-            const toneMapping = toneMappingModes.find((each) => each === event.target.value);
-            if (toneMapping === undefined) follow("toneMapping");
-            else change({ toneMapping });
-          }}
-        >
-          <option value="">From the look ({toneNames[lighting.toneMapping]})</option>
-          {toneMappingModes.map((mode) => (
-            <option key={mode} value={mode}>
-              {toneNames[mode]}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="flex flex-col gap-1 text-sm">
-        <label htmlFor={`${id}-exposure`}>
-          Exposure <output>{exposure.toFixed(2)}</output>
-        </label>
-        <input
-          id={`${id}-exposure`}
-          type="range"
-          className="min-h-6 accent-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          min={0.2}
-          max={3}
-          step={0.05}
-          value={exposure}
-          disabled={stage === undefined}
-          onChange={(event) => {
-            change({ exposure: Number(event.target.value) }, "stage.exposure");
-          }}
-          onPointerUp={onGestureEnd}
-          onBlur={onGestureEnd}
-        />
-        {stage?.exposure === undefined ? null : (
-          <button
-            type="button"
-            className="min-h-6 self-start rounded border border-line px-2 py-0.5 text-xs hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-accent"
-            onClick={() => {
-              follow("exposure");
-            }}
-          >
-            Use the look's exposure
-          </button>
-        )}
-      </div>
+      {/* A document with no stage keeps the renderer's own tone mapping and exposure: there is nothing here to set. */}
+      {stage === undefined ? null : (
+        <>
+          <div className="flex flex-col gap-1 text-sm">
+            <label htmlFor={`${id}-tone`}>Tone mapping</label>
+            <select
+              id={`${id}-tone`}
+              className={field}
+              value={stage.toneMapping ?? ""}
+              onChange={(event) => {
+                const toneMapping = toneMappingModes.find((each) => each === event.target.value);
+                if (toneMapping === undefined) follow("toneMapping");
+                else change({ toneMapping });
+              }}
+            >
+              <option value="">From the look ({toneNames[lighting.toneMapping]})</option>
+              {toneMappingModes.map((mode) => (
+                <option key={mode} value={mode}>
+                  {toneNames[mode]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1 text-sm">
+            <label htmlFor={`${id}-exposure`}>
+              Exposure <output>{exposure.toFixed(2)}</output>
+            </label>
+            <input
+              id={`${id}-exposure`}
+              type="range"
+              className="min-h-6 accent-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              min={0.2}
+              max={3}
+              step={0.05}
+              value={exposure}
+              onChange={(event) => {
+                change({ exposure: Number(event.target.value) }, "stage.exposure");
+              }}
+              onPointerUp={onGestureEnd}
+              onBlur={onGestureEnd}
+            />
+            {stage.exposure === undefined ? null : (
+              <button
+                type="button"
+                className="min-h-6 self-start rounded border border-line px-2 py-0.5 text-xs hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-accent"
+                onClick={() => {
+                  follow("exposure");
+                }}
+              >
+                Use the look's exposure
+              </button>
+            )}
+          </div>
+        </>
+      )}
     </fieldset>
   );
 }
