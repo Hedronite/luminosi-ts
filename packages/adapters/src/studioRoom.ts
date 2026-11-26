@@ -115,11 +115,8 @@ export async function bakeEnvironmentTarget(
     let equirectangular: Texture | undefined;
     try {
       equirectangular = await loader(environment.hdri.url, options.signal === undefined ? {} : { signal: options.signal });
-      if (options.signal?.aborted) {
-        equirectangular.dispose();
-        generator.dispose();
-        throw new Error("environment load aborted");
-      }
+      // The catch below frees the texture and the generator.
+      if (options.signal?.aborted) throw new Error("environment load aborted");
       const target = generator.fromEquirectangular(equirectangular);
       equirectangular.dispose();
       generator.dispose();

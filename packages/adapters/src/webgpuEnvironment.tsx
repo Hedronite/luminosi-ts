@@ -29,6 +29,8 @@ export function WebGPUEnvironment({ kind = "studio", intensity, rotation, hdri, 
   const proceduralTarget = useMemo(() => bakeRoom(new PMREMGenerator(gl), kind), [gl, kind]);
   const hdriKey = hdri === undefined ? "" : `${kind}|${hdri.url}|${hdri.credit}`;
   const [hdriState, setHdriState] = useState<{ readonly key: string; readonly target: RoomTarget } | undefined>(undefined);
+  // Without an HDRI the procedural room shows: letting go of the loaded target here frees it now (its cleanup below), not at unmount.
+  if (hdri === undefined && hdriState !== undefined) setHdriState(undefined);
 
   useEffect(
     () => () => {

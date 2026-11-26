@@ -120,6 +120,12 @@ describe("parseScene", () => {
     expect(parseScene({ ...doc, environment: { kind: "noir", hdri: { url: "data:application/octet-stream;base64,AA==", license: "CC0-1.0", credit: "Inline" } } }).ok).toBe(true);
     expect(parseScene({ ...doc, environment: { kind: "studio", hdri: { ...hdri, url: "javascript:alert(1)" } } }).ok).toBe(false);
     expect(parseScene({ ...doc, environment: { kind: "studio", hdri: { ...hdri, url: "//evil/room.hdr" } } }).ok).toBe(false);
+    // Plaintext is refused, and so is any backslash in a root-relative path: a browser reads `/\host` as `//host`.
+    for (const url of ["http://example.com/room.hdr", "HTTP://example.com/room.hdr", "/\\evil/room.hdr", "/envs\\room.hdr"]) {
+      expect([url, parseScene({ ...doc, environment: { kind: "studio", hdri: { ...hdri, url } } }).ok]).toEqual([url, false]);
+    }
+    expect(parseScene({ ...doc, environment: { kind: "studio", hdri: { ...hdri, credit: "   " } } }).ok).toBe(false);
+    expect(parseScene({ ...doc, environment: { kind: "studio", hdri: { ...hdri, credit: "  Poly Haven  " } } })).toMatchObject({ ok: true, scene: { environment: { hdri: { credit: "Poly Haven" } } } });
     expect(parseScene({ ...doc, environment: { kind: "studio", hdri: { ...hdri, license: "MIT" } } }).ok).toBe(false);
     expect(parseScene({ ...doc, environment: { kind: "studio", hdri: { ...hdri, credit: "" } } }).ok).toBe(false);
     expect(parseScene({ ...doc, environment: { kind: "studio", intensity: 11 } }).ok).toBe(false);

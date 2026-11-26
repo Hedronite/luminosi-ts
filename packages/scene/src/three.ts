@@ -148,11 +148,8 @@ export async function bakeEnvironmentTarget(generator: RoomGenerator, environmen
     let equirectangular: Texture | undefined;
     try {
       equirectangular = await loader(environment.hdri.url, options.signal === undefined ? {} : { signal: options.signal });
-      if (options.signal?.aborted) {
-        equirectangular.dispose();
-        generator.dispose();
-        throw new Error("environment load aborted");
-      }
+      // The catch below frees the texture and the generator.
+      if (options.signal?.aborted) throw new Error("environment load aborted");
       const target = generator.fromEquirectangular(equirectangular);
       equirectangular.dispose();
       generator.dispose();
@@ -457,7 +454,15 @@ export function createScene(initial: SceneDocument, options: SceneOptions = {}):
     stage.scene.environmentIntensity = environment.intensity ?? 1;
     stage.scene.environmentRotation.set(0, environment.rotation ?? 0, 0);
     const sourceKey = environmentSourceKey(environment);
-    if (sourceKey === stage.environmentKey && (stage.environment !== undefined || envInFlightKey === sourceKey)) return;
+    if (sourceKey === stage.environmentKey && stage.environment !== undefined) {
+      // What is on show is what is asked for. A bake under way for another source would replace it when it landed: give it up.
+      if (envInFlightKey !== undefined) {
+        envController?.abort();
+        envGeneration += 1;
+        envInFlightKey = undefined;
+      }
+      return;
+    }
 
     envController?.abort();
     const controller = new AbortController();
@@ -466,21 +471,29 @@ export function createScene(initial: SceneDocument, options: SceneOptions = {}):
     envInFlightKey = sourceKey;
     const stale = (): boolean => disposed || controller.signal.aborted || generation !== envGeneration;
 
-    const { PMREMGenerator } = await import("three/webgpu");
-    if (stale()) return;
-    const { target } = await bakeEnvironmentTarget(new PMREMGenerator(renderer), environment, {
-      signal: controller.signal,
-      ...(options.hdriLoader === undefined ? {} : { hdriLoader: options.hdriLoader }),
-    });
-    if (stale()) {
-      target.dispose();
-      return;
+    try {
+      const { PMREMGenerator } = await import("three/webgpu");
+      if (stale()) return;
+      const { target } = await bakeEnvironmentTarget(new PMREMGenerator(renderer), environment, {
+        signal: controller.signal,
+        ...(options.hdriLoader === undefined ? {} : { hdriLoader: options.hdriLoader }),
+      });
+      if (stale()) {
+        target.dispose();
+        return;
+      }
+      const previous = stage.environment;
+      stage.environment = target;
+      stage.environmentKey = sourceKey;
+      stage.scene.environment = target.texture;
+      previous?.dispose();
+    } catch (error) {
+      // A load that was only overtaken (another source was asked for, or the scene was disposed) has failed nobody.
+      if (!stale()) throw error;
+    } finally {
+      // A newer bake owns the key by now; this one clears it only while it is still the latest.
+      if (generation === envGeneration) envInFlightKey = undefined;
     }
-    const previous = stage.environment;
-    stage.environment = target;
-    stage.environmentKey = sourceKey;
-    stage.scene.environment = target.texture;
-    previous?.dispose();
   }
 
   async function applyEffects(): Promise<void> {

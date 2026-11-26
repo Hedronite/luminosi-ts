@@ -55,7 +55,7 @@ vi.mock("three/webgpu", () => ({
 }));
 
 const { WebGPUEnvironment, WebGPUStudioEnvironment } = await import("./webgpuEnvironment.js");
-const { STUDIO_BLUR } = await import("./studioRoom.js");
+const { bakeEnvironmentTarget, STUDIO_BLUR } = await import("./studioRoom.js");
 /** The look the root environment has always had, and what the WebGPU one must keep: React Three Fiber's ACES filmic, and three's own intensity of 1. */
 const studioRoom = { blur: 0.04, intensity: 1, toneMapping: ACESFilmicToneMapping } as const;
 
@@ -162,5 +162,62 @@ describe("WebGPUEnvironment", () => {
     expect(offline.scene()?.environment).toBe(bakes[0]?.texture);
     await offline.renderer.unmount();
     expect(bakes.every((b) => b.targetDisposed())).toBe(true);
+  });
+});
+
+describe("WebGPUEnvironment when its HDRI goes away", () => {
+  const hdri = { url: "https://example.com/noir.hdr", license: "CC0-1.0", credit: "Nobody" } as const;
+  const equirect = (): DataTexture => new DataTexture(new Uint8Array(16), 2, 2);
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+
+  it("frees the HDRI's target when hdri is taken away, not only at unmount", async () => {
+    const loader = () => Promise.resolve(equirect());
+    const webgpu = await mounted(<WebGPUEnvironment kind="noir" hdri={hdri} hdriLoader={loader} />);
+    await settle();
+    const [procedural, loaded] = bakes;
+    expect(loaded?.room).toBe("hdri");
+    expect(webgpu.scene()?.environment).toBe(loaded?.texture);
+
+    await webgpu.renderer.update(
+      <>
+        <WebGPUEnvironment kind="noir" hdriLoader={loader} />
+      </>,
+    );
+    await settle();
+    expect(webgpu.scene()?.environment).toBe(procedural?.texture);
+    expect(loaded?.targetDisposed()).toBe(true);
+    expect(procedural?.targetDisposed()).toBe(false);
+
+    await webgpu.renderer.unmount();
+    expect(bakes.every((b) => b.targetDisposed())).toBe(true);
+  });
+
+  it("frees an aborted load's texture and generator once each", async () => {
+    const controller = new AbortController();
+    const counts = { generator: 0, texture: 0 };
+    const texture = equirect();
+    texture.addEventListener("dispose", () => {
+      counts.texture += 1;
+    });
+    const unwanted = () => ({ texture: new Texture(), dispose: () => undefined });
+    const loading = bakeEnvironmentTarget(
+      {
+        fromScene: unwanted,
+        fromEquirectangular: unwanted,
+        dispose: () => {
+          counts.generator += 1;
+        },
+      },
+      { kind: "noir", hdri },
+      {
+        signal: controller.signal,
+        hdriLoader: async () => {
+          controller.abort();
+          return Promise.resolve(texture);
+        },
+      },
+    );
+    await expect(loading).rejects.toThrow("aborted");
+    expect(counts).toEqual({ generator: 1, texture: 1 });
   });
 });

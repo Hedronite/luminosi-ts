@@ -138,19 +138,20 @@ export const HDRI_LICENSE = "CC0-1.0" as const;
 
 const isSafeHdriUrl = (value: string): boolean => {
   if (value.trim() !== value || /\s/.test(value)) return false;
-  if (value.startsWith("/") && !value.startsWith("//")) return true;
+  // A path from the site's own root. A backslash is refused: a browser reads `/\host` as `//host`, which is another origin.
+  if (value.startsWith("/")) return !value.startsWith("//") && !value.includes("\\");
   try {
-    const url = new URL(value);
-    return url.protocol === "https:" || url.protocol === "http:" || url.protocol === "data:";
+    const { protocol } = new URL(value);
+    return protocol === "https:" || protocol === "data:";
   } catch {
     return false;
   }
 };
 
 const environmentHdri = z.strictObject({
-  url: z.string().min(1).refine(isSafeHdriUrl, "an environment HDRI url must be https:, http:, data:, or root-relative"),
+  url: z.string().min(1).refine(isSafeHdriUrl, "an environment HDRI url must be https:, data:, or root-relative"),
   license: z.literal(HDRI_LICENSE),
-  credit: z.string().min(1),
+  credit: z.string().trim().min(1),
 });
 
 const environment = z.strictObject({
