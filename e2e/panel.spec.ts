@@ -224,7 +224,8 @@ test("the address and the panel agree both ways: a link opens with its values, a
   expect(errors).toEqual([]);
 });
 
-test("a screen effect's panel moves it live; the ASCII ramp, which is baked in, rebuilds and says so", { timeout: 90_000 }, async ({ page }) => {
+test("a screen effect's panel moves it live; the ASCII ramp, which is baked in, rebuilds and says so", async ({ page }, testInfo) => {
+  testInfo.setTimeout(180_000); // R5: 3 × 60 s CI cap (main 45871825882)
   const errors = errorsOn(page);
   await page.goto("/?asset=dither");
   const dialog = dialogOf(page, "Dither");
@@ -286,7 +287,8 @@ const objectCases = [
 ] as const;
 
 for (const { name, asset, label, value, params } of objectCases) {
-  test(`${name}: the panel's edit shows in the viewport, the address follows, and a link opens with its values`, { timeout: 90_000 }, async ({ page }) => {
+  test(`${name}: the panel's edit shows in the viewport, the address follows, and a link opens with its values`, async ({ page }, testInfo) => {
+    testInfo.setTimeout(130_000); // R5: 3 × 42.5 s measured ceiling
     const errors = errorsOn(page);
     await page.goto(`/?asset=${asset}`);
     const dialog = page.getByRole("dialog");
