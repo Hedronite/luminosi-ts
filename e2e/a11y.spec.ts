@@ -421,3 +421,20 @@ test("a stage in a detail dialog passes axe", async ({ page }) => {
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => v.id)).toEqual([]);
 });
+
+
+const openSourceSkillPages = [
+  ["/?view=open-source&set=jakubkrehel-skills&item=better-ui&page=skills/better-ui/SKILL.md", "UI polish"],
+  ["/?view=open-source&set=ai-design-skills&item=landing-page-design&page=skills/landing-page-design/SKILL.md", "Landing Page Design"],
+  ["/?view=open-source&set=mengto-skills&item=3d-metal-material&page=agent-skills/3d/3d-metal-material/SKILL.md", "3D Metal Material"],
+] as const;
+
+for (const [url, title] of openSourceSkillPages) {
+  test(`open source (${title}): Markdown task lists and headings pass axe`, async ({ page }) => {
+    await page.goto(url);
+    await expect(page.getByRole("heading", { level: 2, name: title })).toBeVisible();
+    await expect(page.getByText("Loading…")).toHaveCount(0);
+    const results = await new AxeBuilder({ page }).analyze();
+    expect(results.violations.map((v) => v.id)).toEqual([]);
+  });
+}

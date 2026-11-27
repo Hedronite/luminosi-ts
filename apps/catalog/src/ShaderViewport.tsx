@@ -75,7 +75,7 @@ export function ShaderViewport({ meta, palette, params, epoch }: { readonly meta
         <EffectClockProvider clock={shaderClock}>
           <EffectSphere key={`${meta.id}:${String(epoch)}`} id={meta.id} palette={palette} params={params} />
         </EffectClockProvider>
-        <GpuCounts target={group} clockRef={clock} shaderClock={shaderClock} />
+        <GpuCounts target={group} clockRef={clock} shaderClock={shaderClock} running={!motion.still} />
       </WebGPUCanvas>
     </StageFrame>
   );

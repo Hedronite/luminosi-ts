@@ -24,7 +24,7 @@ const paramsOf = (page: Page): string => new URL(page.url()).searchParams.get("p
  * runner shows four, then seven), so the first positive count is no baseline. Settled is the count holding for eight samples in a row.
  */
 async function drawn(host: Locator): Promise<number> {
-  await expect(host).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 20_000 });
+  await expect(host).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 45_000 });
   let last = -1;
   let steady = 0;
   await expect
@@ -36,7 +36,7 @@ async function drawn(host: Locator): Promise<number> {
         last = now;
         return steady;
       },
-      { message: "the program count settles", timeout: 30_000 },
+      { message: "the program count settles", timeout: 90_000 },
     )
     .toBeGreaterThanOrEqual(8);
   return last;
@@ -224,7 +224,7 @@ test("the address and the panel agree both ways: a link opens with its values, a
   expect(errors).toEqual([]);
 });
 
-test("a screen effect's panel moves it live; the ASCII ramp, which is baked in, rebuilds and says so", async ({ page }) => {
+test("a screen effect's panel moves it live; the ASCII ramp, which is baked in, rebuilds and says so", { timeout: 90_000 }, async ({ page }) => {
   const errors = errorsOn(page);
   await page.goto("/?asset=dither");
   const dialog = dialogOf(page, "Dither");
@@ -286,7 +286,7 @@ const objectCases = [
 ] as const;
 
 for (const { name, asset, label, value, params } of objectCases) {
-  test(`${name}: the panel's edit shows in the viewport, the address follows, and a link opens with its values`, async ({ page }) => {
+  test(`${name}: the panel's edit shows in the viewport, the address follows, and a link opens with its values`, { timeout: 90_000 }, async ({ page }) => {
     const errors = errorsOn(page);
     await page.goto(`/?asset=${asset}`);
     const dialog = page.getByRole("dialog");

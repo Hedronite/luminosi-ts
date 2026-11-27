@@ -247,7 +247,8 @@ function lexFile(source: string, isTsx: boolean): LexedFile {
       continue;
     }
     // Regex literal (when `/` cannot be division)
-    if (ch === "/" && canStartRegex && !(isTsx && (source[i - 1] === "<" || next === ">"))) {
+    const prev = i > 0 ? (source[i - 1] ?? "") : "";
+    if (ch === "/" && canStartRegex && !(isTsx && (prev === "<" || prev === ">" || next === ">"))) {
       ident = "";
       pushBlank("/", true);
       i += 1;
@@ -451,6 +452,8 @@ describe("raw color literal tripwire", () => {
         'export const AfterBoldRgb = () => <p><b>x</b>{"rgb(255, 0, 0)"}</p>;',
         'export const AfterBoldSink = () => <p><b>x</b><span style={{ color: "red" }} /></p>;',
         'export const AfterBr = () => <p><br />{"#ff0000"}</p>;',
+        'export const RegexGtPlant = () => { const v = ["a"]; v.split(/>/); return "#ff0000"; };',
+        'export const SelfCloseStill = () => <br />;',
         "export const MultiLine = () => (",
         "  <div>",
         "    <b>multi</b>",
@@ -502,7 +505,8 @@ describe("raw color literal tripwire", () => {
       "sample/src/jsx.tsx:4: rgb(",
       'sample/src/jsx.tsx:5: color: "red"',
       "sample/src/jsx.tsx:6: #ff0000",
-      "sample/src/jsx.tsx:10: #ff0000",
+      "sample/src/jsx.tsx:7: #ff0000",
+      "sample/src/jsx.tsx:12: #ff0000",
       "scene/src/arbitrary.ts:1: 0xff0000",
       "scene/src/arbitrary.ts:2: 0xff0000",
     ]);
