@@ -1,12 +1,12 @@
 {
   "shards": 6,
-  "longestSeconds": 125.3,
-  "mean": 311.7,
-  "slowest": 322.9,
+  "longestSeconds": 82,
+  "mean": 290.5,
+  "slowest": 317,
   "plan": [
     {
       "shard": 1,
-      "seconds": 311.1,
+      "seconds": 222.4,
       "locations": [
         "e2e/a11y.spec.ts:410",
         "e2e/catalog.spec.ts:118",
@@ -21,7 +21,6 @@
         "e2e/golden/metrics.spec.ts:23",
         "e2e/mcp/render.spec.ts:95",
         "e2e/offscreen.spec.ts:44",
-        "e2e/panel.spec.ts:289",
         "e2e/panel.spec.ts:80",
         "e2e/playground.spec.ts:247",
         "e2e/playground.spec.ts:425",
@@ -33,7 +32,13 @@
         "e2e/shards/shards.spec.ts:119",
         "e2e/catalog.spec.ts:594",
         "e2e/motion.spec.ts:131",
-        "e2e/motion.spec.ts:74"
+        "e2e/motion.spec.ts:74",
+        "e2e/a11y.spec.ts:428",
+        "e2e/panel.spec.ts:261",
+        "e2e/panel.spec.ts:290",
+        "e2e/panel.spec.ts:323",
+        "e2e/panel.spec.ts:339",
+        "e2e/a11y.spec.ts:442"
       ]
     },
     {
@@ -110,7 +115,7 @@
     },
     {
       "shard": 4,
-      "seconds": 308.3,
+      "seconds": 284.7,
       "locations": [
         "e2e/a11y.spec.ts:249",
         "e2e/catalog.spec.ts:172",
@@ -123,7 +128,6 @@
         "e2e/element.spec.ts:270",
         "e2e/mcp/spawn.spec.ts:25",
         "e2e/panel.spec.ts:187",
-        "e2e/panel.spec.ts:337",
         "e2e/playground.spec.ts:213",
         "e2e/playground.spec.ts:323",
         "e2e/playground.spec.ts:452",
@@ -192,7 +196,7 @@
     },
     {
       "shard": 6,
-      "seconds": 322.9,
+      "seconds": 307.9,
       "locations": [
         "e2e/a11y.spec.ts:156",
         "e2e/a11y.spec.ts:212",
@@ -214,8 +218,6 @@
         "e2e/golden/metrics.spec.ts:46",
         "e2e/golden/metrics.spec.ts:61",
         "e2e/mcp/spawn.spec.ts:14",
-        "e2e/panel.spec.ts:260",
-        "e2e/panel.spec.ts:321",
         "e2e/panel.spec.ts:61",
         "e2e/playground.spec.ts:171",
         "e2e/render.spec.ts:138",

@@ -638,7 +638,7 @@ export function Playground() {
                     }}
                   />
                 </EffectClockProvider>
-                <GpuCounts target={host} clockRef={clock} shaderClock={shaderClock} watch={built} screenEffects running={animated && !motion.still} />
+                <GpuCounts target={host} clockRef={clock} shaderClock={shaderClock} watch={built} screenEffects holdRef={motion.holdRef} />
               </WebGPUCanvas>
             </StageFrame>
           </div>

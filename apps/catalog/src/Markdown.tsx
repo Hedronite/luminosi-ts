@@ -86,7 +86,17 @@ export function Markdown({ markdown, path, repo, pages = [], onPage }: MarkdownP
     h5: ({ children }) => heading(5, children),
     h6: ({ children }) => heading(6, children),
     p: ({ children }) => <p className="mt-3 leading-relaxed">{children}</p>,
-    ul: ({ children }) => <ul className="mt-3 list-none space-y-1 pl-0">{children}</ul>,
+    ul: ({ children, className }) => (
+      <ul
+        className={
+          typeof className === "string" && className.includes("contains-task-list")
+            ? "mt-3 list-none space-y-1 pl-0"
+            : "mt-3 list-disc space-y-1 pl-6"
+        }
+      >
+        {children}
+      </ul>
+    ),
     ol: ({ children }) => <ol className="mt-3 list-decimal space-y-1 pl-6">{children}</ol>,
     li: (props) => <TaskListItem {...props} />,
     blockquote: ({ children }) => <blockquote className="mt-3 border-l-2 border-line pl-4 text-fg-muted">{children}</blockquote>,

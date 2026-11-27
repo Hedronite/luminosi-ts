@@ -423,6 +423,15 @@ test("a stage in a detail dialog passes axe", async ({ page }) => {
 });
 
 
+// Add before openSourceSkillPages in a11y.spec.ts
+
+test("plant: +1 after the pause settle fails the same bar as :156", () => {
+  const heldFrames = 42;
+  const bar = (frames: number): boolean => frames === heldFrames;
+  expect(bar(heldFrames + 1), "a stage that kept drawing after pause turns :156 red").toBe(false);
+  expect(bar(heldFrames)).toBe(true);
+});
+
 const openSourceSkillPages = [
   ["/?view=open-source&set=jakubkrehel-skills&item=better-ui&page=skills/better-ui/SKILL.md", "UI polish"],
   ["/?view=open-source&set=ai-design-skills&item=landing-page-design&page=skills/landing-page-design/SKILL.md", "Landing Page Design"],

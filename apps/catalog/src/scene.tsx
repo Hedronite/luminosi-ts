@@ -154,7 +154,7 @@ export function GpuCounts({
   shaderClock,
   watch,
   screenEffects = false,
-  running = true,
+  holdRef,
 }: {
   readonly target: RefObject<HTMLDivElement | null>;
   readonly clockRef?: RefObject<number>;
@@ -163,22 +163,26 @@ export function GpuCounts({
   readonly watch?: RefObject<Object3D | undefined>;
   /** The stage runs a screen-effect pipeline: report its builds too. */
   readonly screenEffects?: boolean;
-  /** False while the stage is held: the frame loop may still owe one draw that must not move `data-frames`. */
-  readonly running?: boolean;
+  /** When set, extends the pause hold so the owed in-flight frame is not counted (pause only, not reduced motion). */
+  readonly holdRef?: RefObject<(() => void) | null>;
 }) {
   const gl = useThree((state) => state.gl);
   const camera = useThree((state) => state.camera);
   const scene = useThree((state) => state.scene);
   // useFrame runs once per scene render, so environment baking does not count.
   const frames = useRef(0);
-  const wasRunning = useRef(running);
   useEffect(() => {
-  // Pausing owes one frame, the same way `StageClock` clears the store's pending count; drop it here too.
-    if (wasRunning.current && !running) frames.current = Math.max(0, frames.current - 1);
-    wasRunning.current = running;
-  }, [running]);
+    if (holdRef === undefined) return;
+    const previous = holdRef.current;
+    holdRef.current = () => {
+      previous?.();
+      frames.current = Math.max(0, frames.current - 1);
+    };
+    return () => {
+      holdRef.current = previous;
+    };
+  }, [holdRef]);
   useFrame(() => {
-    if (!running) return;
     frames.current += 1;
     // A frame follows every commit that attaches something, so an object that lives for one commit is still seen.
     const host = target.current;

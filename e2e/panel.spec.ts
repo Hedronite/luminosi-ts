@@ -24,7 +24,7 @@ const paramsOf = (page: Page): string => new URL(page.url()).searchParams.get("p
  * runner shows four, then seven), so the first positive count is no baseline. Settled is the count holding for eight samples in a row.
  */
 async function drawn(host: Locator): Promise<number> {
-  await expect(host).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 45_000 });
+  await expect(host).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 20_000 });
   let last = -1;
   let steady = 0;
   await expect
@@ -36,7 +36,7 @@ async function drawn(host: Locator): Promise<number> {
         last = now;
         return steady;
       },
-      { message: "the program count settles", timeout: 90_000 },
+      { message: "the program count settles", timeout: 30_000 },
     )
     .toBeGreaterThanOrEqual(8);
   return last;
