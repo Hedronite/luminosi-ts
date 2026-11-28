@@ -104,7 +104,7 @@ export function EffectStage({ effects, palette, subject = framedDodecahedron, su
   };
   return (
     <StageFrame group={own} motion={motion} label={label} className={className} testId={host === undefined ? "viewport" : undefined}>
-      <WebGPUCanvas frameloop={stageFrameloop(shown, motion.still)} dpr={[1, 2]} camera={{ position: [0, 0, 3.6], fov: 35 }}>
+      <WebGPUCanvas frameloop={stageFrameloop(shown, motion.still, motion.paused)} dpr={[1, 2]} camera={{ position: [0, 0, 3.6], fov: 35 }}>
         <WakeOnShow shown={shown} />
         <WebGPUStudioEnvironment />
         <StudioLights />

@@ -100,13 +100,33 @@ export function Markdown({ markdown, path, repo, pages = [], onPage }: MarkdownP
     ol: ({ children }) => <ol className="mt-3 list-decimal space-y-1 pl-6">{children}</ol>,
     li: (props) => <TaskListItem {...props} />,
     blockquote: ({ children }) => <blockquote className="mt-3 border-l-2 border-line pl-4 text-fg-muted">{children}</blockquote>,
-    pre: ({ children }) => <pre className="mt-3 overflow-x-auto rounded-lg bg-surface-raised p-3 text-sm">{children}</pre>,
+    pre: ({ children }) => {
+      const label = textOf(children).trim().slice(0, 48) || "snippet";
+      return (
+        <pre
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- axe scrollable-region-focusable
+          tabIndex={0}
+          aria-label={`Code: ${label}`}
+          className="mt-3 overflow-x-auto rounded-lg bg-surface-raised p-3 text-sm"
+        >
+          {children}
+        </pre>
+      );
+    },
     code: ({ children, className }) => <code className={className ?? "rounded bg-surface-raised px-1 py-0.5 text-[0.9em]"}>{children}</code>,
-    table: ({ children }) => (
-      <div className="mt-3 overflow-x-auto">
-        <table className="w-full border-collapse text-sm">{children}</table>
-      </div>
-    ),
+    table: ({ children }) => {
+      const label = textOf(children).trim().slice(0, 48) || "table";
+      return (
+        <div
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- axe scrollable-region-focusable
+          tabIndex={0}
+          aria-label={`Scrollable table: ${label}`}
+          className="mt-3 overflow-x-auto"
+        >
+          <table className="w-full border-collapse text-sm">{children}</table>
+        </div>
+      );
+    },
     th: ({ children }) => <th className="border border-line px-2 py-1 text-left font-semibold">{children}</th>,
     td: ({ children }) => <td className="border border-line px-2 py-1 align-top">{children}</td>,
     hr: () => <hr className="mt-6 border-line" />,

@@ -620,7 +620,7 @@ export function Playground() {
             >
               {/* Screen effects and some shaders animate, so the scene renders every frame while any are on. */}
               {/* The WebGPU renderer (WebGL 2 where WebGPU is missing) runs surface shaders and screen effects together; the scene brings its own lights, environment and effects. */}
-              <WebGPUCanvas frameloop={stageFrameloop(onscreen, !animated || motion.still)} dpr={[1, 2]} camera={{ position: [0, 2.2, 5.5], fov: 40 }}>
+              <WebGPUCanvas frameloop={stageFrameloop(onscreen, !animated || motion.still, motion.paused)} dpr={[1, 2]} camera={{ position: [0, 2.2, 5.5], fov: 40 }}>
                 <WakeOnShow shown={onscreen} />
                 <Controls keys={host} />
                 <StageHold holdRef={motion.holdRef} />
