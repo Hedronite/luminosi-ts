@@ -253,13 +253,13 @@ export function useMotion(animated: boolean): Motion {
 
 /**
  * Installs the stage's synchronous pause, from inside the canvas where the frame loop lives: `motion.holdRef` switches the store to
- * never and drops the frames it had pending, so the loop stops in the pause click rather than one commit later.
+ * demand and drops the frames it had pending, so the loop stops in the pause click rather than one commit later.
  */
 export function StageHold({ holdRef }: { readonly holdRef: RefObject<(() => void) | null> }) {
   const store = useStore();
   useEffect(() => {
     holdRef.current = () => {
-      store.getState().setFrameloop("never");
+      store.getState().setFrameloop("demand");
       store.getState().internal.frames = 0;
     };
     return () => {

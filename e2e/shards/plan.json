@@ -36,12 +36,12 @@
         "e2e/panel.spec.ts:290",
         "e2e/panel.spec.ts:323",
         "e2e/panel.spec.ts:339",
-        "e2e/a11y.spec.ts:173",
-        "e2e/a11y.spec.ts:229",
-        "e2e/a11y.spec.ts:294",
-        "e2e/a11y.spec.ts:379",
-        "e2e/a11y.spec.ts:427",
-        "e2e/a11y.spec.ts:450"
+        "e2e/a11y.spec.ts:198",
+        "e2e/a11y.spec.ts:254",
+        "e2e/a11y.spec.ts:319",
+        "e2e/a11y.spec.ts:404",
+        "e2e/a11y.spec.ts:452",
+        "e2e/a11y.spec.ts:475"
       ]
     },
     {
@@ -189,11 +189,11 @@
         "e2e/looks.spec.ts:112",
         "e2e/looks.spec.ts:285",
         "e2e/looks.spec.ts:92",
-        "e2e/a11y.spec.ts:207",
-        "e2e/a11y.spec.ts:266",
-        "e2e/a11y.spec.ts:343",
-        "e2e/a11y.spec.ts:401",
-        "e2e/a11y.spec.ts:434"
+        "e2e/a11y.spec.ts:232",
+        "e2e/a11y.spec.ts:291",
+        "e2e/a11y.spec.ts:368",
+        "e2e/a11y.spec.ts:426",
+        "e2e/a11y.spec.ts:459"
       ]
     },
     {

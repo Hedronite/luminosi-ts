@@ -27,6 +27,26 @@ const errorsOn = (page: Page): string[] => {
 const number = async (host: Locator, attribute: string): Promise<number> => Number(await host.getAttribute(attribute));
 
 /** The frame count once it has held still for `quiet` ms (same bar as stage-quality `held`). */
+
+/** Programs attached and steady: the playground finishes compiling shaders after the first frames land. */
+async function programsSettled(host: Locator): Promise<number> {
+  let last = -1;
+  let steady = 0;
+  await expect
+    .poll(
+      async () => {
+        await host.page().waitForTimeout(300);
+        const now = await number(host, "data-programs");
+        steady = now === last && now > 0 ? steady + 1 : 0;
+        last = now;
+        return steady;
+      },
+      { message: "the program count settles before pause", timeout: 30_000 },
+    )
+    .toBeGreaterThanOrEqual(6);
+  return last;
+}
+
 async function framesHeld(host: Locator, quiet = 900): Promise<number> {
   let last = -1;
   await expect
@@ -165,8 +185,13 @@ const ready = async (stage: Stage, page: Page): Promise<void> => {
   await page.goto(stage.path);
   // The playground only animates once something animated is in it.
   if (stage === playgroundStage) await page.getByRole("checkbox", { name: "Smoke" }).check();
-  await expectRenderer(stage.host(page).locator("canvas"));
-  await expect(stage.host(page)).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 15000 });
+  const host = stage.host(page);
+  await expectRenderer(host.locator("canvas"));
+  await expect(host).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 15000 });
+  if (stage === playgroundStage) {
+    await settledBuilds(host);
+    await programsSettled(host);
+  }
 };
 
 for (const stage of stages.filter((s) => s.animated)) {

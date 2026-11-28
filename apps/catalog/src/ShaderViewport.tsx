@@ -21,6 +21,11 @@ function EffectSphere({ id, palette, params }: { readonly id: string; readonly p
   );
   // The parameters move the shader live: a change writes its uniforms, and builds nothing.
   const material = useEffectMaterial(isEffectId(id) ? id : undefined, palette, params);
+  const invalidate = useThree((state) => state.invalidate);
+  const paramsKey = JSON.stringify(params ?? {});
+  useEffect(() => {
+    invalidate();
+  }, [paramsKey, invalidate]);
   return material === undefined ? null : <mesh geometry={geometry} material={material} dispose={null} />;
 }
 
@@ -65,7 +70,7 @@ export function ShaderViewport({ meta, palette, params, epoch }: { readonly meta
   const shown = useStageShown(group);
   return (
     <StageFrame group={group} motion={motion} label={`${meta.name}, a shader on a sphere.`} className="h-72 w-full" testId="viewport">
-      <WebGPUCanvas frameloop={stageFrameloop(shown, motion.still, motion.paused)} dpr={[1, 2]} camera={{ position: [0, 0, 3.4], fov: 35 }}>
+      <WebGPUCanvas frameloop={stageFrameloop(shown, motion.still)} dpr={[1, 2]} camera={{ position: [0, 0, 3.4], fov: 35 }}>
         <WakeOnShow shown={shown} />
         <StudioLights />
         <Controls keys={group} />

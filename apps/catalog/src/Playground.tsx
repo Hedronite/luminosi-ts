@@ -9,6 +9,7 @@ import { toCanonicalJson, toTsx, toVanilla } from "@hedronite/lts-scene/emit";
 import { effectIds, effectInfo, isEffectId, type EffectId } from "@hedronite/lts-shaders";
 import { presets } from "@hedronite/lts-tokens";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useThree } from "@react-three/fiber";
 import type { Object3D } from "three";
 import { noteEffectTargets } from "./builds";
 import { CopyButton } from "./CopyButton";
@@ -27,6 +28,15 @@ import { useCredits } from "./useCredits";
 const field = "rounded-lg border border-line bg-surface px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-accent";
 
 /** The most things the playground holds at once. */
+
+function RedrawOnLook({ lookId }: { readonly lookId: string }) {
+  const invalidate = useThree((state) => state.invalidate);
+  useEffect(() => {
+    invalidate();
+  }, [lookId, invalidate]);
+  return null;
+}
+
 const MAX_NODES = 8;
 
 /** One thing to add: a primitive in a material or a surface shader, a framed solid (its faces in either), or a library object. */
@@ -620,8 +630,9 @@ export function Playground() {
             >
               {/* Screen effects and some shaders animate, so the scene renders every frame while any are on. */}
               {/* The WebGPU renderer (WebGL 2 where WebGPU is missing) runs surface shaders and screen effects together; the scene brings its own lights, environment and effects. */}
-              <WebGPUCanvas frameloop={stageFrameloop(onscreen, !animated || motion.still, motion.paused)} dpr={[1, 2]} camera={{ position: [0, 2.2, 5.5], fov: 40 }}>
+              <WebGPUCanvas frameloop={stageFrameloop(onscreen, !animated || motion.still)} dpr={[1, 2]} camera={{ position: [0, 2.2, 5.5], fov: 40 }}>
                 <WakeOnShow shown={onscreen} />
+                <RedrawOnLook lookId={preset.id} />
                 <Controls keys={host} />
                 <StageHold holdRef={motion.holdRef} />
                 <StageClock clockRef={clock} running={animated && !motion.still} writeShaderTime={writeShaderTime} />
