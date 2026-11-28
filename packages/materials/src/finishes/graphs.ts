@@ -85,7 +85,7 @@ export function buildFinishGraph(
         modulates: ["roughness", "normal"],
         bindings: { scale, strength, direction },
         roughnessNode: mix(baseRough, modulated, drive),
-        normalNode: mix(normalView, brushNormal, drive.mul(dielectric.mul(0.85))),
+        normalNode: mix(normalView, brushNormal, drive.mul(dielectric.mul(1.05))),
         colorNode: baseColor,
       };
     }
@@ -164,7 +164,7 @@ export function buildFinishGraph(
         roughnessNode: mix(baseRough, mix(baseRough, float(0.58), peelCrest), drive.mul(hasClearcoat ? 0.25 : 0.42)),
         normalNode: mix(normalView, peeled, hasClearcoat ? drive.mul(0.45) : drive),
         clearcoatNormalNode: hasClearcoat ? mix(normalView, coatRipple, drive) : undefined,
-        colorNode: mix(baseColor, peelTint, drive.mul(hasClearcoat ? 0.45 : 0.65)),
+        colorNode: mix(baseColor, peelTint, drive.mul(hasClearcoat ? 0.72 : 0.65)),
       };
     }
     case "frost": {
@@ -175,18 +175,20 @@ export function buildFinishGraph(
         abs(mx_noise_float(positionLocal.mul(scale.mul(2.4))))
           .mul(mx_noise_float(positionLocal.mul(scale.mul(0.65))).mul(0.5).add(0.5)),
       );
-      const micro = saturate(flake.mul(strength.mul(1.15)).add(strength.mul(0.12)));
+      const micro = saturate(flake.mul(strength.mul(1.65)).add(strength.mul(0.2)));
       const drive = finishDrive(strength);
-      const frostRough = mix(baseRough, float(0.82), micro.mul(1.05));
-      const frostShade = baseColor.mul(float(1).add(micro.mul(0.22))).mul(float(1).sub(micro.mul(0.08)));
-      const frostedNormal = noiseNormal(scale, strength, 1.35);
+      const frostRough = mix(baseRough, float(0.94), micro.mul(1.28));
+      const frostShade = baseColor
+        .mul(float(1).add(micro.mul(0.38)))
+        .mul(float(1).sub(micro.mul(0.16)));
+      const frostedNormal = noiseNormal(scale, strength, 2.05);
       const modulates: FinishGraph["modulates"] =
         (preset.transmission ?? 0) > 0.01
           ? ["roughness", "normal", "transmission", "color"]
           : ["roughness", "normal", "color"];
       const frostTrans =
         (preset.transmission ?? 0) > 0.01
-          ? mix(baseTrans, baseTrans.mul(float(0.42)), micro)
+          ? mix(baseTrans, baseTrans.mul(float(0.68)), micro.mul(0.45))
           : undefined;
       return {
         modulates,
