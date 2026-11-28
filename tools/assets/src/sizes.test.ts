@@ -1,9 +1,9 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import type { Budgets } from "./budgets.js";
-import { checkAgainst, measureBundles, measureGoldens, type Measured } from "./sizes.js";
+import { checkAgainst, measureBundles, measureGoldens, unmeasuredReachable, type Measured } from "./sizes.js";
 
 const budgets: Budgets = {
   models: {},
@@ -115,7 +115,9 @@ describe("measureBundles", () => {
   // The panel: a lazy chunk with a static import of its own, and one of the gallery's (react), which stays the gallery's.
   write("apps/catalog/dist/assets/ParameterPanel-x1Y2.js", 'import{r}from"./react.js";import{f}from"./paramFit-q9.js";const late=()=>import(`./late.js`);export{r,f,late};');
   write("apps/catalog/dist/assets/paramFit-q9.js", "export const f = 'what the panel and the detail view both read';");
-  write("apps/catalog/dist/assets/Playground-a1B2.js", 'import{t}from"./three.js";import{r}from"./react.js";const credits=()=>import(`./credits-c3D4.js`);const pgExtra=()=>import(`./pg-extra.js`);export{t,r,credits,pgExtra};');
+  write("apps/catalog/dist/assets/Playground-a1B2.js", 'import{t}from"./three.js";import{r}from"./react.js";import{v}from"./stage-view.js";const stage=()=>import(`./PlaygroundStage-x9Y8.js`);const credits=()=>import(`./credits-c3D4.js`);const pgExtra=()=>import(`./pg-extra.js`);export{t,r,v,stage,credits,pgExtra};');
+  write("apps/catalog/dist/assets/PlaygroundStage-x9Y8.js", 'import{v}from"./stage-view.js";import{t}from"./three.js";export const stage = { v, t, isWebGPURenderer: true };');
+  write("apps/catalog/dist/assets/stage-view.js", "export const v = 'playground stage shell';");
   write("apps/catalog/dist/assets/pg-extra.js", "export const extra = 'a lazy chunk reached only via Playground';");
   write("apps/catalog/dist/assets/credits-c3D4.js", 'import{r}from"./main.js";export const c = r;');
   write("apps/catalog/dist/assets/embed.js", "export const e = 1;");
@@ -143,7 +145,7 @@ describe("measureBundles", () => {
 
   it("takes the 3D set from everything the 3D entries reach, markers or not, and ignores files nothing reaches", () => {
     // The loader and the late chunk carry no marker, and are counted all the same. React is the gallery's: the shell is not counted.
-    expect(names("catalog-3d")).toEqual(["late.js", "loader.js", "pg-extra.js", "prose-helper.js", "prose.js", "spec.js", "three.js", "view.js"]);
+    expect(names("catalog-3d")).toEqual(["PlaygroundStage-x9Y8.js", "late.js", "loader.js", "pg-extra.js", "prose-helper.js", "prose.js", "spec.js", "stage-view.js", "three.js", "view.js"]);
   });
 
   it("builds the shell from the gallery page alone: a chunk only the embed page preloads is counted when a 3D view reaches it", () => {
@@ -153,7 +155,7 @@ describe("measureBundles", () => {
 
   it("takes a lazy chunk's set by its name: the chunk and its static imports past the shell, no dynamic imports, none of the shell", () => {
     expect(names("catalog-panel")).toEqual(["ParameterPanel-x1Y2.js", "paramFit-q9.js"]);
-    expect(names("catalog-playground")).toEqual(["Playground-a1B2.js", "three.js"]);
+    expect(names("catalog-playground")).toEqual(["Playground-a1B2.js", "PlaygroundStage-x9Y8.js", "stage-view.js", "three.js"]);
     expect(names("catalog-export")).toEqual(["credits-c3D4.js"]);
   });
 
@@ -202,6 +204,29 @@ describe("measureBundles", () => {
     expect(names("catalog-3d")).not.toContain("harbour-water.js");
     expect(names("catalog-3d")).not.toContain("ghost.js");
     expect(() => measureBundles(root)).not.toThrow();
+  });
+
+  it("counts every chunk name in a playground budget line", () => {
+    expect(names("catalog-playground")).toContain("PlaygroundStage-x9Y8.js");
+    expect(names("catalog-playground")).toContain("stage-view.js");
+  });
+
+  it("turns catalog-playground red when PlaygroundStage grows past its budget", () => {
+    const playground = sizes["catalog-playground"];
+    expect(playground).toBeDefined();
+    const before = playground!.gzipBytes;
+    write("apps/catalog/dist/assets/PlaygroundStage-x9Y8.js", `${readFileSync(join(root, "apps/catalog/dist/assets/PlaygroundStage-x9Y8.js"), "utf8")}/*${"x".repeat(80)}*/`);
+    const after = measureBundles(root)["catalog-playground"]!.gzipBytes;
+    expect(after).toBeGreaterThan(before);
+    const { problems } = checkAgainst(
+      { models: {}, bundles: { "catalog-playground": { gzipBytes: after - 1 } }, objects: {}, goldens: {} },
+      { bundles: { "catalog-playground": measureBundles(root)["catalog-playground"]! }, objects: {}, goldens: {} },
+    );
+    expect(problems).toEqual([`catalog-playground: gzipBytes ${after} > budget ${after - 1}`]);
+  });
+
+  it("reports reachable dist files that no budget line counts", () => {
+    expect(unmeasuredReachable(root)).toEqual([]);
   });
 
   it("leaves out a lazy chunk whose reach has no 3D, and a page script that has none", () => {

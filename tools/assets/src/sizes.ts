@@ -60,17 +60,17 @@ interface Bundle {
   readonly shell?: string;
   /** For the 3D set: lazy chunk name prefixes excluded from the core 3D set because they carry their own budgets. */
   readonly exclude?: readonly string[];
-  /** For a lazy chunk's set: the chunk's name (`<name>-<hash>.js`), a lazy import reachable from the first page's shell. */
-  readonly chunk?: string;
+  /** For lazy chunk sets: chunk name prefixes (`<name>-<hash>.js`) reachable from the first page's shell. */
+  readonly chunk?: string | readonly string[];
 }
 
 /** What each bundle budget measures. */
 const bundles: Readonly<Record<string, Bundle>> = {
   "catalog-gallery": { dist: "apps/catalog/dist", pages: ["index.html"] },
   "catalog-embed": { dist: "apps/catalog/dist", pages: ["embed.html"] },
-  "catalog-3d": { dist: "apps/catalog/dist", pages: ["index.html", "embed.html"], carries: ["isObject3D", "isWebGPURenderer"], shell: "index.html", exclude: ["Playground", "PlaygroundStage", "credits"] },
+  "catalog-3d": { dist: "apps/catalog/dist", pages: ["index.html", "embed.html"], carries: ["isObject3D", "isWebGPURenderer"], shell: "index.html", exclude: ["Playground", "credits"] },
   "catalog-panel": { dist: "apps/catalog/dist", pages: ["index.html"], chunk: "ParameterPanel" },
-  "catalog-playground": { dist: "apps/catalog/dist", pages: ["index.html"], chunk: "Playground" },
+  "catalog-playground": { dist: "apps/catalog/dist", pages: ["index.html"], chunk: ["Playground", "PlaygroundStage"] },
   "catalog-export": { dist: "apps/catalog/dist", pages: ["index.html"], chunk: "credits" },
   "site-island": { dist: "apps/site/dist", pages: ["index.html"] },
   // The scene element: what a page loads for it (the class, its observers and the poster), and the chunk set it imports when it is about to be seen (three, the builder, zod).
@@ -124,10 +124,8 @@ const reach = (dist: string, pages: readonly string[]): string[] => [...closure(
  * builders). The set is everything the entries reach past the shell, so a chunk the markers do not see (a loader, an
  * environment map, a descriptor chunk) is still counted.
  */
-function reachThreeD(dist: string, pages: readonly string[], markers: readonly string[], shellPage: string, exclude: readonly string[] = []): string[] {
+function reachThreeDWalked(dist: string, pages: readonly string[], markers: readonly string[], shellPage: string): readonly string[] {
   const carries = (files: Iterable<string>): boolean => [...files].some((file) => markers.some((marker) => readFileSync(file, "utf8").includes(marker)));
-  const excluded = exclude.length === 0 ? undefined : chunkPattern(exclude);
-  const isExcluded = (file: string): boolean => excluded?.test(basename(file)) ?? false;
   const scripts = pageScripts(dist, pages);
   const shell = closure(pageScripts(dist, [shellPage]).filter((script) => !carries(closure([script], false))), false);
   const lazyTargets = new Set<string>();
@@ -136,16 +134,40 @@ function reachThreeD(dist: string, pages: readonly string[], markers: readonly s
     ...scripts.filter((script) => !shell.has(script) && carries(closure([script], false))),
     ...[...lazyTargets].filter((target) => carries(closure([target], true, shell))),
   ];
-  // Exclude from counting, never from the walk: any lazy chunk reached only through an excluded route still counts in catalog-3d.
-  return [...closure(entries, true, shell)].filter((file) => !isExcluded(file)).sort();
+  return [...closure(entries, true, shell)].sort();
 }
 
-/** A lazy chunk's set: the chunk reachable from the gallery's shell under `name` (`<name>-<hash>.js`) and what it imports statically, past the shell. */
-function reachChunk(dist: string, shellPage: string, name: string): string[] {
+function reachThreeD(dist: string, pages: readonly string[], markers: readonly string[], shellPage: string, exclude: readonly string[] = []): string[] {
+  const excluded = exclude.length === 0 ? undefined : chunkPattern(exclude);
+  const isExcluded = (file: string): boolean => excluded?.test(basename(file)) ?? false;
+  // Exclude from counting, never from the walk: any lazy chunk reached only through an excluded route still counts in catalog-3d.
+  return reachThreeDWalked(dist, pages, markers, shellPage).filter((file) => !isExcluded(file)).sort();
+}
+
+/** Lazy chunk sets: every chunk whose basename matches one of `names`, and what those chunks import statically, past the shell. */
+function reachChunks(dist: string, shellPage: string, names: readonly string[]): string[] {
   const shell = closure(pageScripts(dist, [shellPage]), false);
-  const named = chunkPattern([name]);
+  const named = chunkPattern(names);
   const targets = [...closure(pageScripts(dist, [shellPage]), true)].filter((file) => !shell.has(file) && named.test(basename(file)));
   return [...closure(targets, false, shell)].sort();
+}
+
+const chunkNames = (chunk: string | readonly string[] | undefined): readonly string[] | undefined =>
+  chunk === undefined ? undefined : typeof chunk === "string" ? [chunk] : chunk;
+
+/** JS the 3D walk follows but no budget line counts (excluded lazy chunks must appear on their own line). */
+export function unmeasuredReachable(root: string): readonly string[] {
+  const measured = new Set<string>();
+  for (const bundle of Object.values(measureBundles(root))) for (const rel of bundle.files) measured.add(resolve(root, rel));
+  const spec = bundles["catalog-3d"];
+  const catalogDist = join(root, spec.dist);
+  if (!existsSync(catalogDist)) return [];
+  const walked = reachThreeDWalked(catalogDist, spec.pages, spec.carries ?? [], spec.shell ?? "index.html");
+  const ownLine = chunkPattern(spec.exclude ?? []);
+  return walked
+    .filter((file) => file.endsWith(".js") && !measured.has(file) && !ownLine.test(basename(file)))
+    .map((file) => file.slice(root.length + 1))
+    .sort();
 }
 
 export function measureBundles(root: string): Readonly<Record<string, BundleSize>> {
@@ -154,7 +176,13 @@ export function measureBundles(root: string): Readonly<Record<string, BundleSize
       const dist = join(root, bundle.dist);
       if (!existsSync(dist)) throw new Error(`${id}: no build output at ${bundle.dist}; run \`bun run build\``);
       const { carries, shell, exclude, chunk } = bundle;
-      const files = chunk !== undefined ? reachChunk(dist, bundle.pages[0] ?? "", chunk) : carries === undefined || shell === undefined ? reach(dist, bundle.pages) : reachThreeD(dist, bundle.pages, carries, shell, exclude);
+      const names = chunkNames(chunk);
+      const files =
+        names !== undefined
+          ? reachChunks(dist, bundle.pages[0] ?? "", names)
+          : carries === undefined || shell === undefined
+            ? reach(dist, bundle.pages)
+            : reachThreeD(dist, bundle.pages, carries, shell, exclude);
       return [id, { gzipBytes: gzipBytes(files), files: files.map((file) => file.slice(root.length + 1)) }];
     }),
   );
@@ -185,7 +213,13 @@ export function checkAgainst(budgets: Budgets, measured: Measured): { readonly r
       const empty = name === "bundle" && (measured.bundles[id]?.files.length ?? 0) === 0;
       if (empty) {
         const chunk = bundles[id]?.chunk;
-        problems.push(chunk === undefined ? `${id}: measured no files` : `${id}: measured no files (chunk "${chunk}" not found)`);
+        const label =
+          chunk === undefined
+            ? undefined
+            : typeof chunk === "string"
+              ? `chunk "${chunk}"`
+              : `chunks ${chunk.map((name) => `"${name}"`).join(", ")}`;
+        problems.push(label === undefined ? `${id}: measured no files` : `${id}: measured no files (${label} not found)`);
       }
       const checks = Object.entries(limit).map(([key, budget]): Check => {
         const value = actual[key] ?? Infinity;
