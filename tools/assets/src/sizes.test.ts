@@ -156,14 +156,15 @@ describe("measureBundles", () => {
 
   it("takes a lazy chunk's set by its name: the chunk and its static imports past the shell, no dynamic imports, none of the shell", () => {
     expect(names("catalog-panel")).toEqual(["ParameterPanel-x1Y2.js", "paramFit-q9.js"]);
-    expect(names("catalog-playground")).toEqual(["Playground-a1B2.js", "PlaygroundStage-x9Y8.js", "emit-q1.js", "pg-extra.js", "stage-view.js", "three.js"]);
-    expect(names("catalog-export")).toEqual(["credits-c3D4.js"]);
+    expect(names("catalog-playground")).toEqual(["Playground-a1B2.js", "PlaygroundStage-x9Y8.js", "pg-extra.js", "stage-view.js", "three.js"]);
+    expect(names("catalog-export")).toEqual(["credits-c3D4.js", "emit-q1.js"]);
   });
 
   it("keeps lazy Playground and export chunks out of the core catalog-3d closure, while counting lazy chunks reached through Playground", () => {
     expect(names("catalog-3d")).not.toContain("Playground-a1B2.js");
     expect(names("catalog-3d")).not.toContain("PlaygroundStage-x9Y8.js");
     expect(names("catalog-3d")).not.toContain("credits-c3D4.js");
+    expect(names("catalog-3d")).not.toContain("emit-q1.js");
     expect(names("catalog-3d")).toContain("pg-extra.js");
   });
 
@@ -192,7 +193,7 @@ describe("measureBundles", () => {
         },
         { bundles: { "catalog-export": broken["catalog-export"] ?? { gzipBytes: 0, files: [] } }, objects: {}, goldens: {} },
       );
-      expect(problems).toEqual(['catalog-export: measured no files (chunk "credits" not found)']);
+      expect(problems).toEqual(['catalog-export: measured no files (chunks "credits", "emit" not found)']);
     } finally {
       rmSync(renamed, { recursive: true, force: true });
     }
@@ -209,7 +210,7 @@ describe("measureBundles", () => {
   });
 
   it("counts dynamic imports from playground chunks when chunkLazy is set", () => {
-    expect(names("catalog-playground")).toContain("emit-q1.js");
+    expect(names("catalog-playground")).not.toContain("emit-q1.js");
     expect(names("catalog-3d")).not.toContain("emit-q1.js");
   });
 
@@ -218,7 +219,19 @@ describe("measureBundles", () => {
     expect(names("catalog-playground")).toContain("stage-view.js");
   });
 
-  it("turns catalog-playground red when PlaygroundStage grows past its budget", () => {
+    it("turns catalog-export red when emit grows past its budget", () => {
+    const before = sizes["catalog-export"]!.gzipBytes;
+    write("apps/catalog/dist/assets/emit-q1.js", `${readFileSync(join(root, "apps/catalog/dist/assets/emit-q1.js"), "utf8")}/*${"x".repeat(80)}*/`);
+    const after = measureBundles(root)["catalog-export"]!.gzipBytes;
+    expect(after).toBeGreaterThan(before);
+    const { problems } = checkAgainst(
+      { bundles: { "catalog-export": { gzipBytes: after - 1 } }, objects: {}, goldens: {} },
+      { bundles: { "catalog-export": measureBundles(root)["catalog-export"]! }, objects: {}, goldens: {} },
+    );
+    expect(problems).toEqual([`catalog-export: gzipBytes ${after} > budget ${after - 1}`]);
+  });
+
+it("turns catalog-playground red when PlaygroundStage grows past its budget", () => {
     const playground = sizes["catalog-playground"];
     expect(playground).toBeDefined();
     const before = playground!.gzipBytes;

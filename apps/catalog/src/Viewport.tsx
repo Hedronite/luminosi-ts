@@ -8,10 +8,10 @@ import type { SceneEnvironment, SceneStage } from "@hedronite/lts-scene";
 import type { ScenePalette } from "@hedronite/lts-tokens";
 import { useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Object3D } from "three";
+import { Mesh, SphereGeometry, type Object3D } from "three";
 import { noteEffectTargets } from "./builds";
 import { Controls, GpuCounts, StageFrame, useMotion } from "./scene";
-import { defaultFinishParams, FinishControls, type FinishChoice } from "./FinishControls";
+import { FinishControls, type FinishChoice } from "./FinishControls";
 import { StageControls } from "./StageControls";
 import { buildSubject } from "./subjects";
 
@@ -46,13 +46,12 @@ function Subject({
     look.current = palette;
     latest.current = params;
   });
-  const key = JSON.stringify([params, finish]);
+  const key = JSON.stringify([params, finish, palette]);
   useEffect(() => {
     const controller = new AbortController();
     const run = async (): Promise<Object3D | undefined> => {
       if (meta.kind === "material" && isMaterialId(meta.id) && finish !== undefined) {
         const { createFinishedMaterial } = await import("@hedronite/lts-materials/finished");
-        const { SphereGeometry, Mesh } = await import("three");
         if (controller.signal.aborted) return undefined;
         const handle = createFinishedMaterial(meta.id, finish.id, finish.params as never, look.current);
         const geometry = new SphereGeometry(0.95, 64, 32);
@@ -93,16 +92,6 @@ function Subject({
   const isKit = meta.kind === "scene";
   useEffect(() => {
     if (object === undefined) return undefined;
-    if (finish !== undefined && meta.kind === "material") {
-      void import("@hedronite/lts-materials/finished").then(({ applyFinishPalette }) => {
-        if (!current) return;
-        applyFinishPalette(object, palette);
-        invalidate();
-      });
-      return () => {
-        current = false;
-      };
-    }
     if (!isKit) {
       applyPalette(object, palette);
       invalidate();
@@ -171,15 +160,16 @@ export function Viewport({ meta, palette, params }: { readonly meta: AssetMeta; 
         </WebGPUCanvas>
       </StageFrame>
       <div className="border-t border-line bg-surface p-4">
-        {meta.kind === "material" && isMaterialId(meta.id) ? (
-          <FinishControls
-            material={meta.id}
-            value={finish}
-            onChange={(next) => {
-              setFinish(next === undefined ? undefined : { id: next.id, params: next.params ?? defaultFinishParams(next.id) });
-            }}
-          />
-        ) : null}
+        {meta.kind === "material" && isMaterialId(meta.id)
+          ? (
+            <FinishControls
+                material={meta.id}
+                value={finish}
+                onChange={(next) => {
+                  setFinish(next);
+                }}
+              />
+            ) : null}
         <StageControls
           environment={environment}
           stage={stage}

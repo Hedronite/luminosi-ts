@@ -20,12 +20,12 @@ import { describeIssue, fileNameFor, linkFor, openFile, openLink, sceneParam, st
 import { useShaderClock } from "./shaderClock";
 import { FinishControls, type FinishChoice } from "./FinishControls";
 import { finishForNode } from "./finishApply.js";
-import { StageControls } from "./StageControls";
 import { TrackPanel } from "./tracks/TrackPanel";
 import { TransformPanel } from "./TransformPanel";
 import { useCredits } from "./useCredits";
 
-const PlaygroundStage = lazy(() => import("./PlaygroundStage.js"));
+import PlaygroundStage from "./PlaygroundStage.js";
+const StageControls = lazy(() => import("./StageControls.js"));
 
 const field = "rounded-lg border border-line bg-surface px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-accent";
 
@@ -172,7 +172,6 @@ export function Playground() {
   // The node whose transform is being edited: by id, so it follows the document through an undo, and is none once the document has no such node.
   const [selected, setSelected] = useState<string | undefined>(undefined);
   const selectedNode = doc.nodes.find((node) => node.id === selected) ?? null;
-  const [finishHint, setFinishHint] = useState<string | undefined>(undefined);
   // The name a saved file takes: the one that was opened, or "scene".
   const [name, setName] = useState("scene");
   // A link in the address opens its document in place of the starter, once.
@@ -191,26 +190,26 @@ export function Playground() {
   // The code carries the credits of the work it uses (the same list `lumin scene credits` gives). They load in a chunk of their own when this view opens, and
   // the React and vanilla code is not shown before they are here: code shown without them would leave out what it owes, and so would a copy of it.
   const credits = useCredits();
-  const [codeExports, setCodeExports] = useState<readonly { readonly label: string; readonly code: string | undefined }[]>([
+  const [exports, setExports] = useState<readonly { readonly label: string; readonly code: string | undefined }[]>([
     { label: "JSON export", code: json },
     { label: "React export", code: undefined },
     { label: "Vanilla export", code: undefined },
   ]);
   useEffect(() => {
-    setCodeExports((rows) => rows.map((row) => (row.label === "JSON export" ? { ...row, code: json } : row)));
+    setExports((rows) => rows.map((row) => (row.label === "JSON export" ? { ...row, code: json } : row)));
   }, [json]);
   useEffect(() => {
     let current = true;
     if (credits.status !== "ready") {
-      setCodeExports((rows) => rows.map((row) => (row.label === "JSON export" ? row : { ...row, code: undefined })));
+      setExports((rows) => rows.map((row) => (row.label === "JSON export" ? row : { ...row, code: undefined })));
       return () => {
         current = false;
       };
     }
     const options = { credits: credits.creditsOf(shown) };
-  void import("@hedronite/lts-scene/emit").then((emit) => {
+    void import("@hedronite/lts-scene/emit").then((emit) => {
       if (!current) return;
-      setCodeExports([
+      setExports([
         { label: "JSON export", code: json },
         { label: "React export", code: emit.toTsx(shown, options) },
         { label: "Vanilla export", code: emit.toVanilla(shown, options) },
@@ -558,33 +557,34 @@ export function Playground() {
 
           {selectedNode?.surface !== undefined && "material" in selectedNode.surface ? (
             <FinishControls
-              material={isMaterialId(selectedNode.surface.material) ? selectedNode.surface.material : "satin"}
-              value={
-                selectedNode.surface.finish === undefined || !isFinishId(selectedNode.surface.finish.id)
-                  ? undefined
-                  : ({
-                      id: selectedNode.surface.finish.id,
-                      params: selectedNode.surface.finish.params ?? {},
-                    } as FinishChoice)
-              }
-              {...(finishHint === undefined ? {} : { hint: finishHint })}
-              onChange={(choice) => {
-                if (selectedNode === null || selectedNode.surface === undefined || !("material" in selectedNode.surface)) return;
-                const material = isMaterialId(selectedNode.surface.material) ? selectedNode.surface.material : "satin";
-                const applied = finishForNode(material, choice);
-                setFinishHint(applied.hint);
-                const surface =
-                  applied.finish === undefined
-                    ? { material: applied.material, ...(selectedNode.surface.params === undefined ? {} : { params: selectedNode.surface.params }) }
-                    : {
-                        material: applied.material,
-                        finish: { id: applied.finish.id, params: { ...applied.finish.params } },
-                        ...(selectedNode.surface.params === undefined ? {} : { params: selectedNode.surface.params }),
-                      };
-                if (applied.finish !== undefined && !isFinishId(applied.finish.id)) return;
-                commit(setSurface(doc, selectedNode.id, surface as unknown as SceneSurface), applied.finish === undefined ? "surface.finish" : `surface.finish.${applied.finish.id}`);
-              }}
-            />
+                material={isMaterialId(selectedNode.surface.material) ? selectedNode.surface.material : "satin"}
+                value={
+                  selectedNode.surface.finish === undefined || !isFinishId(selectedNode.surface.finish.id)
+                    ? undefined
+                    : ({
+                        id: selectedNode.surface.finish.id,
+                        params: selectedNode.surface.finish.params ?? {},
+                      } as FinishChoice)
+                }
+                onChange={(choice) => {
+                  if (selectedNode === null || selectedNode.surface === undefined || !("material" in selectedNode.surface)) return;
+                  const material = isMaterialId(selectedNode.surface.material) ? selectedNode.surface.material : "satin";
+                  const applied = finishForNode(material, choice);
+                  const surface =
+                    applied.finish === undefined
+                      ? { material: applied.material, ...(selectedNode.surface.params === undefined ? {} : { params: selectedNode.surface.params }) }
+                      : {
+                          material: applied.material,
+                          finish: { id: applied.finish.id, params: { ...applied.finish.params } },
+                          ...(selectedNode.surface.params === undefined ? {} : { params: selectedNode.surface.params }),
+                        };
+                  if (applied.finish !== undefined && !isFinishId(applied.finish.id)) return;
+                  commit(
+                    setSurface(doc, selectedNode.id, surface as unknown as SceneSurface),
+                    applied.finish === undefined ? "surface.finish" : `surface.finish.${applied.finish.id}`,
+                  );
+                }}
+              />
           ) : null}
 
           <fieldset className="flex flex-col gap-1.5">
@@ -648,7 +648,7 @@ export function Playground() {
             />
           </label>
 
-          <StageControls
+          <Suspense fallback={null}><StageControls
             environment={doc.environment}
             stage={doc.stage}
             palette={preset.scene}
@@ -662,7 +662,7 @@ export function Playground() {
             onGestureEnd={() => {
               setHistory(endGesture);
             }}
-          />
+          /></Suspense>
 
           <TrackPanel doc={doc} commit={commit} />
         </div>
@@ -678,7 +678,6 @@ export function Playground() {
             >
               {/* Screen effects and some shaders animate, so the scene renders every frame while any are on. */}
               {/* The WebGPU renderer (WebGL 2 where WebGPU is missing) runs surface shaders and screen effects together; the scene brings its own lights, environment and effects. */}
-              <Suspense fallback={null}>
                 <PlaygroundStage
                   shown={shown}
                   palette={preset.scene}
@@ -692,10 +691,9 @@ export function Playground() {
                   shaderClock={shaderClock}
                   writeShaderTime={writeShaderTime}
                 />
-              </Suspense>
             </StageFrame>
           </div>
-          {codeExports.map((snippet) => (
+          {exports.map((snippet) => (
             <section key={snippet.label} aria-label={snippet.label}>
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-medium">{snippet.label}</h3>
