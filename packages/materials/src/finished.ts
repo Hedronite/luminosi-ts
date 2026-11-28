@@ -82,39 +82,6 @@ function configurePreset(material: MeshPhysicalNodeMaterial, preset: MaterialPre
   if (preset.specularIntensity !== undefined) material.specularIntensity = preset.specularIntensity;
 }
 
-/** Fresh material shell: the scaffold object poisons the first compile if returned directly. */
-function materialReadyForRender(source: MeshPhysicalNodeMaterial): MeshPhysicalNodeMaterial {
-  const material = new MeshPhysicalNodeMaterial({ roughness: source.roughness, metalness: source.metalness });
-  material.name = source.name;
-  material.colorNode = source.colorNode;
-  material.roughnessNode = source.roughnessNode;
-  material.normalNode = source.normalNode;
-  material.anisotropyNode = source.anisotropyNode;
-  material.clearcoatNormalNode = source.clearcoatNormalNode;
-  material.transmissionNode = source.transmissionNode;
-  material.emissiveNode = source.emissiveNode;
-  material.attenuationColorNode = source.attenuationColorNode;
-  material.roughness = source.roughness;
-  material.metalness = source.metalness;
-  material.clearcoat = source.clearcoat;
-  material.clearcoatRoughness = source.clearcoatRoughness;
-  material.transmission = source.transmission;
-  material.ior = source.ior;
-  material.thickness = source.thickness;
-  material.sheen = source.sheen;
-  material.sheenRoughness = source.sheenRoughness;
-  material.iridescence = source.iridescence;
-  material.iridescenceIOR = source.iridescenceIOR;
-  material.iridescenceThicknessMinimum = source.iridescenceThicknessMinimum;
-  material.iridescenceThicknessMaximum = source.iridescenceThicknessMaximum;
-  material.specularIntensity = source.specularIntensity;
-  material.attenuationDistance = source.attenuationDistance;
-  material.emissiveIntensity = source.emissiveIntensity;
-  material.color.copy(source.color);
-  material.sheenColor.copy(source.sheenColor);
-  return material;
-}
-
 function wireFinishGraph(material: MeshPhysicalNodeMaterial, graph: FinishGraph, baseColor: ColorUniform): void {
   // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- TSL finish nodes are valid material slots but wider than the declared types
   material.colorNode = (graph.colorNode ?? baseColor) as MeshPhysicalNodeMaterial["colorNode"];
@@ -220,8 +187,6 @@ export function createFinishedMaterial<Id extends FinishId>(
   if (colors.attenuation !== undefined) material.attenuationColorNode = colors.attenuation;
   if (preset.sheen !== undefined) material.sheenColor.set(scene[roles.sheen ?? preset.color]);
 
-  const published = materialReadyForRender(material);
-
   const uniforms: Record<string, FloatUniform | ColorUniform> = {
     scale: graph.bindings.scale,
     strength: graph.bindings.strength,
@@ -233,7 +198,7 @@ export function createFinishedMaterial<Id extends FinishId>(
   const handle: FinishHandle<Id> = {
     id: finishId,
     presetId,
-    material: published,
+    material,
     uniforms,
     structural: ["presetId", "finishId"],
     set: (partial) => {
@@ -252,11 +217,11 @@ export function createFinishedMaterial<Id extends FinishId>(
       return true;
     },
     dispose: () => {
-      finished.delete(published);
-      published.dispose();
+      finished.delete(material);
+      material.dispose();
     },
   };
-  finished.set(published, { preset, presetId, finishId, derive, colors, roles });
+  finished.set(material, { preset, presetId, finishId, derive, colors, roles });
   return handle;
 }
 
