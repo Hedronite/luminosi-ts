@@ -52,7 +52,7 @@ export default defineConfig<ConsoleOptions>({
     consoleAllow: [
       // three.js, through @react-three/fiber's render loop.
       /^THREE\.Clock: This module has been deprecated/,
-      /^THREE\.Renderer: "renderAsync\(\)" has been deprecated/,
+      /THREE\.Renderer:.*renderAsync\(\).*deprecated/,
       // @react-three/fiber asks for its default soft shadow map; WebGPURenderer swaps it for PCFShadowMap and says so.
       /^THREE\.WebGPURenderer: PCFSoftShadowMap has been removed/,
       // The runners and the test browser have no WebGPU: the renderer says so and draws through WebGL2 (swiftshader).
@@ -118,7 +118,7 @@ export default defineConfig<ConsoleOptions>({
         {
           name: "webgpu",
           // The WebGPU spec, the playground memory guard, which holds the renderer's own counts, render targets among them, flat, and the scene element's spec, which must see `webgpu` on it here.
-          testMatch: ["webgpu.spec.ts", "memory.spec.ts", "element.spec.ts", "site.spec.ts"],
+          testMatch: ["webgpu.spec.ts", "memory.spec.ts", "element.spec.ts", "site.spec.ts", "finishes.spec.ts"],
           // The real GPU through Metal, with WebGPU switched on: three's WebGPU renderer must find an adapter, not fall back to WebGL 2.
           // Not the software path the default project uses: a SwiftShader adapter would pass for the wrong reason, so the spec also
           // refuses a software adapter (SwiftShader, LLVM, or one that reports itself as a fallback).
