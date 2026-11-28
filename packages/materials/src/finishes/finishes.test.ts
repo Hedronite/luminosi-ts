@@ -112,6 +112,18 @@ describe("createFinishedMaterial", () => {
     handle.dispose();
   });
 
+  it("drives strength to zero with set() on the same material and program", () => {
+    const handle = createFinishedMaterial("satin", "grain", { strength: 0.85, scale: 12 }, neutral.scene);
+    const uuid = handle.material.uuid;
+    const program = handle.material.version;
+    expect(handle.set({ strength: 0 })).toBe(true);
+    expect(handle.uniforms.strength?.value).toBe(0);
+    expect(handle.material.uuid).toBe(uuid);
+    expect(handle.material.version).toBe(program);
+    handle.set({ strength: 0.85 });
+    handle.dispose();
+  });
+
   it("frees the material on dispose", () => {
     const handle = createFinishedMaterial("clearcoat", "orange-peel");
     const onDispose = vi.fn();

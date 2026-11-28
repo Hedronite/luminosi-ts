@@ -167,6 +167,11 @@ export function createFinishedMaterial<Id extends FinishId>(
     material.normalNode = normalView;
     material.roughness = 1;
   } else {
+    // Wire order: preset scalars → palette uniforms → node baseline → finish graph (same instance the renderer compiles).
+    material.colorNode = baseColor;
+    material.roughnessNode = float(preset.roughness);
+    material.normalNode = normalView;
+    material.roughness = 1;
     wireFinishGraph(material, graph, baseColor);
   }
 

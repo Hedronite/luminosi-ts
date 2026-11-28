@@ -112,10 +112,10 @@ export function buildFinishGraph(id: FinishId, params: unknown, baseRoughness: n
       const drive = finishDrive(strength);
       const ripple = sin(along.mul(4)).mul(0.28);
       const modColor = saturate(
-        baseColor.mul(oneMinus(grain.mul(0.55))).mul(float(1).add(grain.mul(0.22))),
+        baseColor.mul(oneMinus(grain.mul(0.68))).mul(float(1).add(grain.mul(0.32))),
       );
-      const modNormal = normalView.add(vec3(ripple, ripple.mul(0.15), grain.sub(0.5).mul(0.42))).normalize();
-      const roughMod = mix(baseRough, float(0.96), grain.mul(1));
+      const modNormal = normalView.add(vec3(ripple.mul(1.28), ripple.mul(0.22), grain.sub(0.5).mul(0.58))).normalize();
+      const roughMod = mix(baseRough, float(0.98), grain.mul(1.05));
       return {
         modulates: ["roughness", "color", "normal"],
         bindings: { scale, strength },
@@ -129,7 +129,7 @@ export function buildFinishGraph(id: FinishId, params: unknown, baseRoughness: n
       const scale = uniform(p.scale);
       const strength = uniform(p.strength);
       const drive = finishDrive(strength);
-      const peeled = noiseNormal(scale, strength, 1.25);
+      const peeled = noiseNormal(scale, strength, 1.4);
       return {
         modulates: ["normal"],
         bindings: { scale, strength },
