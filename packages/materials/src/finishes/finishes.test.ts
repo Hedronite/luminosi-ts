@@ -3,6 +3,8 @@ import { BoxGeometry, Color, Mesh } from "three";
 import { MeshPhysicalNodeMaterial } from "three/webgpu";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
+import { materialIds } from "../presets.js";
+import { createMaterial } from "../three.js";
 import { applyFinishPalette, createFinishedMaterial, createPresetNodeMaterial } from "../finished.js";
 import { auditFinishGraph, assertNoTextureMaps, collectTslNodes, finishOutputNodes, isTextureInGraph } from "./graphAudit.js";
 import { finishDescriptor, finishDescriptors, finishIds, finishSchemas } from "./info.js";
@@ -26,7 +28,8 @@ describe("finish descriptors", () => {
       }
     }
     expect(finishDescriptor("brushed").defaults).toEqual({ scale: 8, strength: 0.5, direction: 0 });
-    expect(finishDescriptor("grain").defaults).toEqual({ scale: 8, strength: 0.5 });
+    expect(finishDescriptor("grain").defaults).toEqual({ scale: 12, strength: 0.85 });
+    expect(finishDescriptor("weave").defaults).toEqual({ scale: 16, strength: 0.72, direction: 0 });
   });
 
   it("refuses out-of-range parameters", () => {
@@ -40,9 +43,33 @@ describe("createPresetNodeMaterial", () => {
   it("wires only the palette color node for the node baseline", () => {
     const material = createPresetNodeMaterial("matte", neutral.scene);
     expect(material).toBeInstanceOf(MeshPhysicalNodeMaterial);
-    expect(material.roughnessNode).toBeNull();
-    expect(material.normalNode).toBeNull();
+    expect(material.roughnessNode).not.toBeNull();
+    expect(material.normalNode).not.toBeNull();
     material.dispose();
+  });
+
+  it.each([...materialIds])("matches createMaterial scalars and colors for %s", (id) => {
+    const classic = createMaterial(id, neutral.scene);
+    const node = createPresetNodeMaterial(id, neutral.scene);
+    expect(node.roughness).toBe(node.roughnessNode === null ? classic.roughness : 1);
+    expect(node.metalness).toBe(classic.metalness);
+    expect(node.clearcoat).toBe(classic.clearcoat);
+    expect(node.clearcoatRoughness).toBe(classic.clearcoatRoughness);
+    expect(node.transmission).toBe(classic.transmission);
+    expect(node.ior).toBe(classic.ior);
+    expect(node.thickness).toBe(classic.thickness);
+    expect(node.sheen).toBe(classic.sheen);
+    expect(node.sheenRoughness).toBe(classic.sheenRoughness);
+    expect(node.iridescence).toBe(classic.iridescence);
+    expect(node.iridescenceIOR).toBe(classic.iridescenceIOR);
+    expect(node.iridescenceThicknessMinimum).toBe(classic.iridescenceThicknessMinimum);
+    expect(node.iridescenceThicknessMaximum).toBe(classic.iridescenceThicknessMaximum);
+    expect(node.specularIntensity).toBe(classic.specularIntensity);
+    expect(node.attenuationDistance).toBe(classic.attenuationDistance);
+    expect(node.emissiveIntensity).toBe(classic.emissiveIntensity);
+    expect(node.sheenColor.getHex()).toBe(classic.sheenColor.getHex());
+    classic.dispose();
+    node.dispose();
   });
 });
 

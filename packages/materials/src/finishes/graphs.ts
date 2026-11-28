@@ -42,6 +42,10 @@ function directionBasis(direction: FloatUniform) {
   return { dir, across };
 }
 
+function finishDrive(strength: FloatUniform) {
+  return saturate(strength);
+}
+
 function noiseNormal(scale: FloatUniform, strength: FloatUniform, factor = 0.6) {
   const scaled = positionLocal.mul(scale);
   const center = mx_noise_float(scaled);
@@ -53,20 +57,21 @@ function noiseNormal(scale: FloatUniform, strength: FloatUniform, factor = 0.6) 
 
 /** Builds procedural finish nodes; the caller wires them onto a physical node material. */
 export function buildFinishGraph(id: FinishId, params: unknown, baseRoughness: number, baseColor: ColorUniform): FinishGraph {
+  const baseRough = float(baseRoughness);
   switch (id) {
     case "brushed": {
       const p = finishSchemas.brushed.parse(params);
       const scale = uniform(p.scale);
       const strength = uniform(p.strength);
       const direction = uniform(p.direction);
-      const { dir, across } = directionBasis(direction);
+      const { across } = directionBasis(direction);
       const streak = sin(positionLocal.dot(across).mul(scale)).mul(0.5).add(0.5);
-      const baseRough = float(baseRoughness);
+      const drive = finishDrive(strength);
+      const modulated = mix(baseRough, float(0.02), streak.mul(1));
       return {
-        modulates: ["anisotropy", "roughness"],
+        modulates: ["roughness"],
         bindings: { scale, strength, direction },
-        roughnessNode: mix(baseRough, float(0.12), streak.mul(strength).mul(0.35)),
-        anisotropyNode: dir.mul(strength.mul(0.95)),
+        roughnessNode: mix(baseRough, modulated, drive),
         colorNode: baseColor,
       };
     }
@@ -78,12 +83,20 @@ export function buildFinishGraph(id: FinishId, params: unknown, baseRoughness: n
       const { dir, across } = directionBasis(direction);
       const u = positionLocal.dot(dir).mul(scale);
       const v = positionLocal.dot(across).mul(scale);
-      const fabric = sin(u).mul(sin(v));
-      const lift = fabric.mul(strength.mul(0.25));
+      const warp = abs(sin(u)).mul(0.5).add(0.5);
+      const weft = abs(sin(v)).mul(0.5).add(0.5);
+      const basket = warp.mul(weft);
+      const drive = finishDrive(strength);
+      const bumpU = cos(u.mul(2)).mul(1.05);
+      const bumpV = cos(v.mul(2)).mul(1.05);
+      const lift = basket.sub(float(0.35)).mul(2.4);
+      const woven = normalView.add(vec3(bumpU, bumpV, lift)).normalize();
+      const roughMod = mix(baseRough, float(0.98), basket.mul(0.82));
       return {
-        modulates: ["normal"],
+        modulates: ["normal", "roughness"],
         bindings: { scale, strength, direction },
-        normalNode: normalView.add(vec3(lift, lift.mul(0.6), lift.mul(0.2))).normalize(),
+        normalNode: mix(normalView, woven, drive),
+        roughnessNode: mix(baseRough, roughMod, drive),
         colorNode: baseColor,
       };
     }
@@ -91,25 +104,36 @@ export function buildFinishGraph(id: FinishId, params: unknown, baseRoughness: n
       const p = finishSchemas.grain.parse(params);
       const scale = uniform(p.scale);
       const strength = uniform(p.strength);
-      const ring = sin(positionLocal.length().mul(scale.mul(0.65))).mul(0.5).add(0.5);
-      const streak = sin(positionLocal.y.mul(scale).add(positionLocal.x.mul(scale.mul(0.35)))).mul(0.5).add(0.5);
-      const grain = ring.mul(0.55).add(streak.mul(0.45));
-      const baseRough = float(baseRoughness);
+      const grainAxis = vec3(0.9, 0.12, 0.05);
+      const along = positionLocal.dot(grainAxis).mul(scale);
+      const bands = sin(along.mul(2.8)).mul(0.5).add(0.5);
+      const pore = mx_noise_float(positionLocal.mul(scale.mul(2.2))).mul(0.35).add(0.65);
+      const grain = saturate(bands.mul(pore));
+      const drive = finishDrive(strength);
+      const ripple = sin(along.mul(4)).mul(0.28);
+      const modColor = saturate(
+        baseColor.mul(oneMinus(grain.mul(0.55))).mul(float(1).add(grain.mul(0.22))),
+      );
+      const modNormal = normalView.add(vec3(ripple, ripple.mul(0.15), grain.sub(0.5).mul(0.42))).normalize();
+      const roughMod = mix(baseRough, float(0.96), grain.mul(1));
       return {
-        modulates: ["roughness", "color"],
+        modulates: ["roughness", "color", "normal"],
         bindings: { scale, strength },
-        roughnessNode: mix(baseRough, float(0.55), grain.mul(strength).mul(0.45)).add(grain.mul(strength).mul(0.05)),
-        colorNode: saturate(baseColor.mul(oneMinus(grain.mul(strength.mul(0.18))))),
+        roughnessNode: mix(baseRough, roughMod, drive),
+        colorNode: mix(baseColor, modColor, drive),
+        normalNode: mix(normalView, modNormal, drive),
       };
     }
     case "orange-peel": {
       const p = finishSchemas["orange-peel"].parse(params);
       const scale = uniform(p.scale);
       const strength = uniform(p.strength);
+      const drive = finishDrive(strength);
+      const peeled = noiseNormal(scale, strength, 1.25);
       return {
         modulates: ["normal"],
         bindings: { scale, strength },
-        normalNode: noiseNormal(scale, strength),
+        normalNode: mix(normalView, peeled, drive),
         colorNode: baseColor,
       };
     }
@@ -119,13 +143,15 @@ export function buildFinishGraph(id: FinishId, params: unknown, baseRoughness: n
       const strength = uniform(p.strength);
       const noise = mx_noise_float(positionLocal.mul(scale));
       const micro = saturate(abs(noise)).mul(strength);
-      const baseRough = float(baseRoughness);
+      const drive = finishDrive(strength);
       const frosted = float(0.22);
+      const roughMod = mix(baseRough, frosted, micro.mul(0.85));
+      const frostedNormal = noiseNormal(scale, strength, 0.45);
       return {
         modulates: ["roughness", "normal"],
         bindings: { scale, strength },
-        roughnessNode: mix(baseRough, frosted, micro.mul(0.85)),
-        normalNode: noiseNormal(scale, strength, 0.45),
+        roughnessNode: mix(baseRough, roughMod, drive),
+        normalNode: mix(normalView, frostedNormal, drive),
         colorNode: baseColor,
       };
     }
