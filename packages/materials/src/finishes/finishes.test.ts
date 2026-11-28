@@ -3,7 +3,7 @@ import { BoxGeometry, Color, Mesh } from "three";
 import { MeshPhysicalNodeMaterial } from "three/webgpu";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { applyFinishPalette, createFinishedMaterial } from "../finished.js";
+import { applyFinishPalette, createFinishedMaterial, createPresetNodeMaterial } from "../finished.js";
 import { auditFinishGraph, assertNoTextureMaps, collectTslNodes, finishOutputNodes, isTextureInGraph } from "./graphAudit.js";
 import { finishDescriptor, finishDescriptors, finishIds, finishSchemas } from "./info.js";
 
@@ -33,6 +33,16 @@ describe("finish descriptors", () => {
     expect(() => finishSchemas.brushed.parse({ scale: 0.25 })).toThrow(z.ZodError);
     expect(() => finishSchemas["orange-peel"].parse({ strength: 1.2 })).toThrow(z.ZodError);
     expect(() => finishSchemas.weave.parse({ direction: 400 })).toThrow(z.ZodError);
+  });
+});
+
+describe("createPresetNodeMaterial", () => {
+  it("wires only the palette color node for the node baseline", () => {
+    const material = createPresetNodeMaterial("matte", neutral.scene);
+    expect(material).toBeInstanceOf(MeshPhysicalNodeMaterial);
+    expect(material.roughnessNode).toBeNull();
+    expect(material.normalNode).toBeNull();
+    material.dispose();
   });
 });
 
@@ -66,6 +76,7 @@ describe("createFinishedMaterial", () => {
 
   it.each([...finishIds])("changes %s live uniforms with set", (finishId) => {
     const handle = createFinishedMaterial("satin", finishId);
+    expect(handle.structural).toEqual(["presetId", "finishId"]);
     const uuid = handle.material.uuid;
     expect(handle.set({ scale: 12, strength: 0.8 })).toBe(true);
     expect(handle.uniforms.scale?.value).toBe(12);

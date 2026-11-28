@@ -30,7 +30,7 @@ export interface FinishHandle<Id extends FinishId = FinishId> {
   readonly presetId: MaterialId;
   readonly material: MeshPhysicalNodeMaterial;
   readonly uniforms: Readonly<Record<string, FloatUniform | ColorUniform>>;
-  /** Parameters baked into the graph; changing one needs a new material. */
+  /** Only `presetId` and `finishId` need a new material; other params update live uniforms via `set()`. */
   readonly structural: readonly string[];
   set(partial: FinishParams<Id>): boolean;
   dispose(): void;
@@ -82,14 +82,81 @@ function configurePreset(material: MeshPhysicalNodeMaterial, preset: MaterialPre
   if (preset.specularIntensity !== undefined) material.specularIntensity = preset.specularIntensity;
 }
 
+/** Rebuilds on a fresh material so the first program compile is not poisoned when nodes are wired out of order. */
+function materialReadyForRender(source: MeshPhysicalNodeMaterial): MeshPhysicalNodeMaterial {
+  const material = new MeshPhysicalNodeMaterial({ name: source.name });
+  material.colorNode = source.colorNode;
+  material.roughnessNode = source.roughnessNode;
+  material.normalNode = source.normalNode;
+  material.anisotropyNode = source.anisotropyNode;
+  material.emissiveNode = source.emissiveNode;
+  material.attenuationColorNode = source.attenuationColorNode;
+  material.roughness = source.roughness;
+  material.metalness = source.metalness;
+  material.clearcoat = source.clearcoat;
+  material.clearcoatRoughness = source.clearcoatRoughness;
+  material.transmission = source.transmission;
+  material.ior = source.ior;
+  material.thickness = source.thickness;
+  material.sheen = source.sheen;
+  material.sheenRoughness = source.sheenRoughness;
+  material.iridescence = source.iridescence;
+  material.iridescenceIOR = source.iridescenceIOR;
+  material.iridescenceThicknessMinimum = source.iridescenceThicknessMinimum;
+  material.iridescenceThicknessMaximum = source.iridescenceThicknessMaximum;
+  material.specularIntensity = source.specularIntensity;
+  material.attenuationDistance = source.attenuationDistance;
+  material.emissiveIntensity = source.emissiveIntensity;
+  material.color.copy(source.color);
+  material.sheenColor.copy(source.sheenColor);
+  return material;
+}
+
 function wireFinishGraph(material: MeshPhysicalNodeMaterial, graph: FinishGraph, baseColor: ColorUniform): void {
-  /* TSL graph outputs are valid node slots; the declared material types are narrower than the runtime nodes. */
-  /* eslint-disable @typescript-eslint/consistent-type-assertions -- TSL finish graphs return runtime nodes wider than the material slot types */
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- TSL finish nodes are valid material slots but wider than the declared types
   material.colorNode = (graph.colorNode ?? baseColor) as MeshPhysicalNodeMaterial["colorNode"];
-  if (graph.roughnessNode !== undefined) material.roughnessNode = graph.roughnessNode as MeshPhysicalNodeMaterial["roughnessNode"];
-  if (graph.normalNode !== undefined) material.normalNode = graph.normalNode as MeshPhysicalNodeMaterial["normalNode"];
-  if (graph.anisotropyNode !== undefined) material.anisotropyNode = graph.anisotropyNode as MeshPhysicalNodeMaterial["anisotropyNode"];
-  /* eslint-enable @typescript-eslint/consistent-type-assertions -- re-enable after wiring finish graph nodes */
+  if (graph.roughnessNode !== undefined) {
+    material.roughness = 1;
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- procedural roughness node from the finish graph
+    material.roughnessNode = graph.roughnessNode as MeshPhysicalNodeMaterial["roughnessNode"];
+  }
+  if (graph.normalNode !== undefined) {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- procedural normal node from the finish graph
+    material.normalNode = graph.normalNode as MeshPhysicalNodeMaterial["normalNode"];
+  }
+  if (graph.anisotropyNode !== undefined) {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- brushed finish anisotropy direction node
+    material.anisotropyNode = graph.anisotropyNode as MeshPhysicalNodeMaterial["anisotropyNode"];
+  }
+}
+
+/**
+ * Node physical material for a preset: same scalars and palette uniforms as a finish, but no procedural graph wired.
+ * Used to compare finishes against the shared node baseline (not classic `MeshPhysicalMaterial`).
+ */
+export function createPresetNodeMaterial(
+  presetId: MaterialId,
+  palette: ScenePalette = neutral.scene,
+  derive?: PaletteDerive,
+): MeshPhysicalNodeMaterial {
+  const preset = materialPreset(presetId);
+  const scene = derive === undefined ? palette : derive(palette);
+  const roles = paletteRoles(preset);
+  const colors: Record<string, ColorUniform> = {
+    color: uniform(new Color(scene[preset.color])),
+  };
+  if (roles.attenuation !== undefined) colors.attenuation = uniform(new Color(scene[roles.attenuation]));
+  if (roles.emissive !== undefined) colors.emissive = uniform(new Color(scene[roles.emissive]));
+
+  const material = new MeshPhysicalNodeMaterial({ name: `${presetId}:base` });
+  configurePreset(material, preset);
+  const baseColor = colors.color;
+  if (baseColor === undefined) throw new Error("color uniform missing");
+  material.colorNode = baseColor;
+  if (colors.emissive !== undefined) material.emissiveNode = colors.emissive;
+  if (colors.attenuation !== undefined) material.attenuationColorNode = colors.attenuation;
+  if (preset.sheen !== undefined) material.sheenColor.set(scene[roles.sheen ?? preset.color]);
+  return materialReadyForRender(material);
 }
 
 /**
@@ -123,7 +190,9 @@ export function createFinishedMaterial<Id extends FinishId>(
 
   if (colors.emissive !== undefined) material.emissiveNode = colors.emissive;
   if (colors.attenuation !== undefined) material.attenuationColorNode = colors.attenuation;
-  material.sheenColor.set(scene[roles.sheen ?? preset.color]);
+  if (preset.sheen !== undefined) material.sheenColor.set(scene[roles.sheen ?? preset.color]);
+
+  const published = materialReadyForRender(material);
 
   const uniforms: Record<string, FloatUniform | ColorUniform> = {
     scale: graph.bindings.scale,
@@ -136,7 +205,7 @@ export function createFinishedMaterial<Id extends FinishId>(
   const handle: FinishHandle<Id> = {
     id: finishId,
     presetId,
-    material,
+    material: published,
     uniforms,
     structural: ["presetId", "finishId"],
     set: (partial) => {
@@ -155,14 +224,13 @@ export function createFinishedMaterial<Id extends FinishId>(
       return true;
     },
     dispose: () => {
-      finished.delete(material);
-      material.dispose();
+      finished.delete(published);
+      published.dispose();
     },
   };
-  finished.set(material, { preset, presetId, finishId, derive, colors, roles });
+  finished.set(published, { preset, presetId, finishId, derive, colors, roles });
   return handle;
 }
-
 
 /**
  * Recolors a finished material in place: same uuid and program, only palette-driven color uniforms change.

@@ -2,10 +2,12 @@ import {
   abs,
   cos,
   float,
+  mix,
   mx_noise_float,
   normalView,
   oneMinus,
   positionLocal,
+  saturate,
   sin,
   uniform,
   vec2,
@@ -63,8 +65,8 @@ export function buildFinishGraph(id: FinishId, params: unknown, baseRoughness: n
       return {
         modulates: ["anisotropy", "roughness"],
         bindings: { scale, strength, direction },
-        roughnessNode: baseRough.mul(oneMinus(streak.mul(strength).mul(0.35))),
-        anisotropyNode: dir.mul(strength.mul(0.95).add(0.05)),
+        roughnessNode: mix(baseRough, float(0.12), streak.mul(strength).mul(0.35)),
+        anisotropyNode: dir.mul(strength.mul(0.95)),
         colorNode: baseColor,
       };
     }
@@ -96,8 +98,8 @@ export function buildFinishGraph(id: FinishId, params: unknown, baseRoughness: n
       return {
         modulates: ["roughness", "color"],
         bindings: { scale, strength },
-        roughnessNode: baseRough.mul(oneMinus(grain.mul(strength.mul(0.45)))).add(grain.mul(strength.mul(0.12))),
-        colorNode: baseColor.mul(oneMinus(grain.mul(strength.mul(0.18))).add(0.5)),
+        roughnessNode: mix(baseRough, float(0.55), grain.mul(strength).mul(0.45)).add(grain.mul(strength).mul(0.05)),
+        colorNode: saturate(baseColor.mul(oneMinus(grain.mul(strength.mul(0.18))))),
       };
     }
     case "orange-peel": {
@@ -116,12 +118,13 @@ export function buildFinishGraph(id: FinishId, params: unknown, baseRoughness: n
       const scale = uniform(p.scale);
       const strength = uniform(p.strength);
       const noise = mx_noise_float(positionLocal.mul(scale));
-      const micro = abs(noise).mul(strength);
+      const micro = saturate(abs(noise)).mul(strength);
       const baseRough = float(baseRoughness);
+      const frosted = float(0.22);
       return {
         modulates: ["roughness", "normal"],
         bindings: { scale, strength },
-        roughnessNode: baseRough.mul(micro.mul(0.85).add(oneMinus(strength).mul(0.35))),
+        roughnessNode: mix(baseRough, frosted, micro.mul(0.85)),
         normalNode: noiseNormal(scale, strength, 0.45),
         colorNode: baseColor,
       };
