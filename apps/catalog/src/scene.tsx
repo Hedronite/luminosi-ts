@@ -1,4 +1,4 @@
-import { useReducedMotion } from "@hedronite/lts-adapters";
+import { useReducedMotion } from "@hedronite/lts-adapters/motion";
 import { useFrame, useStore, useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode, type RefObject } from "react";
 import { MathUtils, Spherical, Vector3, type Object3D } from "three";

@@ -13,6 +13,22 @@
     "./webgpu": {
       "types": "./dist/webgpu.d.ts",
       "import": "./dist/webgpu.js"
+    },
+    "./scene": {
+      "types": "./dist/scene.d.ts",
+      "import": "./dist/scene.js"
+    },
+    "./effectClock": {
+      "types": "./dist/effectClock.d.ts",
+      "import": "./dist/effectClock.js"
+    },
+    "./studioLights": {
+      "types": "./dist/studioLights.d.ts",
+      "import": "./dist/studioLights.js"
+    },
+    "./motion": {
+      "types": "./dist/motion.d.ts",
+      "import": "./dist/motion.js"
     }
   },
   "files": [

@@ -1,14 +1,15 @@
-import { type FinishId, type FinishParams, type MaterialId } from "@hedronite/lts-materials";
+import { type MaterialId } from "@hedronite/lts-materials";
+import type { FinishId } from "@hedronite/lts-materials/finishes/ids";
+import type { FinishParams } from "@hedronite/lts-materials/finishes/info";
 import { applyPalette, createMaterial } from "@hedronite/lts-materials/three";
 import { type EffectId } from "@hedronite/lts-shaders";
 import { crystalCluster, latticePoints, type ClusterOptions, type LatticeOptions } from "@hedronite/lts-objects";
 import { createCrystalCluster, createLattice } from "@hedronite/lts-objects/three";
 import { primitive, type PrimitiveId } from "@hedronite/lts-primitives";
-import { createPolyhedronGeometry, createStudioLights, disposeObject } from "@hedronite/lts-primitives/three";
+import { createPolyhedronGeometry, disposeObject } from "@hedronite/lts-primitives/three";
 import { neutral, type ScenePalette } from "@hedronite/lts-tokens";
 import { useThree, type ThreeElements } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
-import { Light } from "three";
 import { useEffectMaterial, type ShaderParams } from "./effectMaterial.js";
 import { useFinishedMaterial } from "./finishedMaterial.js";
 
@@ -60,19 +61,7 @@ export function PrimitiveMesh({ primitive: id, material = "satin", shader, shade
   return surface === undefined ? null : <mesh geometry={geometry} material={surface} dispose={null} {...props} />;
 }
 
-/** The library's three-point studio rig. */
-export function StudioLights({ intensity = 1 }: { readonly intensity?: number }) {
-  const rig = useMemo(() => createStudioLights({ intensity }), [intensity]);
-  useEffect(
-    () => () => {
-      rig.traverse((child) => {
-        if (child instanceof Light) child.dispose();
-      });
-    },
-    [rig],
-  );
-  return <primitive object={rig} />;
-}
+export { StudioLights } from "./studioLights.js";
 
 export interface CrystalClusterProps extends Omit<GroupProps, keyof ClusterOptions>, ClusterOptions {
   readonly material?: MaterialId;

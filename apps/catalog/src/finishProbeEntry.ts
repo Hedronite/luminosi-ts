@@ -2,7 +2,8 @@
 import { Color, Mesh, MeshPhysicalMaterial, PMREMGenerator, PerspectiveCamera, Scene, SphereGeometry } from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { MeshPhysicalNodeMaterial, WebGPURenderer } from "three/webgpu";
-import { finishIds, finishList, type FinishId, type MaterialId } from "@hedronite/lts-materials";
+import { finishIds, finishList, type FinishId } from "@hedronite/lts-materials/finishes/ids";
+import type { MaterialId } from "@hedronite/lts-materials";
 import { createFinishedMaterial } from "@hedronite/lts-materials/finished";
 import { createMaterial } from "@hedronite/lts-materials/three";
 import { createStudioLights } from "@hedronite/lts-primitives/three";

@@ -1,42 +1,35 @@
-import { EffectClockProvider, Scene } from "@hedronite/lts-adapters";
-import { WebGPUCanvas } from "@hedronite/lts-adapters/webgpu";
 import { Close } from "@hedronite/lts-icons/react";
-import { isFinishId, isMaterialId, materialIds, materialPreset, type FinishId, type MaterialId } from "@hedronite/lts-materials";
+import { isMaterialId, materialIds, materialPreset, type MaterialId } from "@hedronite/lts-materials";
+import { isFinishId, type FinishId } from "@hedronite/lts-materials/finishes/ids";
 import { isScreenEffectId, screenEffectIds, screenEffectInfo } from "@hedronite/lts-postfx";
 import { isPrimitiveId, primitiveIds, primitiveInfo, type PrimitiveId } from "@hedronite/lts-primitives";
 import { addNode, canRedo, canUndo, createHistory, encodeScene, endGesture, push, redo, removeNode, ringLayout, setEffects, setEnvironment, setInk, setLights, setStage, setSurface, setTransform, SHARE_LIMITS, undo, type InkMode, type Scene as SceneDocument, type SceneHistory, type SceneIssue, type SceneNode, type SceneResult, type SceneSurface } from "@hedronite/lts-scene";
 import { toCanonicalJson, toTsx, toVanilla } from "@hedronite/lts-scene/emit";
 import { effectIds, effectInfo, isEffectId, type EffectId } from "@hedronite/lts-shaders";
 import { presets } from "@hedronite/lts-tokens";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useThree } from "@react-three/fiber";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+
 import type { Object3D } from "three";
-import { noteEffectTargets } from "./builds";
 import { CopyButton } from "./CopyButton";
 import { usePreset } from "./look";
 import { MaterialLineup } from "./MaterialLineup";
-import { stageFrameloop, useStageShown, WakeOnShow } from "./onscreen";
+import { useStageShown } from "./onscreen";
 import { usePlaceable, type Placeable } from "./placeable";
-import { Controls, GpuCounts, StageClock, StageFrame, StageHold, useMotion } from "./scene";
+import { StageFrame, useMotion } from "./scene";
 import { describeIssue, fileNameFor, linkFor, openFile, openLink, sceneParam, stemOf, type Opened } from "./sceneFile";
 import { useShaderClock } from "./shaderClock";
-import { FinishControls, finishForNode, type FinishChoice } from "./FinishControls";
+import { FinishControls, type FinishChoice } from "./FinishControls";
+import { finishForNode } from "./finishApply.js";
 import { StageControls } from "./StageControls";
 import { TrackPanel } from "./tracks/TrackPanel";
 import { TransformPanel } from "./TransformPanel";
 import { useCredits } from "./useCredits";
 
+const PlaygroundStage = lazy(() => import("./PlaygroundStage.js"));
+
 const field = "rounded-lg border border-line bg-surface px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-accent";
 
 /** The most things the playground holds at once. */
-
-function RedrawOnLook({ lookId }: { readonly lookId: string }) {
-  const invalidate = useThree((state) => state.invalidate);
-  useEffect(() => {
-    invalidate();
-  }, [lookId, invalidate]);
-  return null;
-}
 
 const MAX_NODES = 8;
 
@@ -664,27 +657,21 @@ export function Playground() {
             >
               {/* Screen effects and some shaders animate, so the scene renders every frame while any are on. */}
               {/* The WebGPU renderer (WebGL 2 where WebGPU is missing) runs surface shaders and screen effects together; the scene brings its own lights, environment and effects. */}
-              <WebGPUCanvas frameloop={stageFrameloop(onscreen, !animated || motion.still)} dpr={[1, 2]} camera={{ position: [0, 2.2, 5.5], fov: 40 }}>
-                <WakeOnShow shown={onscreen} />
-                <RedrawOnLook lookId={preset.id} />
-                <Controls keys={host} />
-                <StageHold holdRef={motion.holdRef} />
-                <StageClock clockRef={clock} running={animated && !motion.still} writeShaderTime={writeShaderTime} />
-                <EffectClockProvider clock={shaderClock}>
-                  <Scene
-                    doc={shown}
-                    palette={preset.scene}
-                    paused={motion.paused}
-                    onRoot={(root) => {
-                      built.current = root;
-                    }}
-                    onEffectTargets={(ids) => {
-                      noteEffectTargets(host.current, ids);
-                    }}
-                  />
-                </EffectClockProvider>
-                <GpuCounts target={host} clockRef={clock} shaderClock={shaderClock} watch={built} screenEffects holdRef={motion.holdRef} />
-              </WebGPUCanvas>
+              <Suspense fallback={null}>
+                <PlaygroundStage
+                  shown={shown}
+                  palette={preset.scene}
+                  lookId={preset.id}
+                  motion={motion}
+                  animated={animated}
+                  onscreen={onscreen}
+                  host={host}
+                  built={built}
+                  clockRef={clock}
+                  shaderClock={shaderClock}
+                  writeShaderTime={writeShaderTime}
+                />
+              </Suspense>
             </StageFrame>
           </div>
           {exports.map((snippet) => (

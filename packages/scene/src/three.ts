@@ -1,5 +1,6 @@
 import type { AssetDescriptor, DescriptorRegistry } from "@hedronite/lts-core";
-import { isFinishId, isMaterialId, materialPreset, type FinishId, type MaterialId } from "@hedronite/lts-materials";
+import { isMaterialId, materialPreset, type MaterialId } from "@hedronite/lts-materials";
+import { isFinishId, type FinishId, finishDefaultParams } from "@hedronite/lts-materials/finishes/ids";
 import type { FinishHandle } from "@hedronite/lts-materials/finished";
 import { applyPalette as paintMaterials, createMaterial } from "@hedronite/lts-materials/three";
 import { createFramedSolid } from "@hedronite/lts-objects/three";
@@ -754,8 +755,7 @@ export function createScene(initial: SceneDocument, options: SceneOptions = {}):
       await rebuild(slot);
       return false;
     }
-    const { finishSchemas } = await import("@hedronite/lts-materials");
-    const defaults = finishSchemas[next.surface.finish.id].parse({});
+    const defaults = finishDefaultParams[next.surface.finish.id];
     const given = next.surface.finish.params ?? {};
     const dropped = Object.keys(previous.surface.finish.params ?? {}).some((key) => !(key in given) && !(key in defaults));
     if (!dropped && handle.set({ ...defaults, ...given } as never)) return true;

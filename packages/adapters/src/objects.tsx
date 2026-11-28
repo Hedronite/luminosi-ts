@@ -1,4 +1,6 @@
-import { materialPreset, type FinishId, type FinishParams, type MaterialId } from "@hedronite/lts-materials";
+import { materialPreset, type MaterialId } from "@hedronite/lts-materials";
+import type { FinishId } from "@hedronite/lts-materials/finishes/ids";
+import type { FinishParams } from "@hedronite/lts-materials/finishes/info";
 import { applyPalette, createMaterial } from "@hedronite/lts-materials/three";
 import { type EffectId } from "@hedronite/lts-shaders";
 import { createFramedSolid } from "@hedronite/lts-objects/three";

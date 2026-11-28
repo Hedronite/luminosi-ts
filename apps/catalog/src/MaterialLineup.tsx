@@ -1,4 +1,4 @@
-import { StudioLights } from "@hedronite/lts-adapters";
+import { StudioLights } from "@hedronite/lts-adapters/studioLights";
 import { WebGPUCanvas, WebGPUStudioEnvironment } from "@hedronite/lts-adapters/webgpu";
 import { materialIds, materialPreset } from "@hedronite/lts-materials";
 import { applyPalette, createMaterial } from "@hedronite/lts-materials/three";

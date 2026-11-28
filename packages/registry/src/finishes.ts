@@ -9,4 +9,4 @@ export {
   type FinishId,
   type FinishMeta,
   type FinishParams,
-} from "@hedronite/lts-materials";
+} from "@hedronite/lts-materials/finishes/info";

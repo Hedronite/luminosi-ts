@@ -25,6 +25,14 @@
     "./finished": {
       "types": "./dist/finished.d.ts",
       "import": "./dist/finished.js"
+    },
+    "./finishes/info": {
+      "types": "./dist/finishes/info.d.ts",
+      "import": "./dist/finishes/info.js"
+    },
+    "./finishes/ids": {
+      "types": "./dist/finishes/ids.d.ts",
+      "import": "./dist/finishes/ids.js"
     }
   },
   "files": [

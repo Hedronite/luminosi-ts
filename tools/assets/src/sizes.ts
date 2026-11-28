@@ -68,7 +68,7 @@ interface Bundle {
 const bundles: Readonly<Record<string, Bundle>> = {
   "catalog-gallery": { dist: "apps/catalog/dist", pages: ["index.html"] },
   "catalog-embed": { dist: "apps/catalog/dist", pages: ["embed.html"] },
-  "catalog-3d": { dist: "apps/catalog/dist", pages: ["index.html", "embed.html"], carries: ["isObject3D", "isWebGPURenderer"], shell: "index.html", exclude: ["Playground", "credits"] },
+  "catalog-3d": { dist: "apps/catalog/dist", pages: ["index.html", "embed.html"], carries: ["isObject3D", "isWebGPURenderer"], shell: "index.html", exclude: ["Playground", "PlaygroundStage", "credits"] },
   "catalog-panel": { dist: "apps/catalog/dist", pages: ["index.html"], chunk: "ParameterPanel" },
   "catalog-playground": { dist: "apps/catalog/dist", pages: ["index.html"], chunk: "Playground" },
   "catalog-export": { dist: "apps/catalog/dist", pages: ["index.html"], chunk: "credits" },

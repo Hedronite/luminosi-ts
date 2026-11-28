@@ -3,7 +3,8 @@
 import { randomUUID } from "node:crypto";
 import { closeSync, constants, lstatSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import { finishDescriptor, finishIds, isFinishId, loadDescriptors } from "@hedronite/lts-registry";
+import { finishDescriptor, finishIds, isFinishId } from "@hedronite/lts-materials/finishes/info";
+import { loadDescriptors } from "@hedronite/lts-registry";
 import { assetCredit, checkRefs, lookCredit, migrate, SCENE_VERSION, SHARE_LIMITS, type RefKind, type Resolve, type Scene } from "@hedronite/lts-scene";
 import { presets } from "@hedronite/lts-tokens";
 import { distance } from "../commands.js";

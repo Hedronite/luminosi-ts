@@ -1,4 +1,6 @@
-import type { FinishId, FinishParams, MaterialId } from "@hedronite/lts-materials";
+import type { MaterialId } from "@hedronite/lts-materials";
+import type { FinishId } from "@hedronite/lts-materials/finishes/ids";
+import type { FinishParams } from "@hedronite/lts-materials/finishes/info";
 import type { FinishHandle } from "@hedronite/lts-materials/finished";
 import type { ScenePalette } from "@hedronite/lts-tokens";
 import { useThree } from "@react-three/fiber";
