@@ -93,7 +93,7 @@ describe("creditsFor", () => {
   it("is sorted and has one credit for each thing the scene uses, for any scene", () => {
     fc.assert(
       fc.property(scenes, (scene) => {
-        const all: Resolve = (kind, id) => ({ credit: made(`${kind}-${id}`, kind === "look" ? "look" : kind) });
+        const all: Resolve = (kind, id) => ({ credit: made(`${kind}-${id}`, kind === "look" ? "look" : kind === "finish" ? "material" : kind) });
         const found = creditsFor(scene, all);
         const subjects = found.map(({ subject }) => subject);
         expect(subjects).toEqual([...subjects].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)));

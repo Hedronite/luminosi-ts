@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import fc from "fast-check";
 import { z } from "zod";
 import { migrate } from "./migrate.js";
+import { finishIds, finishSchemas } from "@hedronite/lts-materials/finishes/info";
 import type { RefKind, Resolve } from "./refs.js";
 import { addNode, removeNode, setEffects, setEnvironment, setInk, setLights, setLook, setStage, setSurface, setTransform, type TransformChange } from "./edit.js";
 import {
@@ -43,6 +44,7 @@ const schemas: Readonly<Record<RefKind, ReadonlyMap<string, z.ZodObject>>> = {
     ["metal", none],
     ["glass", none],
   ]),
+  finish: new Map(finishIds.map((id) => [id, finishSchemas[id]])),
   shader: new Map<string, z.ZodObject>([["toon", z.object({ bands: z.number().int().min(2).max(8).default(3) })]]),
   effect: new Map<string, z.ZodObject>([
     ["dither", z.object({ cell: z.number().min(2).max(12).default(3) })],
@@ -72,7 +74,12 @@ export function acceptAll(scene: Scene): Resolve {
   for (const { asset, surface } of scene.nodes) {
     note(asset.kind === "object" ? "object" : "primitive", asset.id, asset.params);
     if (asset.kind === "framed") note("material", asset.edges.material, undefined);
-    if (surface !== undefined) note("material" in surface ? "material" : "shader", "material" in surface ? surface.material : surface.shader, surface.params);
+    if (surface !== undefined) {
+      if ("material" in surface) {
+        note("material", surface.material, surface.params);
+        if (surface.finish !== undefined) note("finish", surface.finish.id, surface.finish.params);
+      } else note("shader", surface.shader, surface.params);
+    }
   }
   for (const effect of scene.effects) note("effect", effect.id, effect.params);
   // A track names a parameter of a node's surface or of an effect; the resolver takes the names the document uses, whoever names them.
