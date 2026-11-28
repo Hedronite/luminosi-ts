@@ -6,12 +6,12 @@ const direction = z.number().min(0).max(360).default(0);
 /** Noise feature size in surface units; higher is finer detail. */
 const scale = z.number().min(0.5).max(40).default(8);
 const peelScale = z.number().min(0.5).max(40).default(12);
-const peelStrength = z.number().min(0).max(1).default(0.62);
+const peelStrength = z.number().min(0).max(1).default(0.75);
 const weaveScale = z.number().min(0.5).max(40).default(16);
 const grainScale = z.number().min(0.5).max(40).default(12);
 /** How strongly the finish changes the surface, 0 to 1. */
 const strength = z.number().min(0).max(1).default(0.5);
-const weaveStrength = z.number().min(0).max(1).default(0.72);
+const weaveStrength = z.number().min(0).max(1).default(0.78);
 const grainStrength = z.number().min(0).max(1).default(0.85);
 
 export const finishSchemas = {

@@ -28,8 +28,9 @@ describe("finish descriptors", () => {
       }
     }
     expect(finishDescriptor("brushed").defaults).toEqual({ scale: 8, strength: 0.5, direction: 0 });
+    expect(finishDescriptor("orange-peel").defaults).toEqual({ scale: 12, strength: 0.75 });
     expect(finishDescriptor("grain").defaults).toEqual({ scale: 12, strength: 0.85 });
-    expect(finishDescriptor("weave").defaults).toEqual({ scale: 16, strength: 0.72, direction: 0 });
+    expect(finishDescriptor("weave").defaults).toEqual({ scale: 16, strength: 0.78, direction: 0 });
   });
 
   it("declares at least one real material preset per finish", () => {

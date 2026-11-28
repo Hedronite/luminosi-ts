@@ -98,6 +98,14 @@ function wireFinishGraph(material: MeshPhysicalNodeMaterial, graph: FinishGraph,
     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- brushed finish anisotropy direction node
     material.anisotropyNode = graph.anisotropyNode as MeshPhysicalNodeMaterial["anisotropyNode"];
   }
+  if (graph.clearcoatNormalNode !== undefined) {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- clearcoat ripple from orange-peel
+    material.clearcoatNormalNode = graph.clearcoatNormalNode as MeshPhysicalNodeMaterial["clearcoatNormalNode"];
+  }
+  if (graph.transmissionNode !== undefined) {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- frosted glass transmission
+    material.transmissionNode = graph.transmissionNode as MeshPhysicalNodeMaterial["transmissionNode"];
+  }
 }
 
 /**
@@ -159,13 +167,17 @@ export function createFinishedMaterial<Id extends FinishId>(
   const baseColor = colors.color;
   if (baseColor === undefined) throw new Error("color uniform missing");
   const parsedParams = finishSchemas[finishId].parse(params ?? {});
-  const graph = buildFinishGraph(finishId, params ?? {}, preset.roughness, baseColor);
+  const graph = buildFinishGraph(finishId, params ?? {}, preset, baseColor);
 
   if (parsedParams.strength === 0) {
     material.colorNode = baseColor;
-    material.roughnessNode = float(preset.roughness);
-    material.normalNode = normalView;
-    material.roughness = 1;
+    material.roughness = preset.roughness;
+    material.roughnessNode = null;
+    material.normalNode = null;
+    material.clearcoatNormalNode = null;
+    material.transmissionNode = null;
+    if (colors.attenuation !== undefined) material.attenuationColorNode = colors.attenuation;
+    if (colors.emissive !== undefined) material.emissiveNode = colors.emissive;
   } else {
     // Wire order: preset scalars → palette uniforms → node baseline → finish graph (same instance the renderer compiles).
     material.colorNode = baseColor;
@@ -173,10 +185,10 @@ export function createFinishedMaterial<Id extends FinishId>(
     material.normalNode = normalView;
     material.roughness = 1;
     wireFinishGraph(material, graph, baseColor);
+    if (colors.emissive !== undefined) material.emissiveNode = colors.emissive;
+    if (colors.attenuation !== undefined) material.attenuationColorNode = colors.attenuation;
   }
 
-  if (colors.emissive !== undefined) material.emissiveNode = colors.emissive;
-  if (colors.attenuation !== undefined) material.attenuationColorNode = colors.attenuation;
   if (preset.sheen !== undefined) material.sheenColor.set(scene[roles.sheen ?? preset.color]);
 
   const uniforms: Record<string, FloatUniform | ColorUniform> = {

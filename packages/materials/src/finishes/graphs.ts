@@ -14,6 +14,7 @@ import {
   vec3,
 } from "three/tsl";
 import { finishSchemas, type FinishId } from "./info.js";
+import { type MaterialPreset } from "../presets.js";
 
 const DEG = Math.PI / 180;
 
@@ -27,12 +28,14 @@ interface FinishBindings {
 }
 
 export interface FinishGraph {
-  readonly modulates: readonly ("roughness" | "normal" | "anisotropy" | "color")[];
+  readonly modulates: readonly ("roughness" | "normal" | "anisotropy" | "color" | "transmission" | "clearcoat")[];
   readonly bindings: FinishBindings;
   readonly roughnessNode?: unknown;
   readonly normalNode?: unknown;
   readonly anisotropyNode?: unknown;
   readonly colorNode?: unknown;
+  readonly transmissionNode?: unknown;
+  readonly clearcoatNormalNode?: unknown;
 }
 
 function directionBasis(direction: FloatUniform) {
@@ -56,8 +59,14 @@ function noiseNormal(scale: FloatUniform, strength: FloatUniform, factor = 0.6) 
 }
 
 /** Builds procedural finish nodes; the caller wires them onto a physical node material. */
-export function buildFinishGraph(id: FinishId, params: unknown, baseRoughness: number, baseColor: ColorUniform): FinishGraph {
-  const baseRough = float(baseRoughness);
+export function buildFinishGraph(
+  id: FinishId,
+  params: unknown,
+  preset: MaterialPreset,
+  baseColor: ColorUniform,
+): FinishGraph {
+  const baseRough = float(preset.roughness);
+  const baseTrans = float(preset.transmission ?? 0);
   switch (id) {
     case "brushed": {
       const p = finishSchemas.brushed.parse(params);
@@ -67,11 +76,16 @@ export function buildFinishGraph(id: FinishId, params: unknown, baseRoughness: n
       const { across } = directionBasis(direction);
       const streak = sin(positionLocal.dot(across).mul(scale)).mul(0.5).add(0.5);
       const drive = finishDrive(strength);
-      const modulated = mix(baseRough, float(0.02), streak.mul(1));
+      const modulated = mix(baseRough, float(0.02), streak.mul(1.22));
+      const dielectric = float(1).sub(float(preset.metalness));
+      const brushNormal = normalView
+        .add(vec3(streak.sub(0.5).mul(0.42), streak.sub(0.5).mul(0.08), streak.sub(0.5).mul(0.22)))
+        .normalize();
       return {
-        modulates: ["roughness"],
+        modulates: ["roughness", "normal"],
         bindings: { scale, strength, direction },
         roughnessNode: mix(baseRough, modulated, drive),
+        normalNode: mix(normalView, brushNormal, drive.mul(dielectric.mul(0.85))),
         colorNode: baseColor,
       };
     }
@@ -87,11 +101,11 @@ export function buildFinishGraph(id: FinishId, params: unknown, baseRoughness: n
       const weft = abs(sin(v)).mul(0.5).add(0.5);
       const basket = warp.mul(weft);
       const drive = finishDrive(strength);
-      const bumpU = cos(u.mul(2)).mul(1.05);
-      const bumpV = cos(v.mul(2)).mul(1.05);
-      const lift = basket.sub(float(0.35)).mul(2.4);
+      const bumpU = cos(u.mul(2)).mul(1.35);
+      const bumpV = cos(v.mul(2)).mul(1.35);
+      const lift = basket.sub(float(0.22)).mul(3.15);
       const woven = normalView.add(vec3(bumpU, bumpV, lift)).normalize();
-      const roughMod = mix(baseRough, float(0.98), basket.mul(0.82));
+      const roughMod = mix(baseRough, float(0.99), basket.mul(0.92));
       return {
         modulates: ["normal", "roughness"],
         bindings: { scale, strength, direction },
@@ -129,30 +143,60 @@ export function buildFinishGraph(id: FinishId, params: unknown, baseRoughness: n
       const scale = uniform(p.scale);
       const strength = uniform(p.strength);
       const drive = finishDrive(strength);
-      const peeled = noiseNormal(scale, strength, 1.4);
+      const peelBump = mx_noise_float(positionLocal.mul(scale.mul(1.4)));
+      const peelCrest = saturate(peelBump.mul(1.35).sub(0.35));
+      const peeled = normalView
+        .add(
+          vec3(
+            sin(positionLocal.x.mul(scale.mul(0.9))).mul(0.65),
+            sin(positionLocal.y.mul(scale.mul(1.1))).mul(0.65),
+            peelCrest.mul(1.85),
+          ).mul(strength.mul(1.45)),
+        )
+        .normalize();
+      const coatNormal = noiseNormal(scale, strength, 2.4);
+      const coatRipple = mix(normalView, coatNormal, saturate(strength.mul(1.1)));
+      const peelTint = baseColor.mul(float(1).add(peelCrest.mul(0.24)));
+      const hasClearcoat = (preset.clearcoat ?? 0) > 0.01;
       return {
-        modulates: ["normal"],
+        modulates: hasClearcoat ? ["normal", "clearcoat", "color"] : ["normal", "roughness", "color"],
         bindings: { scale, strength },
-        normalNode: mix(normalView, peeled, drive),
-        colorNode: baseColor,
+        roughnessNode: mix(baseRough, mix(baseRough, float(0.58), peelCrest), drive.mul(hasClearcoat ? 0.25 : 0.42)),
+        normalNode: mix(normalView, peeled, hasClearcoat ? drive.mul(0.45) : drive),
+        clearcoatNormalNode: hasClearcoat ? mix(normalView, coatRipple, drive) : undefined,
+        colorNode: mix(baseColor, peelTint, drive.mul(hasClearcoat ? 0.45 : 0.65)),
       };
     }
     case "frost": {
       const p = finishSchemas.frost.parse(params);
       const scale = uniform(p.scale);
       const strength = uniform(p.strength);
-      const noise = mx_noise_float(positionLocal.mul(scale));
-      const micro = saturate(abs(noise)).mul(strength);
+      const flake = saturate(
+        abs(mx_noise_float(positionLocal.mul(scale.mul(2.4))))
+          .mul(mx_noise_float(positionLocal.mul(scale.mul(0.65))).mul(0.5).add(0.5)),
+      );
+      const micro = saturate(flake.mul(strength.mul(1.15)).add(strength.mul(0.12)));
       const drive = finishDrive(strength);
-      const frosted = float(0.22);
-      const roughMod = mix(baseRough, frosted, micro.mul(0.85));
-      const frostedNormal = noiseNormal(scale, strength, 0.45);
+      const frostRough = mix(baseRough, float(0.82), micro.mul(1.05));
+      const frostShade = baseColor.mul(float(1).add(micro.mul(0.22))).mul(float(1).sub(micro.mul(0.08)));
+      const frostedNormal = noiseNormal(scale, strength, 1.35);
+      const modulates: FinishGraph["modulates"] =
+        (preset.transmission ?? 0) > 0.01
+          ? ["roughness", "normal", "transmission", "color"]
+          : ["roughness", "normal", "color"];
+      const frostTrans =
+        (preset.transmission ?? 0) > 0.01
+          ? mix(baseTrans, baseTrans.mul(float(0.42)), micro)
+          : undefined;
       return {
-        modulates: ["roughness", "normal"],
+        modulates,
         bindings: { scale, strength },
-        roughnessNode: mix(baseRough, roughMod, drive),
+        roughnessNode: mix(baseRough, frostRough, drive),
         normalNode: mix(normalView, frostedNormal, drive),
-        colorNode: baseColor,
+        colorNode: mix(baseColor, frostShade, drive),
+        ...(frostTrans === undefined
+          ? {}
+          : { transmissionNode: mix(baseTrans, frostTrans, finishDrive(strength)) }),
       };
     }
     default:
