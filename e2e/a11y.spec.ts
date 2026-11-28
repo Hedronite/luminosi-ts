@@ -26,6 +26,43 @@ const errorsOn = (page: Page): string[] => {
 
 const number = async (host: Locator, attribute: string): Promise<number> => Number(await host.getAttribute(attribute));
 
+/** The frame count once it has held still for `quiet` ms (same bar as stage-quality `held`). */
+
+/** Programs attached and steady: the playground finishes compiling shaders after the first frames land. */
+async function programsSettled(host: Locator): Promise<number> {
+  let last = -1;
+  let steady = 0;
+  await expect
+    .poll(
+      async () => {
+        await host.page().waitForTimeout(300);
+        const now = await number(host, "data-programs");
+        steady = now === last && now > 0 ? steady + 1 : 0;
+        last = now;
+        return steady;
+      },
+      { message: "the program count settles before pause", timeout: 30_000 },
+    )
+    .toBeGreaterThanOrEqual(6);
+  return last;
+}
+
+async function framesHeld(host: Locator, quiet = 900): Promise<number> {
+  let last = -1;
+  await expect
+    .poll(
+      async () => {
+        const before = await number(host, "data-frames");
+        await host.page().waitForTimeout(quiet);
+        last = await number(host, "data-frames");
+        return last - before;
+      },
+      { message: "the stage stops drawing after pause", timeout: 20_000 },
+    )
+    .toBe(0);
+  return last;
+}
+
 /**
  * The counters of a paused stage. The frame that was in flight when the button was pressed can still land, and on a
  * loaded runner (software WebGL) that takes longer than any fixed wait; so wait until the frame counter has held
@@ -148,8 +185,13 @@ const ready = async (stage: Stage, page: Page): Promise<void> => {
   await page.goto(stage.path);
   // The playground only animates once something animated is in it.
   if (stage === playgroundStage) await page.getByRole("checkbox", { name: "Smoke" }).check();
-  await expectRenderer(stage.host(page).locator("canvas"));
-  await expect(stage.host(page)).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 15000 });
+  const host = stage.host(page);
+  await expectRenderer(host.locator("canvas"));
+  await expect(host).toHaveAttribute("data-frames", /^[1-9]\d*$/, { timeout: 15000 });
+  if (stage === playgroundStage) {
+    await settledBuilds(host);
+    await programsSettled(host);
+  }
 };
 
 for (const stage of stages.filter((s) => s.animated)) {
@@ -169,8 +211,8 @@ for (const stage of stages.filter((s) => s.animated)) {
     // The label says what the button does next, so it flips instead of carrying a pressed state.
     const resume = scope.getByRole("button", { name: "Resume motion" });
     await expect(resume).toBeVisible();
-    // Let the frame in flight and the counters' own sampling settle, then nothing may advance.
-    const { frames: heldFrames, time: heldTime } = await heldCounters(host);
+    const heldFrames = await framesHeld(host);
+    const heldTime = await number(host, "data-time");
     await page.waitForTimeout(2000);
     expect(await number(host, "data-frames")).toBe(heldFrames);
     expect(await number(host, "data-time")).toBe(heldTime);
@@ -421,3 +463,20 @@ test("a stage in a detail dialog passes axe", async ({ page }) => {
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => v.id)).toEqual([]);
 });
+
+
+const openSourceSkillPages = [
+  ["/?view=open-source&set=jakubkrehel-skills&item=better-ui&page=skills/better-ui/SKILL.md", "UI polish"],
+  ["/?view=open-source&set=ai-design-skills&item=landing-page-design&page=skills/landing-page-design/SKILL.md", "Landing Page Design"],
+  ["/?view=open-source&set=mengto-skills&item=3d-metal-material&page=agent-skills/3d/3d-metal-material/SKILL.md", "3D Metal Material"],
+] as const;
+
+for (const [url, title] of openSourceSkillPages) {
+  test(`open source (${title}): Markdown task lists and headings pass axe`, async ({ page }) => {
+    await page.goto(url);
+    await expect(page.getByRole("heading", { level: 2, name: title })).toBeVisible();
+    await expect(page.getByText("Loading…")).toHaveCount(0);
+    const results = await new AxeBuilder({ page }).analyze();
+    expect(results.violations.map((v) => v.id)).toEqual([]);
+  });
+}

@@ -154,6 +154,7 @@ export function GpuCounts({
   shaderClock,
   watch,
   screenEffects = false,
+  holdRef,
 }: {
   readonly target: RefObject<HTMLDivElement | null>;
   readonly clockRef?: RefObject<number>;
@@ -162,12 +163,24 @@ export function GpuCounts({
   readonly watch?: RefObject<Object3D | undefined>;
   /** The stage runs a screen-effect pipeline: report its builds too. */
   readonly screenEffects?: boolean;
+  /** When set, chains the pause hold so StageHold runs synchronously on the pause click (pause only, not reduced motion). */
+  readonly holdRef?: RefObject<(() => void) | null>;
 }) {
   const gl = useThree((state) => state.gl);
   const camera = useThree((state) => state.camera);
   const scene = useThree((state) => state.scene);
   // useFrame runs once per scene render, so environment baking does not count.
   const frames = useRef(0);
+  useEffect(() => {
+    if (holdRef === undefined) return;
+    const previous = holdRef.current;
+    holdRef.current = () => {
+      previous?.();
+    };
+    return () => {
+      holdRef.current = previous;
+    };
+  }, [holdRef]);
   useFrame(() => {
     frames.current += 1;
     // A frame follows every commit that attaches something, so an object that lives for one commit is still seen.

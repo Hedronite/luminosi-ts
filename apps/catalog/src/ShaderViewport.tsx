@@ -21,6 +21,11 @@ function EffectSphere({ id, palette, params }: { readonly id: string; readonly p
   );
   // The parameters move the shader live: a change writes its uniforms, and builds nothing.
   const material = useEffectMaterial(isEffectId(id) ? id : undefined, palette, params);
+  const invalidate = useThree((state) => state.invalidate);
+  const paramsKey = JSON.stringify(params ?? {});
+  useEffect(() => {
+    invalidate();
+  }, [paramsKey, invalidate]);
   return material === undefined ? null : <mesh geometry={geometry} material={material} dispose={null} />;
 }
 
@@ -75,7 +80,7 @@ export function ShaderViewport({ meta, palette, params, epoch }: { readonly meta
         <EffectClockProvider clock={shaderClock}>
           <EffectSphere key={`${meta.id}:${String(epoch)}`} id={meta.id} palette={palette} params={params} />
         </EffectClockProvider>
-        <GpuCounts target={group} clockRef={clock} shaderClock={shaderClock} />
+        <GpuCounts target={group} clockRef={clock} shaderClock={shaderClock} holdRef={motion.holdRef} />
       </WebGPUCanvas>
     </StageFrame>
   );

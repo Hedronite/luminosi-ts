@@ -35,7 +35,8 @@ export function useStageShown(target: RefObject<Element | null>): boolean {
 }
 
 /** R3F's frame loop for a stage: none while it is not shown, else `on` (on demand when `still`). */
-export const stageFrameloop = (shown: boolean, still: boolean): "never" | "demand" | "always" => (!shown ? "never" : still ? "demand" : "always");
+export const stageFrameloop = (shown: boolean, still: boolean): "never" | "demand" | "always" =>
+  !shown ? "never" : still ? "demand" : "always";
 
 /** Inside the canvas: asks for a frame the moment the stage is shown again, so a size or a camera that changed while it was away is drawn. */
 export function WakeOnShow({ shown }: { readonly shown: boolean }) {

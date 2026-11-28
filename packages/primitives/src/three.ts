@@ -14,7 +14,7 @@ export function createPolyhedronGeometry(polyhedron: Polyhedron, name = "polyhed
   return geometry;
 }
 
-type StudioLightRole = "key" | "fill" | "rim" | "ambient";
+export type StudioLightRole = "key" | "fill" | "rim" | "ambient";
 
 const studioLightRoles = new WeakMap<Object3D, StudioLightRole>();
 
@@ -43,6 +43,18 @@ export function createStudioLights({ intensity = 1, palette = neutral.scene }: S
   studioLightRoles.set(ambient, "ambient");
   rig.add(ambient);
   return rig;
+}
+
+
+
+/** The studio light with role, if root holds one from createStudioLights. */
+export function findStudioLight(root: Object3D, role: Exclude<StudioLightRole, "ambient">): DirectionalLight | undefined {
+  let found: DirectionalLight | undefined;
+  root.traverse((child) => {
+    if (found !== undefined) return;
+    if (child instanceof DirectionalLight && studioLightRoles.get(child) === role) found = child;
+  });
+  return found;
 }
 
 /** Recolors studio lights built by `createStudioLights` in place from `palette`. */

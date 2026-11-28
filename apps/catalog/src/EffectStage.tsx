@@ -113,7 +113,7 @@ export function EffectStage({ effects, palette, subject = framedDodecahedron, su
         <StageClock clockRef={clock} running={!motion.still} writeShaderTime={writeShaderTime} />
         <Subject subject={subject} surface={surface} palette={palette} still={motion.still} clock={clock} shaderClock={shaderClock} />
         {effects.length === 0 ? null : <ScreenEffectsPass effects={effects} palette={palette} onPipeline={noteTargets} {...(monochrome === undefined ? {} : { monochrome })} />}
-        <GpuCounts target={target} clockRef={clock} shaderClock={shaderClock} screenEffects />
+        <GpuCounts target={target} clockRef={clock} shaderClock={shaderClock} screenEffects holdRef={motion.holdRef} />
       </WebGPUCanvas>
     </StageFrame>
   );

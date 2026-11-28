@@ -1118,6 +1118,39 @@ describe("environment swaps that overtake one another", () => {
       handle.dispose();
     });
 
+    it("does not dispose the key light on look changes or updates while shadows stay off", async () => {
+      const doc = stageDoc({ quality: "lite", shadows: { enabled: false, catcher: false } });
+      const built = createScene(doc);
+      await built.ready;
+      const key = built.root.getObjectByName("key");
+      if (!(key instanceof Light)) throw new Error("missing key");
+      let disposals = 0;
+      key.addEventListener("dispose", () => {
+        disposals += 1;
+      });
+      built.setLook(hedronite.scene);
+      built.setLook(neutral.scene);
+      await built.update({ ...doc, look: "hedronite" });
+      expect(disposals).toBe(0);
+      built.dispose();
+      expect(disposals).toBeGreaterThanOrEqual(1);
+    });
+
+    it("disposes the key light once when shadows go off after they were on", async () => {
+      const { renderer } = makeRenderer();
+      const handle = createScene(stageDoc({ quality: "full", shadows: { enabled: true, catcher: false } }), { renderer });
+      await handle.ready;
+      const key = handle.root.getObjectByName("key");
+      if (!(key instanceof Light)) throw new Error("missing key");
+      let disposals = 0;
+      key.addEventListener("dispose", () => {
+        disposals += 1;
+      });
+      await handle.update(stageDoc({ quality: "lite", shadows: { enabled: true, catcher: false } }));
+      expect(disposals).toBe(1);
+      handle.dispose();
+    });
+
     it("disposes previous key light (releasing ShadowNode target/textures) when shadows turn off or lights.intensity changes", async () => {
       const { renderer } = makeRenderer();
       const docWithIntensity = (intensity: number, stage?: SceneDocument["stage"]): SceneDocument => ({

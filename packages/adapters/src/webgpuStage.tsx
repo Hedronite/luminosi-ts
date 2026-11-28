@@ -4,6 +4,7 @@ import { neutral, sceneLighting, type ScenePalette } from "@hedronite/lts-tokens
 import { useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { DirectionalLight, Mesh, PCFShadowMap, PlaneGeometry, ShadowMaterial, type ShadowMapType, type ToneMapping as ThreeToneMapping } from "three";
+import { findStudioLight } from "@hedronite/lts-primitives/three";
 import { WebGPURenderer } from "three/webgpu";
 
 export interface WebGPUStageProps {
@@ -79,8 +80,9 @@ export function WebGPUStage({ stage, palette = neutral.scene }: WebGPUStageProps
     }
 
     const targetScene = state.scene;
-    const key = targetScene.getObjectByName("key");
+    const key = findStudioLight(targetScene, "key");
     if (key instanceof DirectionalLight) {
+      const wasOn = key.castShadow;
       key.castShadow = shadowsOn;
       if (shadowsOn) {
         key.shadow.mapSize.set(1024, 1024);
@@ -93,7 +95,7 @@ export function WebGPUStage({ stage, palette = neutral.scene }: WebGPUStageProps
         key.shadow.bias = -0.0005;
         key.shadow.normalBias = 0.02;
         key.shadow.radius = 3;
-      } else {
+      } else if (wasOn) {
         key.dispose();
       }
     }
@@ -121,7 +123,7 @@ export function WebGPUStage({ stage, palette = neutral.scene }: WebGPUStageProps
           renderer.shadowMap.type = base.shadowType;
         }
       }
-      const key = state.scene.getObjectByName("key");
+      const key = findStudioLight(state.scene, "key");
       if (key instanceof DirectionalLight) key.dispose();
     },
     [get],

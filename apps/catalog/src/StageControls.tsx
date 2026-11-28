@@ -154,7 +154,7 @@ export function StageControls({ environment, stage, palette, distance, shadows =
         disabled={features}
         onChange={(enabled) => {
           // The library's own focus distance suits its own camera; from this one it could blur the whole subject.
-          change({ dof: { ...resolveStagePostfx({ dof: { focus: distance, ...stage?.dof, enabled: true } }).dof, enabled } });
+          change({ dof: { ...resolveStagePostfx({ dof: { focus: Math.max(0.1, distance), ...stage?.dof, enabled: true } }).dof, enabled } });
         }}
       />
       {/* A document with no stage keeps the renderer's own tone mapping and exposure: there is nothing here to set. */}

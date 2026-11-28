@@ -5,7 +5,7 @@ import { createFramedSolid } from "@hedronite/lts-objects/three";
 import { screenEffectSchemas, type ScreenEffectConfig } from "@hedronite/lts-postfx";
 import type * as Postfx from "@hedronite/lts-postfx/three";
 import { isPrimitiveId, primitive } from "@hedronite/lts-primitives";
-import { applyStudioLightsPalette, createStudioLights, disposeObject } from "@hedronite/lts-primitives/three";
+import { applyStudioLightsPalette, createStudioLights, disposeObject, findStudioLight } from "@hedronite/lts-primitives/three";
 import { loadDescriptors } from "@hedronite/lts-registry";
 import { isEffectId } from "@hedronite/lts-shaders";
 import type { EffectClock, EffectHandle } from "@hedronite/lts-shaders/three";
@@ -570,9 +570,8 @@ export function createScene(initial: SceneDocument, options: SceneOptions = {}):
     const full = cfg !== undefined && cfg.quality !== "lite";
     const shadowsOn = full && cfg.shadows?.enabled === true;
     const catcherOn = shadowsOn && cfg.shadows?.catcher === true;
-    shadowsActive = shadowsOn;
 
-    const key = lights?.getObjectByName("key");
+    const key = lights === undefined ? undefined : findStudioLight(lights, "key");
     if (key instanceof DirectionalLight) {
       key.castShadow = shadowsOn;
       if (shadowsOn) {
@@ -586,10 +585,11 @@ export function createScene(initial: SceneDocument, options: SceneOptions = {}):
         key.shadow.bias = -0.0005;
         key.shadow.normalBias = 0.02;
         key.shadow.radius = 3;
-      } else {
+      } else if (shadowsActive) {
         key.dispose();
       }
     }
+    shadowsActive = shadowsOn;
 
     for (const slot of slots.values()) {
       if (slot.built !== undefined) setMeshShadows(slot.built.object, shadowsOn);
