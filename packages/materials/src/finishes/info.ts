@@ -1,5 +1,6 @@
 import { parameterFields, type ParameterField } from "@hedronite/lts-core";
 import { z } from "zod";
+import { type MaterialId } from "../presets.js";
 
 const direction = z.number().min(0).max(360).default(0);
 /** Noise feature size in surface units; higher is finer detail. */
@@ -34,18 +35,21 @@ export interface FinishMeta {
   readonly id: FinishId;
   readonly name: string;
   readonly tags: readonly string[];
+  /** Target material presets; catalog and R8 use the first entry. */
+  readonly presets: readonly MaterialId[];
 }
 
 export const finishList: readonly FinishMeta[] = [
-  { id: "brushed", name: "Brushed", tags: ["metal", "anisotropic"] },
-  { id: "weave", name: "Weave", tags: ["cloth", "normal"] },
-  { id: "grain", name: "Grain", tags: ["wood", "roughness"] },
-  { id: "orange-peel", name: "Orange peel", tags: ["paint", "normal"] },
-  { id: "frost", name: "Frost", tags: ["glass", "roughness"] },
+  { id: "brushed", name: "Brushed", tags: ["metal", "anisotropic"], presets: ["metal", "metal-brushed"] },
+  { id: "weave", name: "Weave", tags: ["cloth", "normal"], presets: ["fabric", "satin"] },
+  { id: "grain", name: "Grain", tags: ["wood", "roughness"], presets: ["satin", "matte"] },
+  { id: "orange-peel", name: "Orange peel", tags: ["paint", "normal"], presets: ["clearcoat", "ceramic"] },
+  { id: "frost", name: "Frost", tags: ["glass", "roughness"], presets: ["glass", "glass-frosted"] },
 ];
 
 export interface FinishDescriptorData {
   readonly meta: FinishMeta;
+  readonly presets: readonly MaterialId[];
   readonly parameters: (typeof finishSchemas)[FinishId];
   readonly fields: readonly ParameterField[];
   readonly defaults: Readonly<Record<string, unknown>>;
@@ -57,6 +61,7 @@ export function finishDescriptors(): readonly FinishDescriptorData[] {
     const parameters = finishSchemas[meta.id];
     return {
       meta,
+      presets: meta.presets,
       parameters,
       fields: parameterFields(parameters),
       defaults: Object.freeze({ ...parameters.parse({}) }),

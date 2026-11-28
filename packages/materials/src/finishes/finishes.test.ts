@@ -32,6 +32,20 @@ describe("finish descriptors", () => {
     expect(finishDescriptor("weave").defaults).toEqual({ scale: 16, strength: 0.72, direction: 0 });
   });
 
+  it("declares at least one real material preset per finish", () => {
+    for (const descriptor of finishDescriptors()) {
+      expect(descriptor.presets.length).toBeGreaterThan(0);
+      for (const presetId of descriptor.presets) {
+        expect(materialIds).toContain(presetId);
+      }
+    }
+    expect(finishDescriptor("brushed").presets[0]).toBe("metal");
+    expect(finishDescriptor("frost").presets[0]).toBe("glass");
+    expect(finishDescriptor("grain").presets[0]).toBe("satin");
+    expect(finishDescriptor("orange-peel").presets[0]).toBe("clearcoat");
+    expect(finishDescriptor("weave").presets[0]).toBe("fabric");
+  });
+
   it("refuses out-of-range parameters", () => {
     expect(() => finishSchemas.brushed.parse({ scale: 0.25 })).toThrow(z.ZodError);
     expect(() => finishSchemas["orange-peel"].parse({ strength: 1.2 })).toThrow(z.ZodError);
