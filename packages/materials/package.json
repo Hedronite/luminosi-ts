@@ -21,6 +21,10 @@
     "./descriptors": {
       "types": "./dist/descriptors.d.ts",
       "import": "./dist/descriptors.js"
+    },
+    "./finished": {
+      "types": "./dist/finished.d.ts",
+      "import": "./dist/finished.js"
     }
   },
   "files": [
@@ -42,6 +46,7 @@
   "devDependencies": {
     "@types/three": "catalog:",
     "three": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "@types/node": "24.19.2"
   }
 }
