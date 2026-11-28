@@ -2,8 +2,8 @@ import type { AssetKind, Credit } from "@hedronite/lts-core";
 import type { z } from "zod";
 import { propertyOf, type Scene, type SceneIssue } from "./schema.js";
 
-/** What a reference can point at. Looks are named by id like the rest, though a look takes no parameters. */
-export type RefKind = Extract<AssetKind, "primitive" | "object" | "material" | "shader" | "effect"> | "look";
+/** What a reference can point at. Looks are named by id like the rest, though a look takes no parameters. Finishes are resolved by the caller's registry. */
+export type RefKind = Extract<AssetKind, "primitive" | "object" | "material" | "shader" | "effect"> | "look" | "finish";
 
 /**
  * What the caller knows about one id: the schema of the parameters it takes, and its credit when it has one. A registry's
@@ -76,6 +76,9 @@ export function checkRefs(scene: Scene, resolve: Resolve): readonly SceneIssue[]
     } else if (surface !== undefined) {
       const [which, id] = "material" in surface ? (["material", surface.material] as const) : (["shader", surface.shader] as const);
       checkParams(known(which, id, [...at, "surface", which]), surface.params, [...at, "surface", "params"]);
+      if ("material" in surface && surface.finish !== undefined) {
+        checkParams(known("finish", surface.finish.id, [...at, "surface", "finish", "id"]), surface.finish.params, [...at, "surface", "finish", "params"]);
+      }
     }
   });
 
@@ -110,6 +113,16 @@ export function checkRefs(scene: Scene, resolve: Resolve): readonly SceneIssue[]
       const surface = node?.surface;
       if (surface === undefined) return;
       const [which, id] = "material" in surface ? (["material", surface.material] as const) : (["shader", surface.shader] as const);
+      if (track.target.includes(".surface.finish.params.")) {
+        const finish = "material" in surface ? surface.finish : undefined;
+        if (finish === undefined) add(at, "bad-target", `the node "${target.node}" has no finish, so it has no finish parameters`);
+        else {
+          const found = known("finish", finish.id, at);
+          const names = found?.parameters === undefined ? [] : Object.keys(found.parameters.shape);
+          if (found?.parameters !== undefined && !names.includes(target.param)) add(at, "unknown-param", `"${target.param}" is not a parameter of finish "${finish.id}"${names.length === 0 ? " (it has none)" : `; it has ${names.join(", ")}`}`);
+        }
+        return;
+      }
       const found = known(which, id, [...at]);
       const names = found?.parameters === undefined ? [] : Object.keys(found.parameters.shape);
       if (found?.parameters !== undefined && !names.includes(target.param)) add(at, "unknown-param", `"${target.param}" is not a parameter of "${id}"${names.length === 0 ? " (it has none)" : `; it has ${names.join(", ")}`}`);

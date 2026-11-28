@@ -1,12 +1,12 @@
 {
   "shards": 6,
   "longestSeconds": 82,
-  "mean": 255.3,
+  "mean": 258.3,
   "slowest": 317,
   "plan": [
     {
       "shard": 1,
-      "seconds": 231.5,
+      "seconds": 237.6,
       "locations": [
         "e2e/catalog.spec.ts:118",
         "e2e/catalog.spec.ts:231",
@@ -41,7 +41,8 @@
         "e2e/a11y.spec.ts:319",
         "e2e/a11y.spec.ts:404",
         "e2e/a11y.spec.ts:452",
-        "e2e/a11y.spec.ts:475"
+        "e2e/a11y.spec.ts:475",
+        "e2e/finishes.spec.ts:42"
       ]
     },
     {
@@ -158,7 +159,7 @@
     },
     {
       "shard": 5,
-      "seconds": 230.6,
+      "seconds": 242.8,
       "locations": [
         "e2e/catalog.spec.ts:223",
         "e2e/effects.spec.ts:168",
@@ -193,7 +194,9 @@
         "e2e/a11y.spec.ts:291",
         "e2e/a11y.spec.ts:368",
         "e2e/a11y.spec.ts:426",
-        "e2e/a11y.spec.ts:459"
+        "e2e/a11y.spec.ts:459",
+        "e2e/finishes.spec.ts:19",
+        "e2e/finishes.spec.ts:9"
       ]
     },
     {

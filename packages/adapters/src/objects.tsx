@@ -1,4 +1,4 @@
-import { materialPreset, type MaterialId } from "@hedronite/lts-materials";
+import { materialPreset, type FinishId, type FinishParams, type MaterialId } from "@hedronite/lts-materials";
 import { applyPalette, createMaterial } from "@hedronite/lts-materials/three";
 import { type EffectId } from "@hedronite/lts-shaders";
 import { createFramedSolid } from "@hedronite/lts-objects/three";
@@ -9,6 +9,7 @@ import { useThree, type ThreeElements } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Object3D } from "three";
 import { useEffectMaterial, type ShaderParams } from "./effectMaterial.js";
+import { useFinishedMaterial } from "./finishedMaterial.js";
 
 type GroupProps = Omit<ThreeElements["group"], "args" | "children" | "ref" | "object">;
 
@@ -22,6 +23,9 @@ export interface FramedSolidProps extends GroupProps {
   readonly shaderParams?: ShaderParams;
   /** The edges' material, tinted with the scene's accent color. Default "metal" (copper in the Hedronite look). */
   readonly edges?: MaterialId;
+  /** A procedural finish on the faces. Loads on demand. Ignored with `shader`. */
+  readonly finish?: FinishId;
+  readonly finishParams?: FinishParams<FinishId>;
   readonly palette?: ScenePalette;
 }
 
@@ -31,12 +35,13 @@ export function accentPalette(palette: ScenePalette, material: MaterialId): Scen
 }
 
 /** A framed solid (faces, edge tubes, vertex beads), as on hedronite.com. Owns and frees what it builds. */
-export function FramedSolid({ primitive: id, faces = "glass", shader, shaderParams, edges = "metal", palette = neutral.scene, ...props }: FramedSolidProps) {
+export function FramedSolid({ primitive: id, faces = "glass", shader, shaderParams, finish, finishParams, edges = "metal", palette = neutral.scene, ...props }: FramedSolidProps) {
   const effect = useEffectMaterial(shader, palette, shaderParams);
+  const finished = useFinishedMaterial(faces, palette, shader === undefined ? finish : undefined, finishParams);
   const invalidate = useThree((state) => state.invalidate);
   // A change of look recolors the faces, edges and beads in place (below); it builds none of them again.
   // eslint-disable-next-line react-hooks/exhaustive-deps -- the palette the faces are built in is written again by the effect below
-  const surface = useMemo(() => (shader === undefined ? createMaterial(faces, palette) : effect), [shader, faces, effect]);
+  const surface = useMemo(() => (shader !== undefined ? effect : finish !== undefined ? finished : createMaterial(faces, palette)), [shader, faces, finish, effect, finished]);
   const object = useMemo(
     () => (surface === undefined ? undefined : createFramedSolid(primitive(id), { faces: surface, edges: createMaterial(edges, palette, (look) => accentPalette(look, edges)) })),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- as above: the edges follow the look through the effect below

@@ -1,6 +1,6 @@
 import { ROOM_SPECS, type RoomColorExpr, type RoomColorToken } from "../rooms.js";
 import type { Scene, SceneNode } from "../schema.js";
-import { assetScale, creditExport, creditHeader, forest, hasMotion, importLine, literal, lookSource, motionSource, names, num, type Entry, type EmitOptions } from "./common.js";
+import { assetScale, creditExport, creditHeader, forest, hasMotion, importLine, literal, lookSource, motionSource, names, num, usesFinish, type Entry, type EmitOptions } from "./common.js";
 
 const isShader = (node: SceneNode): boolean => node.surface !== undefined && "shader" in node.surface;
 
@@ -8,6 +8,9 @@ const isShader = (node: SceneNode): boolean => node.surface !== undefined && "sh
 function faces(node: SceneNode, fallback: string): string {
   const { surface } = node;
   if (surface !== undefined && "shader" in surface) return `createEffect(${JSON.stringify(surface.shader)}, ${literal(surface.params ?? {})}, palette, options.clock === undefined ? {} : { clock: options.clock }).material`;
+  if (surface !== undefined && "material" in surface && surface.finish !== undefined) {
+    return `createFinishedMaterial(${JSON.stringify(surface.material)}, ${JSON.stringify(surface.finish.id)}, ${literal(surface.finish.params ?? {})}, palette).material`;
+  }
   return `createMaterial(${JSON.stringify(surface === undefined ? fallback : surface.material)}, palette)`;
 }
 
@@ -198,6 +201,7 @@ export function toVanilla(scene: Scene, options: EmitOptions = {}): string {
   const framed = drawn.some(({ asset }) => asset.kind === "framed");
   const objects = drawn.some(({ asset }) => asset.kind === "object");
   const shaders = drawn.some(isShader);
+  const finishes = usesFinish(scene);
   const materials = drawn.some((node) => node.asset.kind === "framed" || (node.asset.kind === "primitive" && !isShader(node)));
   const effects = scene.effects.length > 0;
   const stage = scene.stage;
@@ -228,6 +232,7 @@ export function toVanilla(scene: Scene, options: EmitOptions = {}): string {
     ...creditHeader(credits),
     ...(framed ? [importLine("{ materialPreset }", "@hedronite/lts-materials")] : []),
     ...(materials ? [importLine("{ createMaterial }", "@hedronite/lts-materials/three")] : []),
+    ...(finishes ? [importLine("{ createFinishedMaterial }", "@hedronite/lts-materials/finished")] : []),
     ...(objects ? [importLine("{ descriptors }", "@hedronite/lts-objects/descriptors")] : []),
     ...(framed ? [importLine("{ createFramedSolid }", "@hedronite/lts-objects/three")] : []),
     ...(effects ? [importLine("{ screenEffectSchemas }", "@hedronite/lts-postfx")] : []),

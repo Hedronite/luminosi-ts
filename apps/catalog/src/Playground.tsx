@@ -1,10 +1,10 @@
 import { EffectClockProvider, Scene } from "@hedronite/lts-adapters";
 import { WebGPUCanvas } from "@hedronite/lts-adapters/webgpu";
 import { Close } from "@hedronite/lts-icons/react";
-import { isMaterialId, materialIds, materialPreset, type MaterialId } from "@hedronite/lts-materials";
+import { isFinishId, isMaterialId, materialIds, materialPreset, type FinishId, type MaterialId } from "@hedronite/lts-materials";
 import { isScreenEffectId, screenEffectIds, screenEffectInfo } from "@hedronite/lts-postfx";
 import { isPrimitiveId, primitiveIds, primitiveInfo, type PrimitiveId } from "@hedronite/lts-primitives";
-import { addNode, canRedo, canUndo, createHistory, encodeScene, endGesture, push, redo, removeNode, ringLayout, setEffects, setEnvironment, setInk, setLights, setStage, setTransform, SHARE_LIMITS, undo, type InkMode, type Scene as SceneDocument, type SceneHistory, type SceneIssue, type SceneNode, type SceneResult } from "@hedronite/lts-scene";
+import { addNode, canRedo, canUndo, createHistory, encodeScene, endGesture, push, redo, removeNode, ringLayout, setEffects, setEnvironment, setInk, setLights, setStage, setSurface, setTransform, SHARE_LIMITS, undo, type InkMode, type Scene as SceneDocument, type SceneHistory, type SceneIssue, type SceneNode, type SceneResult, type SceneSurface } from "@hedronite/lts-scene";
 import { toCanonicalJson, toTsx, toVanilla } from "@hedronite/lts-scene/emit";
 import { effectIds, effectInfo, isEffectId, type EffectId } from "@hedronite/lts-shaders";
 import { presets } from "@hedronite/lts-tokens";
@@ -20,6 +20,7 @@ import { usePlaceable, type Placeable } from "./placeable";
 import { Controls, GpuCounts, StageClock, StageFrame, StageHold, useMotion } from "./scene";
 import { describeIssue, fileNameFor, linkFor, openFile, openLink, sceneParam, stemOf, type Opened } from "./sceneFile";
 import { useShaderClock } from "./shaderClock";
+import { FinishControls, finishForNode, type FinishChoice } from "./FinishControls";
 import { StageControls } from "./StageControls";
 import { TrackPanel } from "./tracks/TrackPanel";
 import { TransformPanel } from "./TransformPanel";
@@ -38,6 +39,8 @@ function RedrawOnLook({ lookId }: { readonly lookId: string }) {
 }
 
 const MAX_NODES = 8;
+
+const r8Query = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("r8") === "1";
 
 /** One thing to add: a primitive in a material or a surface shader, a framed solid (its faces in either), or a library object. */
 type Item =
@@ -177,10 +180,14 @@ export function Playground() {
   // The node whose transform is being edited: by id, so it follows the document through an undo, and is none once the document has no such node.
   const [selected, setSelected] = useState<string | undefined>(undefined);
   const selectedNode = doc.nodes.find((node) => node.id === selected) ?? null;
+  const [finishHint, setFinishHint] = useState<string | undefined>(undefined);
   // The name a saved file takes: the one that was opened, or "scene".
   const [name, setName] = useState("scene");
   // A link in the address opens its document in place of the starter, once.
   const [link] = useState(() => sceneParam(window.location.search));
+  useEffect(() => {
+    if (r8Query) void import("./r8Probe").then((module) => module.installR8Probe());
+  }, []);
   const [kind, setKind] = useState<AddKind>("primitive");
   const [primitive, setPrimitive] = useState<PrimitiveId>("platonic-dodecahedron");
   const [material, setMaterial] = useState<MaterialId>("ceramic");
@@ -538,6 +545,37 @@ export function Playground() {
               setHistory(endGesture);
             }}
           />
+
+          {selectedNode?.surface !== undefined && "material" in selectedNode.surface ? (
+            <FinishControls
+              material={isMaterialId(selectedNode.surface.material) ? selectedNode.surface.material : "satin"}
+              value={
+                selectedNode.surface.finish === undefined || !isFinishId(selectedNode.surface.finish.id)
+                  ? undefined
+                  : ({
+                      id: selectedNode.surface.finish.id,
+                      params: selectedNode.surface.finish.params ?? {},
+                    } as FinishChoice)
+              }
+              {...(finishHint === undefined ? {} : { hint: finishHint })}
+              onChange={(choice) => {
+                if (selectedNode === null || selectedNode.surface === undefined || !("material" in selectedNode.surface)) return;
+                const material = isMaterialId(selectedNode.surface.material) ? selectedNode.surface.material : "satin";
+                const applied = finishForNode(material, choice);
+                setFinishHint(applied.hint);
+                const surface =
+                  applied.finish === undefined
+                    ? { material: applied.material, ...(selectedNode.surface.params === undefined ? {} : { params: selectedNode.surface.params }) }
+                    : {
+                        material: applied.material,
+                        finish: { id: applied.finish.id, params: { ...applied.finish.params } },
+                        ...(selectedNode.surface.params === undefined ? {} : { params: selectedNode.surface.params }),
+                      };
+                if (applied.finish !== undefined && !isFinishId(applied.finish.id)) return;
+                commit(setSurface(doc, selectedNode.id, surface as unknown as SceneSurface), applied.finish === undefined ? "surface.finish" : `surface.finish.${applied.finish.id}`);
+              }}
+            />
+          ) : null}
 
           <fieldset className="flex flex-col gap-1.5">
             <legend className="mb-1 text-sm font-medium">Screen effects</legend>

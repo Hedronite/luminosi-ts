@@ -127,6 +127,10 @@ export function creditExport(credits: readonly Credit[]): readonly string[] {
 /** Whether a document has motion to emit: a track, and with it the player both emitters carry. */
 export const hasMotion = (scene: Scene): boolean => scene.tracks.length > 0;
 
+/** Whether any node wears a procedural finish (the finished builder loads only then). */
+export const usesFinish = (scene: Scene): boolean =>
+  scene.nodes.some((node) => node.surface !== undefined && "material" in node.surface && node.surface.finish !== undefined);
+
 /**
  * The document's motion as source: the tracks, the clips and the rest pose as data, and a player with the same
  * semantics as the package's own runtime — the same easing tokens, the same drivers and triggers, and the rest pose

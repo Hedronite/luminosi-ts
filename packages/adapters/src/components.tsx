@@ -1,4 +1,4 @@
-import { type MaterialId } from "@hedronite/lts-materials";
+import { type FinishId, type FinishParams, type MaterialId } from "@hedronite/lts-materials";
 import { applyPalette, createMaterial } from "@hedronite/lts-materials/three";
 import { type EffectId } from "@hedronite/lts-shaders";
 import { crystalCluster, latticePoints, type ClusterOptions, type LatticeOptions } from "@hedronite/lts-objects";
@@ -10,6 +10,7 @@ import { useThree, type ThreeElements } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
 import { Light } from "three";
 import { useEffectMaterial, type ShaderParams } from "./effectMaterial.js";
+import { useFinishedMaterial } from "./finishedMaterial.js";
 
 type GroupProps = Omit<ThreeElements["group"], "args" | "children" | "ref" | "object">;
 
@@ -21,24 +22,29 @@ export interface PrimitiveMeshProps extends Omit<ThreeElements["mesh"], "args" |
   readonly shader?: EffectId;
   /** The shader's parameters, by name. A change moves the shader live, with no new material (a structural one, such as toon's `bands`, builds it again). Ignored without `shader`. */
   readonly shaderParams?: ShaderParams;
+  /** A procedural finish over the preset. Loads on demand. Ignored with `shader`. */
+  readonly finish?: FinishId;
+  /** The finish's parameters, by name. A change moves the finish live. Ignored without `finish`. */
+  readonly finishParams?: FinishParams<FinishId>;
   /** Scene colors. Default: the neutral token preset. */
   readonly palette?: ScenePalette;
 }
 
 /** A primitive with a preset material. Owns both, and frees them when they change or it unmounts. */
-export function PrimitiveMesh({ primitive: id, material = "satin", shader, shaderParams, palette = neutral.scene, ...props }: PrimitiveMeshProps) {
+export function PrimitiveMesh({ primitive: id, material = "satin", shader, shaderParams, finish, finishParams, palette = neutral.scene, ...props }: PrimitiveMeshProps) {
   const geometry = useMemo(() => createPolyhedronGeometry(primitive(id), id), [id]);
   const invalidate = useThree((state) => state.invalidate);
+  const finished = useFinishedMaterial(material, palette, shader === undefined ? finish : undefined, finishParams);
   // A change of look recolors this material in place (below): it is built once per preset, not once per look.
   // eslint-disable-next-line react-hooks/exhaustive-deps -- the palette it is built in is written again by the effect below
-  const preset = useMemo(() => (shader === undefined ? createMaterial(material, palette) : undefined), [material, shader]);
+  const preset = useMemo(() => (shader === undefined && finish === undefined ? createMaterial(material, palette) : undefined), [material, shader, finish]);
   useEffect(() => {
     if (preset === undefined) return;
     applyPalette(preset, palette);
     invalidate();
   }, [preset, palette, invalidate]);
   const effect = useEffectMaterial(shader, palette, shaderParams);
-  const surface = shader === undefined ? preset : effect;
+  const surface = shader !== undefined ? effect : finish !== undefined ? finished : preset;
   useEffect(
     () => () => {
       geometry.dispose();

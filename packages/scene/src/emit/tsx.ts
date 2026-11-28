@@ -10,7 +10,12 @@ function assetAttributes(node: SceneNode): readonly string[] {
   const surfaceAttributes = (face: "material" | "faces"): string[] => {
     if (surface === undefined) return [];
     const shaderParams = surface.params === undefined ? [] : [`shaderParams={${literal(surface.params)}}`];
-    return "shader" in surface ? [`shader=${text(surface.shader)}`, ...shaderParams] : [`${face}=${text(surface.material)}`];
+    if ("shader" in surface) return [`shader=${text(surface.shader)}`, ...shaderParams];
+    const finishAttrs =
+      surface.finish === undefined
+        ? []
+        : [`finish=${text(surface.finish.id)}`, ...(surface.finish.params === undefined ? [] : [`finishParams={${literal(surface.finish.params)}}`])];
+    return [`${face}=${text(surface.material)}`, ...finishAttrs];
   };
   switch (asset.kind) {
     case "primitive":

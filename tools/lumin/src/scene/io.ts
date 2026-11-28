@@ -3,7 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { closeSync, constants, lstatSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import { loadDescriptors } from "@hedronite/lts-registry";
+import { finishDescriptor, finishIds, isFinishId, loadDescriptors } from "@hedronite/lts-registry";
 import { assetCredit, checkRefs, lookCredit, migrate, SCENE_VERSION, SHARE_LIMITS, type RefKind, type Resolve, type Scene } from "@hedronite/lts-scene";
 import { presets } from "@hedronite/lts-tokens";
 import { distance } from "../commands.js";
@@ -251,6 +251,7 @@ const KIND_OF: Readonly<Record<string, RefKind>> = {
   "unknown-shader": "shader",
   "unknown-effect": "effect",
   "unknown-look": "look",
+  "unknown-finish": "finish",
 };
 
 /** The candidates nearest in spelling to `id`, nearest first: a few edits away, or one holding the other. */
@@ -424,12 +425,16 @@ export async function nodeContext(): Promise<Context> {
         const credit = lookCredit(id);
         return looks.includes(id) ? (credit === undefined ? {} : { credit }) : undefined;
       }
+      if (kind === "finish") {
+        if (!isFinishId(id)) return undefined;
+        return { parameters: finishDescriptor(id).parameters };
+      }
       const descriptor = registry.get(id);
       if (descriptor?.meta.kind !== kind) return undefined;
       const credit = assetCredit(descriptor.meta);
       return credit === undefined ? descriptor : { parameters: descriptor.parameters, credit };
     },
-    ids: (kind) => (kind === "look" ? looks : registry.list().filter((descriptor) => descriptor.meta.kind === kind).map((descriptor) => descriptor.meta.id)),
+    ids: (kind) => (kind === "look" ? looks : kind === "finish" ? [...finishIds] : registry.list().filter((descriptor) => descriptor.meta.kind === kind).map((descriptor) => descriptor.meta.id)),
     files: diskFiles,
     stdin: readStdin,
   };

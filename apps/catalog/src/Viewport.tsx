@@ -1,4 +1,5 @@
 import type { AssetMeta } from "@hedronite/lts-core";
+import { isMaterialId } from "@hedronite/lts-materials";
 import { ScreenEffectsPass, WebGPUCanvas, WebGPUEnvironment, WebGPUStage } from "@hedronite/lts-adapters/webgpu";
 import { applyPalette } from "@hedronite/lts-materials/three";
 import { hasStagePostfx } from "@hedronite/lts-postfx";
@@ -10,6 +11,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Object3D } from "three";
 import { noteEffectTargets } from "./builds";
 import { Controls, GpuCounts, StageFrame, useMotion } from "./scene";
+import { defaultFinishParams, FinishControls, type FinishChoice } from "./FinishControls";
 import { StageControls } from "./StageControls";
 import { buildSubject } from "./subjects";
 
@@ -22,7 +24,19 @@ function Lights() {
  * The asset's object, built on mount and freed on unmount, and built again when its parameters change (the old one stays on
  * show until the new one is ready, then is freed). Recolored in place when the look changes: a kit's lights and materials too.
  */
-function Subject({ meta, palette, params, onObject }: { readonly meta: AssetMeta; readonly palette: ScenePalette; readonly params: Readonly<Record<string, unknown>>; readonly onObject: (object: Object3D) => void }) {
+function Subject({
+  meta,
+  palette,
+  params,
+  finish,
+  onObject,
+}: {
+  readonly meta: AssetMeta;
+  readonly palette: ScenePalette;
+  readonly params: Readonly<Record<string, unknown>>;
+  readonly finish: FinishChoice | undefined;
+  readonly onObject: (object: Object3D) => void;
+}) {
   const invalidate = useThree((state) => state.invalidate);
   const [object, setObject] = useState<Object3D | undefined>(undefined);
   // The look a build starts from is the latest one, and so are the parameters (the build below is keyed by their text).
@@ -32,10 +46,21 @@ function Subject({ meta, palette, params, onObject }: { readonly meta: AssetMeta
     look.current = palette;
     latest.current = params;
   });
-  const key = JSON.stringify(params);
+  const key = JSON.stringify([params, finish]);
   useEffect(() => {
     const controller = new AbortController();
-    buildSubject(meta, look.current, controller.signal, latest.current).then(
+    const run = async (): Promise<Object3D | undefined> => {
+      if (meta.kind === "material" && isMaterialId(meta.id) && finish !== undefined) {
+        const { createFinishedMaterial } = await import("@hedronite/lts-materials/finished");
+        const { SphereGeometry, Mesh } = await import("three");
+        if (controller.signal.aborted) return undefined;
+        const handle = createFinishedMaterial(meta.id, finish.id, finish.params as never, look.current);
+        const geometry = new SphereGeometry(0.95, 64, 32);
+        return new Mesh(geometry, handle.material);
+      }
+      return buildSubject(meta, look.current, controller.signal, latest.current);
+    };
+    run().then(
       (result) => {
         if (result === undefined) return;
         if (controller.signal.aborted) {
@@ -68,6 +93,16 @@ function Subject({ meta, palette, params, onObject }: { readonly meta: AssetMeta
   const isKit = meta.kind === "scene";
   useEffect(() => {
     if (object === undefined) return undefined;
+    if (finish !== undefined && meta.kind === "material") {
+      void import("@hedronite/lts-materials/finished").then(({ applyFinishPalette }) => {
+        if (!current) return;
+        applyFinishPalette(object, palette);
+        invalidate();
+      });
+      return () => {
+        current = false;
+      };
+    }
     if (!isKit) {
       applyPalette(object, palette);
       invalidate();
@@ -104,6 +139,7 @@ const DISTANCE = 3.4;
  * for the room it stands in and its stage quality under it. Renders only when something changes.
  */
 export function Viewport({ meta, palette, params }: { readonly meta: AssetMeta; readonly palette: ScenePalette; readonly params: Readonly<Record<string, unknown>> }) {
+  const [finish, setFinish] = useState<FinishChoice | undefined>(undefined);
   // Renders only on change, so nothing here moves on its own.
   const group = useRef<HTMLDivElement>(null);
   const motion = useMotion(false);
@@ -128,13 +164,22 @@ export function Viewport({ meta, palette, params }: { readonly meta: AssetMeta; 
           <WebGPUEnvironment kind={environment.kind} />
           {meta.kind === "scene" ? null : <Lights />}
           <Controls keys={group} />
-          <Subject key={meta.id} meta={meta} palette={palette} params={params} onObject={setArrived} />
+          <Subject key={meta.id} meta={meta} palette={palette} params={params} finish={meta.kind === "material" ? finish : undefined} onObject={setArrived} />
           <WebGPUStage stage={staged} palette={palette} />
           {postfx ? <ScreenEffectsPass stage={stage} palette={palette} onPipeline={noteTargets} /> : null}
           <GpuCounts target={group} screenEffects={postfx} />
         </WebGPUCanvas>
       </StageFrame>
       <div className="border-t border-line bg-surface p-4">
+        {meta.kind === "material" && isMaterialId(meta.id) ? (
+          <FinishControls
+            material={meta.id}
+            value={finish}
+            onChange={(next) => {
+              setFinish(next === undefined ? undefined : { id: next.id, params: next.params ?? defaultFinishParams(next.id) });
+            }}
+          />
+        ) : null}
         <StageControls
           environment={environment}
           stage={stage}

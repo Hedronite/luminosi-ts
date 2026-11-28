@@ -32,8 +32,13 @@ const asset = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("object"), id: assetId, params: params.optional() }),
 ]);
 
-/** What a node's surface is made of: a material or a surface shader, never both. An object brings its own and has none. */
-const surface = z.union([z.strictObject({ material: assetId, params: params.optional() }), z.strictObject({ shader: assetId, params: params.optional() })]);
+const finishRef = z.strictObject({ id: assetId, params: params.optional() });
+
+/** What a node's surface is made of: a material or a surface shader, never both. An object brings its own and has none. A material may wear a procedural finish. */
+const surface = z.union([
+  z.strictObject({ material: assetId, params: params.optional(), finish: finishRef.optional() }),
+  z.strictObject({ shader: assetId, params: params.optional() }),
+]);
 
 /**
  * The properties a track may drive, and the kind of value each takes. A path names one of them, and nothing else: a node's
@@ -58,6 +63,7 @@ export interface Property {
 
 const TRANSFORM = /^node\.([A-Za-z0-9_][A-Za-z0-9_-]*)\.(position|rotation|scale)$/;
 const NODE_PARAM = /^node\.([A-Za-z0-9_][A-Za-z0-9_-]*)\.surface\.params\.([A-Za-z0-9_][A-Za-z0-9_-]*)$/;
+const NODE_FINISH_PARAM = /^node\.([A-Za-z0-9_][A-Za-z0-9_-]*)\.surface\.finish\.params\.([A-Za-z0-9_][A-Za-z0-9_-]*)$/;
 const EFFECT_PARAM = /^effect\.([a-z0-9]+(?:-[a-z0-9]+)*)\.params\.([A-Za-z0-9_][A-Za-z0-9_-]*)$/;
 
 /** What a property path names, or nothing when it names no property a track may drive. */
@@ -66,6 +72,8 @@ export function propertyOf(target: string): Property | undefined {
   if (transform !== null) return { kind: "vec3", node: transform[1] ?? "" };
   const nodeParam = NODE_PARAM.exec(target);
   if (nodeParam !== null) return { kind: "param", node: nodeParam[1] ?? "", param: nodeParam[2] ?? "" };
+  const finishParam = NODE_FINISH_PARAM.exec(target);
+  if (finishParam !== null) return { kind: "param", node: finishParam[1] ?? "", param: finishParam[2] ?? "" };
   const effectParam = EFFECT_PARAM.exec(target);
   if (effectParam !== null) return { kind: "param", effect: effectParam[1] ?? "", param: effectParam[2] ?? "" };
   if (target === "camera.position" || target === "camera.target") return { kind: "vec3" };
@@ -280,7 +288,7 @@ export function structureIssues(scene: Scene): readonly SceneIssue[] {
       issues.push({
         path: targetPath,
         code: "bad-target",
-        message: `"${track.target}" names no property: a track drives node.<id>.position|rotation|scale, node.<id>.surface.params.<name>, effect.<id>.params.<name>, or camera.position|target|fov`,
+        message: `"${track.target}" names no property: a track drives node.<id>.position|rotation|scale, node.<id>.surface.params.<name>, node.<id>.surface.finish.params.<name>, effect.<id>.params.<name>, or camera.position|target|fov`,
       });
     } else if (property.node !== undefined && !nodes.has(property.node)) {
       issues.push({ path: targetPath, code: "bad-target", message: `no node has the id "${property.node}"` });

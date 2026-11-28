@@ -1,5 +1,6 @@
 import type { AssetDescriptor, DescriptorRegistry } from "@hedronite/lts-core";
-import { isMaterialId, materialPreset, type MaterialId } from "@hedronite/lts-materials";
+import { isFinishId, isMaterialId, materialPreset, type FinishId, type MaterialId } from "@hedronite/lts-materials";
+import type { FinishHandle } from "@hedronite/lts-materials/finished";
 import { applyPalette as paintMaterials, createMaterial } from "@hedronite/lts-materials/three";
 import { createFramedSolid } from "@hedronite/lts-objects/three";
 import { screenEffectSchemas, type ScreenEffectConfig } from "@hedronite/lts-postfx";
@@ -259,6 +260,7 @@ export interface SceneHandle {
 interface Built {
   readonly object: Object3D;
   readonly shader: EffectHandle | undefined;
+  readonly finish: FinishHandle | undefined;
   readonly recolor: (palette: ScenePalette) => void;
   readonly dispose: () => void;
 }
@@ -344,8 +346,20 @@ const isObject = (value: unknown): value is Object3D => value instanceof Object3
 
 const hasShader = (surface: SceneSurface | undefined): surface is Extract<SceneSurface, { shader: string }> => surface !== undefined && "shader" in surface;
 
-/** The parts of a node that cannot be written in place: its asset (a framed solid's edges included) and its surface, apart from a shader's parameters. */
-const buildKey = ({ asset, surface }: SceneNode): string => JSON.stringify([stable(asset), surface === undefined ? null : hasShader(surface) ? ["shader", surface.shader] : stable(surface)]);
+type MaterialSurface = Extract<SceneSurface, { material: string }>;
+
+const hasFinish = (surface: SceneSurface | undefined): surface is MaterialSurface & { readonly finish: { readonly id: FinishId; readonly params?: Readonly<Record<string, unknown>> } } =>
+  surface !== undefined && "material" in surface && surface.finish !== undefined;
+
+/** What must rebuild a node versus what may move in place (shader params, finish params). */
+const surfaceKey = (surface: SceneSurface): unknown => {
+  if (hasShader(surface)) return ["shader", surface.shader];
+  if (hasFinish(surface)) return ["material", surface.material, "finish", surface.finish.id, stable(surface.params ?? {})];
+  return stable(surface);
+};
+
+/** The parts of a node that cannot be written in place: its asset (a framed solid's edges included) and its surface, apart from a shader's or finish's parameters. */
+const buildKey = ({ asset, surface }: SceneNode): string => JSON.stringify([stable(asset), surface === undefined ? null : surfaceKey(surface)]);
 
 /** `value` with every object's keys in order, so two equal values give one text. */
 function stable(value: unknown): unknown {
@@ -381,6 +395,7 @@ function descriptorOf(registry: DescriptorRegistry, id: string): AssetDescriptor
 interface Surface {
   readonly material: Material;
   readonly shader: EffectHandle | undefined;
+  readonly finish: FinishHandle | undefined;
   readonly recolor: (palette: ScenePalette) => void;
   readonly dispose: () => void;
 }
@@ -391,11 +406,17 @@ async function makeSurface(surface: SceneSurface, palette: ScenePalette, clock: 
     if (!isEffectId(surface.shader)) throw new RangeError(`no surface shader "${surface.shader}"`);
     const { createEffect, applyPalette } = await import("@hedronite/lts-shaders/three");
     const effect = createEffect(surface.shader, surface.params ?? {}, palette, clock === undefined ? {} : { clock });
-    return { material: effect.material, shader: effect, recolor: (look) => { applyPalette(effect, look); }, dispose: () => { effect.dispose(); } };
+    return { material: effect.material, shader: effect, finish: undefined, recolor: (look) => { applyPalette(effect, look); }, dispose: () => { effect.dispose(); } };
   }
   if (!isMaterialId(surface.material)) throw new RangeError(`no material "${surface.material}"`);
+  if (hasFinish(surface)) {
+    if (!isFinishId(surface.finish.id)) throw new RangeError(`no finish "${surface.finish.id}"`);
+    const { createFinishedMaterial, applyFinishPalette } = await import("@hedronite/lts-materials/finished");
+    const handle = createFinishedMaterial(surface.material, surface.finish.id, (surface.finish.params ?? {}) as never, palette);
+    return { material: handle.material, shader: undefined, finish: handle, recolor: (look) => { applyFinishPalette(handle, look); }, dispose: () => { handle.dispose(); } };
+  }
   const material = createMaterial(surface.material, palette);
-  return { material, shader: undefined, recolor: (look) => { paintMaterials(material, look); }, dispose: () => { material.dispose(); } };
+  return { material, shader: undefined, finish: undefined, recolor: (look) => { paintMaterials(material, look); }, dispose: () => { material.dispose(); } };
 }
 
 /** Builds one node's object. Whatever it made is freed again if a later step fails or `signal` aborts. */
@@ -404,6 +425,7 @@ async function buildNode(node: SceneNode, palette: ScenePalette, registry: Descr
   const freed: (() => void)[] = [];
   const recolors: ((palette: ScenePalette) => void)[] = [];
   let shader: EffectHandle | undefined;
+  let finish: FinishHandle | undefined;
   try {
     let object: Object3D;
     if (asset.kind === "object") {
@@ -418,6 +440,7 @@ async function buildNode(node: SceneNode, palette: ScenePalette, registry: Descr
       const made = await makeSurface(surface ?? { material: "satin" }, palette, clock);
       freed.push(made.dispose);
       shader = made.shader;
+      finish = made.finish;
       recolors.push(made.recolor);
       object = new Mesh(geometry, made.material);
     } else {
@@ -427,6 +450,7 @@ async function buildNode(node: SceneNode, palette: ScenePalette, registry: Descr
       const faces = await makeSurface(surface ?? { material: "glass" }, palette, clock);
       freed.push(faces.dispose);
       shader = faces.shader;
+      finish = faces.finish;
       const edgesId = asset.edges.material;
       if (!isMaterialId(edgesId)) throw new RangeError(`no material "${edgesId}"`);
       const edges = createMaterial(edgesId, palette, (look) => accented(look, edgesId));
@@ -441,6 +465,7 @@ async function buildNode(node: SceneNode, palette: ScenePalette, registry: Descr
     return {
       object: built,
       shader,
+      finish,
       recolor: (look) => { for (const recolor of recolors) recolor(look); },
       dispose: () => {
         // The object's own geometry, materials and textures first; what was made beside it (a shader's handle) after.
@@ -718,6 +743,26 @@ export function createScene(initial: SceneDocument, options: SceneOptions = {}):
     return false;
   }
 
+  /** Finish parameters, written in place on the same node material where the finish allows. */
+  async function writeFinish(slot: Slot, previous: SceneNode, next: SceneNode): Promise<boolean> {
+    const handle = slot.built?.finish;
+    if (handle === undefined || !hasFinish(next.surface) || !hasFinish(previous.surface)) {
+      await rebuild(slot);
+      return false;
+    }
+    if (next.surface.material !== previous.surface.material || next.surface.finish.id !== previous.surface.finish.id) {
+      await rebuild(slot);
+      return false;
+    }
+    const { finishSchemas } = await import("@hedronite/lts-materials");
+    const defaults = finishSchemas[next.surface.finish.id].parse({});
+    const given = next.surface.finish.params ?? {};
+    const dropped = Object.keys(previous.surface.finish.params ?? {}).some((key) => !(key in given) && !(key in defaults));
+    if (!dropped && handle.set({ ...defaults, ...given } as never)) return true;
+    await rebuild(slot);
+    return false;
+  }
+
   function link(d: SceneDocument): void {
     for (const node of d.nodes) {
       const slot = slots.get(node.id);
@@ -750,7 +795,13 @@ export function createScene(initial: SceneDocument, options: SceneOptions = {}):
       const previous = slot.spec;
       slot.spec = node;
       if (buildKey(previous) !== buildKey(node)) work.push(rebuild(slot));
-      else if (hasShader(node.surface) && !sameValues(hasShader(previous.surface) ? previous.surface.params : undefined, node.surface.params)) work.push(writeShader(slot, previous, node).then(() => undefined));
+      else if (
+        hasFinish(node.surface) &&
+        hasFinish(previous.surface) &&
+        !sameValues(previous.surface.finish.params, node.surface.finish.params)
+      ) {
+        work.push(writeFinish(slot, previous, node).then(() => undefined));
+      } else if (hasShader(node.surface) && !sameValues(hasShader(previous.surface) ? previous.surface.params : undefined, node.surface.params)) work.push(writeShader(slot, previous, node).then(() => undefined));
     }
     link(next);
 

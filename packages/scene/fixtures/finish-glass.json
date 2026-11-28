@@ -1,0 +1,25 @@
+{
+  "format": "lts-scene",
+  "version": 2,
+  "look": "neutral",
+  "seed": 0,
+  "tracks": [],
+  "clips": [],
+  "rest": {},
+  "nodes": [
+    {
+      "id": "ball",
+      "parent": null,
+      "position": [0, 0, 0],
+      "rotation": [0.3, 0.5, 0],
+      "scale": [0.6, 0.6, 0.6],
+      "asset": { "kind": "primitive", "id": "platonic-icosahedron" },
+      "surface": { "material": "glass" }
+    }
+  ],
+  "lights": { "rig": "studio", "intensity": 1.25 },
+  "environment": { "kind": "studio" },
+  "camera": { "position": [0, 2.2, 5.5], "target": [0, 0, 0], "fov": 40 },
+  "effects": [],
+  "ink": "look"
+}
