@@ -4,7 +4,7 @@ import { isFinishId, type FinishId } from "@hedronite/lts-materials/finishes/ids
 import { isScreenEffectId, screenEffectIds, screenEffectInfo } from "@hedronite/lts-postfx";
 import { isPrimitiveId, primitiveIds, primitiveInfo, type PrimitiveId } from "@hedronite/lts-primitives";
 import { addNode, canRedo, canUndo, createHistory, encodeScene, endGesture, push, redo, removeNode, ringLayout, setEffects, setEnvironment, setInk, setLights, setStage, setSurface, setTransform, SHARE_LIMITS, undo, type InkMode, type Scene as SceneDocument, type SceneHistory, type SceneIssue, type SceneNode, type SceneResult, type SceneSurface } from "@hedronite/lts-scene";
-import { toCanonicalJson, toTsx, toVanilla } from "@hedronite/lts-scene/emit";
+import { toCanonicalJson } from "@hedronite/lts-scene/emit/json";
 import { effectIds, effectInfo, isEffectId, type EffectId } from "@hedronite/lts-shaders";
 import { presets } from "@hedronite/lts-tokens";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
@@ -191,13 +191,34 @@ export function Playground() {
   // The code carries the credits of the work it uses (the same list `lumin scene credits` gives). They load in a chunk of their own when this view opens, and
   // the React and vanilla code is not shown before they are here: code shown without them would leave out what it owes, and so would a copy of it.
   const credits = useCredits();
-  const exports = useMemo<readonly { readonly label: string; readonly code: string | undefined }[]>(() => {
-    const options = credits.status === "ready" ? { credits: credits.creditsOf(shown) } : undefined;
-    return [
-      { label: "JSON export", code: json },
-      { label: "React export", code: options === undefined ? undefined : toTsx(shown, options) },
-      { label: "Vanilla export", code: options === undefined ? undefined : toVanilla(shown, options) },
-    ];
+  const [codeExports, setCodeExports] = useState<readonly { readonly label: string; readonly code: string | undefined }[]>([
+    { label: "JSON export", code: json },
+    { label: "React export", code: undefined },
+    { label: "Vanilla export", code: undefined },
+  ]);
+  useEffect(() => {
+    setCodeExports((rows) => rows.map((row) => (row.label === "JSON export" ? { ...row, code: json } : row)));
+  }, [json]);
+  useEffect(() => {
+    let current = true;
+    if (credits.status !== "ready") {
+      setCodeExports((rows) => rows.map((row) => (row.label === "JSON export" ? row : { ...row, code: undefined })));
+      return () => {
+        current = false;
+      };
+    }
+    const options = { credits: credits.creditsOf(shown) };
+  void import("@hedronite/lts-scene/emit").then((emit) => {
+      if (!current) return;
+      setCodeExports([
+        { label: "JSON export", code: json },
+        { label: "React export", code: emit.toTsx(shown, options) },
+        { label: "Vanilla export", code: emit.toVanilla(shown, options) },
+      ]);
+    });
+    return () => {
+      current = false;
+    };
   }, [json, shown, credits]);
   // The link for what the exports show, made for exactly that text (a link made for an earlier edit is never offered); null when it would be too long for a link.
   const [shared, setShared] = useState<{ readonly json: string; readonly link: string | null } | undefined>(undefined);
@@ -674,7 +695,7 @@ export function Playground() {
               </Suspense>
             </StageFrame>
           </div>
-          {exports.map((snippet) => (
+          {codeExports.map((snippet) => (
             <section key={snippet.label} aria-label={snippet.label}>
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-medium">{snippet.label}</h3>

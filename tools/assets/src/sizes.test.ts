@@ -115,10 +115,11 @@ describe("measureBundles", () => {
   // The panel: a lazy chunk with a static import of its own, and one of the gallery's (react), which stays the gallery's.
   write("apps/catalog/dist/assets/ParameterPanel-x1Y2.js", 'import{r}from"./react.js";import{f}from"./paramFit-q9.js";const late=()=>import(`./late.js`);export{r,f,late};');
   write("apps/catalog/dist/assets/paramFit-q9.js", "export const f = 'what the panel and the detail view both read';");
-  write("apps/catalog/dist/assets/Playground-a1B2.js", 'import{t}from"./three.js";import{r}from"./react.js";import{v}from"./stage-view.js";const stage=()=>import(`./PlaygroundStage-x9Y8.js`);const credits=()=>import(`./credits-c3D4.js`);const pgExtra=()=>import(`./pg-extra.js`);export{t,r,v,stage,credits,pgExtra};');
+  write("apps/catalog/dist/assets/Playground-a1B2.js", 'import{t}from"./three.js";import{r}from"./react.js";import{v}from"./stage-view.js";const stage=()=>import(`./PlaygroundStage-x9Y8.js`);const credits=()=>import(`./credits-c3D4.js`);const pgExtra=()=>import(`./pg-extra.js`);const emit=()=>import(`./emit-q1.js`);export{t,r,v,stage,credits,pgExtra,emit};');
   write("apps/catalog/dist/assets/PlaygroundStage-x9Y8.js", 'import{v}from"./stage-view.js";import{t}from"./three.js";export const stage = { v, t, isWebGPURenderer: true };');
   write("apps/catalog/dist/assets/stage-view.js", "export const v = 'playground stage shell';");
   write("apps/catalog/dist/assets/pg-extra.js", "export const extra = 'a lazy chunk reached only via Playground';");
+  write("apps/catalog/dist/assets/emit-q1.js", "export const emit = 'playground export emitter';");
   write("apps/catalog/dist/assets/credits-c3D4.js", 'import{r}from"./main.js";export const c = r;');
   write("apps/catalog/dist/assets/embed.js", "export const e = 1;");
   // Left in dist by an older build and reached by nothing.
@@ -155,7 +156,7 @@ describe("measureBundles", () => {
 
   it("takes a lazy chunk's set by its name: the chunk and its static imports past the shell, no dynamic imports, none of the shell", () => {
     expect(names("catalog-panel")).toEqual(["ParameterPanel-x1Y2.js", "paramFit-q9.js"]);
-    expect(names("catalog-playground")).toEqual(["Playground-a1B2.js", "PlaygroundStage-x9Y8.js", "stage-view.js", "three.js"]);
+    expect(names("catalog-playground")).toEqual(["Playground-a1B2.js", "PlaygroundStage-x9Y8.js", "emit-q1.js", "pg-extra.js", "stage-view.js", "three.js"]);
     expect(names("catalog-export")).toEqual(["credits-c3D4.js"]);
   });
 
@@ -205,6 +206,11 @@ describe("measureBundles", () => {
     expect(names("catalog-3d")).not.toContain("harbour-water.js");
     expect(names("catalog-3d")).not.toContain("ghost.js");
     expect(() => measureBundles(root)).not.toThrow();
+  });
+
+  it("counts dynamic imports from playground chunks when chunkLazy is set", () => {
+    expect(names("catalog-playground")).toContain("emit-q1.js");
+    expect(names("catalog-3d")).not.toContain("emit-q1.js");
   });
 
   it("counts every chunk name in a playground budget line", () => {

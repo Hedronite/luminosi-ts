@@ -25,6 +25,10 @@
     "./three": {
       "types": "./dist/three.d.ts",
       "import": "./dist/three.js"
+    },
+    "./emit/json": {
+      "types": "./dist/emit/json.d.ts",
+      "import": "./dist/emit/json.js"
     }
   },
   "files": [

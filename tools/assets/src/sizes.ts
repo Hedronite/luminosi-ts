@@ -62,15 +62,17 @@ interface Bundle {
   readonly exclude?: readonly string[];
   /** For lazy chunk sets: chunk name prefixes (`<name>-<hash>.js`) reachable from the first page's shell. */
   readonly chunk?: string | readonly string[];
+  /** When true, chunk sets follow dynamic imports too (Playground export emitters). */
+  readonly chunkLazy?: boolean;
 }
 
 /** What each bundle budget measures. */
 const bundles: Readonly<Record<string, Bundle>> = {
   "catalog-gallery": { dist: "apps/catalog/dist", pages: ["index.html"] },
   "catalog-embed": { dist: "apps/catalog/dist", pages: ["embed.html"] },
-  "catalog-3d": { dist: "apps/catalog/dist", pages: ["index.html", "embed.html"], carries: ["isObject3D", "isWebGPURenderer"], shell: "index.html", exclude: ["Playground", "PlaygroundStage", "credits"] },
+  "catalog-3d": { dist: "apps/catalog/dist", pages: ["index.html", "embed.html"], carries: ["isObject3D", "isWebGPURenderer"], shell: "index.html", exclude: ["Playground", "PlaygroundStage", "credits", "emit"] },
   "catalog-panel": { dist: "apps/catalog/dist", pages: ["index.html"], chunk: "ParameterPanel" },
-  "catalog-playground": { dist: "apps/catalog/dist", pages: ["index.html"], chunk: ["Playground", "PlaygroundStage"] },
+  "catalog-playground": { dist: "apps/catalog/dist", pages: ["index.html"], chunk: ["Playground", "PlaygroundStage"], chunkLazy: true },
   "catalog-export": { dist: "apps/catalog/dist", pages: ["index.html"], chunk: "credits" },
   "site-island": { dist: "apps/site/dist", pages: ["index.html"] },
   // The scene element: what a page loads for it (the class, its observers and the poster), and the chunk set it imports when it is about to be seen (three, the builder, zod).
@@ -145,11 +147,12 @@ function reachThreeD(dist: string, pages: readonly string[], markers: readonly s
 }
 
 /** Lazy chunk sets: every chunk whose basename matches one of `names`, and what those chunks import statically, past the shell. */
-function reachChunks(dist: string, shellPage: string, names: readonly string[]): string[] {
+function reachChunks(dist: string, shellPage: string, names: readonly string[], lazy = false, skipLazy: readonly string[] = []): string[] {
   const shell = closure(pageScripts(dist, [shellPage]), false);
   const named = chunkPattern(names);
+  const skip = skipLazy.length === 0 ? undefined : chunkPattern(skipLazy);
   const targets = [...closure(pageScripts(dist, [shellPage]), true)].filter((file) => !shell.has(file) && named.test(basename(file)));
-  return [...closure(targets, false, shell)].sort();
+  return [...closure(targets, lazy, shell)].filter((file) => !(skip?.test(basename(file)) ?? false)).sort();
 }
 
 const chunkNames = (chunk: string | readonly string[] | undefined): readonly string[] | undefined =>
@@ -176,11 +179,11 @@ export function measureBundles(root: string): Readonly<Record<string, BundleSize
     Object.entries(bundles).map(([id, bundle]): readonly [string, BundleSize] => {
       const dist = join(root, bundle.dist);
       if (!existsSync(dist)) throw new Error(`${id}: no build output at ${bundle.dist}; run \`bun run build\``);
-      const { carries, shell, exclude, chunk } = bundle;
+      const { carries, shell, exclude, chunk, chunkLazy } = bundle;
       const names = chunkNames(chunk);
       const files =
         names !== undefined
-          ? reachChunks(dist, bundle.pages[0] ?? "", names)
+          ? reachChunks(dist, bundle.pages[0] ?? "", names, chunkLazy === true, id === "catalog-playground" ? ["credits"] : [])
           : carries === undefined || shell === undefined
             ? reach(dist, bundle.pages)
             : reachThreeD(dist, bundle.pages, carries, shell, exclude);
