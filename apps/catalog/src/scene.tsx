@@ -163,7 +163,7 @@ export function GpuCounts({
   readonly watch?: RefObject<Object3D | undefined>;
   /** The stage runs a screen-effect pipeline: report its builds too. */
   readonly screenEffects?: boolean;
-  /** When set, extends the pause hold so the owed in-flight frame is not counted (pause only, not reduced motion). */
+  /** When set, chains the pause hold so StageHold runs synchronously on the pause click (pause only, not reduced motion). */
   readonly holdRef?: RefObject<(() => void) | null>;
 }) {
   const gl = useThree((state) => state.gl);
@@ -176,7 +176,6 @@ export function GpuCounts({
     const previous = holdRef.current;
     holdRef.current = () => {
       previous?.();
-      frames.current = Math.max(0, frames.current - 1);
     };
     return () => {
       holdRef.current = previous;

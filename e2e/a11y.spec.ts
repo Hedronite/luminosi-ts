@@ -26,6 +26,23 @@ const errorsOn = (page: Page): string[] => {
 
 const number = async (host: Locator, attribute: string): Promise<number> => Number(await host.getAttribute(attribute));
 
+/** The frame count once it has held still for `quiet` ms (same bar as stage-quality `held`). */
+async function framesHeld(host: Locator, quiet = 900): Promise<number> {
+  let last = -1;
+  await expect
+    .poll(
+      async () => {
+        const before = await number(host, "data-frames");
+        await host.page().waitForTimeout(quiet);
+        last = await number(host, "data-frames");
+        return last - before;
+      },
+      { message: "the stage stops drawing after pause", timeout: 20_000 },
+    )
+    .toBe(0);
+  return last;
+}
+
 /**
  * The counters of a paused stage. The frame that was in flight when the button was pressed can still land, and on a
  * loaded runner (software WebGL) that takes longer than any fixed wait; so wait until the frame counter has held
@@ -169,8 +186,8 @@ for (const stage of stages.filter((s) => s.animated)) {
     // The label says what the button does next, so it flips instead of carrying a pressed state.
     const resume = scope.getByRole("button", { name: "Resume motion" });
     await expect(resume).toBeVisible();
-    // Let the frame in flight and the counters' own sampling settle, then nothing may advance.
-    const { frames: heldFrames, time: heldTime } = await heldCounters(host);
+    const heldFrames = await framesHeld(host);
+    const heldTime = await number(host, "data-time");
     await page.waitForTimeout(2000);
     expect(await number(host, "data-frames")).toBe(heldFrames);
     expect(await number(host, "data-time")).toBe(heldTime);
@@ -422,15 +439,6 @@ test("a stage in a detail dialog passes axe", async ({ page }) => {
   expect(results.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => v.id)).toEqual([]);
 });
 
-
-// Add before openSourceSkillPages in a11y.spec.ts
-
-test("plant: +1 after the pause settle fails the same bar as :156", () => {
-  const heldFrames = 42;
-  const bar = (frames: number): boolean => frames === heldFrames;
-  expect(bar(heldFrames + 1), "a stage that kept drawing after pause turns :156 red").toBe(false);
-  expect(bar(heldFrames)).toBe(true);
-});
 
 const openSourceSkillPages = [
   ["/?view=open-source&set=jakubkrehel-skills&item=better-ui&page=skills/better-ui/SKILL.md", "UI polish"],
