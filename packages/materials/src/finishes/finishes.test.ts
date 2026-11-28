@@ -4,6 +4,7 @@ import { MeshPhysicalNodeMaterial } from "three/webgpu";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { applyFinishPalette, createFinishedMaterial } from "../finished.js";
+import { auditFinishGraph, assertNoTextureMaps, collectTslNodes, finishOutputNodes, isTextureInGraph } from "./graphAudit.js";
 import { finishDescriptor, finishDescriptors, finishIds, finishSchemas } from "./info.js";
 
 function colorHex(slot: { value: Color | number } | undefined): number {
@@ -100,12 +101,24 @@ describe("createFinishedMaterial", () => {
   });
 });
 
-describe("finish graphs", () => {
-  it.each([...finishIds])("%s wires at least one procedural node output", (finishId) => {
+describe("finish graph behavior", () => {
+  it.each([...finishIds])("%s keeps texture map slots empty and has no texture nodes in wired outputs", (finishId) => {
     const handle = createFinishedMaterial("matte", finishId);
-    const { roughnessNode, normalNode, anisotropyNode, colorNode } = handle.material;
-    const wired = roughnessNode !== null || normalNode !== null || anisotropyNode !== null || colorNode !== null;
-    expect(wired).toBe(true);
+    assertNoTextureMaps(handle.material);
+    for (const output of finishOutputNodes(handle.material)) {
+      expect(isTextureInGraph(output)).toBe(false);
+    }
+    handle.dispose();
+  });
+
+  it.each([...finishIds])("%s graphs are procedural and use every exposed uniform", (finishId) => {
+    const handle = createFinishedMaterial("matte", finishId);
+    const audit = auditFinishGraph(handle);
+    expect(audit.textures).toBe(false);
+    expect(audit.procedural).toBe(true);
+    expect(audit.uniforms).toBe(true);
+    const nodes = finishOutputNodes(handle.material).flatMap((output) => collectTslNodes(output));
+    expect(nodes.length).toBeGreaterThan(1);
     handle.dispose();
   });
 });

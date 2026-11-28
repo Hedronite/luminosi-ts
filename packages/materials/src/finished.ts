@@ -163,10 +163,6 @@ export function createFinishedMaterial<Id extends FinishId>(
   return handle;
 }
 
-/** Convenience alias: build with defaults. Caller must dispose. */
-export function createFinishedMaterialNode(presetId: MaterialId, finishId: FinishId, palette: ScenePalette = neutral.scene): MeshPhysicalNodeMaterial {
-  return createFinishedMaterial(presetId, finishId, undefined, palette).material;
-}
 
 /**
  * Recolors a finished material in place: same uuid and program, only palette-driven color uniforms change.
