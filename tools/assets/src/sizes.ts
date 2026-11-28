@@ -68,7 +68,7 @@ interface Bundle {
 const bundles: Readonly<Record<string, Bundle>> = {
   "catalog-gallery": { dist: "apps/catalog/dist", pages: ["index.html"] },
   "catalog-embed": { dist: "apps/catalog/dist", pages: ["embed.html"] },
-  "catalog-3d": { dist: "apps/catalog/dist", pages: ["index.html", "embed.html"], carries: ["isObject3D", "isWebGPURenderer"], shell: "index.html", exclude: ["Playground", "credits"] },
+  "catalog-3d": { dist: "apps/catalog/dist", pages: ["index.html", "embed.html"], carries: ["isObject3D", "isWebGPURenderer"], shell: "index.html", exclude: ["Playground", "PlaygroundStage", "credits"] },
   "catalog-panel": { dist: "apps/catalog/dist", pages: ["index.html"], chunk: "ParameterPanel" },
   "catalog-playground": { dist: "apps/catalog/dist", pages: ["index.html"], chunk: ["Playground", "PlaygroundStage"] },
   "catalog-export": { dist: "apps/catalog/dist", pages: ["index.html"], chunk: "credits" },
@@ -163,7 +163,8 @@ export function unmeasuredReachable(root: string): readonly string[] {
   const catalogDist = join(root, spec.dist);
   if (!existsSync(catalogDist)) return [];
   const walked = reachThreeDWalked(catalogDist, spec.pages, spec.carries ?? [], spec.shell ?? "index.html");
-  const ownLine = chunkPattern(spec.exclude ?? []);
+  const playgroundChunks = chunkNames(bundles["catalog-playground"]?.chunk) ?? [];
+  const ownLine = chunkPattern([...(spec.exclude ?? []), ...playgroundChunks]);
   return walked
     .filter((file) => file.endsWith(".js") && !measured.has(file) && !ownLine.test(basename(file)))
     .map((file) => file.slice(root.length + 1))

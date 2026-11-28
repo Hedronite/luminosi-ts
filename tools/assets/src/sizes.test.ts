@@ -145,7 +145,7 @@ describe("measureBundles", () => {
 
   it("takes the 3D set from everything the 3D entries reach, markers or not, and ignores files nothing reaches", () => {
     // The loader and the late chunk carry no marker, and are counted all the same. React is the gallery's: the shell is not counted.
-    expect(names("catalog-3d")).toEqual(["PlaygroundStage-x9Y8.js", "late.js", "loader.js", "pg-extra.js", "prose-helper.js", "prose.js", "spec.js", "stage-view.js", "three.js", "view.js"]);
+    expect(names("catalog-3d")).toEqual(["late.js", "loader.js", "pg-extra.js", "prose-helper.js", "prose.js", "spec.js", "stage-view.js", "three.js", "view.js"]);
   });
 
   it("builds the shell from the gallery page alone: a chunk only the embed page preloads is counted when a 3D view reaches it", () => {
@@ -161,6 +161,7 @@ describe("measureBundles", () => {
 
   it("keeps lazy Playground and export chunks out of the core catalog-3d closure, while counting lazy chunks reached through Playground", () => {
     expect(names("catalog-3d")).not.toContain("Playground-a1B2.js");
+    expect(names("catalog-3d")).not.toContain("PlaygroundStage-x9Y8.js");
     expect(names("catalog-3d")).not.toContain("credits-c3D4.js");
     expect(names("catalog-3d")).toContain("pg-extra.js");
   });
