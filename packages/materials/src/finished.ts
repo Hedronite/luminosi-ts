@@ -95,6 +95,7 @@ function wireFinishGraph(material: MeshPhysicalNodeMaterial, graph: FinishGraph,
     material.normalNode = graph.normalNode as MeshPhysicalNodeMaterial["normalNode"];
   }
   if (graph.anisotropyNode !== undefined) {
+    material.anisotropy = 1;
     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- brushed finish anisotropy direction node
     material.anisotropyNode = graph.anisotropyNode as MeshPhysicalNodeMaterial["anisotropyNode"];
   }
@@ -105,6 +106,10 @@ function wireFinishGraph(material: MeshPhysicalNodeMaterial, graph: FinishGraph,
   if (graph.transmissionNode !== undefined) {
     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- frosted glass transmission
     material.transmissionNode = graph.transmissionNode as MeshPhysicalNodeMaterial["transmissionNode"];
+  }
+  if (graph.sheenRoughnessNode !== undefined && material.sheen > 0) {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- sheen cloth frosted/brushed divergence
+    material.sheenRoughnessNode = graph.sheenRoughnessNode as MeshPhysicalNodeMaterial["sheenRoughnessNode"];
   }
 }
 
