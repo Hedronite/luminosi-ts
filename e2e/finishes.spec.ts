@@ -41,11 +41,11 @@ test("a finish strength change on the playground stays flat on data-builds", asy
   expect(afterStrength, "strength moves in place").toBe(afterPick);
 });
 
-test("R8 on the catalog playground uses one bundled renderer", async ({ page }) => {
+test("R8 on the finish probe page uses one bundled renderer", async ({ page }) => {
   test.setTimeout(180_000);
   const forceWebGL = test.info().project.name !== "webgpu";
-  await page.goto(`/?view=playground&r8=1`);
-  await expect(page.getByTestId("playground-viewport").locator("canvas")).toBeVisible({ timeout: STAGE_WAIT });
+  await page.goto("/finish-probe.html");
+  await expect(page.getByText("Harness ready")).toBeVisible({ timeout: STAGE_WAIT });
   await page.waitForFunction(() => typeof (window as { __runR8?: unknown }).__runR8 === "function", { timeout: STAGE_WAIT });
   const report = await page.evaluate(async (gl) => {
     const run = (window as unknown as { __runR8?: (force: boolean) => Promise<Record<string, unknown>> }).__runR8;

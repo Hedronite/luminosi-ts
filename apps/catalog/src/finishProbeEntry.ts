@@ -1,6 +1,7 @@
-import { Color, Mesh, PMREMGenerator, PerspectiveCamera, Scene, SphereGeometry } from "three";
+// R8 finish measurement harness for e2e (finish-probe.html). Built as its own Vite entry, not part of the catalog app bundle.
+import { Color, Mesh, MeshPhysicalMaterial, PMREMGenerator, PerspectiveCamera, Scene, SphereGeometry } from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
-import { MeshPhysicalMaterial, MeshPhysicalNodeMaterial, WebGPURenderer } from "three/webgpu";
+import { MeshPhysicalNodeMaterial, WebGPURenderer } from "three/webgpu";
 import { finishIds, finishList, type FinishId, type MaterialId } from "@hedronite/lts-materials";
 import { createFinishedMaterial } from "@hedronite/lts-materials/finished";
 import { createMaterial } from "@hedronite/lts-materials/three";
@@ -68,7 +69,7 @@ export async function runR8(forceWebGL: boolean): Promise<Record<string, unknown
   const canvas = document.createElement("canvas");
   canvas.width = SIZE;
   canvas.height = SIZE;
-  const renderer = new WebGPURenderer({ canvas, antialias: false, forceWebGL });
+  const renderer = new WebGPURenderer({ canvas, antialias: false, forceWebGL, preserveDrawingBuffer: true });
   renderer.setPixelRatio(1);
   renderer.setSize(SIZE, SIZE, false);
   renderer.setClearColor(new Color(0xf5f5f5), 1);
@@ -85,7 +86,6 @@ export async function runR8(forceWebGL: boolean): Promise<Record<string, unknown
   camera.position.set(0, 0.35, 3.1);
   camera.lookAt(0, 0, 0);
   scene.add(createStudioLights({ palette: neutral.scene }));
-  // @ts-expect-error WebGPURenderer shares the PMREM API used by the app renderer.
   const pmrem = new PMREMGenerator(renderer);
   const env = pmrem.fromScene(new RoomEnvironment(), 0.04);
   scene.environment = env.texture;
@@ -132,9 +132,12 @@ export async function runR8(forceWebGL: boolean): Promise<Record<string, unknown
       vsPlainDefault: { meanAbsDiff: vsPlain },
       strengthSwing: { meanAbsDiff: swing },
       nodePlainVsClassic: { meanAbsDiff: npc },
+      meanRgbDefault: meanRgb(bufDefault),
+      meanRgbPlain: meanRgb(bufPlain),
       lumDefault: lumD,
       lumPlain: plainLum,
       plainIsNode: atS0.material instanceof MeshPhysicalNodeMaterial,
+      plainIsClassicOnly: atS0.material instanceof MeshPhysicalMaterial && !(atS0.material instanceof MeshPhysicalNodeMaterial),
     };
     const floor = Math.max(10, 0.1 * plainLum);
     if (plainLum < 10) failures.push({ name: `${id}.plainEmpty`, value: plainLum, min: 10 });
@@ -149,6 +152,28 @@ export async function runR8(forceWebGL: boolean): Promise<Record<string, unknown
     classic.dispose();
   }
 
+  const pairwise: { anchorPreset: string; a: string; b: string; meanAbsDiff: number }[] = [];
+  const anchors = [...new Set(FINISHES.map(firstPreset))];
+  for (const preset of anchors) {
+    const shots: Record<string, Uint8ClampedArray> = {};
+    const handles = FINISHES.map((id) => ({ id, handle: createFinishedMaterial(preset, id, {}, neutral.scene) }));
+    for (const row of handles) shots[row.id] = await draw(row.handle.material);
+    for (let i = 0; i < FINISHES.length; i += 1) {
+      for (let j = i + 1; j < FINISHES.length; j += 1) {
+        const a = FINISHES[i];
+        const b = FINISHES[j];
+        if (a === undefined || b === undefined) continue;
+        const pa = shots[a];
+        const pb = shots[b];
+        if (pa === undefined || pb === undefined) continue;
+        const value = mad(pa, pb);
+        pairwise.push({ anchorPreset: preset, a, b, meanAbsDiff: value });
+        check(`pairwise.${preset}.${a}.${b}`, value, 3);
+      }
+    }
+    for (const row of handles) row.handle.dispose();
+  }
+
   const grainH = createFinishedMaterial("satin", "grain", {}, neutral.scene);
   const weaveH = createFinishedMaterial("satin", "weave", {}, neutral.scene);
   const grainWeaveSatin = mad(await draw(grainH.material), await draw(weaveH.material));
@@ -156,11 +181,17 @@ export async function runR8(forceWebGL: boolean): Promise<Record<string, unknown
   grainH.dispose();
   weaveH.dispose();
 
+  if (backendInfo.forceWebGL && !backendInfo.isWebGLBackend) failures.push({ name: "backend.webgl2", value: backendInfo });
+  if (!backendInfo.forceWebGL && !backendInfo.isWebGPUBackend) failures.push({ name: "backend.webgpu", value: backendInfo });
+
+  const npcValues = FINISHES.map((id) => (finishes[id]?.nodePlainVsClassic as { meanAbsDiff: number }).meanAbsDiff);
+  const harnessUnshaded = npcValues.some((v) => v > 1.5);
   let allIdentical = true;
-  for (let i = 0; i < FINISHES.length && allIdentical; i += 1) {
-    for (let j = i + 1; j < FINISHES.length; j += 1) {
-      const a = FINISHES[i];
-      const b = FINISHES[j];
+  const ids = FINISHES;
+  for (let i = 0; i < ids.length && allIdentical; i += 1) {
+    for (let j = i + 1; j < ids.length; j += 1) {
+      const a = ids[i];
+      const b = ids[j];
       if (a === undefined || b === undefined) continue;
       const pa = defaultFrames[a];
       const pb = defaultFrames[b];
@@ -172,9 +203,6 @@ export async function runR8(forceWebGL: boolean): Promise<Record<string, unknown
     }
   }
 
-  const npcValues = FINISHES.map((id) => (finishes[id]?.nodePlainVsClassic as { meanAbsDiff: number }).meanAbsDiff);
-  const harnessUnshaded = npcValues.some((v) => v > 1.5);
-
   env.texture.dispose();
   env.dispose();
   pmrem.dispose();
@@ -185,6 +213,7 @@ export async function runR8(forceWebGL: boolean): Promise<Record<string, unknown
   return {
     backend: backendInfo,
     finishes,
+    pairwiseDefaults: pairwise,
     grainWeaveSatin: { meanAbsDiff: grainWeaveSatin },
     harnessUnshaded,
     allFinishesIdentical: allIdentical,
@@ -198,6 +227,6 @@ declare global {
   }
 }
 
-export function installR8Probe(): void {
-  window.__runR8 = runR8;
-}
+window.__runR8 = runR8;
+const status = document.getElementById("status");
+if (status !== null) status.textContent = "Harness ready (call window.__runR8).";

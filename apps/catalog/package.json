@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && vite build --config vite.still.config.ts && vite build --config vite.element.config.ts",
+    "build": "vite build && vite build --config vite.still.config.ts && vite build --config vite.element.config.ts && vite build --config vite.finish-probe.config.ts",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"

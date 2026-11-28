@@ -40,7 +40,6 @@ function RedrawOnLook({ lookId }: { readonly lookId: string }) {
 
 const MAX_NODES = 8;
 
-const r8Query = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("r8") === "1";
 
 /** One thing to add: a primitive in a material or a surface shader, a framed solid (its faces in either), or a library object. */
 type Item =
@@ -185,9 +184,6 @@ export function Playground() {
   const [name, setName] = useState("scene");
   // A link in the address opens its document in place of the starter, once.
   const [link] = useState(() => sceneParam(window.location.search));
-  useEffect(() => {
-    if (r8Query) void import("./r8Probe").then((module) => module.installR8Probe());
-  }, []);
   const [kind, setKind] = useState<AddKind>("primitive");
   const [primitive, setPrimitive] = useState<PrimitiveId>("platonic-dodecahedron");
   const [material, setMaterial] = useState<MaterialId>("ceramic");
