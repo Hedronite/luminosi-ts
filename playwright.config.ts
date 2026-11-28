@@ -52,6 +52,7 @@ export default defineConfig<ConsoleOptions>({
     consoleAllow: [
       // three.js, through @react-three/fiber's render loop.
       /^THREE\.Clock: This module has been deprecated/,
+      /^THREE\.Renderer: "renderAsync\(\)" has been deprecated/,
       // @react-three/fiber asks for its default soft shadow map; WebGPURenderer swaps it for PCFShadowMap and says so.
       /^THREE\.WebGPURenderer: PCFSoftShadowMap has been removed/,
       // The runners and the test browser have no WebGPU: the renderer says so and draws through WebGL2 (swiftshader).
@@ -61,6 +62,8 @@ export default defineConfig<ConsoleOptions>({
       /GL Driver Message \(OpenGL, Performance, GL_CLOSE_PATH_NV, High\): GPU stall due to ReadPixels/,
       // The software GL driver (ANGLE on swiftshader) ending a render pass early on a heavy frame.
       /GL Driver Message \(OpenGL, Performance, GL_CLOSE_PATH_NV, High\): Running out of reserved outsideRenderPass queueSerial/,
+      // The catalog R8 probe builds an offscreen renderer on software GL; some frames log incomplete FBOs before disposal.
+      /\[\.WebGL-[^\]]+\] GL_INVALID_(OPERATION|FRAMEBUFFER_OPERATION):/,
     ],
   },
   projects: scenesLane

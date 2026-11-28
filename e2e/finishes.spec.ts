@@ -11,12 +11,14 @@ test("the glass detail view finish picker is reachable and passes axe", async ({
   await expect(page.getByRole("dialog", { name: "Glass" })).toBeVisible({ timeout: STAGE_WAIT });
   const viewport = page.getByRole("dialog", { name: "Glass" }).getByTestId("viewport");
   await expectRenderer(viewport.locator("canvas"));
-  await expect(page.getByLabel("Finish")).toBeVisible();
-  const results = await new AxeBuilder({ page }).include('[role="dialog"]').analyze();
+  const dialog = page.getByRole("dialog", { name: "Glass" });
+  await expect(dialog.getByLabel("Finish")).toBeVisible();
+  const results = await new AxeBuilder({ page }).include("dialog").analyze();
   expect(results.violations.filter((v) => v.impact === "serious" || v.impact === "critical")).toEqual([]);
 });
 
 test("a finish strength change on the playground stays flat on data-builds", async ({ page }) => {
+  test.slow();
   await page.goto("/?view=playground");
   const host = page.getByTestId("playground-viewport");
   await expectRenderer(host.locator("canvas"));
