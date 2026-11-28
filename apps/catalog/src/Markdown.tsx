@@ -1,6 +1,6 @@
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Children, createContext, isValidElement, useContext, useId, useMemo, type ComponentPropsWithoutRef, type ReactNode } from "react";
+import { Children, createContext, createElement, isValidElement, useContext, useEffect, useId, useRef, type ComponentPropsWithoutRef, type ReactNode } from "react";
 import { resolveLink } from "./vendored";
 
 interface MarkdownProps {
@@ -56,35 +56,35 @@ function TaskListItem({ children, ...rest }: { readonly children?: ReactNode } &
  * Someone else's Markdown, rendered as React elements. Raw HTML in it is skipped, never injected, and
  * images are left out: their files aren't served, and remote ones could load from other sites.
  */
+const headingClass = (level: number): string =>
+  level === 3
+    ? "mt-6 text-xl font-semibold first:mt-0"
+    : level === 4
+      ? "mt-6 text-lg font-semibold"
+      : level === 5
+        ? "mt-5 font-semibold"
+        : "mt-4 font-semibold";
+
 export function Markdown({ markdown, path, repo, pages = [], onPage }: MarkdownProps) {
   const parentLevel = useContext(HeadingLevel);
-  const heading = useMemo(() => {
-    let previous = parentLevel;
-    return (sourceLevel: number, children: ReactNode) => {
-      const ideal = parentLevel + sourceLevel;
-      const level = Math.min(6, ideal > previous + 1 ? previous + 1 : ideal);
-      previous = level;
-      const tag = `h${String(level)}` as "h3" | "h4" | "h5" | "h6";
-      const className =
-        level === 3
-          ? "mt-6 text-xl font-semibold first:mt-0"
-          : level === 4
-            ? "mt-6 text-lg font-semibold"
-            : level === 5
-              ? "mt-5 font-semibold"
-              : "mt-4 font-semibold";
-      const Comp = tag;
-      return <Comp className={className}>{children}</Comp>;
-    };
-  }, [parentLevel]);
+  const lastLevel = useRef(parentLevel);
+  useEffect(() => {
+    lastLevel.current = parentLevel;
+  }, [markdown, parentLevel]);
+  const renderHeading = (sourceLevel: number, children: ReactNode): ReactNode => {
+    const ideal = parentLevel + sourceLevel;
+    const level = Math.min(6, ideal > lastLevel.current + 1 ? lastLevel.current + 1 : ideal);
+    lastLevel.current = level;
+    return createElement(`h${String(level)}`, { className: headingClass(level) }, children);
+  };
 
   const components: Components = {
-    h1: ({ children }) => heading(1, children),
-    h2: ({ children }) => heading(2, children),
-    h3: ({ children }) => heading(3, children),
-    h4: ({ children }) => heading(4, children),
-    h5: ({ children }) => heading(5, children),
-    h6: ({ children }) => heading(6, children),
+    h1: ({ children }) => renderHeading(1, children),
+    h2: ({ children }) => renderHeading(2, children),
+    h3: ({ children }) => renderHeading(3, children),
+    h4: ({ children }) => renderHeading(4, children),
+    h5: ({ children }) => renderHeading(5, children),
+    h6: ({ children }) => renderHeading(6, children),
     p: ({ children }) => <p className="mt-3 leading-relaxed">{children}</p>,
     ul: ({ children, className }) => (
       <ul
